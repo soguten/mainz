@@ -1,0 +1,39 @@
+{
+    "nodeModulesDir": "auto",
+    "unstable": [
+        "sloppy-imports"
+    ],
+    "compilerOptions": {
+        "lib": [
+            "dom",
+            "esnext"
+        ],
+        "jsx": "react-jsx",
+        "jsxImportSource": "mainz",
+        "strict": true,
+        "types": [
+            "npm:vite/client"
+        ]
+    },
+    "imports": {
+        "mainz": "./dist/index.js",
+        "mainz/jsx-runtime": "./dist/jsx-runtime.js",
+        "mainz/jsx-dev-runtime": "./dist/jsx-dev-runtime.js",
+        "@/": "./src/",
+        "@components/": "./src/components/",
+        "@jsx/": "./src/jsx/"
+    },
+    "lint": {
+        "rules": {
+            "exclude": [
+                "no-sloppy-imports"
+            ]
+        }
+    },
+    "tasks": {
+        "dev": "deno run -A npm:vite --config vite.config.demo.ts",
+        "build": "deno run -A npm:vite build",
+        "build-demo": "deno run -A npm:vite build --config vite.config.demo.ts",
+        "test": "deno test -A"
+    }
+}
