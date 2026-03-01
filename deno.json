@@ -12,13 +12,14 @@
         "jsxImportSource": "mainz",
         "strict": true,
         "types": [
-            "npm:vite/client"
+            "npm:vite/client",
+            "./src/types/jsx.d.ts"
         ]
     },
     "imports": {
-        "mainz": "./dist/index.js",
-        "mainz/jsx-runtime": "./dist/jsx-runtime.js",
-        "mainz/jsx-dev-runtime": "./dist/jsx-dev-runtime.js",
+        "mainz": "./src/index.ts",
+        "mainz/jsx-runtime": "./src/jsx-runtime.ts",
+        "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "@/": "./src/",
         "@components/": "./src/components/",
         "@jsx/": "./src/jsx/"

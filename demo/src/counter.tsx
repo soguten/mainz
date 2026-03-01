@@ -19,7 +19,7 @@ export class Counter extends Component<{ initial?: number }, { count: number }> 
             <div className="wrap">
                 <h1>Mainz Counter</h1>
                 <p>Count: {this.state.count}</p>
-                <button onClick={inc}>Increment</button>
+                <button type="button" onClick={inc}>Increment</button>
             </div>
         );
     }

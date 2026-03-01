@@ -4,11 +4,9 @@
   "description": "Lightweight Web Component runtime with JSX automatic support.",
   "type": "module",
   "sideEffects": false,
-
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,19 +21,17 @@
       "default": "./dist/jsx-dev-runtime.js"
     }
   },
-
-  "files": ["dist"],
-
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build:js": "deno run -A npm:tsup",
     "build:types": "deno run -A npm:typescript@5.9.3/tsc -p tsconfig.types.json",
     "build": "deno run -A npm:tsup && deno run -A npm:typescript@latest -- tsc -p tsconfig.types.json",
     "dev": "deno run -A npm:vite --config vite.config.demo.ts"
   },
-
   "engines": {
     "node": ">=18"
   },
-
   "license": "MIT"
 }
