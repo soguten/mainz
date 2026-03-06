@@ -22,7 +22,9 @@
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "@/": "./src/",
         "@components/": "./src/components/",
-        "@jsx/": "./src/jsx/"
+        "@jsx/": "./src/jsx/",
+        "@std/assert": "jsr:@std/assert",  
+        "happy-dom": "npm:happy-dom"
     },
     "lint": {
         "rules": {
