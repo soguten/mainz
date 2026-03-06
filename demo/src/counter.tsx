@@ -2,13 +2,13 @@ import { Component } from "mainz";
 
 export class Counter extends Component<{ initial?: number }, { count: number }> {
 
-    static override styles = /*css*/`
-        .wrap { font-family: system-ui; padding: 16px; }
-        button { padding: 8px 12px; border-radius: 8px; }
-    `;
+    // static override styles = /*css*/`
+    //     .wrap { font-family: system-ui; padding: 16px; }
+    //     button { padding: 8px 12px; border-radius: 8px; }
+    // `;
 
     override onMount() {
-        this.state = { count: this.props.initial ?? 0 };
+        this.setState({ count: this.props.initial ?? 0 });
     }
 
     render() {

@@ -25,6 +25,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     /** Stores registered event listeners for cleanup */
     private eventListeners: Array<[EventTarget, string, EventListenerOrEventListenerObject, boolean?]> = [];
 
+    private styleInjected = false;
+    private renderedNode?: Node;
+
     /**
      * Called when the component is added to the DOM.
      * Renders the component and triggers the `onMount` lifecycle method, if defined.
@@ -96,13 +99,101 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
     /**
     * Renders the DOM structure of the component.
-    * Clears the inner HTML, injects styles, and appends the component's content.
+    * Uses a small DOM diff to patch only changed nodes instead of replacing all content.
     */
     private renderDOM() {
-        this.innerHTML = "";
-        this.injectStyles();
-        this.appendChild(this.render());
+        const nextTree = this.render();
+
+        if (!this.styleInjected) {
+            this.innerHTML = "";
+            this.injectStyles();
+            this.styleInjected = true;
+            this.appendChild(nextTree);
+            this.renderedNode = nextTree;
+            this.afterRender?.();
+            return;
+        }
+
+        if (!this.renderedNode || this.renderedNode.parentNode !== this) {
+            this.appendChild(nextTree);
+            this.renderedNode = nextTree;
+            this.afterRender?.();
+            return;
+        }
+
+        this.renderedNode = this.patchNode(this.renderedNode, nextTree);
         this.afterRender?.();
+    }
+
+    private patchNode(current: Node, next: Node): Node {
+        if (!this.isSameNodeType(current, next)) {
+            (current as ChildNode).replaceWith(next);
+            return next;
+        }
+
+        if (current.nodeType === Node.TEXT_NODE && next.nodeType === Node.TEXT_NODE) {
+            if (current.textContent !== next.textContent) {
+                current.textContent = next.textContent;
+            }
+            return current;
+        }
+
+        if (current instanceof HTMLElement && next instanceof HTMLElement) {
+            this.syncAttributes(current, next);
+            this.patchChildren(current, next);
+            return current;
+        }
+
+        return current;
+    }
+
+    private patchChildren(current: HTMLElement, next: HTMLElement) {
+        const currentChildren = Array.from(current.childNodes);
+        const nextChildren = Array.from(next.childNodes);
+        const max = Math.max(currentChildren.length, nextChildren.length);
+
+        for (let i = 0; i < max; i += 1) {
+            const currentChild = currentChildren[i];
+            const nextChild = nextChildren[i];
+
+            if (!currentChild && nextChild) {
+                current.appendChild(nextChild);
+                continue;
+            }
+
+            if (currentChild && !nextChild) {
+                currentChild.remove();
+                continue;
+            }
+
+            if (currentChild && nextChild) {
+                this.patchNode(currentChild, nextChild);
+            }
+        }
+    }
+
+    private syncAttributes(current: HTMLElement, next: HTMLElement) {
+        for (const attr of Array.from(current.attributes)) {
+            if (!next.hasAttribute(attr.name)) {
+                current.removeAttribute(attr.name);
+            }
+        }
+
+        for (const attr of Array.from(next.attributes)) {
+            if (current.getAttribute(attr.name) !== attr.value) {
+                current.setAttribute(attr.name, attr.value);
+            }
+        }
+    }
+
+    private isSameNodeType(current: Node, next: Node) {
+        if (current.nodeType !== next.nodeType) return false;
+
+        if (current instanceof HTMLElement && next instanceof HTMLElement) {
+            return current.tagName === next.tagName;
+        }
+
+        return true;
     }
 
     /**
