@@ -35,8 +35,9 @@
         }
     },
     "tasks": {
-        "dev": "deno run -A npm:vite --config vite.config.demo.ts",
-        "build-demo": "deno run -A npm:vite build --config vite.config.demo.ts",
+        "dev": "deno run -A npm:vite --config vite.config.playground.ts",
+        "build:site": "deno run -A npm:vite build --config vite.config.site.ts",
+        "preview:site": "deno run -A npm:vite preview --config vite.config.site.ts",
         "test": "deno test -A"
     }
 }

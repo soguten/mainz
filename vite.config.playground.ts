@@ -12,9 +12,9 @@ export default defineConfig({
         ],
     },
 
-    root: "demo",
+    root: "playground",
     build: {
-        outDir: "dist-demo",
+        outDir: "dist-playground",
         emptyOutDir: true,
         sourcemap: true,
     },
