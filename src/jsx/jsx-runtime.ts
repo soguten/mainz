@@ -1,4 +1,4 @@
-import { Fragment as FragmentFactory, h } from "./dom-factory.js";
+import { Fragment as FragmentFactory, h } from "./dom-factory.ts";
 
 type JSXType = string | ((props: Record<string, unknown>) => unknown);
 type JSXProps = Record<string, unknown> | null;

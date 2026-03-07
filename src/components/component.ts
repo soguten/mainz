@@ -1,4 +1,4 @@
-import { DefaultProps, DefaultState } from "./types.js";
+import { DefaultProps, DefaultState } from "./types.ts";
 
 /**
  * Abstract base class for custom web components.

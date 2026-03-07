@@ -1,15 +1,14 @@
-import { defineConfig, normalizePath } from "npm:vite";
+import { defineConfig, normalizePath } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
-const distPath = normalizePath(fileURLToPath(new URL("./dist/", import.meta.url)));
+const srcPath = normalizePath(fileURLToPath(new URL("./src/", import.meta.url)));
 
 export default defineConfig({
     resolve: {
         alias: [
-            { find: /^mainz\/jsx-runtime$/, replacement: `${distPath}/jsx-runtime.js` },
-            { find: /^mainz\/jsx-dev-runtime$/, replacement: `${distPath}/jsx-dev-runtime.js` },
-
-            { find: /^mainz$/, replacement: `${distPath}/index.js` },
+            { find: /^mainz\/jsx-runtime$/, replacement: `${srcPath}/jsx-runtime.ts` },
+            { find: /^mainz\/jsx-dev-runtime$/, replacement: `${srcPath}/jsx-dev-runtime.ts` },
+            { find: /^mainz$/, replacement: `${srcPath}/index.ts` },
         ],
     },
 

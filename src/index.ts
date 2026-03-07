@@ -1,2 +1,2 @@
-export { Component } from "./components/index.js";
-export type { DefaultProps, DefaultState } from "./components/index.js";
+export { Component } from "./components/index.ts";
+export type { DefaultProps, DefaultState } from "./components/index.ts";

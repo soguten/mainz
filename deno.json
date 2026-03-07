@@ -23,7 +23,8 @@
         "@/": "./src/",
         "@components/": "./src/components/",
         "@jsx/": "./src/jsx/",
-        "@std/assert": "jsr:@std/assert",  
+        "@std/assert": "jsr:@std/assert",
+        "vite": "npm:vite",
         "happy-dom": "npm:happy-dom"
     },
     "lint": {
@@ -35,7 +36,6 @@
     },
     "tasks": {
         "dev": "deno run -A npm:vite --config vite.config.demo.ts",
-        "build": "deno run -A npm:vite build",
         "build-demo": "deno run -A npm:vite build --config vite.config.demo.ts",
         "test": "deno test -A"
     }

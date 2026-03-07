@@ -1,2 +1,2 @@
-export { h } from "./dom-factory.js";
-export { Fragment } from "./dom-factory.js";
+export { h } from "./dom-factory.ts";
+export { Fragment } from "./dom-factory.ts";
