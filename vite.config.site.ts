@@ -3,8 +3,10 @@ import { fileURLToPath, URL } from "node:url";
 
 const srcPath = normalizePath(fileURLToPath(new URL("./src/", import.meta.url)));
 
+const base = "./";
+
 export default defineConfig({
-    base: "/mainz/",
+    base,
     resolve: {
         alias: [
             { find: /^mainz\/jsx-runtime$/, replacement: `${srcPath}/jsx-runtime.ts` },
