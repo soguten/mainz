@@ -18,11 +18,11 @@
     },
     "imports": {
         "mainz": "./src/index.ts",
+        "mainz/testing": "./src/testing/index.ts",
         "mainz/jsx-runtime": "./src/jsx-runtime.ts",
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "@/": "./src/",
         "@components/": "./src/components/",
-        "@testing": "./src/testing/index.ts",
         "@std/assert": "jsr:@std/assert",
         "vite": "npm:vite",
         "happy-dom": "npm:happy-dom"
