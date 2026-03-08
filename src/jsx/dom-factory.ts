@@ -1,4 +1,5 @@
 import { Component } from "../components";
+import { getCurrentRenderOwner } from "./render-owner.ts";
 
 // deno-lint-ignore no-explicit-any
 export function h(tag: any, props: Record<string, any> | null, ...children: any[]) {
@@ -65,15 +66,27 @@ function appendChildren(parent: HTMLElement | DocumentFragment, kids: any) {
 }
 
 function applyAttributes(el: HTMLElement, props: Record<string, any>) {
+    const owner = getCurrentRenderOwner();
+
     for (const [key, value] of Object.entries(props)) {
-        if (key === 'ref' && typeof value === 'function') {
+        if (key === "ref" && typeof value === "function") {
             value(el);
-        } else if (key === 'className') {
-            el.setAttribute('class', value);
-        } else if (key.startsWith('on') && typeof value === 'function') {
-            el.addEventListener(key.slice(2).toLowerCase(), value);
+        } else if (key === "className") {
+            el.setAttribute("class", value);
+        } else if (key.startsWith("on") && typeof value === "function") {
+            const eventType = key.slice(2).toLowerCase();
+
+            if (owner) {
+                owner.registerDOMEvent(el, eventType, value);
+            } else {
+                el.addEventListener(eventType, value);
+            }
         } else if (key !== "children" && value != null) {
-            if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+            if (
+                typeof value === "string" ||
+                typeof value === "number" ||
+                typeof value === "boolean"
+            ) {
                 el.setAttribute(key, String(value));
             }
         }
