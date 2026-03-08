@@ -22,7 +22,7 @@
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "@/": "./src/",
         "@components/": "./src/components/",
-        "@jsx/": "./src/jsx/",
+        "@testing": "./src/testing/index.ts",
         "@std/assert": "jsr:@std/assert",
         "vite": "npm:vite",
         "happy-dom": "npm:happy-dom"

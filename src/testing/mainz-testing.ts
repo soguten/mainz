@@ -12,7 +12,20 @@ export type RenderResult<T extends HTMLElement> = {
     getBySelector<E extends Element = Element>(selector: string): E;
     queryBySelector<E extends Element = Element>(selector: string): E | null;
     click(selector: string): void;
+    dispatch(selector: string, event: Event): void;
+    input(selector: string, value: string): void;
+    change(selector: string, value: string): void;
     cleanup(): void;
+};
+
+type PropsOf<T> = T extends { props: infer P } ? P : never;
+type StateOf<T> = T extends { state: infer S } ? S : never;
+type ObjectStateOf<T> = Extract<StateOf<T>, Record<string, unknown>>;
+
+export type RenderMainzOptions<T extends HTMLElement> = {
+    props?: PropsOf<T>;
+    attrs?: Record<string, string>;
+    stateOverride?: Partial<ObjectStateOf<T>>;
 };
 
 let domReady = false;
@@ -31,29 +44,23 @@ export function setupMainzDom(): void {
     globalScope.customElements = windowInstance.customElements;
     globalScope.HTMLElement = windowInstance.HTMLElement;
     globalScope.HTMLInputElement = windowInstance.HTMLInputElement;
+    globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
+    globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
+    globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
     globalScope.Node = windowInstance.Node;
-
     globalScope.Element = windowInstance.Element;
     globalScope.Text = windowInstance.Text;
     globalScope.DocumentFragment = windowInstance.DocumentFragment;
     globalScope.EventTarget = windowInstance.EventTarget;
-    globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
-    globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
-    globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
-    // (globalThis as unknown as Record<string, unknown>).Event = windowInstance.Event;
-    // Keep Deno's native Event implementation to avoid runtime dispatch conflicts.
+    globalScope.Event = windowInstance.Event;
+    globalScope.MouseEvent = windowInstance.MouseEvent;
+    globalScope.KeyboardEvent = windowInstance.KeyboardEvent;
+    globalScope.CustomEvent = windowInstance.CustomEvent;
 
     domReady = true;
 }
 
-export function renderMainzComponent<T extends HTMLElement>(
-    Ctor: MainzComponentCtor<T>
-): RenderResult<T> {
-    setupMainzDom();
-
-    const host = document.createElement("div");
-    host.setAttribute("data-testid", "mainz-host");
-
+function ensureTestRoot(): HTMLElement {
     let testRoot = document.getElementById("test-root");
 
     if (!testRoot) {
@@ -62,19 +69,25 @@ export function renderMainzComponent<T extends HTMLElement>(
         document.body.appendChild(testRoot);
     }
 
-    testRoot.replaceChildren(host);
+    return testRoot;
+}
 
+function ensureDefined<T extends HTMLElement>(Ctor: MainzComponentCtor<T>): string {
     const tag = Ctor.getTagName();
 
     if (!customElements.get(tag)) {
         customElements.define(tag, Ctor);
     }
 
-    const component = document.createElement(tag) as T;
-    host.appendChild(component);
+    return tag;
+}
 
+function createRenderResult<T extends HTMLElement>(
+    component: T,
+    host: HTMLElement,
+): RenderResult<T> {
     const queryBySelector = <E extends Element = Element>(
-        selector: string
+        selector: string,
     ): E | null => {
         return component.querySelector(selector) as E | null;
     };
@@ -92,6 +105,25 @@ export function renderMainzComponent<T extends HTMLElement>(
         node.click();
     };
 
+    const dispatch = (selector: string, event: Event): void => {
+        const node = getBySelector<HTMLElement>(selector);
+        node.dispatchEvent(event);
+    };
+
+    const input = (selector: string, value: string): void => {
+        const node = getBySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
+        node.value = value;
+        node.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    const change = (selector: string, value: string): void => {
+        const node = getBySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+            selector,
+        );
+        node.value = value;
+        node.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
     const cleanup = (): void => {
         host.remove();
     };
@@ -103,6 +135,57 @@ export function renderMainzComponent<T extends HTMLElement>(
         getBySelector,
         queryBySelector,
         click,
+        dispatch,
+        input,
+        change,
         cleanup,
     };
+}
+
+export function renderMainzComponent<T extends HTMLElement>(
+    Ctor: MainzComponentCtor<T>,
+): RenderResult<T>;
+
+export function renderMainzComponent<T extends HTMLElement>(
+    Ctor: MainzComponentCtor<T>,
+    options: RenderMainzOptions<T>,
+): RenderResult<T>;
+
+export function renderMainzComponent<T extends HTMLElement>(
+    Ctor: MainzComponentCtor<T>,
+    options: RenderMainzOptions<T> = {},
+): RenderResult<T> {
+    setupMainzDom();
+
+    const host = document.createElement("div");
+    host.setAttribute("data-testid", "mainz-host");
+
+    const testRoot = ensureTestRoot();
+    testRoot.replaceChildren(host);
+
+    const tag = ensureDefined(Ctor);
+    const component = document.createElement(tag) as T;
+
+    if (options.attrs) {
+        for (const [name, value] of Object.entries(options.attrs)) {
+            component.setAttribute(name, value);
+        }
+    }
+
+    if (options.props !== undefined && "props" in component) {
+        (component as T & { props: PropsOf<T> }).props = options.props;
+    }
+
+    if (options.stateOverride !== undefined && "state" in component) {
+        const currentState = (component as T & { state: ObjectStateOf<T> }).state ?? {} as ObjectStateOf<T>;
+
+        (component as T & { state: ObjectStateOf<T> }).state = {
+            ...currentState,
+            ...options.stateOverride,
+        };
+    }
+
+    host.appendChild(component);
+
+    return createRenderResult(component, host);
 }
