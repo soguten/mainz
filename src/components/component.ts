@@ -1,14 +1,14 @@
 import { DefaultProps, DefaultState } from "./types.ts";
+import { pushRenderOwner, popRenderOwner } from "../jsx/render-owner.ts";
 
 /**
  * Abstract base class for custom web components.
  * Provides lifecycle management, state handling, event registration, and rendering logic.
- * 
+ *
  * @template P The type for the component's props.
  * @template S The type for the component's state.
  */
 export abstract class Component<P = DefaultProps, S = DefaultState> extends HTMLElement {
-
     private static tagNameCache = new WeakMap<typeof Component, string>();
     private static tagOwners = new Map<string, typeof Component>();
     private static tagSuffixCounter = 0;
@@ -18,9 +18,6 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
     /** The state of the component */
     state: S = {} as S;
-
-
-    // shadow = this.attachShadow({ mode: 'open' });
 
     /** Stores registered event listeners for cleanup */
     private eventListeners: Array<
@@ -87,9 +84,23 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
      * @param listener The event listener function or object.
      * @param options The options for the event listener.
      */
-    protected registerEvent(target: EventTarget, type: string, listener: EventListenerOrEventListenerObject, options?: boolean) {
+    protected registerEvent(
+        target: EventTarget,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean,
+    ) {
         target.addEventListener(type, listener, options);
         this.eventListeners.push([target, type, listener, options]);
+    }
+
+    public registerDOMEvent(
+        target: EventTarget,
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean,
+    ): void {
+        this.registerEvent(target, type, listener, options);
     }
 
     /**
@@ -98,7 +109,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
      */
     protected injectStyles() {
         if (Object.prototype.hasOwnProperty.call(this, "styles")) {
-            console.warn(`${this.constructor.name} tem 'styles' na instância; use static styles.`);
+            console.warn(
+                `${this.constructor.name} has 'styles' on the instance; use static styles.`
+            );
         }
 
         const ctor = this.constructor as typeof Component;
@@ -119,31 +132,37 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     /**
-    * Renders the DOM structure of the component.
-    * Uses a small DOM diff to patch only changed nodes instead of replacing all content.
-    */
+     * Renders the DOM structure of the component.
+     * Uses a small DOM diff to patch only changed nodes instead of replacing all content.
+     */
     private renderDOM() {
-        const nextTree = this.render();
+        pushRenderOwner(this);
 
-        if (!this.styleInjected) {
-            this.innerHTML = "";
-            this.injectStyles();
-            this.styleInjected = true;
-            this.appendChild(nextTree);
-            this.renderedNode = nextTree;
+        try {
+            const nextTree = this.render();
+
+            if (!this.styleInjected) {
+                this.innerHTML = "";
+                this.injectStyles();
+                this.styleInjected = true;
+                this.appendChild(nextTree);
+                this.renderedNode = nextTree;
+                this.afterRender?.();
+                return;
+            }
+
+            if (!this.renderedNode || this.renderedNode.parentNode !== this) {
+                this.appendChild(nextTree);
+                this.renderedNode = nextTree;
+                this.afterRender?.();
+                return;
+            }
+
+            this.renderedNode = this.patchNode(this.renderedNode, nextTree);
             this.afterRender?.();
-            return;
+        } finally {
+            popRenderOwner();
         }
-
-        if (!this.renderedNode || this.renderedNode.parentNode !== this) {
-            this.appendChild(nextTree);
-            this.renderedNode = nextTree;
-            this.afterRender?.();
-            return;
-        }
-
-        this.renderedNode = this.patchNode(this.renderedNode, nextTree);
-        this.afterRender?.();
     }
 
     private patchNode(current: Node, next: Node): Node {
