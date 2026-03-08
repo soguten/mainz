@@ -23,16 +23,29 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     // shadow = this.attachShadow({ mode: 'open' });
 
     /** Stores registered event listeners for cleanup */
-    private eventListeners: Array<[EventTarget, string, EventListenerOrEventListenerObject, boolean?]> = [];
+    private eventListeners: Array<
+        [EventTarget, string, EventListenerOrEventListenerObject, boolean?]
+    > = [];
 
     private styleInjected = false;
     private renderedNode?: Node;
+    private stateInitialized = false;
 
     /**
      * Called when the component is added to the DOM.
-     * Renders the component and triggers the `onMount` lifecycle method, if defined.
+     * Initializes state once, renders the component, and triggers the `onMount` lifecycle method.
      */
     connectedCallback() {
+        if (!this.stateInitialized) {
+            const hasPreloadedState = Object.keys(this.state ?? {}).length > 0;
+
+            if (!hasPreloadedState && this.initState) {
+                this.state = this.initState();
+            }
+
+            this.stateInitialized = true;
+        }
+
         this.renderDOM();
         this.onMount?.();
     }
@@ -43,11 +56,19 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
      */
     disconnectedCallback() {
         this.onUnmount?.();
+
         for (const [target, type, listener, options] of this.eventListeners) {
             target.removeEventListener(type, listener, options);
         }
+
         this.eventListeners = [];
     }
+
+    /**
+     * Computes the initial state before the first render.
+     * Override this instead of using `onMount()` for state bootstrap.
+     */
+    protected initState?(): S;
 
     /**
      * Updates the component state and re-renders it.
