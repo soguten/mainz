@@ -1,156 +1,128 @@
 # Mainz Component Testing Guide
 
-This folder defines a small set of conventions used to keep Mainz component tests consistent, readable, and easy to maintain.
+This folder defines conventions to keep Mainz component tests consistent, readable,
+and easy to maintain.
 
-## Test file structure
+## Test Groups
 
-A test suite typically follows this structure:
+Use `group` as the common language across all test areas.
+
+Typical groups in this folder:
+
+- `attrs`
+- `events`
+- `initial state`
+- `inline events`
+- `patchChildren`
+- `render owner`
+- `stateOverride`
+- `styles` / `tagName`
+
+## Test File Structure
+
+A suite typically follows this structure:
 
 1. `/// <reference lib="deno.ns" />`
-2. short suite-level comment explaining:
-   - what is being tested
-   - why it matters
+2. suite-level comment explaining scope and intent
 3. imports
-4. `setupMainzDom()`
+4. `await setupMainzDom()`
 5. dynamic fixture import
-6. tests with descriptive names
+6. behavior-focused tests
 
 ## Example
 
-```component.example.test.ts```
+`component.example.test.ts`
 
 ```ts
 /// <reference lib="deno.ns" />
 
-/**
- * Button interaction tests
- *
- * Ensures that clicking a button updates the component state.
- */
-
 import { assertEquals } from "@std/assert";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
-setupMainzDom();
+await setupMainzDom();
 
-const fixtures = await import("./button.fixture.tsx") as typeof import("./button.fixture.tsx");
+const fixtures = await import("./component.example.fixture.tsx") as typeof import("./component.example.fixture.tsx");
 
-Deno.test("button: should increment count when clicked", () => {
-    const screen = renderMainzComponent(fixtures.CounterComponent);
+Deno.test("counter/group: should increment count when clicked", () => {
+    const screen = renderMainzComponent(fixtures.CounterExampleComponent);
 
     screen.click("button");
     screen.click("button");
 
     assertEquals(screen.getBySelector("button").textContent, "2");
-
     screen.cleanup();
 });
-
 ```
-```component.example.fixture.tsx```
 
-```ts
+`component.example.fixture.tsx`
+
+```tsx
 import { Component } from "mainz";
 
-export class ExampleComponent extends Component<{}, { count: number }> {
+export class CounterExampleComponent extends Component<{}, { count: number }> {
     protected override initState() {
         return { count: 0 };
     }
 
+    private increment = () => {
+        this.setState({ count: this.state.count + 1 });
+    };
+
     override render(): HTMLElement {
-        return (
-            <button type="button" onClick={() => this.setState({ count: this.state.count + 1 })}>
-                {String(this.state.count)}
-            </button>
-        );
+        return <button onClick={this.increment}>{String(this.state.count)}</button>;
     }
 }
 ```
 
-## File layout
+## File Layout
 
-Each test suite is usually split into two files:
+Each suite is split into two files:
 
-`*.test.ts` the test runner
+- `*.test.ts` (test runner)
+- `*.fixture.tsx` (helper components for the suite)
 
-`*.fixture.ts` or `*.fixture.tsx` helper components used in the tests
+Example:
 
-Fixtures are placed next to their corresponding test file unless they are shared.
+- `component.render-owner.test.ts`
+- `component.render-owner.fixture.tsx`
 
-## Example:
+## Naming Convention
 
-```
-component.render-owner.test.ts
-component.render-owner.fixture.tsx
-```
-
-## Test naming
-
-Test names should read like behavior statements.
+Test names should read as behavior statements with a group prefix.
 
 Examples:
 
-```
-counter: should increment when button is clicked
-button: should trigger click handler
-toggle: should switch state when clicked
-```
+- `attrs: should expose initial attributes on host`
+- `patchChildren: should preserve keyed identity on reorder`
+- `events: should dispatch keyboard events`
 
-This style helps the test output read like documentation.
+## Suite Comments
 
-## Suite comments
+Each test file should start with a short suite comment containing:
 
-Each test file should start with a short suite comment.
+1. a short title
+2. one or two sentences explaining why the behavior matters
 
-The comment should contain:
+## Why `.test.ts` Stays in TS
 
-1. a short suite title
-2. one or two sentences explaining the behavior being verified
+The test environment requires `setupMainzDom()` before loading modules that depend on `HTMLElement`, `document`, or JSX runtime evaluation.
 
-Preferred format:
-
-```
-/**
-* Attribute tests
-*
-* Verifies that component attributes are accessible during lifecycle
-* 
-* and correctly applied, updated, and removed during rendering.
-*/
-```
-
-
-##  When to use fixtures
-
-Use a fixture file when:
-
-* the suite needs TSX for readability
-
-* the same component is used in multiple tests
-
-* inline component declarations make the test harder to read
-
-* the test depends on delayed module loading
-
-## Why test files stay in `.ts`
-
-The test environment requires `setupMainzDom()` to run before modules that depend on `HTMLElement`, `document`, or the JSX runtime are evaluated.
-
-Keeping the main test file in `.ts` allows this order:
+Safe order:
 
 1. import test helpers
-
 2. call `setupMainzDom()`
-
-3. dynamically import fixtures
-
+3. dynamically import TSX fixtures
 4. run tests
 
-This avoids loading DOM-dependent modules too early.
+## Why Fixtures Are TSX-Only
 
-## Why fixtures may use `.tsx`
+Fixtures represent real component usage scenarios.
 
-Fixtures often represent real component usage scenarios.
+Use `*.fixture.tsx` as the default and only fixture format in this project area.
 
-Using TSX in fixture files makes these scenarios easier to read and closer to
-how components are written in production.
+## Template Files
+
+Use these files as the canonical starter when creating a new suite:
+
+- `_template.test.ts`
+- `_template.fixture.tsx`

@@ -10,7 +10,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
-setupMainzDom();
+await setupMainzDom();
 
 const fixtures = await import("./component.patching.fixture.tsx") as typeof import("./component.patching.fixture.tsx");
 
@@ -55,6 +55,25 @@ Deno.test("patchChildren: removing an item in the middle should preserve identit
     screen.cleanup();
 });
 
+Deno.test("patchChildren: unkeyed reordering should reuse nodes by position", () => {
+    const screen = renderMainzComponent(fixtures.UnkeyedListPatchComponent);
+
+    const list = screen.getBySelector<HTMLUListElement>("ul");
+    const firstBefore = list.firstElementChild;
+    const beforeA = screen.getBySelector("li[data-item='a']");
+
+    screen.component.setState({ items: ["c", "b", "a"] });
+
+    const firstAfter = list.firstElementChild;
+    const afterA = screen.getBySelector("li[data-item='a']");
+
+    assert(firstAfter === firstBefore, "Expected first position node to be reused");
+    assertEquals(firstAfter?.getAttribute("data-item"), "c");
+    assert(afterA !== beforeA, "Expected item 'a' identity to change without keys");
+
+    screen.cleanup();
+});
+
 Deno.test("listeners: re-registering in afterRender should not accumulate duplicate handlers", () => {
     const screen = renderMainzComponent(fixtures.ReRegisterListenerComponent);
 
@@ -65,6 +84,32 @@ Deno.test("listeners: re-registering in afterRender should not accumulate duplic
     screen.click("button");
 
     assertEquals(screen.component.clicks, 1);
+    screen.cleanup();
+});
+
+Deno.test("listeners: registerEvent + setState should update UI immediately after click", () => {
+    const screen = renderMainzComponent(fixtures.ReRegisterListenerStateComponent);
+
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "renders=0 clicks=0");
+
+    screen.click("button[data-role='target']");
+
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "renders=0 clicks=1");
+    screen.cleanup();
+});
+
+Deno.test("listeners: stateful handlers re-registered in afterRender should not duplicate", () => {
+    const screen = renderMainzComponent(fixtures.ReRegisterListenerStateComponent);
+
+    screen.click("button[data-role='rerender']");
+    screen.click("button[data-role='rerender']");
+
+    screen.click("button[data-role='target']");
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "renders=2 clicks=1");
+
+    screen.click("button[data-role='target']");
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "renders=2 clicks=2");
+
     screen.cleanup();
 });
 
@@ -79,6 +124,20 @@ Deno.test("property sync: input.value should follow state even after user edits"
     screen.cleanup();
 });
 
+Deno.test("property sync: controlled input should allow typing multiple characters", () => {
+    const screen = renderMainzComponent(fixtures.ControlledInputTypingComponent);
+
+    screen.input("input", "m");
+    assertEquals(screen.getBySelector<HTMLInputElement>("input").value, "m");
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "text=m observed=m");
+
+    screen.input("input", "mainz");
+    assertEquals(screen.getBySelector<HTMLInputElement>("input").value, "mainz");
+    assertEquals(screen.getBySelector("p[data-role='info']").textContent, "text=mainz observed=mainz");
+
+    screen.cleanup();
+});
+
 Deno.test("property sync: input.checked should follow state when toggled", () => {
     const screen = renderMainzComponent(fixtures.ControlledCheckedComponent);
     const checkbox = screen.getBySelector<HTMLInputElement>("input[type='checkbox']");
@@ -88,6 +147,82 @@ Deno.test("property sync: input.checked should follow state when toggled", () =>
 
     assertEquals(checkbox.checked, true);
     screen.cleanup();
+});
+
+Deno.test("property sync: input.checked should support true -> false transitions", () => {
+    const screen = renderMainzComponent(fixtures.ControlledCheckedComponent);
+    const checkbox = screen.getBySelector<HTMLInputElement>("input[type='checkbox']");
+
+    screen.component.setState({ checked: true });
+    assertEquals(checkbox.checked, true);
+
+    screen.component.setState({ checked: false });
+    assertEquals(checkbox.checked, false);
+
+    screen.cleanup();
+});
+Deno.test("patchChildren: counter-like update should preserve static sibling nodes", () => {
+    const screen = renderMainzComponent(fixtures.CounterPatchComponent);
+
+    const root = screen.getBySelector("div[data-role='counter-root']");
+    const titleBefore = screen.getBySelector("h1");
+    const paragraphBefore = screen.getBySelector("p[data-role='count']");
+    const buttonBefore = screen.getBySelector("button");
+    const textBefore = paragraphBefore.firstChild;
+
+    screen.component.setState({ count: 1 });
+
+    const titleAfter = screen.getBySelector("h1");
+    const paragraphAfter = screen.getBySelector("p[data-role='count']");
+    const buttonAfter = screen.getBySelector("button");
+
+    assert(titleAfter === titleBefore, "Expected title node to preserve identity");
+    assert(paragraphAfter === paragraphBefore, "Expected label node to preserve identity");
+    assert(buttonAfter === buttonBefore, "Expected button node to preserve identity");
+    assert(paragraphAfter.firstChild === textBefore, "Expected label text node to preserve identity");
+    assertEquals(root.textContent, "Mainz CounterCount: 1Increment");
+
+    screen.cleanup();
+});
+
+Deno.test("patchChildren: counter-like text update should avoid replaceChildren churn", () => {
+    const screen = renderMainzComponent(fixtures.CounterPatchComponent);
+
+    const root = screen.getBySelector<HTMLElement>("div[data-role='counter-root']");
+    const paragraph = screen.getBySelector<HTMLElement>("p[data-role='count']");
+
+    const rootAny = root as unknown as {
+        replaceChildren: (...nodes: Array<Node | string>) => void;
+    };
+    const paragraphAny = paragraph as unknown as {
+        replaceChildren: (...nodes: Array<Node | string>) => void;
+    };
+
+    const originalRootReplace = rootAny.replaceChildren.bind(root);
+    const originalParagraphReplace = paragraphAny.replaceChildren.bind(paragraph);
+
+    let rootReplaceCalls = 0;
+    let paragraphReplaceCalls = 0;
+
+    rootAny.replaceChildren = (...nodes: Array<Node | string>) => {
+        rootReplaceCalls += 1;
+        originalRootReplace(...nodes);
+    };
+
+    paragraphAny.replaceChildren = (...nodes: Array<Node | string>) => {
+        paragraphReplaceCalls += 1;
+        originalParagraphReplace(...nodes);
+    };
+
+    try {
+        screen.component.setState({ count: 1 });
+        assertEquals(rootReplaceCalls, 0);
+        assertEquals(paragraphReplaceCalls, 0);
+    } finally {
+        rootAny.replaceChildren = originalRootReplace;
+        paragraphAny.replaceChildren = originalParagraphReplace;
+        screen.cleanup();
+    }
 });
 
 Deno.test("sanity: simple text patch should keep the same text node", () => {
@@ -103,3 +238,8 @@ Deno.test("sanity: simple text patch should keep the same text node", () => {
     assertEquals(textAfter?.textContent, "2");
     screen.cleanup();
 });
+
+
+
+
+
