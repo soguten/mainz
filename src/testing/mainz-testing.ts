@@ -28,36 +28,70 @@ export type RenderMainzOptions<T extends HTMLElement> = {
     stateOverride?: Partial<ObjectStateOf<T>>;
 };
 
-let domReady = false;
+type HappyDOMLike = {
+    waitUntilComplete?: () => Promise<void>;
+};
 
-export function setupMainzDom(): void {
-    if (domReady) return;
+let domInitialized = false;
+let domSettled = false;
+let domSetupPromise: Promise<void> | null = null;
 
-    const windowInstance = new Window({
-        url: "http://localhost/",
-    });
+export function setupMainzDom(): Promise<void> {
+    if (domSettled) {
+        return Promise.resolve();
+    }
 
-    const globalScope = globalThis as Record<string, unknown>;
+    if (domSetupPromise) {
+        return domSetupPromise;
+    }
 
-    globalScope.window = windowInstance;
-    globalScope.document = windowInstance.document;
-    globalScope.customElements = windowInstance.customElements;
-    globalScope.HTMLElement = windowInstance.HTMLElement;
-    globalScope.HTMLInputElement = windowInstance.HTMLInputElement;
-    globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
-    globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
-    globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
-    globalScope.Node = windowInstance.Node;
-    globalScope.Element = windowInstance.Element;
-    globalScope.Text = windowInstance.Text;
-    globalScope.DocumentFragment = windowInstance.DocumentFragment;
-    globalScope.EventTarget = windowInstance.EventTarget;
-    globalScope.Event = windowInstance.Event;
-    globalScope.MouseEvent = windowInstance.MouseEvent;
-    globalScope.KeyboardEvent = windowInstance.KeyboardEvent;
-    globalScope.CustomEvent = windowInstance.CustomEvent;
+    if (!domInitialized) {
+        const windowInstance = new Window({
+            url: "http://localhost/",
+        });
 
-    domReady = true;
+        const globalScope = globalThis as Record<string, unknown>;
+
+        globalScope.window = windowInstance;
+        globalScope.document = windowInstance.document;
+        globalScope.customElements = windowInstance.customElements;
+        globalScope.HTMLElement = windowInstance.HTMLElement;
+        globalScope.HTMLInputElement = windowInstance.HTMLInputElement;
+        globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
+        globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
+        globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
+        globalScope.Node = windowInstance.Node;
+        globalScope.Element = windowInstance.Element;
+        globalScope.Text = windowInstance.Text;
+        globalScope.DocumentFragment = windowInstance.DocumentFragment;
+        globalScope.EventTarget = windowInstance.EventTarget;
+        globalScope.Event = windowInstance.Event;
+        globalScope.MouseEvent = windowInstance.MouseEvent;
+        globalScope.KeyboardEvent = windowInstance.KeyboardEvent;
+        globalScope.CustomEvent = windowInstance.CustomEvent;
+
+        domInitialized = true;
+
+        const happyDOM = (windowInstance as unknown as { happyDOM?: HappyDOMLike }).happyDOM;
+
+        domSetupPromise = (async () => {
+            if (happyDOM?.waitUntilComplete) {
+                await happyDOM.waitUntilComplete();
+            }
+            domSettled = true;
+        })()
+            .catch((error) => {
+                domInitialized = false;
+                throw error;
+            })
+            .finally(() => {
+                domSetupPromise = null;
+            });
+
+        return domSetupPromise;
+    }
+
+    return Promise.resolve();
 }
 
 function ensureTestRoot(): HTMLElement {
@@ -125,7 +159,12 @@ function createRenderResult<T extends HTMLElement>(
     };
 
     const cleanup = (): void => {
+        const parent = host.parentElement;
         host.remove();
+
+        if (parent?.id === "test-root" && parent.childElementCount === 0) {
+            parent.remove();
+        }
     };
 
     return {
@@ -155,13 +194,13 @@ export function renderMainzComponent<T extends HTMLElement>(
     Ctor: MainzComponentCtor<T>,
     options: RenderMainzOptions<T> = {},
 ): RenderResult<T> {
-    setupMainzDom();
+    void setupMainzDom();
 
     const host = document.createElement("div");
     host.setAttribute("data-testid", "mainz-host");
 
     const testRoot = ensureTestRoot();
-    testRoot.replaceChildren(host);
+    testRoot.appendChild(host);
 
     const tag = ensureDefined(Ctor);
     const component = document.createElement(tag) as T;
