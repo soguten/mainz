@@ -1,5 +1,13 @@
 import { DefaultProps, DefaultState } from "./types.ts";
+import { getManagedDOMEvents, setManagedDOMEvents, ManagedDOMEventDescriptor } from "../jsx/dom-factory.ts";
 import { pushRenderOwner, popRenderOwner } from "../jsx/render-owner.ts";
+
+interface TrackedEventListener {
+    target: EventTarget;
+    type: string;
+    listener: EventListenerOrEventListenerObject;
+    options: boolean;
+}
 
 /**
  * Abstract base class for custom web components.
@@ -20,9 +28,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     state: S = {} as S;
 
     /** Stores registered event listeners for cleanup */
-    private eventListeners: Array<
-        [EventTarget, string, EventListenerOrEventListenerObject, boolean?]
-    > = [];
+    private eventListeners: TrackedEventListener[] = [];
 
     private styleInjected = false;
     private renderedNode?: Node;
@@ -54,8 +60,8 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     disconnectedCallback() {
         this.onUnmount?.();
 
-        for (const [target, type, listener, options] of this.eventListeners) {
-            target.removeEventListener(type, listener, options);
+        for (const entry of this.eventListeners) {
+            entry.target.removeEventListener(entry.type, entry.listener, entry.options);
         }
 
         this.eventListeners = [];
@@ -79,6 +85,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
     /**
      * Registers an event listener for a target element and stores it for future cleanup.
+     * Re-registering the same target/event/options replaces the previous listener.
      * @param target The target element to attach the event listener to.
      * @param type The event type (e.g., "click", "keydown").
      * @param listener The event listener function or object.
@@ -90,8 +97,16 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         listener: EventListenerOrEventListenerObject,
         options?: boolean,
     ) {
-        target.addEventListener(type, listener, options);
-        this.eventListeners.push([target, type, listener, options]);
+        const normalizedOptions = options === true;
+        this.unregisterEventsByTargetAndType(target, type, normalizedOptions);
+
+        target.addEventListener(type, listener, normalizedOptions);
+        this.eventListeners.push({
+            target,
+            type,
+            listener,
+            options: normalizedOptions,
+        });
     }
 
     public registerDOMEvent(
@@ -147,6 +162,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 this.styleInjected = true;
                 this.appendChild(nextTree);
                 this.renderedNode = nextTree;
+                this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
             }
@@ -154,11 +170,13 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
             if (!this.renderedNode || this.renderedNode.parentNode !== this) {
                 this.appendChild(nextTree);
                 this.renderedNode = nextTree;
+                this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
             }
 
             this.renderedNode = this.patchNode(this.renderedNode, nextTree);
+            this.pruneDetachedEventListeners();
             this.afterRender?.();
         } finally {
             popRenderOwner();
@@ -180,6 +198,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
         if (current instanceof HTMLElement && next instanceof HTMLElement) {
             this.syncAttributes(current, next);
+            this.syncManagedDOMEvents(current, next);
             this.patchChildren(current, next);
             return current;
         }
@@ -190,26 +209,67 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     private patchChildren(current: HTMLElement, next: HTMLElement) {
         const currentChildren = Array.from(current.childNodes);
         const nextChildren = Array.from(next.childNodes);
-        const max = Math.max(currentChildren.length, nextChildren.length);
 
-        for (let i = 0; i < max; i += 1) {
-            const currentChild = currentChildren[i];
-            const nextChild = nextChildren[i];
+        const keyedCurrent = new Map<string, Node>();
+        const unkeyedCurrent: Node[] = [];
 
-            if (!currentChild && nextChild) {
-                current.appendChild(nextChild);
+        for (const child of currentChildren) {
+            const key = this.getNodeKey(child);
+            if (key == null) {
+                unkeyedCurrent.push(child);
                 continue;
             }
 
-            if (currentChild && !nextChild) {
-                currentChild.remove();
-                continue;
-            }
-
-            if (currentChild && nextChild) {
-                this.patchNode(currentChild, nextChild);
-            }
+            keyedCurrent.set(this.buildNodeLookupKey(child, key), child);
         }
+
+        const usedCurrent = new Set<Node>();
+        const fragment = document.createDocumentFragment();
+
+        for (const nextChild of nextChildren) {
+            const reusableChild = this.findReusableChild(
+                nextChild,
+                keyedCurrent,
+                unkeyedCurrent,
+                usedCurrent,
+            );
+
+            if (reusableChild) {
+                const patched = this.patchNode(reusableChild, nextChild);
+                usedCurrent.add(reusableChild);
+                fragment.appendChild(patched);
+                continue;
+            }
+
+            fragment.appendChild(nextChild);
+        }
+
+        current.replaceChildren(fragment);
+    }
+
+    private findReusableChild(
+        nextChild: Node,
+        keyedCurrent: Map<string, Node>,
+        unkeyedCurrent: Node[],
+        usedCurrent: Set<Node>,
+    ): Node | undefined {
+        const key = this.getNodeKey(nextChild);
+        if (key != null) {
+            const candidate = keyedCurrent.get(this.buildNodeLookupKey(nextChild, key));
+            if (candidate && !usedCurrent.has(candidate) && this.isSameNodeType(candidate, nextChild)) {
+                return candidate;
+            }
+
+            return undefined;
+        }
+
+        for (const candidate of unkeyedCurrent) {
+            if (usedCurrent.has(candidate)) continue;
+            if (!this.isSameNodeType(candidate, nextChild)) continue;
+            return candidate;
+        }
+
+        return undefined;
     }
 
     private syncAttributes(current: HTMLElement, next: HTMLElement) {
@@ -224,6 +284,123 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 current.setAttribute(attr.name, attr.value);
             }
         }
+
+        this.syncProperties(current, next);
+    }
+
+    private syncProperties(current: HTMLElement, next: HTMLElement) {
+        if (current instanceof HTMLInputElement && next instanceof HTMLInputElement) {
+            if (current.value !== next.value) {
+                current.value = next.value;
+            }
+
+            if (current.checked !== next.checked) {
+                current.checked = next.checked;
+            }
+
+            return;
+        }
+
+        if (current instanceof HTMLTextAreaElement && next instanceof HTMLTextAreaElement) {
+            if (current.value !== next.value) {
+                current.value = next.value;
+            }
+            return;
+        }
+
+        if (current instanceof HTMLSelectElement && next instanceof HTMLSelectElement) {
+            if (current.value !== next.value) {
+                current.value = next.value;
+            }
+            return;
+        }
+
+        if (current.tagName === "OPTION" && next.tagName === "OPTION") {
+            const currentOption = current as HTMLOptionElement;
+            const nextOption = next as HTMLOptionElement;
+            if (currentOption.selected !== nextOption.selected) {
+                currentOption.selected = nextOption.selected;
+            }
+        }
+    }
+
+    private syncManagedDOMEvents(current: HTMLElement, next: HTMLElement) {
+        const currentEvents = getManagedDOMEvents(current);
+        const nextEvents = getManagedDOMEvents(next);
+
+        for (const event of currentEvents) {
+            this.unregisterSpecificEvent(current, event);
+        }
+
+        for (const event of nextEvents) {
+            this.unregisterSpecificEvent(next, event);
+            this.registerEvent(current, event.type, event.listener, event.options);
+        }
+
+        setManagedDOMEvents(current, nextEvents);
+        setManagedDOMEvents(next, []);
+    }
+
+    private unregisterSpecificEvent(target: EventTarget, event: ManagedDOMEventDescriptor) {
+        const normalizedOptions = event.options === true;
+        target.removeEventListener(event.type, event.listener, normalizedOptions);
+        this.eventListeners = this.eventListeners.filter((entry) => {
+            return !(
+                entry.target === target &&
+                entry.type === event.type &&
+                entry.listener === event.listener &&
+                entry.options === normalizedOptions
+            );
+        });
+    }
+
+    private unregisterEventsByTargetAndType(target: EventTarget, type: string, options: boolean) {
+        const staleEntries = this.eventListeners.filter((entry) => {
+            return entry.target === target && entry.type === type && entry.options === options;
+        });
+
+        for (const staleEntry of staleEntries) {
+            staleEntry.target.removeEventListener(staleEntry.type, staleEntry.listener, staleEntry.options);
+        }
+
+        this.eventListeners = this.eventListeners.filter((entry) => {
+            return !(entry.target === target && entry.type === type && entry.options === options);
+        });
+    }
+
+    private pruneDetachedEventListeners() {
+        const stillTracked: TrackedEventListener[] = [];
+
+        for (const entry of this.eventListeners) {
+            const { target } = entry;
+
+            if (!(target instanceof Node)) {
+                stillTracked.push(entry);
+                continue;
+            }
+
+            if (target === this || this.contains(target)) {
+                stillTracked.push(entry);
+                continue;
+            }
+
+            target.removeEventListener(entry.type, entry.listener, entry.options);
+        }
+
+        this.eventListeners = stillTracked;
+    }
+
+    private getNodeKey(node: Node): string | null {
+        if (!(node instanceof Element)) return null;
+
+        return node.getAttribute("key")
+            ?? node.getAttribute("data-key")
+            ?? node.getAttribute("data-id");
+    }
+
+    private buildNodeLookupKey(node: Node, key: string): string {
+        const elementTag = node instanceof Element ? elementTagName(node) : "node";
+        return `${node.nodeType}:${elementTag}:${key}`;
     }
 
     private isSameNodeType(current: Node, next: Node) {
@@ -310,4 +487,12 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     private static toKebabCase(str: string): string {
         return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
     }
+}
+
+function elementTagName(element: Element): string {
+    if (element instanceof HTMLElement) {
+        return element.tagName;
+    }
+
+    return element.localName;
 }

@@ -1,6 +1,18 @@
 import { Component } from "../components";
 import { getCurrentRenderOwner } from "./render-owner.ts";
 
+export interface ManagedDOMEventDescriptor {
+    type: string;
+    listener: EventListenerOrEventListenerObject;
+    options?: boolean;
+}
+
+const MANAGED_DOM_EVENTS = Symbol.for("mainz.managedDomEvents");
+
+type ManagedEventsElement = HTMLElement & {
+    [MANAGED_DOM_EVENTS]?: ManagedDOMEventDescriptor[];
+};
+
 // deno-lint-ignore no-explicit-any
 export function h(tag: any, props: Record<string, any> | null, ...children: any[]) {
     let normalizedChildren: any;
@@ -8,8 +20,7 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
     else if (children.length === 1) normalizedChildren = children[0];
     else normalizedChildren = children;
 
-    if (typeof tag === 'function') {
-
+    if (typeof tag === "function") {
         if (tag.prototype instanceof Component) {
             const tagName = tag.getTagName();
 
@@ -34,9 +45,24 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
         return tag({ ...(props ?? {}), children: normalizedChildren });
     }
 
-    const el = typeof tag === "string" && new Set(["svg", "path", "circle", "rect", "line", "polyline", "polygon", "g", "text", "defs", "linearGradient", "stop"]).has(tag)
-        ? document.createElementNS("http://www.w3.org/2000/svg", tag)
-        : document.createElement(tag);
+    const el =
+        typeof tag === "string" &&
+            new Set([
+                "svg",
+                "path",
+                "circle",
+                "rect",
+                "line",
+                "polyline",
+                "polygon",
+                "g",
+                "text",
+                "defs",
+                "linearGradient",
+                "stop",
+            ]).has(tag)
+            ? document.createElementNS("http://www.w3.org/2000/svg", tag)
+            : document.createElement(tag);
 
     if (props) {
         applyAttributes(el, props);
@@ -44,6 +70,24 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
 
     appendChildren(el, children);
     return el;
+}
+
+export function getManagedDOMEvents(node: Node): ManagedDOMEventDescriptor[] {
+    if (!(node instanceof HTMLElement)) return [];
+    const element = node as ManagedEventsElement;
+    return [...(element[MANAGED_DOM_EVENTS] ?? [])];
+}
+
+export function setManagedDOMEvents(node: Node, events: ManagedDOMEventDescriptor[]): void {
+    if (!(node instanceof HTMLElement)) return;
+    const element = node as ManagedEventsElement;
+
+    if (events.length === 0) {
+        delete element[MANAGED_DOM_EVENTS];
+        return;
+    }
+
+    element[MANAGED_DOM_EVENTS] = [...events];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -75,6 +119,12 @@ function applyAttributes(el: HTMLElement, props: Record<string, any>) {
             el.setAttribute("class", value);
         } else if (key.startsWith("on") && typeof value === "function") {
             const eventType = key.slice(2).toLowerCase();
+            const descriptors = getManagedDOMEvents(el).filter((event) => event.type !== eventType);
+            descriptors.push({
+                type: eventType,
+                listener: value,
+            });
+            setManagedDOMEvents(el, descriptors);
 
             if (owner) {
                 owner.registerDOMEvent(el, eventType, value);
