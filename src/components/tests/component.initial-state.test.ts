@@ -10,7 +10,7 @@
 import { assertEquals } from "@std/assert";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
-setupMainzDom();
+await setupMainzDom();
 
 const fixtures = await import("./component.initial-state.fixture.tsx") as typeof import("./component.initial-state.fixture.tsx");
 
