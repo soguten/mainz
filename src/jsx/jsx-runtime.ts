@@ -1,23 +1,30 @@
+import type { Component as MainzComponent } from "../components/component.ts";
 import { Fragment as FragmentFactory, h } from "./dom-factory.ts";
 
-type JSXType = string | ((props: Record<string, unknown>) => unknown);
+type JSXFunctionComponent = (props: Record<string, unknown>) => unknown;
+type JSXClassComponent = {
+  new (): MainzComponent;
+  getTagName(): string;
+};
+type JSXType = string | JSXFunctionComponent | JSXClassComponent;
 type JSXProps = Record<string, unknown> | null;
+type JSXNode = HTMLElement;
 
 export const Fragment = FragmentFactory;
 
-export function jsx(type: JSXType, props: JSXProps, key?: string): HTMLElement {
-  return createElement(type, props, key) as unknown as HTMLElement;
+export function jsx(type: JSXType, props: JSXProps, key?: string): JSXNode {
+  return createElement(type, props, key) as JSXNode;
 }
 
-export function jsxs(type: JSXType, props: JSXProps, key?: string): HTMLElement {
-  return createElement(type, props, key) as unknown as HTMLElement;
+export function jsxs(type: JSXType, props: JSXProps, key?: string): JSXNode {
+  return createElement(type, props, key) as JSXNode;
 }
 
-export function jsxDEV(type: JSXType, props: JSXProps, key?: string): HTMLElement {
-  return createElement(type, props, key) as unknown as HTMLElement;
+export function jsxDEV(type: JSXType, props: JSXProps, key?: string): JSXNode {
+  return createElement(type, props, key) as JSXNode;
 }
 
-function createElement(type: JSXType, props: JSXProps, key?: string) {
+function createElement(type: JSXType, props: JSXProps, key?: string): unknown {
   if (!props) return h(type, null);
 
   const { children, ...restProps } = props;
@@ -30,3 +37,4 @@ function createElement(type: JSXType, props: JSXProps, key?: string) {
   const childrenArray = Array.isArray(children) ? children : [children];
   return h(type, nextProps, ...childrenArray);
 }
+
