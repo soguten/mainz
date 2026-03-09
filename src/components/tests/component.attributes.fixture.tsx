@@ -1,4 +1,4 @@
-import { Component } from "../component.ts";
+import { Component } from "mainz";
 
 export class InitStateReadsAttrComponent extends Component<{}, { role: string | null }> {
     protected override initState() {

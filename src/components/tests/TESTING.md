@@ -17,6 +17,8 @@ A test suite typically follows this structure:
 
 ## Example
 
+```component.example.test.ts```
+
 ```ts
 /// <reference lib="deno.ns" />
 
@@ -44,6 +46,25 @@ Deno.test("button: should increment count when clicked", () => {
     screen.cleanup();
 });
 
+```
+```component.example.fixture.tsx```
+
+```ts
+import { Component } from "mainz";
+
+export class ExampleComponent extends Component<{}, { count: number }> {
+    protected override initState() {
+        return { count: 0 };
+    }
+
+    override render(): HTMLElement {
+        return (
+            <button type="button" onClick={() => this.setState({ count: this.state.count + 1 })}>
+                {String(this.state.count)}
+            </button>
+        );
+    }
+}
 ```
 
 ## File layout
