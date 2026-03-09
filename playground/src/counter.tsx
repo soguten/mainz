@@ -8,16 +8,16 @@ export class Counter extends Component<{ initial?: number }, { count: number }> 
         };
     }
 
-    override render() {
-        const increment = () => {
-            this.setState({ count: this.state.count + 1 });
-        };
+    private increment = () => {
+        this.setState({ count: this.state.count + 1 });
+    };
 
+    override render() {
         return (
             <div className="wrap">
                 <h1>Mainz Counter</h1>
                 <p>Count: {this.state.count}</p>
-                <button type="button" onClick={increment}>Increment</button>
+                <button type="button" onClick={this.increment}>Increment</button>
             </div>
         );
     }

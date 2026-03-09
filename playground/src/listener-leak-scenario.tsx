@@ -7,41 +7,35 @@ export class ListenerLeakScenario extends Component<{}, { renders: number; click
         button { padding: 6px 10px; }
     `;
 
-    override onMount(): void {
-        this.state = { renders: 0, clicks: 0 };
+    protected override initState() {
+        return { renders: 0, clicks: 0 };
     }
+
+    private handleTargetClick = () => {
+        this.setState({ clicks: this.state.clicks + 1 });
+    };
+
+    private forceRerender = () => {
+        this.setState({ renders: this.state.renders + 1 });
+    };
 
     override afterRender(): void {
         const target = this.querySelector("button[data-role='target']");
         if (!target) return;
-        this.registerEvent(target, "click", () => {
-            this.state = { ...this.state, clicks: this.state.clicks + 1 };
-        });
+        this.registerEvent(target, "click", this.handleTargetClick);
     }
 
-    override render(): HTMLElement {
-        const wrap = document.createElement("section");
-        wrap.className = "card";
-
-        const title = document.createElement("h3");
-        title.textContent = "B) Acúmulo de listeners";
-
-        const info = document.createElement("p");
-        info.textContent = `renders=${this.state.renders} clicks=${this.state.clicks}`;
-
-        const row = document.createElement("div");
-        row.className = "row";
-
-        const rerender = document.createElement("button");
-        rerender.textContent = "Forçar re-render";
-        rerender.onclick = () => this.setState({ renders: this.state.renders + 1 });
-
-        const clickTarget = document.createElement("button");
-        clickTarget.setAttribute("data-role", "target");
-        clickTarget.textContent = "Clique aqui 1x";
-
-        row.append(rerender, clickTarget);
-        wrap.append(title, info, row);
-        return wrap;
+    override render() {
+        return (
+            <section className="card">
+                <h3>B - Listener accumulation</h3>
+                <p>renders={this.state.renders} clicks={this.state.clicks}</p>
+                <div className="row">
+                    <button type="button" onClick={this.forceRerender}>Force re-render</button>
+                    <button type="button" data-role="target">Click here once</button>
+                </div>
+            </section>
+        );
     }
 }
+

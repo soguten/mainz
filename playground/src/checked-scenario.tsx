@@ -1,40 +1,47 @@
-
 import { Component } from "mainz";
 
 export class CheckedScenario extends Component<{}, { checked: boolean; observed: boolean }> {
-    
+
     static override styles = /*css*/`
         .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin: 12px 0; }
-        button { padding: 6px 10px; margin-top: 8px; }
+        .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        button { padding: 6px 10px; }
     `;
 
-    override onMount(): void {
-        this.state = { checked: false, observed: false };
+    protected override initState() {
+        return { checked: false, observed: false };
     }
 
-    override render(): HTMLElement {
-        const wrap = document.createElement("section");
-        wrap.className = "card";
+    private handleChange = (event: Event) => {
+        const target = event.currentTarget as HTMLInputElement | null;
+        const nextChecked = target?.checked ?? false;
+        this.setState({ checked: nextChecked, observed: nextChecked });
+    };
 
-        const title = document.createElement("h3");
-        title.textContent = "D) checked vs atributo";
+    private forceChecked = () => {
+        this.setState({ checked: true, observed: true });
+    };
 
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        if (this.state.checked) input.setAttribute("checked", "");
-        input.onchange = () => {
-            this.state = { ...this.state, observed: input.checked };
-            this.setState({});
-        };
+    private forceUnchecked = () => {
+        this.setState({ checked: false, observed: false });
+    };
 
-        const info = document.createElement("p");
-        info.textContent = `state.checked=${this.state.checked} input.checked=${this.state.observed}`;
-
-        const sync = document.createElement("button");
-        sync.textContent = "Set state.checked = true";
-        sync.onclick = () => this.setState({ checked: true });
-
-        wrap.append(title, info, input, sync);
-        return wrap;
+    override render() {
+        return (
+            <section className="card">
+                <h3>D - checked vs attribute (TSX)</h3>
+                <p>state.checked={String(this.state.checked)} input.checked={String(this.state.observed)}</p>
+                <input
+                    type="checkbox"
+                    checked={this.state.checked ? "" : undefined}
+                    onChange={this.handleChange}
+                />
+                <div className="row">
+                    <button type="button" onClick={this.forceChecked}>Set state.checked = true</button>
+                    <button type="button" onClick={this.forceUnchecked}>Set state.checked = false</button>
+                </div>
+            </section>
+        );
     }
 }
+
