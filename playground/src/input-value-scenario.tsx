@@ -6,32 +6,29 @@ export class InputValueScenario extends Component<{}, { value: string; observed:
         button { padding: 6px 10px; margin-top: 8px; }
     `;
 
-    override onMount(): void {
-        this.state = { value: "a", observed: "a" };
+    protected override initState() {
+        return { value: "a", observed: "a" };
     }
 
-    override render(): HTMLElement {
-        const wrap = document.createElement("section");
-        wrap.className = "card";
+    private handleInput = (event: Event) => {
+        const target = event.currentTarget as HTMLInputElement | null;
+        const nextValue = target?.value ?? "";
+        this.setState({ value: nextValue, observed: nextValue });
+    };
 
-        const title = document.createElement("h3");
-        title.textContent = "C) input.value vs atributo";
+    private syncServerValue = () => {
+        this.setState({ value: "server-next", observed: "server-next" });
+    };
 
-        const input = document.createElement("input");
-        input.setAttribute("value", this.state.value);
-        input.oninput = () => {
-            this.state = { ...this.state, observed: input.value };
-            this.setState({});
-        };
-
-        const info = document.createElement("p");
-        info.textContent = `state.value=${this.state.value} input.value=${this.state.observed}`;
-
-        const sync = document.createElement("button");
-        sync.textContent = "Set state.value = server-next";
-        sync.onclick = () => this.setState({ value: "server-next" });
-
-        wrap.append(title, info, input, sync);
-        return wrap;
+    override render() {
+        return (
+            <section className="card">
+                <h3>C - input.value vs attribute</h3>
+                <p>state.value={this.state.value} input.value={this.state.observed}</p>
+                <input value={this.state.value} onInput={this.handleInput} />
+                <button type="button" onClick={this.syncServerValue}>Set state.value = server-next</button>
+            </section>
+        );
     }
 }
+
