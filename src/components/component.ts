@@ -224,7 +224,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         }
 
         const usedCurrent = new Set<Node>();
-        const fragment = document.createDocumentFragment();
+        const orderedChildren: Node[] = [];
 
         for (const nextChild of nextChildren) {
             const reusableChild = this.findReusableChild(
@@ -235,16 +235,26 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
             );
 
             if (reusableChild) {
-                const patched = this.patchNode(reusableChild, nextChild);
                 usedCurrent.add(reusableChild);
-                fragment.appendChild(patched);
+                orderedChildren.push(this.patchNode(reusableChild, nextChild));
                 continue;
             }
 
-            fragment.appendChild(nextChild);
+            orderedChildren.push(nextChild);
         }
 
-        current.replaceChildren(fragment);
+        for (let index = 0; index < orderedChildren.length; index += 1) {
+            const expectedNode = orderedChildren[index];
+            const currentNodeAtIndex = current.childNodes[index];
+
+            if (currentNodeAtIndex !== expectedNode) {
+                current.insertBefore(expectedNode, currentNodeAtIndex ?? null);
+            }
+        }
+
+        while (current.childNodes.length > orderedChildren.length) {
+            current.lastChild?.remove();
+        }
     }
 
     private findReusableChild(
