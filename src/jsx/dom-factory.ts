@@ -117,6 +117,24 @@ function applyAttributes(el: HTMLElement, props: Record<string, any>) {
             value(el);
         } else if (key === "className") {
             el.setAttribute("class", value);
+        } else if (key === "value") {
+            if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+                el.value = value == null ? "" : String(value);
+            } else if (value != null) {
+                el.setAttribute(key, String(value));
+            }
+        } else if (key === "checked") {
+            if (el instanceof HTMLInputElement) {
+                el.checked = Boolean(value);
+            } else if (value != null) {
+                el.setAttribute(key, String(value));
+            }
+        } else if (key === "selected") {
+            if (el instanceof HTMLOptionElement) {
+                el.selected = Boolean(value);
+            } else if (value != null) {
+                el.setAttribute(key, String(value));
+            }
         } else if (key.startsWith("on") && typeof value === "function") {
             const eventType = key.slice(2).toLowerCase();
             const descriptors = getManagedDOMEvents(el).filter((event) => event.type !== eventType);

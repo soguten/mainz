@@ -133,3 +133,22 @@ export class JSXNestedClassRerenderHostComponent extends Component<{}, { tick: n
     }
 }
 
+export class JSXControlledTextareaComponent extends Component<{}, { text: string }> {
+    protected override initState() {
+        return { text: "" };
+    }
+
+    private onInput = (event: Event) => {
+        const target = event.currentTarget as HTMLTextAreaElement | null;
+        this.setState({ text: target?.value ?? "" });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <section>
+                <textarea value={this.state.text} onInput={this.onInput} />
+                <p data-role="value">{this.state.text}</p>
+            </section>
+        );
+    }
+}
