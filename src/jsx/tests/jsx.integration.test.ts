@@ -85,3 +85,21 @@ Deno.test("jsx/integration: should keep nested class component content after par
     screen.cleanup();
 });
 
+Deno.test("jsx/integration: controlled textarea should keep value/property in sync", () => {
+    const screen = renderMainzComponent(fixtures.JSXControlledTextareaComponent);
+    const textarea = screen.getBySelector<HTMLTextAreaElement>("textarea");
+
+    assertEquals(textarea.value, "");
+
+    textarea.value = "mainz";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    assertEquals(screen.getBySelector<HTMLTextAreaElement>("textarea").value, "mainz");
+    assertEquals(screen.getBySelector("[data-role='value']").textContent, "mainz");
+
+    screen.component.setState({ text: "mainz framework" });
+    assertEquals(screen.getBySelector<HTMLTextAreaElement>("textarea").value, "mainz framework");
+
+    screen.cleanup();
+});
+
