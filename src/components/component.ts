@@ -196,6 +196,14 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
             return current;
         }
 
+        if (current instanceof Component && next instanceof Component) {
+            this.syncAttributes(current, next);
+            this.syncManagedDOMEvents(current, next);
+            current.props = next.props;
+            current.renderDOM();
+            return current;
+        }
+
         if (current instanceof HTMLElement && next instanceof HTMLElement) {
             this.syncAttributes(current, next);
             this.syncManagedDOMEvents(current, next);
