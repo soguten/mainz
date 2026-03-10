@@ -6,6 +6,10 @@ declare global {
       [elemName: string]: any;
     }
 
+    interface IntrinsicAttributes {
+      key?: string | number;
+    }
+
     interface ElementAttributesProperty {
       props: {};
     }
@@ -20,6 +24,10 @@ declare module "mainz/jsx-runtime" {
   export namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
+    }
+
+    interface IntrinsicAttributes {
+      key?: string | number;
     }
 
     interface ElementAttributesProperty {
@@ -40,6 +48,10 @@ declare module "mainz/jsx-dev-runtime" {
   export namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
+    }
+
+    interface IntrinsicAttributes {
+      key?: string | number;
     }
 
     interface ElementAttributesProperty {
