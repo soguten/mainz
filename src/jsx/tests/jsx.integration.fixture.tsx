@@ -113,3 +113,23 @@ export class JSXNestedClassHostComponent extends Component<{}, Record<string, ne
     }
 }
 
+export class JSXNestedClassRerenderHostComponent extends Component<{}, { tick: number }> {
+    protected override initState() {
+        return { tick: 0 };
+    }
+
+    private onRerender = () => {
+        this.setState({ tick: this.state.tick + 1 });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <section>
+                <button type="button" data-role="rerender" onClick={this.onRerender}>rerender</button>
+                <span data-role="tick">{String(this.state.tick)}</span>
+                <JSXLeafComponent />
+            </section>
+        );
+    }
+}
+

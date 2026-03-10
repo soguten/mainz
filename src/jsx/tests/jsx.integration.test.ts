@@ -72,3 +72,16 @@ Deno.test("jsx/integration: should render nested class components declared in TS
     screen.cleanup();
 });
 
+Deno.test("jsx/integration: should keep nested class component content after parent re-render", () => {
+    const screen = renderMainzComponent(fixtures.JSXNestedClassRerenderHostComponent);
+
+    assertEquals(screen.getBySelector("[data-role='leaf']").textContent, "leaf");
+    assertEquals(screen.getBySelector("[data-role='tick']").textContent, "0");
+
+    screen.click("button[data-role='rerender']");
+
+    assertEquals(screen.getBySelector("[data-role='tick']").textContent, "1");
+    assertEquals(screen.getBySelector("[data-role='leaf']").textContent, "leaf");
+    screen.cleanup();
+});
+
