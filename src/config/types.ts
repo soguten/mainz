@@ -1,9 +1,7 @@
 import { I18nConfig } from "../i18n/index.ts";
 import {
-    ExplicitRouteDefinition,
     RenderMode,
     RenderModeInput,
-    RoutingStrategy,
 } from "../routing/index.ts";
 
 export interface MainzRenderConfig {
@@ -13,15 +11,11 @@ export interface MainzRenderConfig {
 export interface MainzTargetDefinition {
     name: string;
     rootDir: string;
-    routes?: string;
     pagesDir?: string;
-    routing?: RoutingStrategy;
-    allowRoutingConflict?: boolean;
     locales?: readonly string[];
     outDir?: string;
     defaultMode?: RenderModeInput;
     viteConfig: string;
-    routeDefinitions?: readonly ExplicitRouteDefinition[];
 }
 
 export interface MainzConfig {
@@ -37,7 +31,6 @@ export interface LoadedMainzConfig {
 
 export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defaultMode"> {
     defaultMode?: RenderMode;
-    routing: RoutingStrategy;
     outDir: string;
 }
 

@@ -11,13 +11,12 @@ Deno.test("cli/build: should create full matrix when target and mode are omitted
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                routes: "./site/routes.ts",
+                pagesDir: "./site/src/pages",
             },
             {
                 name: "playground",
                 rootDir: "./playground",
                 viteConfig: "./vite.config.playground.ts",
-                routes: "./playground/routes.ts",
             },
         ],
         render: {
@@ -33,7 +32,6 @@ Deno.test("cli/build: should create full matrix when target and mode are omitted
             "site:csr",
             "site:ssg",
             "playground:csr",
-            "playground:ssg",
         ],
     );
 });
@@ -45,13 +43,12 @@ Deno.test("cli/build: should filter jobs by target and mode", () => {
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                routes: "./site/routes.ts",
+                pagesDir: "./site/src/pages",
             },
             {
                 name: "playground",
                 rootDir: "./playground",
                 viteConfig: "./vite.config.playground.ts",
-                routes: "./playground/routes.ts",
             },
         ],
         render: {
@@ -60,12 +57,12 @@ Deno.test("cli/build: should filter jobs by target and mode", () => {
     });
 
     const jobs = resolveBuildJobs(config, {
-        target: "playground",
+        target: "site",
         mode: "ssg",
     });
 
     assertEquals(jobs.length, 1);
-    assertEquals(jobs[0].target.name, "playground");
+    assertEquals(jobs[0].target.name, "site");
     assertEquals(jobs[0].mode, "ssg");
 });
 
@@ -76,7 +73,7 @@ Deno.test("cli/build: should accept spa as a legacy mode alias for csr", () => {
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                routes: "./site/routes.ts",
+                pagesDir: "./site/src/pages",
             },
         ],
         render: {
@@ -100,7 +97,7 @@ Deno.test("cli/build: should fail for unknown target", () => {
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                routes: "./site/routes.ts",
+                pagesDir: "./site/src/pages",
             },
         ],
     });
@@ -108,4 +105,47 @@ Deno.test("cli/build: should fail for unknown target", () => {
     assertThrows(() => {
         resolveBuildJobs(config, { target: "unknown" });
     }, Error, "No targets matched");
+});
+
+Deno.test("cli/build: should skip ssg jobs for app-only targets with no routes or pages", () => {
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "playground",
+                rootDir: "./playground",
+                viteConfig: "./vite.config.playground.ts",
+            },
+        ],
+        render: {
+            modes: ["csr", "ssg"],
+        },
+    });
+
+    const jobs = resolveBuildJobs(config, {});
+
+    assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
+        "playground:csr",
+    ]);
+});
+
+Deno.test("cli/build: should fail when ssg is requested for an app-only target", () => {
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "playground",
+                rootDir: "./playground",
+                viteConfig: "./vite.config.playground.ts",
+            },
+        ],
+        render: {
+            modes: ["csr", "ssg"],
+        },
+    });
+
+    assertThrows(() => {
+        resolveBuildJobs(config, {
+            target: "playground",
+            mode: "ssg",
+        });
+    }, Error, "only supports csr app builds");
 });

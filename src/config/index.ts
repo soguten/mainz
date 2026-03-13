@@ -13,10 +13,6 @@ export function defineMainzConfig(config: MainzConfig): MainzConfig {
     return config;
 }
 
-export function defineRoutes<T>(routes: readonly T[]): readonly T[] {
-    return routes;
-}
-
 export async function loadMainzConfig(configPath = "mainz.config.ts"): Promise<LoadedMainzConfig> {
     const absolutePath = resolve(configPath);
 
@@ -76,13 +72,11 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
         throw new Error(`Target "${target.name}" must define viteConfig.`);
     }
 
-    const routing = target.routing ?? (target.routes ? "explicit" : "filesystem");
     const outDir = target.outDir?.trim() || `dist/${target.name}`;
 
     return {
         ...target,
         defaultMode: target.defaultMode ? normalizeRenderModeInput(target.defaultMode) : undefined,
-        routing,
         outDir,
     };
 }

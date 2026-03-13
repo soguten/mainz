@@ -4,38 +4,40 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { buildSsgOutputEntries, buildTargetRouteManifest, toLocalePathSegment } from "../index.ts";
 import { TargetRouteManifest } from "../types.ts";
 
-Deno.test("routing/manifest: should require opt-in when routes and pagesDir coexist", () => {
-    assertThrows(() => {
-        buildTargetRouteManifest({
-            target: {
-                name: "site",
-                rootDir: "./site",
-                routes: "./site/routes.ts",
-                pagesDir: "./site/pages",
-                defaultMode: "ssg",
-            },
-            explicitRoutes: [],
-            filesystemPageFiles: [],
-            globalLocales: ["en"],
-        });
-    }, Error, "allowRoutingConflict=true");
+Deno.test("routing/manifest: should allow app-only targets with no routing input", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "playground",
+            rootDir: "./playground",
+        },
+        globalLocales: ["en"],
+    });
+
+    assertEquals(manifest, {
+        target: "playground",
+        routes: [],
+    });
 });
 
-Deno.test("routing/manifest: should resolve locales with precedence route > target > global", () => {
+Deno.test("routing/manifest: should resolve locales with precedence page > target > global", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "site",
             rootDir: "./site",
-            routes: "./site/routes.ts",
+            pagesDir: "./site/pages",
             locales: ["pt-BR"],
         },
-        explicitRoutes: [
+        discoveredPages: [
             {
-                path: "/from-route",
+                file: "./site/pages/from-page.page.tsx",
+                exportName: "FromPage",
+                path: "/from-page",
                 mode: "ssg",
                 locales: ["en-US"],
             },
             {
+                file: "./site/pages/from-target.page.tsx",
+                exportName: "FromTarget",
                 path: "/from-target",
                 mode: "csr",
             },
@@ -45,19 +47,21 @@ Deno.test("routing/manifest: should resolve locales with precedence route > targ
 
     const byPath = new Map(manifest.routes.map((route) => [route.path, route]));
 
-    assertEquals(byPath.get("/from-route")?.locales, ["en-US"]);
+    assertEquals(byPath.get("/from-page")?.locales, ["en-US"]);
     assertEquals(byPath.get("/from-target")?.locales, ["pt-BR"]);
 });
 
-Deno.test("routing/manifest: should fallback to global locales when route and target are undefined", () => {
+Deno.test("routing/manifest: should fallback to global locales when page and target are undefined", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "playground",
             rootDir: "./playground",
-            routes: "./playground/routes.ts",
+            pagesDir: "./playground/pages",
         },
-        explicitRoutes: [
+        discoveredPages: [
             {
+                file: "./playground/pages/index.page.tsx",
+                exportName: "HomePage",
                 path: "/",
                 mode: "csr",
             },
@@ -73,10 +77,12 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
         target: {
             name: "playground",
             rootDir: "./playground",
-            routes: "./playground/routes.ts",
+            pagesDir: "./playground/pages",
         },
-        explicitRoutes: [
+        discoveredPages: [
             {
+                file: "./playground/pages/index.page.tsx",
+                exportName: "HomePage",
                 path: "/",
                 mode: "ssg",
             },
@@ -101,10 +107,12 @@ Deno.test("routing/manifest: should resolve locales from i18n config when provid
         target: {
             name: "playground",
             rootDir: "./playground",
-            routes: "./playground/routes.ts",
+            pagesDir: "./playground/pages",
         },
-        explicitRoutes: [
+        discoveredPages: [
             {
+                file: "./playground/pages/index.page.tsx",
+                exportName: "HomePage",
                 path: "/",
                 mode: "csr",
             },
@@ -117,18 +125,16 @@ Deno.test("routing/manifest: should resolve locales from i18n config when provid
     assertEquals(manifest.routes[0].locales, ["en-US", "pt-BR"]);
 });
 
-Deno.test("routing/manifest: should normalize legacy spa mode to csr", () => {
+Deno.test("routing/manifest: should normalize legacy spa mode to csr for filesystem pages", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "playground",
             rootDir: "./playground",
-            routes: "./playground/routes.ts",
+            pagesDir: "./playground/pages",
+            defaultMode: "spa",
         },
-        explicitRoutes: [
-            {
-                path: "/legacy",
-                mode: "spa",
-            },
+        filesystemPageFiles: [
+            "./playground/pages/index.page.tsx",
         ],
         globalLocales: ["en"],
     });
@@ -136,59 +142,17 @@ Deno.test("routing/manifest: should normalize legacy spa mode to csr", () => {
     assertEquals(manifest.routes[0].mode, "csr");
 });
 
-Deno.test("routing/manifest: should let explicit routes win collisions when opt-in is enabled", () => {
-    const manifest = buildTargetRouteManifest({
-        target: {
-            name: "site",
-            rootDir: "./site",
-            routes: "./site/routes.ts",
-            pagesDir: "./site/pages",
-            allowRoutingConflict: true,
-            defaultMode: "ssg",
-        },
-        explicitRoutes: [
-            {
-                path: "/docs/:slug",
-                mode: "ssg",
-                locales: ["en"],
-                file: "./site/routes.ts",
-            },
-        ],
-        filesystemPageFiles: [
-            "./site/pages/docs/[id].page.tsx",
-            "./site/pages/docs/intro.page.tsx",
-        ],
-        globalLocales: ["en", "pt"],
-    });
-
-    const docsDynamicExplicit = manifest.routes.find((route) => {
-        return route.path === "/docs/:slug" && route.source === "explicit";
-    });
-
-    const docsDynamicFilesystem = manifest.routes.find((route) => {
-        return route.path === "/docs/:id" && route.source === "filesystem";
-    });
-
-    const docsIntro = manifest.routes.find((route) => {
-        return route.path === "/docs/intro" && route.source === "filesystem";
-    });
-
-    assertEquals(docsDynamicExplicit?.locales, ["en"]);
-    assertEquals(docsDynamicFilesystem?.locales, ["pt"]);
-    assertEquals(docsIntro?.locales, ["en", "pt"]);
-});
-
-Deno.test("routing/manifest: should fail when explicit routes conflict in the same target+locale scope", () => {
+Deno.test("routing/manifest: should fail when discovered pages conflict in the same locale scope", () => {
     assertThrows(() => {
         buildTargetRouteManifest({
             target: {
                 name: "site",
                 rootDir: "./site",
-                routes: "./site/routes.ts",
+                pagesDir: "./site/pages",
             },
-            explicitRoutes: [
-                { path: "/blog/:slug", mode: "ssg" },
-                { path: "/blog/:id", mode: "csr" },
+            discoveredPages: [
+                { file: "./site/pages/blog-slug.page.tsx", exportName: "BlogSlugPage", path: "/blog/:slug", mode: "ssg" },
+                { file: "./site/pages/blog-id.page.tsx", exportName: "BlogIdPage", path: "/blog/:id", mode: "csr" },
             ],
             globalLocales: ["en"],
         });
@@ -209,6 +173,64 @@ Deno.test("routing/manifest: should require target defaultMode for filesystem ro
     }, Error, "requires defaultMode");
 });
 
+Deno.test("routing/manifest: should build routes from discovered page metadata", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "site",
+            rootDir: "./site",
+            pagesDir: "./site/pages",
+        },
+        discoveredPages: [
+            {
+                file: "./site/pages/index.page.tsx",
+                exportName: "HomePage",
+                path: "/",
+                mode: "csr",
+                head: {
+                    title: "Home",
+                },
+            },
+            {
+                file: "./site/pages/docs.page.tsx",
+                exportName: "DocsPage",
+                path: "/docs",
+                mode: "ssg",
+                locales: ["pt-BR"],
+            },
+        ],
+        globalLocales: ["en"],
+    });
+
+    assertEquals(manifest.routes, [
+        {
+            id: "index",
+            source: "filesystem",
+            file: "./site/pages/index.page.tsx",
+            exportName: "HomePage",
+            path: "/",
+            pattern: "/",
+            mode: "csr",
+            locales: ["en"],
+            head: {
+                title: "Home",
+                meta: undefined,
+                links: undefined,
+            },
+        },
+        {
+            id: "docs",
+            source: "filesystem",
+            file: "./site/pages/docs.page.tsx",
+            exportName: "DocsPage",
+            path: "/docs",
+            pattern: "/docs",
+            mode: "ssg",
+            locales: ["pt-BR"],
+            head: undefined,
+        },
+    ]);
+});
+
 Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", () => {
     const manifest: TargetRouteManifest = {
         target: "site",
@@ -223,7 +245,7 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
             },
             {
                 id: "home",
-                source: "explicit",
+                source: "filesystem",
                 path: "/",
                 pattern: "/",
                 mode: "ssg",
@@ -231,7 +253,7 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
             },
             {
                 id: "app",
-                source: "explicit",
+                source: "filesystem",
                 path: "/app",
                 pattern: "/app",
                 mode: "csr",
@@ -269,7 +291,7 @@ Deno.test("routing/manifest: should emit no locale prefix when a route resolves 
         routes: [
             {
                 id: "docs",
-                source: "explicit",
+                source: "filesystem",
                 path: "/docs",
                 pattern: "/docs",
                 mode: "ssg",
@@ -296,7 +318,7 @@ Deno.test("routing/manifest: should emit locale prefixes when a route resolves t
         routes: [
             {
                 id: "docs",
-                source: "explicit",
+                source: "filesystem",
                 path: "/docs",
                 pattern: "/docs",
                 mode: "ssg",
@@ -329,7 +351,7 @@ Deno.test("routing/manifest: should allow forcing locale prefixes even when a ro
         routes: [
             {
                 id: "docs",
-                source: "explicit",
+                source: "filesystem",
                 path: "/docs",
                 pattern: "/docs",
                 mode: "ssg",

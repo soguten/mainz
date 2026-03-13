@@ -1,7 +1,13 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { injectAppHtml, resolveLocaleRedirectPath, rewriteAssetPaths, setHtmlLang } from "../build.ts";
+import {
+    applyRouteHead,
+    injectAppHtml,
+    resolveLocaleRedirectPath,
+    rewriteAssetPaths,
+    setHtmlLang,
+} from "../build.ts";
 
 Deno.test("build html helpers: rewrites nested asset paths for SSG routes", () => {
     const input = '<script type="module" src="./assets/index.js"></script>';
@@ -59,4 +65,23 @@ Deno.test("build html helpers: locale redirect should fallback to english when d
     });
 
     assertEquals(output, "/en/");
+});
+
+Deno.test("build html helpers: applies route head metadata to prerendered html", () => {
+    const input = "<html><head><title>Old</title></head><body></body></html>";
+    const output = applyRouteHead(input, {
+        head: {
+            title: "Docs",
+            meta: [
+                { name: "description", content: "Docs page" },
+            ],
+            links: [
+                { rel: "canonical", href: "/docs" },
+            ],
+        },
+    });
+
+    assertStringIncludes(output, "<title>Docs</title>");
+    assertStringIncludes(output, '<meta name="description" content="Docs page" />');
+    assertStringIncludes(output, '<link rel="canonical" href="/docs" />');
 });

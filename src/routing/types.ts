@@ -1,9 +1,9 @@
 import { I18nConfig } from "../i18n/index.ts";
+import type { PageDefinition, PageHeadDefinition } from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
 export type RenderModeInput = RenderMode | "spa";
-export type RoutingStrategy = "explicit" | "filesystem";
-export type RouteSource = "explicit" | "filesystem";
+export type RouteSource = "filesystem";
 
 export interface FilesystemRoutingOptions {
     pagesDir: string;
@@ -19,21 +19,16 @@ export interface FilesystemRoute {
     routeKey: string;
 }
 
-export interface ExplicitRouteDefinition {
-    id?: string;
-    file?: string;
-    path: string;
-    mode: RenderModeInput;
-    locales?: readonly string[];
+export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
+    file: string;
+    exportName: string;
+    mode: RenderMode;
 }
 
 export interface TargetDefinition {
     name: string;
     rootDir: string;
-    routes?: string;
     pagesDir?: string;
-    routing?: RoutingStrategy;
-    allowRoutingConflict?: boolean;
     locales?: readonly string[];
     outDir?: string;
     defaultMode?: RenderModeInput;
@@ -43,10 +38,12 @@ export interface RouteManifestEntry {
     id: string;
     source: RouteSource;
     file?: string;
+    exportName?: string;
     path: string;
     pattern: string;
     mode: RenderMode;
     locales: string[];
+    head?: PageHeadDefinition;
 }
 
 export interface TargetRouteManifest {
@@ -56,8 +53,8 @@ export interface TargetRouteManifest {
 
 export interface BuildTargetRouteManifestInput {
     target: TargetDefinition;
-    explicitRoutes?: readonly ExplicitRouteDefinition[];
     filesystemPageFiles?: readonly string[];
+    discoveredPages?: readonly DiscoveredPageDefinition[];
     i18n?: Pick<I18nConfig<string>, "locales">;
     globalLocales?: readonly string[];
 }
