@@ -8,4 +8,14 @@ if (!app) {
 }
 
 document.documentElement.lang = getLocale();
-app.append(<MainzTutorialPage />);
+
+const tutorialTagName = MainzTutorialPage.getTagName();
+
+if (!customElements.get(tutorialTagName)) {
+    customElements.define(tutorialTagName, MainzTutorialPage);
+}
+
+const hasPreRenderedTutorial = Boolean(app.querySelector(tutorialTagName));
+if (!hasPreRenderedTutorial) {
+    app.append(<MainzTutorialPage />);
+}

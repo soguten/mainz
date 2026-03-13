@@ -17,6 +17,8 @@ interface CheckpointState {
 }
 
 export class CheckpointQuiz extends Component<{}, CheckpointState> {
+    static override customElementTag = "x-checkpoint-quiz";
+
     protected override initState(): CheckpointState {
         return {
             currentIndex: 0,
@@ -86,9 +88,13 @@ export class CheckpointQuiz extends Component<{}, CheckpointState> {
         return (
             <section id={t("anchors.checkpoint")} className="panel checkpoint">
                 <div className="section-head">
-                    <p className="eyebrow">{t("checkpoint.eyebrow")}</p>
+                    <p className="eyebrow">
+                        {t("checkpoint.eyebrow")}
+                    </p>
                     <h2>{t("checkpoint.title")}</h2>
-                    <p>{t("checkpoint.description")}</p>
+                    <p>
+                        {t("checkpoint.description")}
+                    </p>
                 </div>
 
                 <p className="progress-chip">

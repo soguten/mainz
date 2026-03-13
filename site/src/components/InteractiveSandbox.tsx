@@ -1,5 +1,6 @@
 import { Component } from "mainz";
 import { t } from "../i18n/index.ts";
+import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 
 interface WorkshopChallenge {
     title: string;
@@ -19,6 +20,8 @@ interface WorkshopState {
 }
 
 export class InteractiveSandbox extends Component<{}, WorkshopState> {
+    static override customElementTag = "x-interactive-sandbox";
+
     protected override initState(): WorkshopState {
         const challenges = t<WorkshopChallenge[]>("sandbox.challenges");
 
@@ -33,7 +36,7 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
     }
 
     private updateDraft = (event: Event) => {
-        const input = event.target as HTMLTextAreaElement;
+        const input = event.currentTarget as HTMLTextAreaElement;
         const nextDrafts = [...this.state.drafts];
         nextDrafts[this.state.currentChallenge] = input.value;
 
@@ -44,6 +47,11 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
             selectedValidated: false,
         });
     };
+
+    override afterRender(): void {
+        highlightTypeScriptCodeBlocks(this);
+        this.syncEditorViewport();
+    }
 
     private validateCurrentChallenge = () => {
         const code = this.state.drafts[this.state.currentChallenge] ?? "";
@@ -96,10 +104,65 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
         });
     };
 
+    private insertTabAtCursor(textarea: HTMLTextAreaElement) {
+        const start = textarea.selectionStart ?? 0;
+        const end = textarea.selectionEnd ?? 0;
+        const value = textarea.value;
+        const indent = "    ";
+
+        const nextValue =
+            value.slice(0, start) +
+            indent +
+            value.slice(end);
+
+        const nextDrafts = [...this.state.drafts];
+        nextDrafts[this.state.currentChallenge] = nextValue;
+
+        this.setState({
+            drafts: nextDrafts,
+            feedbackMode: "idle",
+            feedback: "",
+            selectedValidated: false,
+        });
+
+        queueMicrotask(() => {
+            textarea.selectionStart = start + indent.length;
+            textarea.selectionEnd = start + indent.length;
+        });
+    }
+
+
+    private handleEditorKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Tab") return;
+
+        event.preventDefault();
+        this.insertTabAtCursor(event.currentTarget as HTMLTextAreaElement);
+    };
+
+    private handleEditorScroll = () => {
+        this.syncEditorViewport();
+    };
+
+    private syncEditorViewport() {
+        const textarea = this.querySelector<HTMLTextAreaElement>("#workshop-editor");
+        const preview = this.querySelector<HTMLElement>(".sandbox-editor-preview");
+        const gutter = this.querySelector<HTMLElement>(".sandbox-editor-gutter");
+
+        if (!textarea || !preview || !gutter) {
+            return;
+        }
+
+        preview.scrollTop = textarea.scrollTop;
+        preview.scrollLeft = textarea.scrollLeft;
+        gutter.scrollTop = textarea.scrollTop;
+    }
+
     override render(): HTMLElement {
         const anchors = t<Record<string, string>>("anchors");
         const challenges = t<WorkshopChallenge[]>("sandbox.challenges");
         const challenge = challenges[this.state.currentChallenge];
+        const currentDraft = this.state.drafts[this.state.currentChallenge] ?? "";
+        const lineCount = Math.max(currentDraft.split("\n").length, 1);
         const total = challenges.length;
         const challengeNumber = this.state.currentChallenge + 1;
         const finalUnlocked = this.state.passed.every(Boolean);
@@ -122,12 +185,33 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                     <label className="sandbox-editor-label" htmlFor="workshop-editor">
                         {t("sandbox.editorLabel")}
                     </label>
-                    <textarea
-                        id="workshop-editor"
-                        className="sandbox-editor"
-                        value={this.state.drafts[this.state.currentChallenge]}
-                        onInput={this.updateDraft}
-                    />
+                    <div className="sandbox-editor-shell">
+                        <div className="sandbox-editor-gutter" aria-hidden="true">
+                            {Array.from({ length: lineCount }, (_, index) => (
+                                <span key={`line-${challengeNumber}-${index + 1}`} className="sandbox-editor-line">
+                                    {index + 1}
+                                </span>
+                            ))}
+                        </div>
+                        <div className="sandbox-editor-stack">
+                            <pre className="sandbox-editor-preview" aria-hidden="true">
+                                <code className="language-typescript" data-raw-code={currentDraft}>
+                                    {currentDraft || " "}
+                                </code>
+                            </pre>
+                            <textarea
+                                id="workshop-editor"
+                                className="sandbox-editor"
+                                value={currentDraft}
+                                spellCheck={false}
+                                autoComplete="off"
+                                wrap="off"
+                                onInput={this.updateDraft}
+                                onKeyDown={this.handleEditorKeyDown}
+                                onScroll={this.handleEditorScroll}
+                            />
+                        </div>
+                    </div>
 
                     <div className="sandbox-actions">
                         <button
@@ -169,8 +253,10 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                 {finalUnlocked && (
                     <article className="sandbox-card">
                         <h3>{t("sandbox.finalTitle")}</h3>
-                        <p>{t("sandbox.finalDescription")}</p>
-                        <pre>
+                        <p>
+                            {t("sandbox.finalDescription")}
+                        </p>
+                        <pre onKeyDown={this.restartWorkshop}>
                             <code className="language-typescript" data-raw-code={t("sandbox.finalCode")}>
                                 {t("sandbox.finalCode")}
                             </code>

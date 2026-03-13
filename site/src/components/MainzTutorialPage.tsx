@@ -10,24 +10,19 @@ import type { ConceptCardData, NextStepCardData, StageData } from "./types.ts";
 
 interface TutorialState {
     currentStage: number;
-    showFloatingHeader: boolean;
 }
 
 export class MainzTutorialPage extends Component<{}, TutorialState> {
+    static override customElementTag = "x-mainz-tutorial-page";
     static override styles = pageStyles;
-
-    private lastScrollY = 0;
 
     protected override initState(): TutorialState {
         return {
             currentStage: 0,
-            showFloatingHeader: false,
         };
     }
 
     override onMount(): void {
-        this.lastScrollY = window.scrollY;
-        this.registerDOMEvent(window, "scroll", this.handleWindowScroll);
         this.registerDOMEvent(window, "load", this.handleWindowLoad);
         this.handleWindowLoad();
     }
@@ -38,17 +33,6 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
 
     private goToStage = (index: number) => {
         this.setState({ currentStage: index });
-    };
-
-    private handleWindowScroll = () => {
-        const nextY = window.scrollY;
-        const shouldShowFloatingHeader = nextY > 160 && nextY < this.lastScrollY;
-
-        if (this.state.showFloatingHeader !== shouldShowFloatingHeader) {
-            this.setState({ showFloatingHeader: shouldShowFloatingHeader });
-        }
-
-        this.lastScrollY = nextY;
     };
 
     private handleWindowLoad = () => {
@@ -66,7 +50,7 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
 
         return (
             <div id={anchors.top} className="page-shell">
-                <header className={`top-nav panel ${this.state.showFloatingHeader ? "floating" : ""}`}>
+                <header className="top-nav panel">
                     <a className="brand" href={`#${anchors.top}`}>{t("nav.brand")}</a>
                     <nav className="top-links" aria-label={t("nav.ariaLabel")}>
                         <a href={`#${anchors.hero}`}>{t("nav.home")}</a>
