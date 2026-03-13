@@ -58,3 +58,8 @@ Deno.test("tagName: constructors with same class name should receive unique tags
     assertEquals(a, "x-shared-name");
     assertEquals(b, "x-shared-name-1");
 });
+
+Deno.test("tagName: should honor explicit customElementTag when provided", () => {
+    const explicit = fixtures.ExplicitTagComponent.getTagName();
+    assertEquals(explicit, "x-explicit-tag");
+});
