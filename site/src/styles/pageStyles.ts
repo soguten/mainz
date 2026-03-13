@@ -43,6 +43,7 @@ export const pageStyles = /* css */`
     }
 
     .page-shell > * {
+        min-width: 0;
         animation: press-reveal 320ms ease both;
     }
 
@@ -72,21 +73,11 @@ export const pageStyles = /* css */`
     }
 
     .top-nav {
-        position: relative;
         padding: 0.8rem 1rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        transition: transform 0.24s ease, opacity 0.24s ease;
-    }
-
-    .top-nav.floating {
-        position: sticky;
-        top: 0.5rem;
-        z-index: 20;
-        backdrop-filter: blur(4px);
-        background: rgba(250, 248, 242, 0.92);
     }
 
     .brand {
@@ -303,6 +294,7 @@ export const pageStyles = /* css */`
 
     pre {
         margin: 0.8rem 0 0;
+        max-width: 100%;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: #111;
@@ -401,19 +393,134 @@ export const pageStyles = /* css */`
         color: var(--ink-soft);
     }
 
-    .sandbox-editor {
-        width: 100%;
-        min-height: 250px;
-        resize: vertical;
+    .sandbox-editor-shell {
         margin-top: 0.5rem;
-        padding: 0.7rem;
-        border: 1px solid var(--line-soft);
-        border-radius: 6px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 36%),
+            #10141c;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .sandbox-editor-gutter {
+        padding: 0.85rem 0.65rem;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.18);
+        color: #7f8795;
         font-family: "IBM Plex Mono", Consolas, monospace;
         font-size: 0.83rem;
         line-height: 1.5;
-        background: #fff;
-        color: #1e1e1e;
+        text-align: right;
+        user-select: none;
+        overflow: hidden;
+    }
+
+    .sandbox-editor-line {
+        display: block;
+        min-width: 2ch;
+    }
+
+    .sandbox-editor-stack {
+        display: grid;
+        min-height: 250px;
+    }
+
+    .sandbox-editor-stack > * {
+        grid-area: 1 / 1;
+    }
+
+    .sandbox-editor-preview,
+    .sandbox-editor {
+        min-height: 250px;
+        margin: 0;
+        padding: 0.85rem 1rem;
+        font-family: "IBM Plex Mono", Consolas, monospace;
+        font-size: 0.83rem;
+        line-height: 1.5;
+        letter-spacing: normal;
+        tab-size: 4;
+        white-space: pre;
+        font-variant-ligatures: none;
+        font-feature-settings: "liga" 0, "calt" 0;
+    }
+
+    .sandbox-editor-preview {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #d7dde8;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .sandbox-editor-preview .hljs {
+        min-height: 100%;
+    }
+
+    .sandbox-editor-preview code.hljs {
+        display: block;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        overflow: visible;
+    }
+
+    .sandbox-editor-preview code,
+    .sandbox-editor-preview .hljs,
+    .sandbox-editor-preview .hljs * {
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        letter-spacing: inherit;
+        font-weight: 400;
+        font-style: normal;
+        font-variant-ligatures: none;
+        font-feature-settings: "liga" 0, "calt" 0;
+    }
+
+    .sandbox-editor {
+        width: 100%;
+        resize: vertical;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: transparent;
+        caret-color: #f6ead0;
+        overflow: auto;
+        outline: none;
+    }
+
+    .sandbox-editor::selection {
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .sandbox-editor:focus {
+        box-shadow: inset 0 0 0 1px rgba(246, 234, 208, 0.35);
+    }
+
+    .sandbox-editor::-webkit-scrollbar,
+    .sandbox-editor-preview::-webkit-scrollbar,
+    .sandbox-editor-gutter::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .sandbox-editor::-webkit-scrollbar-thumb,
+    .sandbox-editor-preview::-webkit-scrollbar-thumb,
+    .sandbox-editor-gutter::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+    }
+
+    .sandbox-editor::-webkit-scrollbar-track,
+    .sandbox-editor-preview::-webkit-scrollbar-track,
+    .sandbox-editor-gutter::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .sandbox-actions {
@@ -458,8 +565,41 @@ export const pageStyles = /* css */`
     }
 
     @media (max-width: 760px) {
+        .page-shell {
+            width: min(1080px, calc(100% - 1rem));
+        }
+
+        .top-nav,
+        .chapter-header {
+            align-items: flex-start;
+        }
+
+        .top-nav {
+            padding: 0.9rem;
+            flex-direction: column;
+        }
+
         .top-links {
+            width: 100%;
             justify-content: flex-start;
+        }
+
+        .top-links a {
+            flex: 1 1 calc(50% - 0.45rem);
+            text-align: center;
+        }
+
+        .chapter-row {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .chapter-button {
+            width: 100%;
+        }
+
+        pre {
+            font-size: 0.75rem;
         }
 
         .button {
