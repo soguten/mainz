@@ -1,4 +1,4 @@
-import { MainzTutorialPage } from "./components/MainzTutorialPage.tsx";
+import { HomePage } from "./pages/Home.page.tsx";
 import { getLocale } from "./i18n/index.ts";
 
 const app = document.querySelector("#app");
@@ -9,13 +9,13 @@ if (!app) {
 
 document.documentElement.lang = getLocale();
 
-const tutorialTagName = MainzTutorialPage.getTagName();
+const pageTagName = HomePage.getTagName();
 
-if (!customElements.get(tutorialTagName)) {
-    customElements.define(tutorialTagName, MainzTutorialPage);
+if (!customElements.get(pageTagName)) {
+    customElements.define(pageTagName, HomePage);
 }
 
-const hasPreRenderedTutorial = Boolean(app.querySelector(tutorialTagName));
-if (!hasPreRenderedTutorial) {
-    app.append(<MainzTutorialPage />);
+const hasPreRenderedPage = Boolean(app.querySelector(pageTagName));
+if (!hasPreRenderedPage) {
+    app.append(<HomePage />);
 }
