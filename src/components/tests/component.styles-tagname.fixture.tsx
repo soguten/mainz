@@ -39,3 +39,11 @@ export const DuplicateTagNameB = class SharedName extends Component {
         return document.createElement("div");
     }
 };
+
+export class ExplicitTagComponent extends Component {
+    static override customElementTag = "x-explicit-tag";
+
+    override render(): HTMLElement {
+        return document.createElement("div");
+    }
+}

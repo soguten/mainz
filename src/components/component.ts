@@ -440,11 +440,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         const cached = Component.tagNameCache.get(ctor);
         if (cached) return cached;
 
-        const normalizedName = Component.toKebabCase(ctor.name)
-            .replace(/[^a-z0-9._-]/g, "-")
-            .replace(/^-+|-+$/g, "") || "component";
-
-        let candidate = `x-${normalizedName}`;
+        let candidate = Component.resolveDesiredTagName(ctor);
         const owner = Component.tagOwners.get(candidate);
 
         if (owner && owner !== ctor) {
@@ -502,8 +498,34 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
     afterRender?(): void;
 
+    /**
+     * Optional stable custom element tag.
+     * Useful for SSG/CSR consistency when class names may be minified.
+     */
+    static customElementTag?: string;
+
     private static toKebabCase(str: string): string {
         return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+    }
+
+    private static resolveDesiredTagName(ctor: typeof Component): string {
+        const explicitTag = ctor.customElementTag;
+        if (explicitTag) {
+            const normalizedExplicitTag = explicitTag.trim().toLowerCase();
+            if (/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(normalizedExplicitTag)) {
+                return normalizedExplicitTag;
+            }
+
+            console.warn(
+                `${ctor.name} has invalid customElementTag "${explicitTag}". Falling back to generated tag.`,
+            );
+        }
+
+        const normalizedName = Component.toKebabCase(ctor.name)
+            .replace(/[^a-z0-9._-]/g, "-")
+            .replace(/^-+|-+$/g, "") || "component";
+
+        return `x-${normalizedName}`;
     }
 }
 
