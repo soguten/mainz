@@ -4,11 +4,12 @@ import { dirname, join, relative, resolve } from "node:path";
 import {
     buildSsgOutputEntries,
     buildTargetRouteManifest,
-    ExplicitRouteDefinition,
     RenderMode,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
 } from "../routing/index.ts";
+import { discoverPagesFromFiles } from "../routing/server.ts";
+import type { PageHeadDefinition } from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
@@ -54,7 +55,20 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
     const jobs: BuildJob[] = [];
     for (const target of targets) {
         for (const mode of modes) {
+            if (!targetSupportsRenderMode(target, mode)) {
+                continue;
+            }
+
             jobs.push({ target, mode });
+        }
+    }
+
+    if (jobs.length === 0 && targetSelection && modeSelection) {
+        const selectedTarget = config.targets.find((target) => target.name === targetSelection);
+        if (selectedTarget && !targetSupportsRenderMode(selectedTarget, modeSelection as RenderMode)) {
+            throw new Error(
+                `Target "${selectedTarget.name}" has no pages/routes and only supports csr app builds.`,
+            );
         }
     }
 
@@ -71,6 +85,18 @@ function normalizeModeSelection(mode: string | undefined): string | undefined {
     }
 
     return mode;
+}
+
+function targetSupportsRenderMode(target: NormalizedMainzTarget, mode: RenderMode): boolean {
+    if (mode === "csr") {
+        return true;
+    }
+
+    return hasRoutingInput(target);
+}
+
+function hasRoutingInput(target: NormalizedMainzTarget): boolean {
+    return Boolean(target.pagesDir);
 }
 
 export async function runBuildJobs(config: NormalizedMainzConfig, jobs: BuildJob[], cwd = Deno.cwd()): Promise<void> {
@@ -153,23 +179,24 @@ async function emitSsgArtifacts(
         );
     }
 
-    const explicitRoutes = await loadExplicitRoutes(job.target, cwd);
     const filesystemPageFiles = job.target.pagesDir
         ? await collectFilesystemPageFiles(resolve(cwd, job.target.pagesDir))
         : undefined;
-
-    const modeScopedExplicitRoutes = explicitRoutes?.map((route) => ({
-        ...route,
-        mode: job.mode,
-    }));
+    const discoveredPages = filesystemPageFiles?.length
+        ? (await discoverPagesFromFiles(filesystemPageFiles)).map((entry) => ({
+            file: entry.file,
+            exportName: entry.exportName,
+            ...entry.page,
+        }))
+        : undefined;
 
     const manifest = buildTargetRouteManifest({
         target: {
             ...job.target,
             defaultMode: job.mode,
         },
-        explicitRoutes: modeScopedExplicitRoutes,
         filesystemPageFiles,
+        discoveredPages,
         i18n: config.i18n ? { locales: config.i18n.locales } : undefined,
     });
 
@@ -196,8 +223,8 @@ async function emitSsgArtifacts(
             locale: entry.locale,
         });
         html = injectAppHtml(html, appHtml);
-
         html = setHtmlLang(html, entry.locale);
+        html = applyRouteHead(html, route);
 
         await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
         await Deno.writeTextFile(absoluteOutputPath, html);
@@ -217,38 +244,6 @@ async function emitSsgArtifacts(
     if (localeRedirectHtml) {
         await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
-}
-
-async function loadExplicitRoutes(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<readonly ExplicitRouteDefinition[] | undefined> {
-    if (target.routeDefinitions) {
-        return target.routeDefinitions;
-    }
-
-    if (!target.routes) {
-        return undefined;
-    }
-
-    const absoluteRouteModulePath = resolve(cwd, target.routes);
-    let module: Record<string, unknown>;
-    try {
-        module = await import(`${toFileUrl(absoluteRouteModulePath)}?t=${Date.now()}`);
-    } catch (error) {
-        throw new Error(
-            `Could not load routes for target "${target.name}" from "${target.routes}": ${toErrorMessage(error)}`,
-        );
-    }
-
-    const routes = module.default;
-    if (!Array.isArray(routes)) {
-        throw new Error(
-            `Route module "${target.routes}" for target "${target.name}" must export a default array.`,
-        );
-    }
-
-    return routes as readonly ExplicitRouteDefinition[];
 }
 
 async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
@@ -590,6 +585,64 @@ function safeToLocalePathSegment(locale: string): string | undefined {
     } catch {
         return undefined;
     }
+}
+
+export function applyRouteHead(
+    html: string,
+    route: {
+        head?: PageHeadDefinition;
+    },
+): string {
+    if (!route.head) {
+        return html;
+    }
+
+    let nextHtml = html;
+
+    if (route.head.title) {
+        if (/<title>[\s\S]*?<\/title>/i.test(nextHtml)) {
+            nextHtml = nextHtml.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(route.head.title)}</title>`);
+        } else {
+            nextHtml = nextHtml.replace("</head>", `  <title>${escapeHtml(route.head.title)}</title>\n</head>`);
+        }
+    }
+
+    const tags: string[] = [];
+
+    for (const meta of route.head.meta ?? []) {
+        const attributes = [
+            meta.name ? ` name="${escapeHtmlAttribute(meta.name)}"` : "",
+            meta.property ? ` property="${escapeHtmlAttribute(meta.property)}"` : "",
+            ` content="${escapeHtmlAttribute(meta.content)}"`,
+        ].join("");
+        tags.push(`<meta${attributes} />`);
+    }
+
+    for (const link of route.head.links ?? []) {
+        const attributes = [
+            ` rel="${escapeHtmlAttribute(link.rel)}"`,
+            ` href="${escapeHtmlAttribute(link.href)}"`,
+            link.hreflang ? ` hreflang="${escapeHtmlAttribute(link.hreflang)}"` : "",
+        ].join("");
+        tags.push(`<link${attributes} />`);
+    }
+
+    if (tags.length > 0) {
+        nextHtml = nextHtml.replace("</head>", `  ${tags.join("\n  ")}\n</head>`);
+    }
+
+    return nextHtml;
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
+function escapeHtmlAttribute(value: string): string {
+    return escapeHtml(value).replaceAll('"', "&quot;");
 }
 
 function toFileUrl(absolutePath: string): string {

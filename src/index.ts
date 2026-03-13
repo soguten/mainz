@@ -1,5 +1,13 @@
 export { Component } from "./components/index.ts";
+export { Page, isPageConstructor } from "./components/index.ts";
 export type { DefaultProps, DefaultState } from "./components/index.ts";
+export type {
+    PageConstructor,
+    PageDefinition,
+    PageHeadDefinition,
+    PageHeadLinkDefinition,
+    PageHeadMetaDefinition,
+} from "./components/index.ts";
 export {
     createAppDictionaryI18n,
     createDictionaryI18n,
@@ -26,14 +34,12 @@ export {
 } from "./routing/index.ts";
 export type {
     BuildTargetRouteManifestInput,
-    ExplicitRouteDefinition,
     FilesystemRoute,
     FilesystemRoutingOptions,
     RenderMode,
     RenderModeInput,
     RouteManifestEntry,
     RouteSource,
-    RoutingStrategy,
     SsgOutputEntry,
     TargetDefinition,
     TargetRouteManifest,

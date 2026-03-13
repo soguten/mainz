@@ -1,12 +1,13 @@
 import { inferFilesystemRoutes } from "./filesystem.ts";
 import type { I18nConfig } from "../i18n/index.ts";
+import type { PageHeadDefinition } from "../components/page.ts";
 import {
     normalizeLocaleTag,
     toLocalePathSegment as toLocalePathSegmentFromI18n,
 } from "../i18n/index.ts";
 import {
     BuildTargetRouteManifestInput,
-    ExplicitRouteDefinition,
+    DiscoveredPageDefinition,
     FilesystemRoute,
     RenderMode,
     RenderModeInput,
@@ -20,22 +21,26 @@ interface CandidateRoute {
     idHint?: string;
     source: RouteSource;
     file?: string;
+    exportName?: string;
     path: string;
     pattern: string;
     routeKey: string;
     mode: RenderMode;
     locales: string[];
+    head?: PageHeadDefinition;
 }
 
 interface ExpandedRouteLocale {
     idHint?: string;
     source: RouteSource;
     file?: string;
+    exportName?: string;
     path: string;
     pattern: string;
     routeKey: string;
     mode: RenderMode;
     locale: string;
+    head?: PageHeadDefinition;
 }
 
 interface BuildSsgOutputEntriesOptions {
@@ -46,50 +51,24 @@ export function buildTargetRouteManifest(input: BuildTargetRouteManifestInput): 
     const target = input.target;
     const targetName = target.name;
 
-    const explicitConfigured = Boolean(target.routes || input.explicitRoutes);
-    const filesystemConfigured = Boolean(target.pagesDir || input.filesystemPageFiles);
+    const filesystemConfigured = Boolean(target.pagesDir || input.filesystemPageFiles || input.discoveredPages);
 
-    if (!explicitConfigured && !filesystemConfigured) {
-        throw new Error(
-            `Target "${targetName}" has no routing input. Configure routes or pagesDir.`,
-        );
+    if (!filesystemConfigured) {
+        return {
+            target: targetName,
+            routes: [],
+        };
     }
 
-    if (target.routing === "explicit" && !explicitConfigured) {
-        throw new Error(
-            `Target "${targetName}" uses routing=explicit but no routes input was provided.`,
-        );
-    }
-
-    if (target.routing === "filesystem" && !filesystemConfigured) {
-        throw new Error(
-            `Target "${targetName}" uses routing=filesystem but no pagesDir input was provided.`,
-        );
-    }
-
-    if (explicitConfigured && filesystemConfigured && !target.allowRoutingConflict) {
-        throw new Error(
-            [
-                `Target "${targetName}" configures routes and pagesDir at the same time.`,
-                `Set allowRoutingConflict=true to opt in to mixed routing with explicit precedence.`,
-            ].join(" "),
-        );
-    }
-
-    if (filesystemConfigured && !target.defaultMode) {
+    if (filesystemConfigured && !target.defaultMode && !input.discoveredPages?.length) {
         throw new Error(
             `Target "${targetName}" uses filesystem routing and requires defaultMode ("ssg" or "csr").`,
         );
     }
 
-    const explicitRoutes = buildExplicitCandidates(input);
     const filesystemRoutes = buildFilesystemCandidates(input);
 
     const mergedByRouteAndLocale = new Map<string, ExpandedRouteLocale>();
-
-    for (const route of explicitRoutes) {
-        upsertByLocale(mergedByRouteAndLocale, route, targetName);
-    }
 
     for (const route of filesystemRoutes) {
         upsertByLocale(mergedByRouteAndLocale, route, targetName);
@@ -158,53 +137,13 @@ export function shouldPrefixLocaleForRoute(
     return locales.length > 1;
 }
 
-function buildExplicitCandidates(input: BuildTargetRouteManifestInput): CandidateRoute[] {
-    const target = input.target;
-    const targetName = target.name;
-
-    if (!target.routes && !input.explicitRoutes) {
-        return [];
-    }
-
-    if (!input.explicitRoutes) {
-        throw new Error(
-            `Target "${targetName}" defines routes="${target.routes}" but explicit routes were not loaded.`,
-        );
-    }
-
-    return input.explicitRoutes.map((route) => buildExplicitCandidate(route, input));
-}
-
-function buildExplicitCandidate(
-    route: ExplicitRouteDefinition,
-    input: BuildTargetRouteManifestInput,
-): CandidateRoute {
-    const targetName = input.target.name;
-    const path = normalizeRoutePath(route.path);
-    const routeKey = canonicalizeRouteKey(path);
-    const locales = resolveRouteLocales({
-        routeLocales: route.locales,
-        targetLocales: input.target.locales,
-        globalLocales: input.i18n?.locales ?? input.globalLocales,
-        targetName,
-        routeLabel: route.id ?? path,
-    });
-
-    return {
-        idHint: route.id,
-        source: "explicit",
-        file: route.file,
-        mode: normalizeRenderMode(route.mode),
-        path,
-        pattern: path,
-        routeKey,
-        locales,
-    };
-}
-
 function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): CandidateRoute[] {
     const target = input.target;
     const targetName = target.name;
+
+    if (input.discoveredPages) {
+        return input.discoveredPages.map((page) => buildDiscoveredPageCandidate(page, input));
+    }
 
     if (!target.pagesDir && !input.filesystemPageFiles) {
         return [];
@@ -255,6 +194,35 @@ function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): Candid
     });
 }
 
+function buildDiscoveredPageCandidate(
+    page: DiscoveredPageDefinition,
+    input: BuildTargetRouteManifestInput,
+): CandidateRoute {
+    const targetName = input.target.name;
+    const path = normalizeRoutePath(page.path);
+    const routeKey = canonicalizeRouteKey(path);
+    const locales = resolveRouteLocales({
+        routeLocales: page.locales,
+        targetLocales: input.target.locales,
+        globalLocales: input.i18n?.locales ?? input.globalLocales,
+        targetName,
+        routeLabel: `${page.file}#${page.exportName}`,
+    });
+
+    return {
+        idHint: undefined,
+        source: "filesystem",
+        file: page.file,
+        exportName: page.exportName,
+        path,
+        pattern: path,
+        routeKey,
+        mode: page.mode,
+        locales,
+        head: page.head,
+    };
+}
+
 function upsertByLocale(
     destination: Map<string, ExpandedRouteLocale>,
     candidate: CandidateRoute,
@@ -270,29 +238,13 @@ function upsertByLocale(
                 idHint: candidate.idHint,
                 source: candidate.source,
                 file: candidate.file,
+                exportName: candidate.exportName,
                 path: candidate.path,
                 pattern: candidate.pattern,
                 routeKey: candidate.routeKey,
                 mode: candidate.mode,
                 locale,
-            });
-            continue;
-        }
-
-        if (existing.source === "explicit" && candidate.source === "filesystem") {
-            continue;
-        }
-
-        if (existing.source === "filesystem" && candidate.source === "explicit") {
-            destination.set(key, {
-                idHint: candidate.idHint,
-                source: candidate.source,
-                file: candidate.file,
-                path: candidate.path,
-                pattern: candidate.pattern,
-                routeKey: candidate.routeKey,
-                mode: candidate.mode,
-                locale,
+                head: candidate.head,
             });
             continue;
         }
@@ -302,7 +254,7 @@ function upsertByLocale(
                 `Target "${targetName}" has conflicting routes for pattern "${candidate.routeKey}" and locale "${locale}".`,
                 `Existing source: ${describeRouteSource(existing)}`,
                 `New source: ${describeRouteSource(candidate)}`,
-                `Suggestion: rename one route or enable explicit precedence with allowRoutingConflict=true.`,
+                `Suggestion: rename one page or change its path metadata.`,
             ].join(" "),
         );
     }
@@ -315,6 +267,7 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
         const groupingKey = [
             route.source,
             route.file ?? "",
+            route.exportName ?? "",
             route.path,
             route.pattern,
             route.mode,
@@ -327,10 +280,12 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
                 id: route.idHint ?? "",
                 source: route.source,
                 file: route.file,
+                exportName: route.exportName,
                 path: route.path,
                 pattern: route.pattern,
                 mode: route.mode,
                 locales: [route.locale],
+                head: route.head ? cloneHead(route.head) : undefined,
             });
             continue;
         }
@@ -350,8 +305,8 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
                 return a.path.localeCompare(b.path);
             }
 
-            if (a.source !== b.source) {
-                return a.source.localeCompare(b.source);
+            if ((a.exportName ?? "") !== (b.exportName ?? "")) {
+                return (a.exportName ?? "").localeCompare(b.exportName ?? "");
             }
 
             return (a.file ?? "").localeCompare(b.file ?? "");
@@ -537,6 +492,18 @@ function describeRouteSource(route: { source: RouteSource; file?: string }): str
     }
 
     return route.source;
+}
+
+function cloneHead(head: PageHeadDefinition | undefined): PageHeadDefinition | undefined {
+    if (!head) {
+        return head;
+    }
+
+    return {
+        title: head.title,
+        meta: head.meta ? [...head.meta] : undefined,
+        links: head.links ? [...head.links] : undefined,
+    };
 }
 
 function normalizePath(value: string): string {

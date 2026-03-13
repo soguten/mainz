@@ -9,6 +9,8 @@ interface TrackedEventListener {
     options: boolean;
 }
 
+const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
+
 /**
  * Abstract base class for custom web components.
  * Provides lifecycle management, state handling, event registration, and rendering logic.
@@ -16,7 +18,7 @@ interface TrackedEventListener {
  * @template P The type for the component's props.
  * @template S The type for the component's state.
  */
-export abstract class Component<P = DefaultProps, S = DefaultState> extends HTMLElement {
+export abstract class Component<P = DefaultProps, S = DefaultState> extends HTMLElementBase {
     private static tagNameCache = new WeakMap<typeof Component, string>();
     private static tagOwners = new Map<string, typeof Component>();
     private static tagSuffixCounter = 0;

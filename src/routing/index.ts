@@ -12,14 +12,12 @@ export {
 
 export type {
     BuildTargetRouteManifestInput,
-    ExplicitRouteDefinition,
     FilesystemRoute,
     FilesystemRoutingOptions,
     RouteManifestEntry,
     RouteSource,
     RenderMode,
     RenderModeInput,
-    RoutingStrategy,
     SsgOutputEntry,
     TargetDefinition,
     TargetRouteManifest,
