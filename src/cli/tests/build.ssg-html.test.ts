@@ -3,6 +3,7 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
     applyRouteHead,
+    buildRouteHead,
     injectAppHtml,
     resolveLocaleRedirectPath,
     rewriteAssetPaths,
@@ -84,4 +85,27 @@ Deno.test("build html helpers: applies route head metadata to prerendered html",
     assertStringIncludes(output, "<title>Docs</title>");
     assertStringIncludes(output, '<meta name="description" content="Docs page" />');
     assertStringIncludes(output, '<link rel="canonical" href="/docs" />');
+});
+
+Deno.test("build html helpers: generates canonical and alternate locale links for routes", () => {
+    const head = buildRouteHead(
+        {
+            path: "/docs",
+            locales: ["en", "pt-BR"],
+            head: {
+                title: "Docs",
+            },
+        },
+        {
+            routes: [],
+        },
+        "pt-BR",
+        "auto",
+    );
+
+    assertEquals(head?.links, [
+        { rel: "canonical", href: "/pt-br/docs" },
+        { rel: "alternate", href: "/en/docs", hreflang: "en" },
+        { rel: "alternate", href: "/pt-br/docs", hreflang: "pt-BR" },
+    ]);
 });

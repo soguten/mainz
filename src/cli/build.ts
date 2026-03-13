@@ -216,6 +216,8 @@ async function emitSsgArtifacts(
             throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
         }
 
+        const routeHead = buildRouteHead(route, manifest, entry.locale, config.i18n?.localePrefix);
+
         const appHtml = await renderSsgAppHtml({
             html,
             absoluteOutputPath,
@@ -224,7 +226,7 @@ async function emitSsgArtifacts(
         });
         html = injectAppHtml(html, appHtml);
         html = setHtmlLang(html, entry.locale);
-        html = applyRouteHead(html, route);
+        html = applyRouteHead(html, { head: routeHead });
 
         await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
         await Deno.writeTextFile(absoluteOutputPath, html);
@@ -632,6 +634,84 @@ export function applyRouteHead(
     }
 
     return nextHtml;
+}
+
+export function buildRouteHead(
+    route: {
+        path: string;
+        locales: string[];
+        head?: PageHeadDefinition;
+    },
+    manifest: {
+        routes: Array<{
+            path: string;
+            locales: string[];
+        }>;
+    },
+    locale: string,
+    localePrefix: "auto" | "always" | undefined,
+): PageHeadDefinition | undefined {
+    const generatedLinks = generateRouteHeadLinks(route, locale, localePrefix);
+    const manualHead = route.head;
+
+    if (!manualHead && generatedLinks.length === 0) {
+        return undefined;
+    }
+
+    return {
+        title: manualHead?.title,
+        meta: manualHead?.meta ? [...manualHead.meta] : undefined,
+        links: [
+            ...generatedLinks,
+            ...(manualHead?.links ? [...manualHead.links] : []),
+        ],
+    };
+}
+
+function generateRouteHeadLinks(
+    route: { path: string; locales: string[] },
+    locale: string,
+    localePrefix: "auto" | "always" | undefined,
+): Array<{ rel: string; href: string; hreflang?: string }> {
+    if (route.locales.length === 0) {
+        return [];
+    }
+
+    const links: Array<{ rel: string; href: string; hreflang?: string }> = [];
+    links.push({
+        rel: "canonical",
+        href: buildLocalizedRouteHref(route.path, locale, route.locales, localePrefix),
+    });
+
+    if (route.locales.length > 1) {
+        for (const alternateLocale of route.locales) {
+            links.push({
+                rel: "alternate",
+                href: buildLocalizedRouteHref(route.path, alternateLocale, route.locales, localePrefix),
+                hreflang: alternateLocale,
+            });
+        }
+    }
+
+    return links;
+}
+
+function buildLocalizedRouteHref(
+    routePath: string,
+    locale: string,
+    routeLocales: readonly string[],
+    localePrefix: "auto" | "always" | undefined,
+): string {
+    const normalizedRoutePath = routePath === "/" ? "" : routePath;
+    const shouldPrefixLocale = shouldPrefixLocaleForRoute(routeLocales, localePrefix ?? "auto");
+    const localePrefixPath = shouldPrefixLocale ? `/${toLocalePathSegment(locale)}` : "";
+    const href = `${localePrefixPath}${normalizedRoutePath || "/"}`;
+
+    if (href !== "/" && href.endsWith("/")) {
+        return href.slice(0, -1);
+    }
+
+    return href;
 }
 
 function escapeHtml(value: string): string {
