@@ -313,8 +313,11 @@ async function emitSsgArtifacts(
     const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
     await Deno.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
 
-    const islandsManifestPath = resolve(cwd, modeOutDir, "islands.json");
-    await Deno.writeTextFile(islandsManifestPath, JSON.stringify({ target: job.target.name, islands: [] }, null, 2));
+    const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
+    await Deno.writeTextFile(
+        hydrationManifestPath,
+        JSON.stringify({ target: job.target.name, hydration: "full-page" }, null, 2),
+    );
 
     const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
         manifest,
