@@ -15,7 +15,7 @@ const i18n = createAppDictionaryI18n({
     dictionaries,
     detect: {
         path: true,
-        document: false,
+        document: true,
         navigator: true,
     },
     onMissingTranslation: (key) => {
