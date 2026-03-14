@@ -934,13 +934,21 @@ function buildLocalizedRouteHref(
     const shouldPrefixLocale = shouldPrefixLocaleForRoute(routeLocales, localePrefix ?? "auto");
     const localePrefixPath = shouldPrefixLocale ? `/${toLocalePathSegment(locale)}` : "";
     const href = `${localePrefixPath}${normalizedRoutePath || "/"}`;
-    const normalizedHref = href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
+    const isLocalizedRootRoute = normalizedRoutePath === "" && localePrefixPath !== "";
+    const normalizedHref = isLocalizedRootRoute
+        ? `${localePrefixPath}/`
+        : href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
 
     if (!siteUrl) {
         return normalizedHref;
     }
 
-    return new URL(normalizedHref, `${siteUrl}/`).toString().replace(/\/+$/, normalizedHref === "/" ? "/" : "");
+    const absoluteHref = new URL(normalizedHref, `${siteUrl}/`).toString();
+    if (normalizedHref === "/" || normalizedHref.endsWith("/")) {
+        return absoluteHref;
+    }
+
+    return absoluteHref.replace(/\/+$/, "");
 }
 
 function escapeHtml(value: string): string {
