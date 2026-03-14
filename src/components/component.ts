@@ -156,7 +156,13 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         pushRenderOwner(this);
 
         try {
-            const nextTree = this.render();
+            let nextTree = this.render();
+
+            if (nextTree instanceof DocumentFragment) {
+                const wrapper = document.createElement("div");
+                wrapper.appendChild(nextTree);
+                nextTree = wrapper;
+            }
 
             if (!this.styleInjected) {
                 this.innerHTML = "";
@@ -169,7 +175,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 return;
             }
 
-            if (!this.renderedNode || this.renderedNode.parentNode !== this) {
+            if (!this.renderedNode) {
                 this.appendChild(nextTree);
                 this.renderedNode = nextTree;
                 this.pruneDetachedEventListeners();
@@ -475,9 +481,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     /**
      * Abstract method for rendering the component's DOM structure.
      * Must be implemented by subclasses.
-     * @returns {HTMLElement} The rendered component element.
+     * @returns {HTMLElement | DocumentFragment} The rendered component element or a Fragment.
      */
-    abstract render(): HTMLElement;
+    abstract render(): HTMLElement | DocumentFragment;
 
     /** Optional lifecycle method called after the component is mounted */
     onMount?(): void;
