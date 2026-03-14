@@ -2,7 +2,13 @@
 /// <reference lib="deno.ns" />
 
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
-import { BuildCliOptions, resolveBuildJobs, runBuildJobs } from "./build.ts";
+import {
+    BuildCliOptions,
+    resolveBuildJobs,
+    resolvePublicationMetadata,
+    resolveTargetBuildProfile,
+    runBuildJobs,
+} from "./build.ts";
 
 if (import.meta.main) {
     await main(Deno.args);
@@ -16,20 +22,49 @@ export async function main(args: string[]): Promise<void> {
         return;
     }
 
-    if (command !== "build") {
-        throw new Error(`Unknown command "${command}". Use "build".`);
+    if (command !== "build" && command !== "publish-info") {
+        throw new Error(`Unknown command "${command}". Use "build" or "publish-info".`);
     }
 
     const options = parseBuildOptions(rest);
     const loadedConfig = await loadMainzConfig(options.configPath);
     const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+
+    if (command === "publish-info") {
+        const targetName = options.target?.trim();
+        if (!targetName || targetName === "all") {
+            throw new Error('Command "publish-info" requires a single --target <name>.');
+        }
+
+        const target = normalizedConfig.targets.find((entry) => entry.name === targetName);
+        if (!target) {
+            throw new Error(
+                `No targets matched "${targetName}". Available targets: ${normalizedConfig.targets.map((entry) => entry.name).join(", ")}`,
+            );
+        }
+
+        const metadata = await resolvePublicationMetadata(target, options.profile);
+        console.log(JSON.stringify(metadata, null, 2));
+        return;
+    }
+
     const jobs = resolveBuildJobs(normalizedConfig, options);
+    const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
+    const resolvedProfileByTarget = new Map<string, Awaited<ReturnType<typeof resolveTargetBuildProfile>>>();
+    for (const target of selectedTargets.values()) {
+        resolvedProfileByTarget.set(target.name, await resolveTargetBuildProfile(target, options.profile));
+    }
+
+    const resolvedJobs = jobs.map((job) => ({
+        ...job,
+        profile: resolvedProfileByTarget.get(job.target.name)!,
+    }));
 
     console.log(
-        `[mainz] Building ${jobs.length} job(s) using config ${loadedConfig.path}`,
+        `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
     );
 
-    await runBuildJobs(normalizedConfig, jobs);
+    await runBuildJobs(normalizedConfig, resolvedJobs);
 
     console.log("[mainz] Build completed successfully.");
 }
@@ -52,6 +87,12 @@ function parseBuildOptions(args: string[]): BuildCliOptions {
             continue;
         }
 
+        if (current === "--profile") {
+            options.profile = args[index + 1];
+            index += 1;
+            continue;
+        }
+
         if (current === "--config") {
             options.configPath = args[index + 1];
             index += 1;
@@ -70,12 +111,15 @@ function printHelp(): void {
             "Mainz CLI",
             "",
             "Usage:",
-            "  mainz build [--target <name|all>] [--mode <csr|ssg|all>] [--config <path>]",
+            "  mainz build [--target <name|all>] [--profile <name>] [--mode <csr|ssg|all>] [--config <path>]",
+            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
             "",
             "Examples:",
             "  mainz build",
+            "  mainz build --target site --profile gh-pages",
             "  mainz build --target site --mode ssg",
             "  mainz build --target playground --mode csr",
+            "  mainz publish-info --target site --profile gh-pages",
             "",
             "Notes:",
             '  "spa" is kept as a legacy alias for "csr".',

@@ -7,6 +7,7 @@ export default defineMainzConfig({
             rootDir: "./site",
             viteConfig: "./vite.config.site.ts",
             pagesDir: "./site/src/pages",
+            buildConfig: "./site/mainz.build.ts",
             locales: ["en", "pt"],
             outDir: "dist/site",
             defaultMode: "ssg",

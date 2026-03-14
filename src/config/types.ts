@@ -16,6 +16,16 @@ export interface MainzTargetDefinition {
     outDir?: string;
     defaultMode?: RenderModeInput;
     viteConfig: string;
+    buildConfig?: string;
+}
+
+export interface TargetBuildProfileDefinition {
+    basePath?: string;
+    overridePageMode?: RenderModeInput;
+}
+
+export interface TargetBuildDefinition {
+    profiles?: Record<string, TargetBuildProfileDefinition>;
 }
 
 export interface MainzConfig {
@@ -32,6 +42,15 @@ export interface LoadedMainzConfig {
 export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defaultMode"> {
     defaultMode?: RenderMode;
     outDir: string;
+}
+
+export interface NormalizedTargetBuildProfile {
+    basePath?: string;
+    overridePageMode?: RenderMode;
+}
+
+export interface NormalizedTargetBuildDefinition {
+    profiles: Record<string, NormalizedTargetBuildProfile>;
 }
 
 export interface NormalizedMainzConfig {
