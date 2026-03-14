@@ -200,6 +200,26 @@ export class CounterPatchComponent extends Component<{}, { count: number }> {
     }
 }
 
+export class StyledRootComponent extends Component<{}, { count: number }> {
+    static override styles = `
+        .styled-root {
+            color: rgb(12, 34, 56);
+        }
+    `;
+
+    protected override initState() {
+        return { count: 0 };
+    }
+
+    override render(): HTMLElement {
+        return (
+            <div className="styled-root" data-role="styled-root">
+                Count: {this.state.count}
+            </div>
+        );
+    }
+}
+
 export class FragmentRootComponent extends Component<{}, { count: number }> {
     renders = 0;
 

@@ -225,6 +225,27 @@ Deno.test("patchChildren: counter-like text update should avoid replaceChildren 
     }
 });
 
+Deno.test("patchChildren: host styles should persist across component rerenders", () => {
+    const screen = renderMainzComponent(fixtures.StyledRootComponent);
+
+    const styleBefore = screen.component.querySelector("style");
+    const rootBefore = screen.getBySelector("div[data-role='styled-root']");
+
+    screen.component.setState({ count: 1 });
+
+    const styleAfter = screen.component.querySelector("style");
+    const rootAfter = screen.getBySelector("div[data-role='styled-root']");
+
+    assert(styleAfter === styleBefore, "Expected injected style node to preserve identity");
+    assert(rootAfter === rootBefore, "Expected styled root node to preserve identity");
+    assertEquals(screen.component.firstElementChild?.tagName, "STYLE");
+    assertEquals(screen.component.querySelectorAll("style").length, 1);
+    assertEquals(screen.component.children.length, 2);
+    assertEquals(rootAfter.textContent, "Count: 1");
+
+    screen.cleanup();
+});
+
 Deno.test("sanity: simple text patch should keep the same text node", () => {
 
     const screen = renderMainzComponent(fixtures.TextNodeComponent);

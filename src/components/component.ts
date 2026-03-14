@@ -234,6 +234,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     private patchChildNodeList(parent: HTMLElement, currentChildren: Node[], nextChildren: Node[]): Node[] {
+        const managedStartIndex = this.findManagedChildStartIndex(parent, currentChildren);
         const keyedCurrent = new Map<string, Node>();
         const unkeyedCurrent: Node[] = [];
 
@@ -269,18 +270,36 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
         for (let index = 0; index < orderedChildren.length; index += 1) {
             const expectedNode = orderedChildren[index];
-            const currentNodeAtIndex = parent.childNodes[index];
+            const currentNodeAtIndex = parent.childNodes[managedStartIndex + index];
 
             if (currentNodeAtIndex !== expectedNode) {
                 parent.insertBefore(expectedNode, currentNodeAtIndex ?? null);
             }
         }
 
-        while (parent.childNodes.length > orderedChildren.length) {
-            parent.lastChild?.remove();
+        const orderedChildrenSet = new Set(orderedChildren);
+        for (const currentChild of currentChildren) {
+            if (!orderedChildrenSet.has(currentChild) && currentChild.parentNode === parent) {
+                parent.removeChild(currentChild);
+            }
         }
 
         return orderedChildren;
+    }
+
+    private findManagedChildStartIndex(parent: HTMLElement, currentChildren: Node[]): number {
+        for (const currentChild of currentChildren) {
+            if (currentChild.parentNode !== parent) {
+                continue;
+            }
+
+            const childIndex = Array.from(parent.childNodes).findIndex((node) => node === currentChild);
+            if (childIndex >= 0) {
+                return childIndex;
+            }
+        }
+
+        return parent.childNodes.length;
     }
 
     private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
