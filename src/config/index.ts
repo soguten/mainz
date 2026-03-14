@@ -5,11 +5,18 @@ import {
     LoadedMainzConfig,
     MainzConfig,
     MainzTargetDefinition,
+    NormalizedTargetBuildDefinition,
+    NormalizedTargetBuildProfile,
     NormalizedMainzConfig,
     NormalizedMainzTarget,
+    TargetBuildDefinition,
 } from "./types.ts";
 
 export function defineMainzConfig(config: MainzConfig): MainzConfig {
+    return config;
+}
+
+export function defineTargetBuild(config: TargetBuildDefinition): TargetBuildDefinition {
     return config;
 }
 
@@ -59,6 +66,17 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     };
 }
 
+export function normalizeTargetBuildConfig(input: TargetBuildDefinition | undefined): NormalizedTargetBuildDefinition {
+    const profiles = input?.profiles ?? {};
+    const normalizedProfiles = Object.fromEntries(
+        Object.entries(profiles).map(([name, profile]) => [name, normalizeTargetBuildProfile(profile)]),
+    );
+
+    return {
+        profiles: normalizedProfiles,
+    };
+}
+
 function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
     if (!target.name?.trim()) {
         throw new Error("Every target must define a non-empty name.");
@@ -78,6 +96,16 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
         ...target,
         defaultMode: target.defaultMode ? normalizeRenderModeInput(target.defaultMode) : undefined,
         outDir,
+    };
+}
+
+function normalizeTargetBuildProfile(profile: {
+    basePath?: string;
+    overridePageMode?: RenderModeInput;
+}): NormalizedTargetBuildProfile {
+    return {
+        basePath: normalizeBasePath(profile.basePath),
+        overridePageMode: profile.overridePageMode ? normalizeRenderModeInput(profile.overridePageMode) : undefined,
     };
 }
 
@@ -120,6 +148,20 @@ function normalizeRenderModeInput(mode: RenderModeInput): RenderMode {
     return mode;
 }
 
+function normalizeBasePath(basePath: string | undefined): string | undefined {
+    if (!basePath) {
+        return undefined;
+    }
+
+    const trimmed = basePath.trim();
+    if (!trimmed || trimmed === "/") {
+        return "/";
+    }
+
+    const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
 function toErrorMessage(error: unknown): string {
     if (error instanceof Error) {
         return error.message;
@@ -132,6 +174,9 @@ export type {
     LoadedMainzConfig,
     MainzConfig,
     MainzTargetDefinition,
+    NormalizedTargetBuildDefinition,
+    NormalizedTargetBuildProfile,
     NormalizedMainzConfig,
     NormalizedMainzTarget,
+    TargetBuildDefinition,
 };

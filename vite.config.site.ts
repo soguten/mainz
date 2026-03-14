@@ -3,7 +3,7 @@ import { fileURLToPath, URL } from "node:url";
 
 const srcPath = normalizePath(fileURLToPath(new URL("./src/", import.meta.url)));
 
-const base = "./";
+const base = process.env.MAINZ_BASE_PATH ?? "./";
 const renderMode = process.env.MAINZ_RENDER_MODE ?? "csr";
 const outputDir = process.env.MAINZ_OUT_DIR ?? `dist/site/${renderMode}`;
 
@@ -29,6 +29,7 @@ export default defineConfig({
     define: {
         __MAINZ_RENDER_MODE__: JSON.stringify(renderMode),
         __MAINZ_TARGET_NAME__: JSON.stringify("site"),
+        __MAINZ_BASE_PATH__: JSON.stringify(base),
     },
 
     esbuild: {

@@ -14,19 +14,39 @@ import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
     NormalizedMainzTarget,
+    normalizeTargetBuildConfig,
+    type TargetBuildDefinition,
 } from "../config/index.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
 
 export interface BuildCliOptions {
     target?: string;
     mode?: string;
+    profile?: string;
     configPath?: string;
 }
 
 export interface BuildJob {
     target: NormalizedMainzTarget;
     mode: RenderMode;
+    profile: ResolvedTargetBuildProfile;
 }
+
+export interface ResolvedTargetBuildProfile {
+    name: string;
+    basePath: string;
+    overridePageMode?: RenderMode;
+}
+
+export interface PublicationMetadata {
+    target: string;
+    profile: string;
+    artifactDir: string;
+    basePath: string;
+    renderMode: RenderMode;
+}
+
+const DEFAULT_BUILD_PROFILE_NAME = "production";
 
 export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCliOptions): BuildJob[] {
     const targetSelection = options.target?.trim();
@@ -53,13 +73,18 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
     }
 
     const jobs: BuildJob[] = [];
+    const profile: ResolvedTargetBuildProfile = {
+        name: options.profile?.trim() || DEFAULT_BUILD_PROFILE_NAME,
+        basePath: "/",
+    };
+
     for (const target of targets) {
         for (const mode of modes) {
             if (!targetSupportsRenderMode(target, mode)) {
                 continue;
             }
 
-            jobs.push({ target, mode });
+            jobs.push({ target, mode, profile });
         }
     }
 
@@ -73,6 +98,55 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
     }
 
     return jobs;
+}
+
+export async function resolveTargetBuildProfile(
+    target: NormalizedMainzTarget,
+    requestedProfile: string | undefined,
+    cwd = Deno.cwd(),
+): Promise<ResolvedTargetBuildProfile> {
+    const profileName = requestedProfile?.trim() || DEFAULT_BUILD_PROFILE_NAME;
+    const buildConfig = await loadTargetBuildConfig(target, cwd);
+    const profile = buildConfig.profiles[profileName];
+
+    if (!profile) {
+        if (profileName === DEFAULT_BUILD_PROFILE_NAME) {
+            return {
+                name: profileName,
+                basePath: "/",
+            };
+        }
+
+        const availableProfiles = Object.keys(buildConfig.profiles);
+        throw new Error(
+            availableProfiles.length > 0
+                ? `Target "${target.name}" does not define profile "${profileName}". Available profiles: ${availableProfiles.join(", ")}`
+                : `Target "${target.name}" does not define profile "${profileName}" and has no target build profiles.`,
+        );
+    }
+
+    return {
+        name: profileName,
+        basePath: profile.basePath ?? "/",
+        overridePageMode: profile.overridePageMode,
+    };
+}
+
+export async function resolvePublicationMetadata(
+    target: NormalizedMainzTarget,
+    requestedProfile: string | undefined,
+    cwd = Deno.cwd(),
+): Promise<PublicationMetadata> {
+    const profile = await resolveTargetBuildProfile(target, requestedProfile, cwd);
+    const renderMode = resolvePublicationRenderMode(target, profile);
+
+    return {
+        target: target.name,
+        profile: profile.name,
+        artifactDir: normalizePathSlashes(join(target.outDir, renderMode)),
+        basePath: profile.basePath,
+        renderMode,
+    };
 }
 
 function normalizeModeSelection(mode: string | undefined): string | undefined {
@@ -119,6 +193,7 @@ export async function runSingleBuild(
         modeOutDir,
         renderMode: job.mode,
         targetName: job.target.name,
+        basePath: toViteBasePath(job.profile.basePath),
     });
 
     if (job.mode === "ssg") {
@@ -132,6 +207,7 @@ async function runViteBuild(args: {
     modeOutDir: string;
     renderMode: RenderMode;
     targetName: string;
+    basePath: string;
 }): Promise<void> {
     const command = new Deno.Command("deno", {
         cwd: args.cwd,
@@ -147,6 +223,7 @@ async function runViteBuild(args: {
             MAINZ_OUT_DIR: args.modeOutDir,
             MAINZ_RENDER_MODE: args.renderMode,
             MAINZ_TARGET_NAME: args.targetName,
+            MAINZ_BASE_PATH: args.basePath,
         },
         stdin: "inherit",
         stdout: "inherit",
@@ -193,10 +270,10 @@ async function emitSsgArtifacts(
     const manifest = buildTargetRouteManifest({
         target: {
             ...job.target,
-            defaultMode: job.mode,
+            defaultMode: job.profile.overridePageMode ?? job.target.defaultMode ?? job.mode,
         },
         filesystemPageFiles,
-        discoveredPages,
+        discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
         i18n: config.i18n ? { locales: config.i18n.locales } : undefined,
     });
 
@@ -223,6 +300,7 @@ async function emitSsgArtifacts(
             absoluteOutputPath,
             modeOutDir: resolve(cwd, modeOutDir),
             locale: entry.locale,
+            basePath: toViteBasePath(job.profile.basePath),
         });
         html = injectAppHtml(html, appHtml);
         html = setHtmlLang(html, entry.locale);
@@ -267,11 +345,93 @@ async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
     return filePaths;
 }
 
+function applyDiscoveredPageModeOverride(
+    discoveredPages: Array<{
+        file: string;
+        exportName: string;
+        path: string;
+        mode: RenderMode;
+        locales?: readonly string[];
+        head?: PageHeadDefinition;
+    }> | undefined,
+    overridePageMode: RenderMode | undefined,
+): typeof discoveredPages {
+    if (!discoveredPages || !overridePageMode) {
+        return discoveredPages;
+    }
+
+    return discoveredPages.map((page) => ({
+        ...page,
+        mode: overridePageMode,
+    }));
+}
+
+async function loadTargetBuildConfig(
+    target: NormalizedMainzTarget,
+    cwd: string,
+) {
+    const buildConfigPath = await resolveTargetBuildConfigPath(target, cwd);
+    if (!buildConfigPath) {
+        return normalizeTargetBuildConfig(undefined);
+    }
+
+    let module: Record<string, unknown>;
+    try {
+        module = await import(`${pathToFileURL(buildConfigPath).href}?t=${Date.now()}`);
+    } catch (error) {
+        throw new Error(`Could not load target build config at "${buildConfigPath}": ${toErrorMessage(error)}`);
+    }
+
+    const exported = module.default;
+    if (!exported || typeof exported !== "object") {
+        throw new Error(`Target build config "${buildConfigPath}" must export a default object.`);
+    }
+
+    return normalizeTargetBuildConfig(exported as TargetBuildDefinition);
+}
+
+async function resolveTargetBuildConfigPath(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<string | undefined> {
+    if (target.buildConfig?.trim()) {
+        return resolve(cwd, target.buildConfig);
+    }
+
+    const defaultPath = resolve(cwd, target.rootDir, "mainz.build.ts");
+    try {
+        await Deno.stat(defaultPath);
+        return defaultPath;
+    } catch {
+        return undefined;
+    }
+}
+
+function resolvePublicationRenderMode(
+    target: NormalizedMainzTarget,
+    profile: ResolvedTargetBuildProfile,
+): RenderMode {
+    if (profile.overridePageMode) {
+        return profile.overridePageMode;
+    }
+
+    if (target.defaultMode) {
+        return target.defaultMode;
+    }
+
+    return hasRoutingInput(target) ? "ssg" : "csr";
+}
+
+function toViteBasePath(basePath: string): string {
+    return basePath === "/" ? "./" : basePath;
+}
+
 async function renderSsgAppHtml(args: {
     html: string;
     absoluteOutputPath: string;
     modeOutDir: string;
     locale: string;
+    basePath: string;
 }): Promise<string> {
     const moduleScriptSrc = extractModuleScriptSrc(args.html);
     if (!moduleScriptSrc) {
@@ -284,6 +444,7 @@ async function renderSsgAppHtml(args: {
         moduleScriptSrc,
         absoluteOutputPath: args.absoluteOutputPath,
         modeOutDir: args.modeOutDir,
+        basePath: args.basePath,
     });
     const moduleScriptUrl = `${toFileUrl(moduleScriptPath)}?ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const pageUrl = buildOutputPageUrl(args.absoluteOutputPath, args.modeOutDir);
@@ -355,6 +516,7 @@ function resolveModuleScriptPath(args: {
     moduleScriptSrc: string;
     absoluteOutputPath: string;
     modeOutDir: string;
+    basePath: string;
 }): string {
     const normalizedSrc = args.moduleScriptSrc.trim();
 
@@ -363,7 +525,11 @@ function resolveModuleScriptPath(args: {
     }
 
     if (normalizedSrc.startsWith("/")) {
-        return resolve(args.modeOutDir, `.${normalizedSrc}`);
+        const normalizedBasePath = args.basePath === "/" ? "/" : args.basePath.replace(/\/+$/, "/");
+        const srcWithoutBasePath = normalizedBasePath !== "/" && normalizedSrc.startsWith(normalizedBasePath)
+            ? normalizedSrc.slice(normalizedBasePath.length - 1)
+            : normalizedSrc;
+        return resolve(args.modeOutDir, `.${srcWithoutBasePath}`);
     }
 
     return resolve(dirname(args.absoluteOutputPath), normalizedSrc);
