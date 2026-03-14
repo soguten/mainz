@@ -16,12 +16,6 @@ export class HomePage extends Page {
                     content: "Mainz tutorial experience with component-first UI and page-first routing.",
                 },
             ],
-            links: [
-                {
-                    rel: "canonical",
-                    href: "/",
-                },
-            ],
         },
     };
 

@@ -9,7 +9,7 @@ import {
     toLocalePathSegment,
 } from "../routing/index.ts";
 import { discoverPagesFromFiles } from "../routing/server.ts";
-import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
@@ -36,6 +36,7 @@ export interface ResolvedTargetBuildProfile {
     name: string;
     basePath: string;
     overridePageMode?: RenderMode;
+    siteUrl?: string;
 }
 
 export interface PublicationMetadata {
@@ -44,6 +45,7 @@ export interface PublicationMetadata {
     artifactDir: string;
     basePath: string;
     renderMode: RenderMode;
+    siteUrl?: string;
 }
 
 const DEFAULT_BUILD_PROFILE_NAME = "production";
@@ -114,6 +116,7 @@ export async function resolveTargetBuildProfile(
             return {
                 name: profileName,
                 basePath: "/",
+                siteUrl: undefined,
             };
         }
 
@@ -129,6 +132,7 @@ export async function resolveTargetBuildProfile(
         name: profileName,
         basePath: profile.basePath ?? "/",
         overridePageMode: profile.overridePageMode,
+        siteUrl: profile.siteUrl,
     };
 }
 
@@ -146,6 +150,7 @@ export async function resolvePublicationMetadata(
         artifactDir: normalizePathSlashes(join(target.outDir, renderMode)),
         basePath: profile.basePath,
         renderMode,
+        siteUrl: profile.siteUrl,
     };
 }
 
@@ -293,7 +298,14 @@ async function emitSsgArtifacts(
             throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
         }
 
-        const routeHead = buildRouteHead(route, manifest, entry.locale, config.i18n?.localePrefix);
+        const routeHead = buildRouteHead(
+            route,
+            manifest,
+            entry.locale,
+            config.i18n?.localePrefix,
+            config.i18n?.defaultLocale,
+            job.profile.siteUrl,
+        );
 
         const appHtml = await renderSsgAppHtml({
             html,
@@ -323,6 +335,7 @@ async function emitSsgArtifacts(
         manifest,
         config.i18n?.defaultLocale,
         config.i18n?.localePrefix,
+        job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
         await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
@@ -674,6 +687,7 @@ function buildDefaultLocaleRedirectHtml(
     manifest: { routes: Array<{ path: string; mode: RenderMode; locales: string[] }> },
     defaultLocale: string | undefined,
     localePrefix: "auto" | "always" | undefined,
+    siteUrl?: string,
 ): string | null {
     const rootRoute = manifest.routes.find((route) => {
         return route.path === "/" &&
@@ -696,6 +710,7 @@ function buildDefaultLocaleRedirectHtml(
         supportedLocales: supportedLocaleSegments,
         defaultLocale,
     });
+    const canonicalTarget = siteUrl ? new URL(targetPath, `${siteUrl}/`).toString() : targetPath;
     const supportedLocaleSegmentsJson = JSON.stringify(supportedLocaleSegments);
     const fallbackPathJson = JSON.stringify(targetPath);
 
@@ -706,7 +721,7 @@ function buildDefaultLocaleRedirectHtml(
         "    <meta charset=\"UTF-8\" />",
         "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />",
         "    <title>Redirecting...</title>",
-        `    <link rel="canonical" href="${targetPath}" />`,
+        `    <link rel="canonical" href="${canonicalTarget}" />`,
         "    <script>",
         "      (function () {",
         `        var supported = ${supportedLocaleSegmentsJson};`,
@@ -819,8 +834,10 @@ export function buildRouteHead(
     },
     locale: string,
     localePrefix: "auto" | "always" | undefined,
+    defaultLocale?: string,
+    siteUrl?: string,
 ): PageHeadDefinition | undefined {
-    const generatedLinks = generateRouteHeadLinks(route, locale, localePrefix);
+    const generatedLinks = generateRouteHeadLinks(route, locale, localePrefix, defaultLocale, siteUrl);
     const manualHead = route.head;
 
     if (!manualHead && generatedLinks.length === 0) {
@@ -830,17 +847,49 @@ export function buildRouteHead(
     return {
         title: manualHead?.title,
         meta: manualHead?.meta ? [...manualHead.meta] : undefined,
-        links: [
-            ...generatedLinks,
-            ...(manualHead?.links ? [...manualHead.links] : []),
-        ],
+        links: mergeRouteHeadLinks(generatedLinks, manualHead?.links),
     };
+}
+
+function mergeRouteHeadLinks(
+    generatedLinks: readonly PageHeadLinkDefinition[],
+    manualLinks: readonly PageHeadLinkDefinition[] | undefined,
+): PageHeadLinkDefinition[] {
+    const merged: PageHeadLinkDefinition[] = [];
+    const seenKeys = new Set<string>();
+
+    for (const link of [...generatedLinks, ...(manualLinks ? [...manualLinks] : [])]) {
+        const key = createRouteHeadLinkKey(link);
+        if (seenKeys.has(key)) {
+            continue;
+        }
+
+        seenKeys.add(key);
+        merged.push({ ...link });
+    }
+
+    return merged;
+}
+
+function createRouteHeadLinkKey(link: PageHeadLinkDefinition): string {
+    const rel = link.rel.trim().toLowerCase();
+    if (rel === "canonical") {
+        return "canonical";
+    }
+
+    if (rel === "alternate" && link.hreflang) {
+        return `alternate:${link.hreflang.trim().toLowerCase()}`;
+    }
+
+    return `${rel}:${link.href.trim()}:${link.hreflang?.trim().toLowerCase() ?? ""}`;
 }
 
 function generateRouteHeadLinks(
     route: { path: string; locales: string[] },
     locale: string,
     localePrefix: "auto" | "always" | undefined,
+    defaultLocale: string | undefined,
+    siteUrl: string | undefined,
 ): Array<{ rel: string; href: string; hreflang?: string }> {
     if (route.locales.length === 0) {
         return [];
@@ -849,17 +898,26 @@ function generateRouteHeadLinks(
     const links: Array<{ rel: string; href: string; hreflang?: string }> = [];
     links.push({
         rel: "canonical",
-        href: buildLocalizedRouteHref(route.path, locale, route.locales, localePrefix),
+        href: buildLocalizedRouteHref(route.path, locale, route.locales, localePrefix, siteUrl),
     });
 
     if (route.locales.length > 1) {
         for (const alternateLocale of route.locales) {
             links.push({
                 rel: "alternate",
-                href: buildLocalizedRouteHref(route.path, alternateLocale, route.locales, localePrefix),
+                href: buildLocalizedRouteHref(route.path, alternateLocale, route.locales, localePrefix, siteUrl),
                 hreflang: alternateLocale,
             });
         }
+
+        const xDefaultLocale = route.locales.includes(defaultLocale ?? "")
+            ? defaultLocale!
+            : route.locales[0];
+        links.push({
+            rel: "alternate",
+            href: buildLocalizedRouteHref(route.path, xDefaultLocale, route.locales, localePrefix, siteUrl),
+            hreflang: "x-default",
+        });
     }
 
     return links;
@@ -870,17 +928,19 @@ function buildLocalizedRouteHref(
     locale: string,
     routeLocales: readonly string[],
     localePrefix: "auto" | "always" | undefined,
+    siteUrl?: string,
 ): string {
     const normalizedRoutePath = routePath === "/" ? "" : routePath;
     const shouldPrefixLocale = shouldPrefixLocaleForRoute(routeLocales, localePrefix ?? "auto");
     const localePrefixPath = shouldPrefixLocale ? `/${toLocalePathSegment(locale)}` : "";
     const href = `${localePrefixPath}${normalizedRoutePath || "/"}`;
+    const normalizedHref = href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
 
-    if (href !== "/" && href.endsWith("/")) {
-        return href.slice(0, -1);
+    if (!siteUrl) {
+        return normalizedHref;
     }
 
-    return href;
+    return new URL(normalizedHref, `${siteUrl}/`).toString().replace(/\/+$/, normalizedHref === "/" ? "/" : "");
 }
 
 function escapeHtml(value: string): string {

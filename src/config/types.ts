@@ -22,6 +22,7 @@ export interface MainzTargetDefinition {
 export interface TargetBuildProfileDefinition {
     basePath?: string;
     overridePageMode?: RenderModeInput;
+    siteUrl?: string;
 }
 
 export interface TargetBuildDefinition {
@@ -47,6 +48,7 @@ export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defa
 export interface NormalizedTargetBuildProfile {
     basePath?: string;
     overridePageMode?: RenderMode;
+    siteUrl?: string;
 }
 
 export interface NormalizedTargetBuildDefinition {

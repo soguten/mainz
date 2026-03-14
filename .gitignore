@@ -139,5 +139,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Project build outputs
+/dist/
 /dist-site/
 /dist-playground/

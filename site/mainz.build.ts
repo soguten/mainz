@@ -5,9 +5,11 @@ export default defineTargetBuild({
         dev: {
             overridePageMode: "csr",
         },
+        production: {},
         "gh-pages": {
             // Published at the domain root.
             basePath: "/",
+            siteUrl: "https://mainz.soguten.com",
         },
     },
 });

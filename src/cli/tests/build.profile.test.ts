@@ -19,6 +19,7 @@ export default defineTargetBuild({
         },
         "gh-pages": {
             basePath: "/mainz",
+            siteUrl: "https://mainz.soguten.com",
         },
     },
 });
@@ -45,6 +46,7 @@ export default defineTargetBuild({
             name: "gh-pages",
             basePath: "/mainz/",
             overridePageMode: undefined,
+            siteUrl: "https://mainz.soguten.com",
         });
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
@@ -82,6 +84,7 @@ Deno.test("cli/build profiles: should discover rootDir mainz.build.ts automatica
             name: "dev",
             basePath: "/",
             overridePageMode: "csr",
+            siteUrl: undefined,
         });
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
@@ -94,6 +97,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
     profiles: {
         "gh-pages": {
             basePath: "/mainz/",
+            siteUrl: "https://mainz.soguten.com/",
         },
     },
 };
@@ -123,6 +127,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
             artifactDir: "dist/site/ssg",
             basePath: "/mainz/",
             renderMode: "ssg",
+            siteUrl: "https://mainz.soguten.com",
         });
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });

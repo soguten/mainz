@@ -6,6 +6,7 @@ export interface I18nConfig<Locale extends LocaleTag = LocaleTag> {
     localePrefix?: "auto" | "always";
     detectLocale?: "path-first" | "navigator";
     fallbackLocale?: Locale;
+    siteUrl?: string;
 }
 
 export interface MessagesLoader<Locale extends LocaleTag = LocaleTag> {

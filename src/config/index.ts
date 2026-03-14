@@ -102,10 +102,12 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
 function normalizeTargetBuildProfile(profile: {
     basePath?: string;
     overridePageMode?: RenderModeInput;
+    siteUrl?: string;
 }): NormalizedTargetBuildProfile {
     return {
         basePath: normalizeBasePath(profile.basePath),
         overridePageMode: profile.overridePageMode ? normalizeRenderModeInput(profile.overridePageMode) : undefined,
+        siteUrl: normalizeSiteUrl(profile.siteUrl),
     };
 }
 
@@ -160,6 +162,29 @@ function normalizeBasePath(basePath: string | undefined): string | undefined {
 
     const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
     return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function normalizeSiteUrl(siteUrl: string | undefined): string | undefined {
+    if (!siteUrl) {
+        return undefined;
+    }
+
+    const trimmed = siteUrl.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+
+    let parsed: URL;
+    try {
+        parsed = new URL(trimmed);
+    } catch {
+        throw new Error(`Invalid build profile siteUrl "${siteUrl}". Expected an absolute URL.`);
+    }
+
+    parsed.hash = "";
+    parsed.search = "";
+
+    return parsed.toString().replace(/\/+$/, "");
 }
 
 function toErrorMessage(error: unknown): string {
