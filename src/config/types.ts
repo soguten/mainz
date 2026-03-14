@@ -1,8 +1,8 @@
-import { I18nConfig } from "../i18n/index.ts";
 import {
     RenderMode,
     RenderModeInput,
 } from "../routing/index.ts";
+import { I18nConfig } from "../i18n/index.ts";
 
 export interface MainzRenderConfig {
     modes?: readonly RenderModeInput[];
@@ -13,6 +13,7 @@ export interface MainzTargetDefinition {
     rootDir: string;
     pagesDir?: string;
     locales?: readonly string[];
+    i18n?: Omit<I18nConfig<string>, "locales" | "detectLocale">;
     outDir?: string;
     defaultMode?: RenderModeInput;
     viteConfig: string;
@@ -32,7 +33,6 @@ export interface TargetBuildDefinition {
 export interface MainzConfig {
     targets: readonly MainzTargetDefinition[];
     render?: MainzRenderConfig;
-    i18n?: I18nConfig<string>;
 }
 
 export interface LoadedMainzConfig {
@@ -58,5 +58,4 @@ export interface NormalizedTargetBuildDefinition {
 export interface NormalizedMainzConfig {
     targets: NormalizedMainzTarget[];
     renderModes: RenderMode[];
-    i18n?: I18nConfig<string>;
 }

@@ -279,11 +279,12 @@ async function emitSsgArtifacts(
         },
         filesystemPageFiles,
         discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
-        i18n: config.i18n ? { locales: config.i18n.locales } : undefined,
     });
 
+    const targetI18n = resolveTargetI18nConfig(job.target);
+
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
-        localePrefix: config.i18n?.localePrefix,
+        localePrefix: targetI18n?.localePrefix,
     });
     const routeById = new Map(manifest.routes.map((route) => [route.id, route]));
 
@@ -302,8 +303,8 @@ async function emitSsgArtifacts(
             route,
             manifest,
             entry.locale,
-            config.i18n?.localePrefix,
-            config.i18n?.defaultLocale,
+            targetI18n?.localePrefix,
+            targetI18n?.defaultLocale,
             job.profile.siteUrl,
         );
 
@@ -333,8 +334,8 @@ async function emitSsgArtifacts(
 
     const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
         manifest,
-        config.i18n?.defaultLocale,
-        config.i18n?.localePrefix,
+        targetI18n?.defaultLocale,
+        targetI18n?.localePrefix,
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
@@ -380,6 +381,36 @@ function applyDiscoveredPageModeOverride(
         ...page,
         mode: overridePageMode,
     }));
+}
+
+function resolveTargetI18nConfig(
+    target: {
+        locales?: readonly string[];
+        i18n?: {
+            defaultLocale?: string;
+            localePrefix?: "auto" | "always";
+            fallbackLocale?: string;
+        };
+    },
+): {
+    defaultLocale?: string;
+    localePrefix?: "auto" | "always";
+    fallbackLocale?: string;
+} | undefined {
+    const defaultLocale = target.i18n?.defaultLocale
+        ?? target.locales?.[0];
+    const localePrefix = target.i18n?.localePrefix;
+    const fallbackLocale = target.i18n?.fallbackLocale ?? defaultLocale;
+
+    if (!defaultLocale && !localePrefix && !fallbackLocale) {
+        return undefined;
+    }
+
+    return {
+        defaultLocale,
+        localePrefix,
+        fallbackLocale,
+    };
 }
 
 async function loadTargetBuildConfig(

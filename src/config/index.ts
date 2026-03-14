@@ -62,7 +62,6 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     return {
         targets: normalizedTargets,
         renderModes,
-        i18n: input.i18n,
     };
 }
 

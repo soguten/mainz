@@ -177,7 +177,6 @@ function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): Candid
         const locales = resolveRouteLocales({
             routeLocales: undefined,
             targetLocales: target.locales,
-            globalLocales: input.i18n?.locales ?? input.globalLocales,
             targetName,
             routeLabel: route.path,
         });
@@ -204,7 +203,6 @@ function buildDiscoveredPageCandidate(
     const locales = resolveRouteLocales({
         routeLocales: page.locales,
         targetLocales: input.target.locales,
-        globalLocales: input.i18n?.locales ?? input.globalLocales,
         targetName,
         routeLabel: `${page.file}#${page.exportName}`,
     });
@@ -342,7 +340,6 @@ function assignStableRouteIds(routes: RouteManifestEntry[], targetName: string):
 function resolveRouteLocales(args: {
     routeLocales?: readonly string[];
     targetLocales?: readonly string[];
-    globalLocales?: readonly string[];
     targetName: string;
     routeLabel: string;
 }): string[] {
@@ -350,13 +347,11 @@ function resolveRouteLocales(args: {
         ? [...args.routeLocales]
         : args.targetLocales?.length
             ? [...args.targetLocales]
-            : args.globalLocales?.length
-                ? [...args.globalLocales]
-                : [];
+            : [];
 
     if (effectiveLocales.length === 0) {
         throw new Error(
-            `Target "${args.targetName}" route "${args.routeLabel}" has no resolved locales (route > target > global).`,
+            `Target "${args.targetName}" route "${args.routeLabel}" has no resolved locales (route > target).`,
         );
     }
 

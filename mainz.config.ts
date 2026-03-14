@@ -9,6 +9,11 @@ export default defineMainzConfig({
             pagesDir: "./site/src/pages",
             buildConfig: "./site/mainz.build.ts",
             locales: ["en", "pt"],
+            i18n: {
+                defaultLocale: "en",
+                localePrefix: "auto",
+                fallbackLocale: "en",
+            },
             outDir: "dist/site",
             defaultMode: "ssg",
         },
@@ -23,12 +28,5 @@ export default defineMainzConfig({
     ],
     render: {
         modes: ["csr", "ssg"],
-    },
-    i18n: {
-        defaultLocale: "en",
-        locales: ["en", "pt"],
-        localePrefix: "auto",
-        detectLocale: "path-first",
-        fallbackLocale: "en",
     },
 });

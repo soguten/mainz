@@ -1,4 +1,3 @@
-import { I18nConfig } from "../i18n/index.ts";
 import type { PageDefinition, PageHeadDefinition } from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
@@ -30,6 +29,11 @@ export interface TargetDefinition {
     rootDir: string;
     pagesDir?: string;
     locales?: readonly string[];
+    i18n?: {
+        defaultLocale?: string;
+        localePrefix?: "auto" | "always";
+        fallbackLocale?: string;
+    };
     outDir?: string;
     defaultMode?: RenderModeInput;
 }
@@ -55,8 +59,6 @@ export interface BuildTargetRouteManifestInput {
     target: TargetDefinition;
     filesystemPageFiles?: readonly string[];
     discoveredPages?: readonly DiscoveredPageDefinition[];
-    i18n?: Pick<I18nConfig<string>, "locales">;
-    globalLocales?: readonly string[];
 }
 
 export interface SsgOutputEntry {
