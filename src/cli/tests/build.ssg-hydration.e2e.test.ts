@@ -89,17 +89,53 @@ Deno.test("e2e/ssg hydration: prerendered site should hydrate and keep click int
     }, { url: "https://mainz.local/pt/" });
 });
 
+Deno.test("e2e/ssg hydration: gh-pages profile should hydrate localized routes under a base path", async () => {
+    await buildSiteGhPages();
+
+    const ptRouteHtmlPath = resolve(repoRoot, "dist/site/ssg/pt/index.html");
+    const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
+
+    assertStringIncludes(ptHtml, "Iniciar trilha guiada");
+    const ptScriptSrc = extractModuleScriptSrc(ptHtml);
+    assert(ptScriptSrc, "Could not find module script src in gh-pages /pt/ html.");
+    assertStringIncludes(ptScriptSrc, "/mainz/assets/");
+
+    const ptScriptPath = resolve(repoRoot, "dist/site/ssg", `.${ptScriptSrc.slice("/mainz".length)}`);
+    await Deno.stat(ptScriptPath);
+
+    await withHappyDom(async () => {
+        document.write(ptHtml);
+        document.close();
+
+        assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
+
+        await import(`${pathToFileURL(ptScriptPath).href}?e2e=${Date.now()}-gh-pages-pt`);
+        await nextTick();
+
+        const hydratedText = document.body.textContent ?? "";
+        assertStringIncludes(hydratedText, "Iniciar trilha guiada");
+
+        if (hydratedText.includes("Start guided journey")) {
+            throw new Error("Hydration switched /mainz/pt/ content to English unexpectedly.");
+        }
+    }, { url: "https://mainz.local/mainz/pt/" });
+});
+
 async function buildSiteSsg(): Promise<void> {
+    await runBuildCommand(["build", "--target", "site", "--mode", "ssg"]);
+}
+
+async function buildSiteGhPages(): Promise<void> {
+    await runBuildCommand(["build", "--target", "site", "--profile", "gh-pages"]);
+}
+
+async function runBuildCommand(args: string[]): Promise<void> {
     const command = new Deno.Command("deno", {
         args: [
             "run",
             "-A",
             "./src/cli/mainz.ts",
-            "build",
-            "--target",
-            "site",
-            "--mode",
-            "ssg",
+            ...args,
         ],
         cwd: repoRoot,
         stdout: "piped",
@@ -114,7 +150,7 @@ async function buildSiteSsg(): Promise<void> {
     const stdout = decoder.decode(result.stdout);
     const stderr = decoder.decode(result.stderr);
     throw new Error(
-        `Failed to build site in ssg mode for hydration e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+        `Failed to build site for hydration e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
     );
 }
 
