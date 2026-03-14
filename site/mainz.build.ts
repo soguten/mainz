@@ -6,7 +6,8 @@ export default defineTargetBuild({
             overridePageMode: "csr",
         },
         "gh-pages": {
-            basePath: "/mainz/",
+            // Published at the domain root.
+            basePath: "/",
         },
     },
 });
