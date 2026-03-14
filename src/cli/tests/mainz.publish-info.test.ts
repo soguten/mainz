@@ -34,6 +34,6 @@ Deno.test("cli/mainz: publish-info should print artifact metadata for a target p
     assertEquals(metadata.target, "site");
     assertEquals(metadata.profile, "gh-pages");
     assertEquals(metadata.artifactDir, "dist/site/ssg");
-    assertEquals(metadata.basePath, "/mainz/");
+    assertEquals(metadata.basePath, "/");
     assertEquals(metadata.renderMode, "ssg");
 });

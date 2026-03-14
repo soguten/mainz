@@ -98,9 +98,9 @@ Deno.test("e2e/ssg hydration: gh-pages profile should hydrate localized routes u
     assertStringIncludes(ptHtml, "Iniciar trilha guiada");
     const ptScriptSrc = extractModuleScriptSrc(ptHtml);
     assert(ptScriptSrc, "Could not find module script src in gh-pages /pt/ html.");
-    assertStringIncludes(ptScriptSrc, "/mainz/assets/");
+    assertStringIncludes(ptScriptSrc, "../assets/");
 
-    const ptScriptPath = resolve(repoRoot, "dist/site/ssg", `.${ptScriptSrc.slice("/mainz".length)}`);
+    const ptScriptPath = resolve(dirname(ptRouteHtmlPath), ptScriptSrc);
     await Deno.stat(ptScriptPath);
 
     await withHappyDom(async () => {
@@ -116,9 +116,9 @@ Deno.test("e2e/ssg hydration: gh-pages profile should hydrate localized routes u
         assertStringIncludes(hydratedText, "Iniciar trilha guiada");
 
         if (hydratedText.includes("Start guided journey")) {
-            throw new Error("Hydration switched /mainz/pt/ content to English unexpectedly.");
+            throw new Error("Hydration switched /pt/ content to English unexpectedly.");
         }
-    }, { url: "https://mainz.local/mainz/pt/" });
+    }, { url: "https://mainz.local/pt/" });
 });
 
 async function buildSiteSsg(): Promise<void> {
