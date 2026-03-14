@@ -199,3 +199,22 @@ export class CounterPatchComponent extends Component<{}, { count: number }> {
         return wrap;
     }
 }
+
+export class FragmentRootComponent extends Component<{}, { count: number }> {
+    renders = 0;
+
+    protected override initState() {
+        return { count: 0 };
+    }
+
+    override render(): DocumentFragment {
+        this.renders += 1;
+
+        return (
+            <>
+                <h1>Fragment Counter</h1>
+                <p>Text</p>
+            </>
+        );
+    }
+}
