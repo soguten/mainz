@@ -169,7 +169,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 return;
             }
 
-            if (!this.renderedNode || this.renderedNode.parentNode !== this) {
+            if (!this.renderedNode) {
                 this.appendChild(nextTree);
                 this.renderedNode = nextTree;
                 this.pruneDetachedEventListeners();
