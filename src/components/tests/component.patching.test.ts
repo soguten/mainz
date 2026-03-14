@@ -241,5 +241,15 @@ Deno.test("sanity: simple text patch should keep the same text node", () => {
 
 
 
+Deno.test("fragment root: should not duplicate DOM tree", () => {
+    const screen = renderMainzComponent(fixtures.FragmentRootComponent);
 
+    screen.component.setState({ count: 1 });
+    screen.component.setState({ count: 2 });
 
+    const titles = screen.component.querySelectorAll("h1");
+
+    assertEquals(titles.length, 1);
+
+    screen.cleanup();
+});
