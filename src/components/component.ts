@@ -33,7 +33,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     private eventListeners: TrackedEventListener[] = [];
 
     private styleInjected = false;
-    private renderedNode?: Node;
+    private renderedNodes: Node[] = [];
     private stateInitialized = false;
 
     /**
@@ -156,34 +156,41 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         pushRenderOwner(this);
 
         try {
-            let nextTree = this.render();
-
-            if (nextTree instanceof DocumentFragment) {
-                const wrapper = document.createElement("div");
-                wrapper.appendChild(nextTree);
-                nextTree = wrapper;
-            }
+            const nextNodes = this.toRenderedNodes(this.render());
 
             if (!this.styleInjected) {
                 this.innerHTML = "";
                 this.injectStyles();
                 this.styleInjected = true;
-                this.appendChild(nextTree);
-                this.renderedNode = nextTree;
+                for (const nextNode of nextNodes) {
+                    this.appendChild(nextNode);
+                }
+                this.renderedNodes = nextNodes;
                 this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
             }
 
-            if (!this.renderedNode) {
-                this.appendChild(nextTree);
-                this.renderedNode = nextTree;
+            const renderedNodesAreAttached = this.renderedNodes.every((node) => node.parentNode === this);
+
+            if (this.renderedNodes.length === 0 || !renderedNodesAreAttached) {
+                for (const currentNode of this.renderedNodes) {
+                    if (currentNode.parentNode === this) {
+                        this.removeChild(currentNode);
+                    }
+                }
+
+                for (const nextNode of nextNodes) {
+                    this.appendChild(nextNode);
+                }
+
+                this.renderedNodes = nextNodes;
                 this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
             }
 
-            this.renderedNode = this.patchNode(this.renderedNode, nextTree);
+            this.renderedNodes = this.patchChildNodeList(this, this.renderedNodes, nextNodes);
             this.pruneDetachedEventListeners();
             this.afterRender?.();
         } finally {
@@ -223,9 +230,10 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     private patchChildren(current: HTMLElement, next: HTMLElement) {
-        const currentChildren = Array.from(current.childNodes);
-        const nextChildren = Array.from(next.childNodes);
+        this.patchChildNodeList(current, Array.from(current.childNodes), Array.from(next.childNodes));
+    }
 
+    private patchChildNodeList(parent: HTMLElement, currentChildren: Node[], nextChildren: Node[]): Node[] {
         const keyedCurrent = new Map<string, Node>();
         const unkeyedCurrent: Node[] = [];
 
@@ -261,16 +269,26 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
         for (let index = 0; index < orderedChildren.length; index += 1) {
             const expectedNode = orderedChildren[index];
-            const currentNodeAtIndex = current.childNodes[index];
+            const currentNodeAtIndex = parent.childNodes[index];
 
             if (currentNodeAtIndex !== expectedNode) {
-                current.insertBefore(expectedNode, currentNodeAtIndex ?? null);
+                parent.insertBefore(expectedNode, currentNodeAtIndex ?? null);
             }
         }
 
-        while (current.childNodes.length > orderedChildren.length) {
-            current.lastChild?.remove();
+        while (parent.childNodes.length > orderedChildren.length) {
+            parent.lastChild?.remove();
         }
+
+        return orderedChildren;
+    }
+
+    private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
+        if (rendered instanceof DocumentFragment) {
+            return Array.from(rendered.childNodes);
+        }
+
+        return [rendered];
     }
 
     private findReusableChild(

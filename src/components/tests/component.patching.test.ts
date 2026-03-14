@@ -243,13 +243,67 @@ Deno.test("sanity: simple text patch should keep the same text node", () => {
 
 Deno.test("fragment root: should not duplicate DOM tree", () => {
     const screen = renderMainzComponent(fixtures.FragmentRootComponent);
+    const firstTitle = screen.getBySelector("h1");
+    const firstParagraph = screen.getBySelector("p[data-role='count']");
 
     screen.component.setState({ count: 1 });
     screen.component.setState({ count: 2 });
 
     const titles = screen.component.querySelectorAll("h1");
+    const paragraphs = screen.component.querySelectorAll("p[data-role='count']");
 
     assertEquals(titles.length, 1);
+    assertEquals(paragraphs.length, 1);
+    assert(screen.getBySelector("h1") === firstTitle, "Expected fragment title to preserve identity");
+    assert(
+        screen.getBySelector("p[data-role='count']") === firstParagraph,
+        "Expected fragment paragraph to preserve identity",
+    );
+    assertEquals(screen.component.firstElementChild?.tagName, "H1");
+    assertEquals(screen.component.children.length, 2);
+    assertEquals(screen.getBySelector("p[data-role='count']").textContent, "Count: 2");
+
+    screen.cleanup();
+});
+
+Deno.test("fragment root: keyed list should preserve identity across insert and reorder", () => {
+    const screen = renderMainzComponent(fixtures.FragmentKeyedListPatchComponent);
+
+    const beforeC = screen.getBySelector("li[data-id='c']");
+
+    screen.component.setState({ items: ["a", "b", "c"] });
+    assert(screen.getBySelector("li[data-id='c']") === beforeC, "Expected keyed fragment node to survive insert");
+
+    const beforeA = screen.getBySelector("li[data-id='a']");
+    screen.component.setState({ items: ["c", "b", "a"] });
+
+    assert(screen.getBySelector("li[data-id='a']") === beforeA, "Expected keyed fragment node to survive reorder");
+    assert(screen.getBySelector("li[data-id='c']") === beforeC, "Expected keyed fragment node to keep identity");
+    assertEquals(screen.component.querySelectorAll("li").length, 3);
+
+    screen.cleanup();
+});
+
+Deno.test("fragment root: nested fragments should patch text and lists without duplication", () => {
+    const screen = renderMainzComponent(fixtures.NestedFragmentComponent);
+
+    const titleBefore = screen.getBySelector("h1");
+    const countBefore = screen.getBySelector("p[data-role='count']");
+    const beforeC = screen.getBySelector("li[data-id='c']");
+
+    screen.component.setState({ count: 1, items: ["a", "b", "c"] });
+    screen.component.setState({ count: 2, items: ["c", "b", "a"] });
+
+    assert(screen.getBySelector("h1") === titleBefore, "Expected nested fragment title to preserve identity");
+    assert(
+        screen.getBySelector("p[data-role='count']") === countBefore,
+        "Expected nested fragment count to preserve identity",
+    );
+    assert(screen.getBySelector("li[data-id='c']") === beforeC, "Expected nested keyed list identity to persist");
+    assertEquals(screen.component.querySelectorAll("h1").length, 1);
+    assertEquals(screen.component.querySelectorAll("ul[data-role='list']").length, 1);
+    assertEquals(screen.component.querySelectorAll("li").length, 3);
+    assertEquals(screen.getBySelector("p[data-role='count']").textContent, "Count: 2");
 
     screen.cleanup();
 });

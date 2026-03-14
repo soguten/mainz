@@ -213,7 +213,52 @@ export class FragmentRootComponent extends Component<{}, { count: number }> {
         return (
             <>
                 <h1>Fragment Counter</h1>
-                <p>Text</p>
+                <p data-role="count">Count: {this.state.count}</p>
+            </>
+        );
+    }
+}
+
+export class FragmentKeyedListPatchComponent extends Component<{}, { items: string[] }> {
+    protected override initState() {
+        return { items: ["a", "c"] };
+    }
+
+    override render(): DocumentFragment {
+        return (
+            <>
+                <h1>Keyed Fragment List</h1>
+                <ul data-role="list">
+                    {(this.state.items ?? []).map((id) => (
+                        <li data-id={id}>{id}</li>
+                    ))}
+                </ul>
+            </>
+        );
+    }
+}
+
+export class NestedFragmentComponent extends Component<{}, { count: number; items: string[] }> {
+    protected override initState() {
+        return { count: 0, items: ["a", "c"] };
+    }
+
+    override render(): DocumentFragment {
+        return (
+            <>
+                <>
+                    <h1>Nested Fragment Counter</h1>
+                    <p data-role="count">Count: {this.state.count}</p>
+                </>
+                <>
+                    <ul data-role="list">
+                        {(this.state.items ?? []).map((id) => (
+                            <>
+                                <li data-id={id}>{id}</li>
+                            </>
+                        ))}
+                    </ul>
+                </>
             </>
         );
     }
