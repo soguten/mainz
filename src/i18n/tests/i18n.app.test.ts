@@ -47,6 +47,28 @@ Deno.test({
 });
 
 Deno.test({
+    name: "i18n/app: should fallback to html lang when a base path comes before the locale segment",
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        await withHappyDom(async () => {
+            document.documentElement.lang = "pt";
+
+            const i18n = createAppDictionaryI18n({
+                defaultLocale: "en",
+                dictionaries: {
+                    en: { common: { title: "Hello" } },
+                    pt: { common: { title: "Ola" } },
+                },
+            });
+
+            assertEquals(i18n.getLocale(), "pt");
+            assertEquals(i18n.t("common.title"), "Ola");
+        }, { url: "https://mainz.local/mainz/pt/" });
+    },
+});
+
+Deno.test({
     name: "i18n/app: should allow disabling path detection",
     sanitizeOps: false,
     sanitizeResources: false,
