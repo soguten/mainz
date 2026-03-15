@@ -328,3 +328,46 @@ Deno.test("fragment root: nested fragments should patch text and lists without d
 
     screen.cleanup();
 });
+
+Deno.test("listeners: keyed reorder should preserve the correct listener-to-item association", () => {
+    const screen = renderMainzComponent(fixtures.KeyedListListenerComponent);
+
+    try {
+        const buttonCBefore = screen.getBySelector<HTMLButtonElement>("button[data-id='c']");
+        buttonCBefore.click();
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "a=0|b=0|c=1");
+
+        screen.component.setState({ items: ["c", "b", "a"] });
+
+        const buttonCAfter = screen.getBySelector<HTMLButtonElement>("button[data-id='c']");
+        assert(buttonCAfter === buttonCBefore, "Expected keyed button 'c' to preserve identity on reorder");
+
+        buttonCAfter.click();
+        screen.getBySelector<HTMLButtonElement>("button[data-id='a']").click();
+
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "a=1|b=0|c=2");
+        assertEquals(buttonCAfter.textContent, "c:2");
+    } finally {
+        screen.cleanup();
+    }
+});
+
+Deno.test("listeners: removed keyed node should not keep a stale handler after removal", () => {
+    const screen = renderMainzComponent(fixtures.KeyedListListenerComponent);
+    const removedButton = screen.getBySelector<HTMLButtonElement>("button[data-id='b']");
+
+    try {
+        removedButton.click();
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "a=0|b=1|c=0");
+
+        screen.component.setState({ items: ["a", "c"] });
+        assertEquals(screen.component.querySelector("button[data-id='b']"), null);
+
+        removedButton.click();
+
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "a=0|b=1|c=0");
+        assertEquals(removedButton.textContent, "b:1");
+    } finally {
+        screen.cleanup();
+    }
+});

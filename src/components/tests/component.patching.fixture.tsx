@@ -283,3 +283,48 @@ export class NestedFragmentComponent extends Component<{}, { count: number; item
         );
     }
 }
+
+export class KeyedListListenerComponent extends Component<
+    {},
+    { items: string[]; clicks: Record<string, number> }
+> {
+    protected override initState() {
+        return {
+            items: ["a", "b", "c"],
+            clicks: { a: 0, b: 0, c: 0 },
+        };
+    }
+
+    private handleItemClick = (id: string) => {
+        this.setState({
+            clicks: {
+                ...this.state.clicks,
+                [id]: (this.state.clicks[id] ?? 0) + 1,
+            },
+        });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <div>
+                <ul data-role="keyed-list">
+                    {(this.state.items ?? []).map((id) => (
+                        <li key={id} data-id={id}>
+                            <button
+                                type="button"
+                                key={`button-${id}`}
+                                data-id={id}
+                                onClick={() => this.handleItemClick(id)}
+                            >
+                                {`${id}:${this.state.clicks[id] ?? 0}`}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+                <p data-role="summary">
+                    {`a=${this.state.clicks.a ?? 0}|b=${this.state.clicks.b ?? 0}|c=${this.state.clicks.c ?? 0}`}
+                </p>
+            </div>
+        );
+    }
+}
