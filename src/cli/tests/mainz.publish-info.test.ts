@@ -36,4 +36,37 @@ Deno.test("cli/mainz: publish-info should print artifact metadata for a target p
     assertEquals(metadata.artifactDir, "dist/site/ssg");
     assertEquals(metadata.basePath, "/");
     assertEquals(metadata.renderMode, "ssg");
+    assertEquals(metadata.navigationMode, "enhanced-mpa");
+});
+
+Deno.test("cli/mainz: publish-info should accept explicit navigation overrides without a dedicated profile", async () => {
+    const command = new Deno.Command("deno", {
+        args: [
+            "run",
+            "-A",
+            "./src/cli/mainz.ts",
+            "publish-info",
+            "--target",
+            "site",
+            "--mode",
+            "csr",
+            "--navigation",
+            "spa",
+        ],
+        cwd: repoRoot,
+        stdout: "piped",
+        stderr: "piped",
+    });
+
+    const result = await command.output();
+    if (!result.success) {
+        throw new Error(`publish-info failed:\n${decoder.decode(result.stderr)}`);
+    }
+
+    const metadata = JSON.parse(decoder.decode(result.stdout));
+
+    assertEquals(metadata.target, "site");
+    assertEquals(metadata.profile, "production");
+    assertEquals(metadata.renderMode, "csr");
+    assertEquals(metadata.navigationMode, "spa");
 });

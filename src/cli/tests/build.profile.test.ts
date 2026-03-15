@@ -4,6 +4,7 @@ import { assertEquals, assertRejects } from "@std/assert";
 import { join } from "node:path";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import {
+    applyBuildCliOverrides,
     resolvePublicationMetadata,
     resolveTargetBuildProfile,
 } from "../build.ts";
@@ -16,9 +17,11 @@ export default defineTargetBuild({
     profiles: {
         dev: {
             overridePageMode: "csr",
+            overrideNavigation: "spa",
         },
         "gh-pages": {
             basePath: "/mainz",
+            overrideNavigation: "enhanced-mpa",
             siteUrl: "https://mainz.soguten.com",
         },
     },
@@ -46,6 +49,7 @@ export default defineTargetBuild({
             name: "gh-pages",
             basePath: "/mainz/",
             overridePageMode: undefined,
+            overrideNavigation: "enhanced-mpa",
             siteUrl: "https://mainz.soguten.com",
         });
     } finally {
@@ -55,10 +59,11 @@ export default defineTargetBuild({
 
 Deno.test("cli/build profiles: should discover rootDir mainz.build.ts automatically", async () => {
     const fixture = await createTargetBuildFixture(
-        `export default {
+`export default {
     profiles: {
         dev: {
             overridePageMode: "csr",
+            overrideNavigation: "spa",
         },
     },
 };
@@ -84,6 +89,7 @@ Deno.test("cli/build profiles: should discover rootDir mainz.build.ts automatica
             name: "dev",
             basePath: "/",
             overridePageMode: "csr",
+            overrideNavigation: "spa",
             siteUrl: undefined,
         });
     } finally {
@@ -115,6 +121,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
                     buildConfig: fixture.relativeConfigPath,
                     outDir: "dist/site",
                     defaultMode: "ssg",
+                    defaultNavigation: "enhanced-mpa",
                 },
             ],
         });
@@ -127,6 +134,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
             artifactDir: "dist/site/ssg",
             basePath: "/mainz/",
             renderMode: "ssg",
+            navigationMode: "enhanced-mpa",
             siteUrl: "https://mainz.soguten.com",
         });
     } finally {
@@ -162,6 +170,95 @@ Deno.test("cli/build profiles: should fail for unknown custom profile", async ()
             Error,
             'does not define profile "gh-pages"',
         );
+    } finally {
+        await Deno.remove(fixture.cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/build profiles: should derive navigation defaults when target does not configure one", async () => {
+    const fixture = await createTargetBuildFixture(
+        `export default {
+    profiles: {
+        production: {},
+    },
+};
+`,
+    );
+
+    try {
+        const config = normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    pagesDir: "./site/src/pages",
+                    buildConfig: fixture.relativeConfigPath,
+                    outDir: "dist/site",
+                    defaultMode: "ssg",
+                },
+                {
+                    name: "playground",
+                    rootDir: "./playground",
+                    viteConfig: "./vite.config.playground.ts",
+                    outDir: "dist/playground",
+                    defaultMode: "csr",
+                },
+            ],
+        });
+
+        const siteMetadata = await resolvePublicationMetadata(config.targets[0], "production", fixture.cwd);
+        const playgroundMetadata = await resolvePublicationMetadata(config.targets[1], "production", fixture.cwd);
+
+        assertEquals(siteMetadata.navigationMode, "enhanced-mpa");
+        assertEquals(playgroundMetadata.navigationMode, "spa");
+    } finally {
+        await Deno.remove(fixture.cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/build profiles: should allow explicit navigation override without requiring a profile variant", async () => {
+    const fixture = await createTargetBuildFixture(
+        `export default {
+    profiles: {
+        production: {
+            basePath: "/docs/",
+        },
+    },
+};
+`,
+    );
+
+    try {
+        const config = normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    pagesDir: "./site/src/pages",
+                    buildConfig: fixture.relativeConfigPath,
+                    outDir: "dist/site",
+                    defaultMode: "ssg",
+                    defaultNavigation: "enhanced-mpa",
+                },
+            ],
+        });
+
+        const profile = applyBuildCliOverrides(
+            await resolveTargetBuildProfile(config.targets[0], undefined, fixture.cwd),
+            { navigation: "spa" },
+        );
+        const metadata = await resolvePublicationMetadata(config.targets[0], undefined, fixture.cwd, {
+            mode: "csr",
+            navigation: "spa",
+        });
+
+        assertEquals(profile.overrideNavigation, "spa");
+        assertEquals(profile.basePath, "/docs/");
+        assertEquals(metadata.navigationMode, "spa");
+        assertEquals(metadata.renderMode, "csr");
+        assertEquals(metadata.basePath, "/docs/");
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
     }

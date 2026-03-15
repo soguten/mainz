@@ -3,12 +3,11 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import {
     applyRouteHead,
-    buildRouteHead,
     injectAppHtml,
-    resolveLocaleRedirectPath,
     rewriteAssetPaths,
     setHtmlLang,
 } from "../build.ts";
+import { buildRouteHead, resolveLocaleRedirectPath } from "../../routing/index.ts";
 
 Deno.test("build html helpers: rewrites nested asset paths for SSG routes", () => {
     const input = '<script type="module" src="./assets/index.js"></script>';
@@ -83,8 +82,8 @@ Deno.test("build html helpers: applies route head metadata to prerendered html",
     });
 
     assertStringIncludes(output, "<title>Docs</title>");
-    assertStringIncludes(output, '<meta name="description" content="Docs page" />');
-    assertStringIncludes(output, '<link rel="canonical" href="/docs" />');
+    assertStringIncludes(output, '<meta name="description" content="Docs page" data-mainz-head-managed="true" />');
+    assertStringIncludes(output, '<link rel="canonical" href="/docs" data-mainz-head-managed="true" />');
 });
 
 Deno.test("build html helpers: generates canonical and alternate locale links for routes", () => {
@@ -95,14 +94,10 @@ Deno.test("build html helpers: generates canonical and alternate locale links fo
             head: {
                 title: "Docs",
             },
+            locale: "pt-BR",
+            localePrefix: "auto",
+            defaultLocale: "en",
         },
-        {
-            routes: [],
-        },
-        "pt-BR",
-        "auto",
-        "en",
-        undefined,
     );
 
     assertEquals(head?.links, [
@@ -123,14 +118,10 @@ Deno.test("build html helpers: should keep a single canonical when manual head a
                     { rel: "canonical", href: "/" },
                 ],
             },
+            locale: "en",
+            localePrefix: "auto",
+            defaultLocale: "en",
         },
-        {
-            routes: [],
-        },
-        "en",
-        "auto",
-        "en",
-        undefined,
     );
 
     assertEquals(head?.links, [
@@ -153,14 +144,10 @@ Deno.test("build html helpers: should keep generated alternates canonical per hr
                     { rel: "alternate", href: "/feed.xml" },
                 ],
             },
+            locale: "pt",
+            localePrefix: "auto",
+            defaultLocale: "en",
         },
-        {
-            routes: [],
-        },
-        "pt",
-        "auto",
-        "en",
-        undefined,
     );
 
     assertEquals(head?.links, [
@@ -177,14 +164,10 @@ Deno.test("build html helpers: should fallback x-default to first route locale w
         {
             path: "/docs",
             locales: ["pt", "ja"],
+            locale: "pt",
+            localePrefix: "auto",
+            defaultLocale: "en",
         },
-        {
-            routes: [],
-        },
-        "pt",
-        "auto",
-        "en",
-        undefined,
     );
 
     assertEquals(head?.links, [
@@ -200,14 +183,11 @@ Deno.test("build html helpers: should emit absolute locale SEO links when siteUr
         {
             path: "/docs",
             locales: ["en", "pt"],
+            locale: "pt",
+            localePrefix: "auto",
+            defaultLocale: "en",
+            siteUrl: "https://mainz.dev",
         },
-        {
-            routes: [],
-        },
-        "pt",
-        "auto",
-        "en",
-        "https://mainz.dev",
     );
 
     assertEquals(head?.links, [

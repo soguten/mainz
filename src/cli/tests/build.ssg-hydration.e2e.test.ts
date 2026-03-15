@@ -1,8 +1,9 @@
 /// <reference lib="deno.ns" />
 
-import { assert, assertNotEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertNotEquals, assertStringIncludes } from "@std/assert";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createSsgPreviewHandler } from "../../preview/ssg-server.ts";
 import { withHappyDom } from "../../ssg/happy-dom.ts";
 
 const decoder = new TextDecoder();
@@ -10,6 +11,9 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", ".
 
 Deno.test("e2e/ssg hydration: prerendered site should hydrate and keep click interactivity", async () => {
     await buildSiteSsg();
+
+    const hydrationManifest = await readHydrationManifest();
+    assertEquals(hydrationManifest.navigation, "enhanced-mpa");
 
     const rootHtmlPath = resolve(repoRoot, "dist/site/ssg/index.html");
     const rootHtml = await Deno.readTextFile(rootHtmlPath);
@@ -54,6 +58,10 @@ Deno.test("e2e/ssg hydration: prerendered site should hydrate and keep click int
         await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}`);
         await nextTick();
 
+        assertEquals(document.documentElement.dataset.mainzNavigation, "enhanced-mpa");
+        assertEquals(document.documentElement.dataset.mainzTransitionPhase, undefined);
+        assert(document.documentElement.dataset.mainzViewTransitions);
+
         const chapterButtons = Array.from(
             document.querySelectorAll<HTMLButtonElement>(".chapter-row .chapter-button"),
         );
@@ -87,6 +95,106 @@ Deno.test("e2e/ssg hydration: prerendered site should hydrate and keep click int
             throw new Error("Hydration switched /pt/ content to English unexpectedly.");
         }
     }, { url: "https://mainz.local/pt/" });
+});
+
+Deno.test("e2e/ssg hydration: plain-static profile should keep MPA runtime without enhanced hooks", async () => {
+    await buildSitePlainStatic();
+
+    const hydrationManifest = await readHydrationManifest();
+    assertEquals(hydrationManifest.navigation, "mpa");
+
+    const routeHtmlPath = resolve(repoRoot, "dist/site/ssg/en/index.html");
+    const html = await Deno.readTextFile(routeHtmlPath);
+    const scriptSrc = extractModuleScriptSrc(html);
+    assert(scriptSrc, "Could not find module script src in prerendered plain-static html.");
+
+    const scriptPath = resolve(dirname(routeHtmlPath), scriptSrc);
+    await Deno.stat(scriptPath);
+
+    await withHappyDom(async () => {
+        document.write(html);
+        document.close();
+
+        await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-plain-static`);
+        await nextTick();
+
+        assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
+        assertEquals(document.documentElement.dataset.mainzTransitionPhase, undefined);
+        assertEquals(document.documentElement.dataset.mainzViewTransitions, undefined);
+    }, { url: "https://mainz.local/en/" });
+});
+
+Deno.test("e2e/ssg hydration: 404 artifact should prerender and hydrate the site notFound page", async () => {
+    await buildSiteSsg();
+
+    const notFoundHtmlPath = resolve(repoRoot, "dist/site/ssg/404.html");
+    const html = await Deno.readTextFile(notFoundHtmlPath);
+
+    assertStringIncludes(html, "<x-mainz-not-found-page>");
+    assertStringIncludes(html, "That route does not exist in Mainz.");
+
+    const scriptSrc = extractModuleScriptSrc(html);
+    assert(scriptSrc, "Could not find module script src in prerendered 404 html.");
+    assertStringIncludes(scriptSrc, "/assets/");
+
+    const scriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/ssg"), scriptSrc);
+    await Deno.stat(scriptPath);
+
+    await withHappyDom(async () => {
+        document.write(html);
+        document.close();
+
+        assert(document.querySelector("#app x-mainz-not-found-page"));
+
+        await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-404`);
+        await nextTick();
+
+        assertEquals(document.documentElement.dataset.mainzNavigation, "enhanced-mpa");
+        assertStringIncludes(document.body.textContent ?? "", "That route does not exist in Mainz.");
+    }, { url: "https://mainz.local/missing/route" });
+});
+
+Deno.test("e2e/ssg preview: missing routes should serve the built 404 page metadata", async () => {
+    await buildSiteSsg();
+
+    const handler = createSsgPreviewHandler(resolve(repoRoot, "dist/site/ssg"));
+    const response = await handler(new Request("http://127.0.0.1:4173/bba/"));
+    const html = await response.text();
+
+    assertEquals(response.status, 404);
+    assertStringIncludes(html, "<title>404 | Mainz</title>");
+    assertStringIncludes(
+        html,
+        'content="Mainz page not found experience for static and enhanced MPA navigation."',
+    );
+    assertStringIncludes(html, "That route does not exist in Mainz.");
+});
+
+Deno.test("e2e/ssg preview: localized missing routes should hydrate the localized 404 page", async () => {
+    await buildSiteSsg();
+
+    const handler = createSsgPreviewHandler(resolve(repoRoot, "dist/site/ssg"));
+    const response = await handler(new Request("http://127.0.0.1:4173/pt/dfdfhsdfsdf"));
+    const html = await response.text();
+
+    assertEquals(response.status, 404);
+    assertStringIncludes(html, "<title>404 | Mainz</title>");
+
+    const scriptSrc = extractModuleScriptSrc(html);
+    assert(scriptSrc, "Could not find module script src in localized prerendered 404 html.");
+    const scriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/ssg"), scriptSrc);
+    await Deno.stat(scriptPath);
+
+    await withHappyDom(async () => {
+        document.write(html);
+        document.close();
+
+        await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-ssg-404-pt`);
+        await nextTick();
+
+        assertEquals(document.documentElement.lang, "pt");
+        assertStringIncludes(document.body.textContent ?? "", "Essa rota nao existe no Mainz.");
+    }, { url: "https://mainz.local/pt/dfdfhsdfsdf" });
 });
 
 Deno.test("e2e/ssg hydration: gh-pages profile should hydrate localized routes under a base path", async () => {
@@ -129,6 +237,10 @@ async function buildSiteGhPages(): Promise<void> {
     await runBuildCommand(["build", "--target", "site", "--profile", "gh-pages"]);
 }
 
+async function buildSitePlainStatic(): Promise<void> {
+    await runBuildCommand(["build", "--target", "site", "--profile", "plain-static"]);
+}
+
 async function runBuildCommand(args: string[]): Promise<void> {
     const command = new Deno.Command("deno", {
         args: [
@@ -157,6 +269,19 @@ async function runBuildCommand(args: string[]): Promise<void> {
 function extractModuleScriptSrc(html: string): string | null {
     const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
     return match?.[1] ?? null;
+}
+
+function resolveOutputScriptPath(outputDir: string, scriptSrc: string): string {
+    if (scriptSrc.startsWith("/")) {
+        return resolve(outputDir, `.${scriptSrc}`);
+    }
+
+    return resolve(outputDir, scriptSrc);
+}
+
+async function readHydrationManifest(): Promise<{ target: string; hydration: string; navigation: string }> {
+    const hydrationManifestPath = resolve(repoRoot, "dist/site/ssg/hydration.json");
+    return JSON.parse(await Deno.readTextFile(hydrationManifestPath));
 }
 
 async function nextTick(): Promise<void> {
