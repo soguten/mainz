@@ -73,3 +73,68 @@ export class FunctionalTeardownComponent extends Component<{}, { count: number }
         );
     }
 }
+
+export class IsolatedOwnerComponent extends Component<{ role: string }, { count: number }> {
+    protected override initState() {
+        return { count: 0 };
+    }
+
+    private handleAction = () => {
+        this.setState({ count: this.state.count + 1 });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <button type="button" data-role={this.props.role} onClick={this.handleAction}>
+                {String(this.state.count)}
+            </button>
+        );
+    }
+}
+
+export class NestedOwnerChildComponent extends Component<{}, { count: number }> {
+    protected override initState() {
+        return { count: 0 };
+    }
+
+    private handleAction = () => {
+        this.setState({ count: this.state.count + 1 });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <button type="button" data-role="child-action" onClick={this.handleAction}>
+                {String(this.state.count)}
+            </button>
+        );
+    }
+}
+
+export class NestedOwnerBoundaryComponent extends Component<{}, { version: number; showChild: boolean }> {
+    protected override initState() {
+        return { version: 0, showChild: true };
+    }
+
+    private handleParentRerender = () => {
+        this.setState({ version: this.state.version + 1 });
+    };
+
+    private handleHideChild = () => {
+        this.setState({ showChild: false });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <section>
+                <p data-role="parent-version">{String(this.state.version)}</p>
+                <button type="button" data-role="parent-rerender" onClick={this.handleParentRerender}>
+                    rerender
+                </button>
+                <button type="button" data-role="hide-child" onClick={this.handleHideChild}>
+                    hide child
+                </button>
+                {this.state.showChild ? <NestedOwnerChildComponent /> : <p data-role="child-removed">removed</p>}
+            </section>
+        );
+    }
+}

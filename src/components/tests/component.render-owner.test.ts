@@ -64,3 +64,91 @@ Deno.test("render owner: should tear down listeners created inside functional ch
 
     assertEquals(screen.component.state.count, 1);
 });
+
+Deno.test("render owner: should keep event ownership isolated across separate roots", () => {
+    const screenA = renderMainzComponent(fixtures.IsolatedOwnerComponent, {
+        props: { role: "app-a" },
+    });
+    const screenB = renderMainzComponent(fixtures.IsolatedOwnerComponent, {
+        props: { role: "app-b" },
+    });
+
+    try {
+        screenA.click("button[data-role='app-a']");
+        assertEquals(screenA.getBySelector("button[data-role='app-a']").textContent, "1");
+        assertEquals(screenB.getBySelector("button[data-role='app-b']").textContent, "0");
+
+        screenB.click("button[data-role='app-b']");
+        screenB.click("button[data-role='app-b']");
+        assertEquals(screenA.getBySelector("button[data-role='app-a']").textContent, "1");
+        assertEquals(screenB.getBySelector("button[data-role='app-b']").textContent, "2");
+    } finally {
+        screenA.cleanup();
+        screenB.cleanup();
+    }
+});
+
+Deno.test("render owner: cleanup of one root should not detach listeners from another root", () => {
+    const screenA = renderMainzComponent(fixtures.IsolatedOwnerComponent, {
+        props: { role: "app-a" },
+    });
+    const screenB = renderMainzComponent(fixtures.IsolatedOwnerComponent, {
+        props: { role: "app-b" },
+    });
+
+    const buttonA = screenA.getBySelector<HTMLButtonElement>("button[data-role='app-a']");
+
+    try {
+        screenA.click("button[data-role='app-a']");
+        assertEquals(screenA.component.state.count, 1);
+
+        screenA.cleanup();
+        buttonA.click();
+
+        assertEquals(screenA.component.state.count, 1);
+
+        screenB.click("button[data-role='app-b']");
+        assertEquals(screenB.component.state.count, 1);
+    } finally {
+        screenA.cleanup();
+        screenB.cleanup();
+    }
+});
+
+Deno.test("render owner: parent rerender should preserve child listener ownership", () => {
+    const screen = renderMainzComponent(fixtures.NestedOwnerBoundaryComponent);
+
+    try {
+        screen.click("button[data-role='child-action']");
+        assertEquals(screen.getBySelector("button[data-role='child-action']").textContent, "1");
+
+        screen.click("button[data-role='parent-rerender']");
+        assertEquals(screen.getBySelector("p[data-role='parent-version']").textContent, "1");
+
+        screen.click("button[data-role='child-action']");
+        screen.click("button[data-role='child-action']");
+        assertEquals(screen.getBySelector("button[data-role='child-action']").textContent, "3");
+    } finally {
+        screen.cleanup();
+    }
+});
+
+Deno.test("render owner: parent subtree removal should tear down nested subtree listeners", () => {
+    const screen = renderMainzComponent(fixtures.NestedOwnerBoundaryComponent);
+    const childButton = screen.getBySelector<HTMLButtonElement>("button[data-role='child-action']");
+
+    try {
+        childButton.click();
+        assertEquals(screen.getBySelector("button[data-role='child-action']").textContent, "1");
+
+        screen.click("button[data-role='hide-child']");
+        assertEquals(screen.component.querySelector("button[data-role='child-action']"), null);
+        assertEquals(screen.getBySelector("p[data-role='child-removed']").textContent, "removed");
+
+        childButton.click();
+
+        assertEquals(childButton.textContent, "1");
+    } finally {
+        screen.cleanup();
+    }
+});
