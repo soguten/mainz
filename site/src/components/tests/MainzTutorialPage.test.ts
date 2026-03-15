@@ -15,6 +15,7 @@ import { pageStyles } from "../../styles/pageStyles.ts";
 await setupMainzDom();
 
 const fixtures = await import("./MainzTutorialPage.fixture.tsx") as typeof import("./MainzTutorialPage.fixture.tsx");
+const sandboxFixtures = await import("./InteractiveSandbox.fixture.tsx") as typeof import("./InteractiveSandbox.fixture.tsx");
 
 Deno.test("site/layout: should render the top nav without floating behavior classes", () => {
     setLocale("pt");
@@ -46,6 +47,38 @@ Deno.test("site/layout: should preserve injected styles when changing the journe
         assertEquals(activeButton.textContent?.trim(), "2. Estado");
     } finally {
         screen.cleanup();
+    }
+});
+
+Deno.test("site/layout: checkpoint and workshop should coexist without cross-talk", () => {
+    setLocale("pt");
+    const hljs = sandboxFixtures.installHighlightStub();
+    const screen = renderMainzComponent(fixtures.MainzTutorialPage);
+
+    try {
+        screen.click(".checkpoint .checkpoint-option:nth-of-type(1)");
+        screen.click(".checkpoint .button.button-primary");
+
+        const checkpointResultBefore = screen.getBySelector<HTMLElement>(".checkpoint .checkpoint-result.ok");
+        const checkpointActiveBefore = screen.getBySelector<HTMLButtonElement>(".checkpoint .checkpoint-option.active");
+
+        screen.input(
+            ".sandbox textarea",
+            "import { Component } from \"mainz\";\n\nclass Todo extends Component {\n}\n",
+        );
+        screen.click(".sandbox .button.button-primary");
+
+        const workshopResult = screen.getBySelector<HTMLElement>(".sandbox .checkpoint-result.ok");
+        const checkpointResultAfter = screen.getBySelector<HTMLElement>(".checkpoint .checkpoint-result.ok");
+        const checkpointActiveAfter = screen.getBySelector<HTMLButtonElement>(".checkpoint .checkpoint-option.active");
+
+        assertStringIncludes(workshopResult.textContent ?? "", "Passou");
+        assertEquals(checkpointResultAfter.textContent, checkpointResultBefore.textContent);
+        assertEquals(checkpointActiveAfter.textContent, checkpointActiveBefore.textContent);
+        assert(hljs.calls.length >= 1);
+    } finally {
+        screen.cleanup();
+        hljs.cleanup();
     }
 });
 
