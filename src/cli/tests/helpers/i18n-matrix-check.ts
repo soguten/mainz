@@ -199,7 +199,10 @@ function resolveOutputScriptPath(outputDir: string, htmlPath: string, scriptSrc:
 }
 
 function overrideNavigatorLocale(
-    navigatorLike: Navigator,
+    navigatorLike: {
+        language?: string;
+        languages?: readonly string[];
+    },
     locale: string,
 ): void {
     Object.defineProperty(navigatorLike, "language", {
