@@ -89,6 +89,18 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     /**
+     * Re-renders the component using the current props and state.
+     * Useful when runtime infrastructure updates props on an already mounted element.
+     */
+    public rerender(): void {
+        if (!this.isConnected) {
+            return;
+        }
+
+        this.renderDOM();
+    }
+
+    /**
      * Registers an event listener for a target element and stores it for future cleanup.
      * Re-registering the same target/event/options replaces the previous listener.
      * @param target The target element to attach the event listener to.

@@ -3,6 +3,7 @@
 
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
 import {
+    applyBuildCliOverrides,
     BuildCliOptions,
     resolveBuildJobs,
     resolvePublicationMetadata,
@@ -43,7 +44,10 @@ export async function main(args: string[]): Promise<void> {
             );
         }
 
-        const metadata = await resolvePublicationMetadata(target, options.profile);
+        const metadata = await resolvePublicationMetadata(target, options.profile, Deno.cwd(), {
+            mode: options.mode,
+            navigation: options.navigation,
+        });
         console.log(JSON.stringify(metadata, null, 2));
         return;
     }
@@ -52,7 +56,10 @@ export async function main(args: string[]): Promise<void> {
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
     const resolvedProfileByTarget = new Map<string, Awaited<ReturnType<typeof resolveTargetBuildProfile>>>();
     for (const target of selectedTargets.values()) {
-        resolvedProfileByTarget.set(target.name, await resolveTargetBuildProfile(target, options.profile));
+        resolvedProfileByTarget.set(
+            target.name,
+            applyBuildCliOverrides(await resolveTargetBuildProfile(target, options.profile), options),
+        );
     }
 
     const resolvedJobs = jobs.map((job) => ({
@@ -93,6 +100,12 @@ function parseBuildOptions(args: string[]): BuildCliOptions {
             continue;
         }
 
+        if (current === "--navigation") {
+            options.navigation = args[index + 1];
+            index += 1;
+            continue;
+        }
+
         if (current === "--config") {
             options.configPath = args[index + 1];
             index += 1;
@@ -111,15 +124,17 @@ function printHelp(): void {
             "Mainz CLI",
             "",
             "Usage:",
-            "  mainz build [--target <name|all>] [--profile <name>] [--mode <csr|ssg|all>] [--config <path>]",
-            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
+            "  mainz build [--target <name|all>] [--profile <name>] [--mode <csr|ssg|all>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz publish-info --target <name> [--profile <name>] [--mode <csr|ssg>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "",
             "Examples:",
             "  mainz build",
             "  mainz build --target site --profile gh-pages",
+            "  mainz build --target site --mode csr --navigation spa",
             "  mainz build --target site --mode ssg",
             "  mainz build --target playground --mode csr",
             "  mainz publish-info --target site --profile gh-pages",
+            "  mainz publish-info --target site --mode ssg --navigation mpa",
         ].join("\n"),
     );
 }

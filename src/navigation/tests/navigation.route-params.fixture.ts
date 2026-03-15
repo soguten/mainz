@@ -1,0 +1,77 @@
+import { Page } from "../../index.ts";
+
+export class RouteParamsHomePage extends Page {
+    static override customElementTag = "x-mainz-route-params-home-page";
+    static override page = {
+        path: "/",
+        head: {
+            title: "Home",
+        },
+    };
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        element.textContent = "Home page";
+        element.setAttribute("data-page", "home");
+        return element;
+    }
+}
+
+export class RouteParamsDocsPage extends Page {
+    static override customElementTag = "x-mainz-route-params-docs-page";
+    static override page = {
+        path: "/docs/:slug",
+        locales: ["en", "pt"],
+        head: {
+            title: "Docs",
+        },
+    };
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        const slug = String(this.props?.route?.params?.slug ?? "");
+        element.textContent = `Docs page:${slug}`;
+        element.setAttribute("data-page", "docs");
+        element.setAttribute("data-slug", slug);
+        element.setAttribute("data-locale", String(this.props?.route?.locale ?? ""));
+        return element;
+    }
+}
+
+export class RouteParamsCatchAllPage extends Page {
+    static override customElementTag = "x-mainz-route-params-catch-all-page";
+    static override page = {
+        path: "/docs/*",
+        locales: ["en", "pt"],
+        head: {
+            title: "Docs CatchAll",
+        },
+    };
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        const parts = String(this.props?.route?.params?.["*"] ?? "");
+        element.textContent = `Catch-all page:${parts}`;
+        element.setAttribute("data-page", "catch-all");
+        element.setAttribute("data-parts", parts);
+        return element;
+    }
+}
+
+export class RouteParamsNotFoundPage extends Page {
+    static override customElementTag = "x-mainz-route-params-not-found-page";
+    static override page = {
+        path: "/404",
+        locales: ["en", "pt"],
+        head: {
+            title: "Not Found",
+        },
+    };
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        element.textContent = "Not found page";
+        element.setAttribute("data-page", "not-found");
+        return element;
+    }
+}

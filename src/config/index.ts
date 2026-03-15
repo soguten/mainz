@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { RenderMode } from "../routing/index.ts";
+import { NavigationMode, RenderMode } from "../routing/index.ts";
 import {
     LoadedMainzConfig,
     MainzConfig,
@@ -94,6 +94,7 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
     return {
         ...target,
         defaultMode: target.defaultMode,
+        defaultNavigation: target.defaultNavigation ? normalizeNavigationMode(target.defaultNavigation) : undefined,
         outDir,
     };
 }
@@ -101,11 +102,13 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
 function normalizeTargetBuildProfile(profile: {
     basePath?: string;
     overridePageMode?: RenderMode;
+    overrideNavigation?: NavigationMode;
     siteUrl?: string;
 }): NormalizedTargetBuildProfile {
     return {
         basePath: normalizeBasePath(profile.basePath),
         overridePageMode: profile.overridePageMode,
+        overrideNavigation: profile.overrideNavigation ? normalizeNavigationMode(profile.overrideNavigation) : undefined,
         siteUrl: normalizeSiteUrl(profile.siteUrl),
     };
 }
@@ -139,6 +142,15 @@ function dedupeRenderModes(modes: RenderMode[]): RenderMode[] {
     }
 
     return unique;
+}
+
+function normalizeNavigationMode(mode: NavigationMode): NavigationMode {
+    const allowed = new Set<NavigationMode>(["spa", "mpa", "enhanced-mpa"]);
+    if (!allowed.has(mode)) {
+        throw new Error(`Unsupported navigation mode "${mode}". Use "spa", "mpa", or "enhanced-mpa".`);
+    }
+
+    return mode;
 }
 
 function normalizeBasePath(basePath: string | undefined): string | undefined {

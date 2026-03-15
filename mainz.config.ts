@@ -16,6 +16,7 @@ export default defineMainzConfig({
             },
             outDir: "dist/site",
             defaultMode: "ssg",
+            defaultNavigation: "enhanced-mpa",
         },
         {
             name: "playground",
@@ -24,6 +25,7 @@ export default defineMainzConfig({
             locales: ["en"],
             outDir: "dist/playground",
             defaultMode: "ssg",
+            defaultNavigation: "spa",
         },
     ],
     render: {

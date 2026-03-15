@@ -14,7 +14,10 @@ import { isFilesystemPageFile } from "./filesystem.ts";
 export interface DiscoveredPage {
     exportName: string;
     file: string;
-    page: Required<Omit<PageDefinition, "head" | "locales">> & {
+    page: {
+        path: string;
+        mode: RenderMode;
+        notFound?: boolean;
         locales?: readonly string[];
         head?: PageHeadDefinition;
     };
@@ -94,6 +97,7 @@ function normalizePageDefinition(
     return {
         path,
         mode: normalizeMode(page.mode),
+        notFound: page.notFound === true ? true : undefined,
         locales: page.locales ? [...page.locales] : undefined,
         head: page.head ? cloneHead(page.head) : undefined,
     };

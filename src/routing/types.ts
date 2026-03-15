@@ -1,6 +1,7 @@
 import type { PageDefinition, PageHeadDefinition } from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
+export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
 export type RouteSource = "filesystem";
 
 export interface FilesystemRoutingOptions {
@@ -45,6 +46,7 @@ export interface RouteManifestEntry {
     path: string;
     pattern: string;
     mode: RenderMode;
+    notFound?: boolean;
     locales: string[];
     head?: PageHeadDefinition;
 }
@@ -65,4 +67,6 @@ export interface SsgOutputEntry {
     routeId: string;
     locale: string;
     outputHtmlPath: string;
+    renderPath: string;
+    notFound?: boolean;
 }

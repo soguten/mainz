@@ -1,4 +1,5 @@
 import {
+    NavigationMode,
     RenderMode,
 } from "../routing/index.ts";
 import { I18nConfig } from "../i18n/index.ts";
@@ -15,6 +16,7 @@ export interface MainzTargetDefinition {
     i18n?: Omit<I18nConfig<string>, "locales" | "detectLocale">;
     outDir?: string;
     defaultMode?: RenderMode;
+    defaultNavigation?: NavigationMode;
     viteConfig: string;
     buildConfig?: string;
 }
@@ -22,6 +24,7 @@ export interface MainzTargetDefinition {
 export interface TargetBuildProfileDefinition {
     basePath?: string;
     overridePageMode?: RenderMode;
+    overrideNavigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -39,14 +42,16 @@ export interface LoadedMainzConfig {
     config: MainzConfig;
 }
 
-export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defaultMode"> {
+export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defaultMode" | "defaultNavigation"> {
     defaultMode?: RenderMode;
+    defaultNavigation?: NavigationMode;
     outDir: string;
 }
 
 export interface NormalizedTargetBuildProfile {
     basePath?: string;
     overridePageMode?: RenderMode;
+    overrideNavigation?: NavigationMode;
     siteUrl?: string;
 }
 

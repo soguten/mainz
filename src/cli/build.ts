@@ -2,14 +2,17 @@
 
 import { dirname, join, relative, resolve } from "node:path";
 import {
+    buildRouteHead,
     buildSsgOutputEntries,
     buildTargetRouteManifest,
+    NavigationMode,
     RenderMode,
+    resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
 } from "../routing/index.ts";
 import { discoverPagesFromFiles } from "../routing/server.ts";
-import type { PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
+import { MAINZ_HEAD_MANAGED_ATTR, type PageHeadDefinition } from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
@@ -22,6 +25,7 @@ import { withHappyDom } from "../ssg/happy-dom.ts";
 export interface BuildCliOptions {
     target?: string;
     mode?: string;
+    navigation?: string;
     profile?: string;
     configPath?: string;
 }
@@ -36,6 +40,7 @@ export interface ResolvedTargetBuildProfile {
     name: string;
     basePath: string;
     overridePageMode?: RenderMode;
+    overrideNavigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -45,6 +50,7 @@ export interface PublicationMetadata {
     artifactDir: string;
     basePath: string;
     renderMode: RenderMode;
+    navigationMode: NavigationMode;
     siteUrl?: string;
 }
 
@@ -132,6 +138,7 @@ export async function resolveTargetBuildProfile(
         name: profileName,
         basePath: profile.basePath ?? "/",
         overridePageMode: profile.overridePageMode,
+        overrideNavigation: profile.overrideNavigation,
         siteUrl: profile.siteUrl,
     };
 }
@@ -140,9 +147,16 @@ export async function resolvePublicationMetadata(
     target: NormalizedMainzTarget,
     requestedProfile: string | undefined,
     cwd = Deno.cwd(),
+    overrides?: Pick<BuildCliOptions, "mode" | "navigation">,
 ): Promise<PublicationMetadata> {
-    const profile = await resolveTargetBuildProfile(target, requestedProfile, cwd);
-    const renderMode = resolvePublicationRenderMode(target, profile);
+    const profile = applyBuildCliOverrides(
+        await resolveTargetBuildProfile(target, requestedProfile, cwd),
+        overrides,
+    );
+    const renderMode = overrides?.mode
+        ? resolveExplicitRenderMode(overrides.mode)
+        : resolvePublicationRenderMode(target, profile);
+    const navigationMode = resolveEffectiveNavigationMode(target, profile);
 
     return {
         target: target.name,
@@ -150,7 +164,23 @@ export async function resolvePublicationMetadata(
         artifactDir: normalizePathSlashes(join(target.outDir, renderMode)),
         basePath: profile.basePath,
         renderMode,
+        navigationMode,
         siteUrl: profile.siteUrl,
+    };
+}
+
+export function applyBuildCliOverrides(
+    profile: ResolvedTargetBuildProfile,
+    options: Pick<BuildCliOptions, "navigation"> | undefined,
+): ResolvedTargetBuildProfile {
+    const explicitNavigation = resolveExplicitNavigationMode(options?.navigation);
+    if (!explicitNavigation) {
+        return profile;
+    }
+
+    return {
+        ...profile,
+        overrideNavigation: explicitNavigation,
     };
 }
 
@@ -179,18 +209,30 @@ export async function runSingleBuild(
 ): Promise<void> {
     const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));
     const viteConfigPath = normalizePathSlashes(resolve(cwd, job.target.viteConfig));
+    const navigationMode = resolveEffectiveNavigationMode(job.target, job.profile);
+    const targetI18n = resolveTargetI18nConfig(job.target);
 
     await runViteBuild({
         cwd,
         viteConfigPath,
         modeOutDir,
         renderMode: job.mode,
+        navigationMode,
         targetName: job.target.name,
-        basePath: toViteBasePath(job.profile.basePath),
+        basePath: resolveViteBasePath(job.profile.basePath, navigationMode),
+        targetLocales: job.target.locales ?? [],
+        defaultLocale: targetI18n?.defaultLocale,
+        localePrefix: targetI18n?.localePrefix ?? "auto",
+        siteUrl: job.profile.siteUrl,
     });
 
     if (job.mode === "ssg") {
         await emitSsgArtifacts(config, job, modeOutDir, cwd);
+        return;
+    }
+
+    if (job.mode === "csr" && navigationMode !== "spa") {
+        await emitCsrRouteArtifacts(config, job, modeOutDir, cwd);
     }
 }
 
@@ -199,8 +241,13 @@ async function runViteBuild(args: {
     viteConfigPath: string;
     modeOutDir: string;
     renderMode: RenderMode;
+    navigationMode: NavigationMode;
     targetName: string;
     basePath: string;
+    targetLocales: readonly string[];
+    defaultLocale?: string;
+    localePrefix: "auto" | "always";
+    siteUrl?: string;
 }): Promise<void> {
     const command = new Deno.Command("deno", {
         cwd: args.cwd,
@@ -215,8 +262,13 @@ async function runViteBuild(args: {
         env: {
             MAINZ_OUT_DIR: args.modeOutDir,
             MAINZ_RENDER_MODE: args.renderMode,
+            MAINZ_NAVIGATION_MODE: args.navigationMode,
             MAINZ_TARGET_NAME: args.targetName,
             MAINZ_BASE_PATH: args.basePath,
+            MAINZ_TARGET_LOCALES: JSON.stringify(args.targetLocales),
+            MAINZ_DEFAULT_LOCALE: args.defaultLocale ?? "",
+            MAINZ_LOCALE_PREFIX: args.localePrefix,
+            MAINZ_SITE_URL: args.siteUrl ?? "",
         },
         stdin: "inherit",
         stdout: "inherit",
@@ -238,63 +290,38 @@ async function emitSsgArtifacts(
     modeOutDir: string,
     cwd: string,
 ): Promise<void> {
-    const indexHtmlPath = resolve(cwd, modeOutDir, "index.html");
-    let templateHtml: string;
-
-    try {
-        templateHtml = await Deno.readTextFile(indexHtmlPath);
-    } catch (_error) {
-        throw new Error(
-            `SSG build for target "${job.target.name}" requires "${indexHtmlPath}" to exist.`,
-        );
-    }
-
-    const filesystemPageFiles = job.target.pagesDir
-        ? await collectFilesystemPageFiles(resolve(cwd, job.target.pagesDir))
-        : undefined;
-    const discoveredPages = filesystemPageFiles?.length
-        ? (await discoverPagesFromFiles(filesystemPageFiles)).map((entry) => ({
-            file: entry.file,
-            exportName: entry.exportName,
-            ...entry.page,
-        }))
-        : undefined;
-
-    const manifest = buildTargetRouteManifest({
-        target: {
-            ...job.target,
-            defaultMode: job.profile.overridePageMode ?? job.target.defaultMode ?? job.mode,
-        },
-        filesystemPageFiles,
-        discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
-    });
-
-    const targetI18n = resolveTargetI18nConfig(job.target);
-
-    const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
-        localePrefix: targetI18n?.localePrefix,
-    });
-    const routeById = new Map(manifest.routes.map((route) => [route.id, route]));
+    const { templateHtml, manifest, outputEntries, routeById, targetI18n } = await resolveStaticRouteBuildContext(
+        config,
+        job,
+        modeOutDir,
+        cwd,
+        "SSG",
+    );
 
     for (const entry of outputEntries) {
         const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
         const relativeFromOutputDir = relative(dirname(absoluteOutputPath), resolve(cwd, modeOutDir));
         const normalizedRelative = normalizePathSlashes(relativeFromOutputDir || ".");
         let html = rewriteAssetPaths(templateHtml, normalizedRelative);
+        if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
+            html = rewriteFallbackAssetPaths(html, job.profile.basePath);
+        }
 
         const route = routeById.get(entry.routeId);
         if (!route) {
             throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
         }
 
-        const routeHead = buildRouteHead(
-            route,
-            manifest,
-            entry.locale,
-            targetI18n?.localePrefix,
-            targetI18n?.defaultLocale,
-            job.profile.siteUrl,
-        );
+        const routeHead = buildRouteHead({
+            path: route.path,
+            locale: entry.locale,
+            locales: route.locales,
+            head: route.head,
+            localePrefix: targetI18n?.localePrefix,
+            defaultLocale: targetI18n?.defaultLocale,
+            basePath: job.profile.basePath,
+            siteUrl: job.profile.siteUrl,
+        });
 
         const appHtml = await renderSsgAppHtml({
             html,
@@ -302,6 +329,7 @@ async function emitSsgArtifacts(
             modeOutDir: resolve(cwd, modeOutDir),
             locale: entry.locale,
             basePath: toViteBasePath(job.profile.basePath),
+            renderPath: entry.renderPath,
         });
         html = injectAppHtml(html, appHtml);
         html = setHtmlLang(html, entry.locale);
@@ -317,18 +345,168 @@ async function emitSsgArtifacts(
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
     await Deno.writeTextFile(
         hydrationManifestPath,
-        JSON.stringify({ target: job.target.name, hydration: "full-page" }, null, 2),
+        JSON.stringify({
+            target: job.target.name,
+            hydration: "full-page",
+            navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+        }, null, 2),
     );
 
     const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
         manifest,
         targetI18n?.defaultLocale,
         targetI18n?.localePrefix,
+        job.profile.basePath,
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
         await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
+}
+
+async function emitCsrRouteArtifacts(
+    config: NormalizedMainzConfig,
+    job: BuildJob,
+    modeOutDir: string,
+    cwd: string,
+): Promise<void> {
+    const { templateHtml, manifest, outputEntries, routeById, targetI18n } = await resolveStaticRouteBuildContext(
+        config,
+        job,
+        modeOutDir,
+        cwd,
+        "CSR document",
+    );
+
+    for (const entry of outputEntries) {
+        const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
+        const relativeFromOutputDir = relative(dirname(absoluteOutputPath), resolve(cwd, modeOutDir));
+        const normalizedRelative = normalizePathSlashes(relativeFromOutputDir || ".");
+        let html = rewriteAssetPaths(templateHtml, normalizedRelative);
+        if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
+            html = rewriteFallbackAssetPaths(html, job.profile.basePath);
+        }
+
+        const route = routeById.get(entry.routeId);
+        if (!route) {
+            throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
+        }
+
+        const routeHead = buildRouteHead({
+            path: route.path,
+            locale: entry.locale,
+            locales: route.locales,
+            head: route.head,
+            localePrefix: targetI18n?.localePrefix,
+            defaultLocale: targetI18n?.defaultLocale,
+            basePath: job.profile.basePath,
+            siteUrl: job.profile.siteUrl,
+        });
+
+        html = setHtmlLang(html, entry.locale);
+        html = applyRouteHead(html, { head: routeHead });
+
+        await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
+        await Deno.writeTextFile(absoluteOutputPath, html);
+    }
+
+    const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
+    await Deno.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
+
+    const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
+    await Deno.writeTextFile(
+        hydrationManifestPath,
+        JSON.stringify({
+            target: job.target.name,
+            hydration: "full-page",
+            navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+        }, null, 2),
+    );
+
+    const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
+        manifest,
+        targetI18n?.defaultLocale,
+        targetI18n?.localePrefix,
+        job.profile.basePath,
+        job.profile.siteUrl,
+    );
+    if (localeRedirectHtml) {
+        await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
+    }
+}
+
+async function resolveStaticRouteBuildContext(
+    config: NormalizedMainzConfig,
+    job: BuildJob,
+    modeOutDir: string,
+    cwd: string,
+    buildLabel: string,
+): Promise<{
+    templateHtml: string;
+    manifest: ReturnType<typeof buildTargetRouteManifest>;
+    outputEntries: ReturnType<typeof buildSsgOutputEntries>;
+    routeById: Map<string, ReturnType<typeof buildTargetRouteManifest>["routes"][number]>;
+    targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
+}> {
+    const templateHtml = await readBuildTemplateHtml(modeOutDir, cwd, job.target.name, buildLabel);
+    const manifest = await resolveTargetRouteBuildContext(config, job, cwd);
+    const targetI18n = resolveTargetI18nConfig(job.target);
+    const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
+        localePrefix: targetI18n?.localePrefix,
+        defaultLocale: targetI18n?.defaultLocale,
+    });
+    const routeById = new Map(manifest.routes.map((route) => [route.id, route]));
+
+    return {
+        templateHtml,
+        manifest,
+        outputEntries,
+        routeById,
+        targetI18n,
+    };
+}
+
+async function readBuildTemplateHtml(
+    modeOutDir: string,
+    cwd: string,
+    targetName: string,
+    buildLabel: string,
+): Promise<string> {
+    const indexHtmlPath = resolve(cwd, modeOutDir, "index.html");
+
+    try {
+        return await Deno.readTextFile(indexHtmlPath);
+    } catch (_error) {
+        throw new Error(
+            `${buildLabel} build for target "${targetName}" requires "${indexHtmlPath}" to exist.`,
+        );
+    }
+}
+
+async function resolveTargetRouteBuildContext(
+    config: NormalizedMainzConfig,
+    job: BuildJob,
+    cwd: string,
+): Promise<ReturnType<typeof buildTargetRouteManifest>> {
+    const filesystemPageFiles = job.target.pagesDir
+        ? await collectFilesystemPageFiles(resolve(cwd, job.target.pagesDir))
+        : undefined;
+    const discoveredPages = filesystemPageFiles?.length
+        ? (await discoverPagesFromFiles(filesystemPageFiles)).map((entry) => ({
+            file: entry.file,
+            exportName: entry.exportName,
+            ...entry.page,
+        }))
+        : undefined;
+
+    return buildTargetRouteManifest({
+        target: {
+            ...job.target,
+            defaultMode: job.profile.overridePageMode ?? job.target.defaultMode ?? job.mode,
+        },
+        filesystemPageFiles,
+        discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
+    });
 }
 
 async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
@@ -356,6 +534,7 @@ function applyDiscoveredPageModeOverride(
         exportName: string;
         path: string;
         mode: RenderMode;
+        notFound?: boolean;
         locales?: readonly string[];
         head?: PageHeadDefinition;
     }> | undefined,
@@ -457,8 +636,63 @@ function resolvePublicationRenderMode(
     return hasRoutingInput(target) ? "ssg" : "csr";
 }
 
+function resolveExplicitRenderMode(mode: string): RenderMode {
+    const normalizedMode = mode.trim();
+    if (normalizedMode === "csr" || normalizedMode === "ssg") {
+        return normalizedMode;
+    }
+
+    throw new Error(`Invalid render mode "${mode}". Expected one of: csr, ssg.`);
+}
+
+function resolveEffectiveNavigationMode(
+    target: NormalizedMainzTarget,
+    profile: ResolvedTargetBuildProfile,
+): NavigationMode {
+    if (profile.overrideNavigation) {
+        return profile.overrideNavigation;
+    }
+
+    if (target.defaultNavigation) {
+        return target.defaultNavigation;
+    }
+
+    return hasRoutingInput(target) ? "enhanced-mpa" : "spa";
+}
+
+function resolveExplicitNavigationMode(mode: string | undefined): NavigationMode | undefined {
+    const normalizedMode = mode?.trim();
+    if (!normalizedMode) {
+        return undefined;
+    }
+
+    if (normalizedMode === "spa" || normalizedMode === "mpa" || normalizedMode === "enhanced-mpa") {
+        return normalizedMode;
+    }
+
+    throw new Error(`Invalid navigation mode "${mode}". Expected one of: spa, mpa, enhanced-mpa.`);
+}
+
 function toViteBasePath(basePath: string): string {
     return basePath === "/" ? "./" : basePath;
+}
+
+function resolveViteBasePath(basePath: string, navigationMode: NavigationMode): string {
+    if (navigationMode === "spa") {
+        return normalizeAbsoluteBasePath(basePath);
+    }
+
+    return toViteBasePath(basePath);
+}
+
+function normalizeAbsoluteBasePath(basePath: string): string {
+    const trimmed = basePath.trim();
+    if (!trimmed || trimmed === "." || trimmed === "./") {
+        return "/";
+    }
+
+    const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
 async function renderSsgAppHtml(args: {
@@ -467,6 +701,7 @@ async function renderSsgAppHtml(args: {
     modeOutDir: string;
     locale: string;
     basePath: string;
+    renderPath: string;
 }): Promise<string> {
     const moduleScriptSrc = extractModuleScriptSrc(args.html);
     if (!moduleScriptSrc) {
@@ -482,7 +717,7 @@ async function renderSsgAppHtml(args: {
         basePath: args.basePath,
     });
     const moduleScriptUrl = `${toFileUrl(moduleScriptPath)}?ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const pageUrl = buildOutputPageUrl(args.absoluteOutputPath, args.modeOutDir);
+    const pageUrl = buildRenderPageUrl(args.renderPath);
     const htmlWithoutScripts = stripScriptTags(args.html);
 
     return await withHappyDom(async (window) => {
@@ -527,17 +762,11 @@ function stripScriptTags(html: string): string {
     return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 }
 
-function buildOutputPageUrl(absoluteOutputPath: string, absoluteModeOutDir: string): string {
-    const relativeOutputPath = normalizePathSlashes(relative(absoluteModeOutDir, absoluteOutputPath));
-    const normalizedRoutePath = relativeOutputPath.endsWith("/index.html")
-        ? relativeOutputPath.slice(0, -"/index.html".length)
-        : relativeOutputPath.endsWith("index.html")
-        ? relativeOutputPath.slice(0, -"index.html".length)
-        : relativeOutputPath;
-
-    const withLeadingSlash = normalizedRoutePath.startsWith("/")
-        ? normalizedRoutePath
-        : `/${normalizedRoutePath}`;
+function buildRenderPageUrl(renderPath: string): string {
+    const normalizedRenderPath = renderPath.trim() || "/";
+    const withLeadingSlash = normalizedRenderPath.startsWith("/")
+        ? normalizedRenderPath
+        : `/${normalizedRenderPath}`;
     const pathname = withLeadingSlash === "/" || withLeadingSlash === ""
         ? "/"
         : withLeadingSlash.endsWith("/")
@@ -610,6 +839,28 @@ export function rewriteAssetPaths(html: string, relativeFromOutputDir: string): 
         .replace(/(["'])\/assets\//g, `$1${prefix}assets/`);
 }
 
+export function rewriteFallbackAssetPaths(html: string, basePath: string): string {
+    const normalizedBasePath = normalizeFallbackBasePath(basePath);
+    return html
+        .replace(/(["'])\.\/assets\//g, `$1${normalizedBasePath}assets/`)
+        .replace(/(["'])\/assets\//g, `$1${normalizedBasePath}assets/`);
+}
+
+function normalizeFallbackBasePath(basePath: string): string {
+    const trimmed = basePath.trim();
+    if (!trimmed || trimmed === "." || trimmed === "./") {
+        return "/";
+    }
+
+    const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function isRootFallbackOutput(outputHtmlPath: string, modeOutDir: string): boolean {
+    const relativeOutputPath = normalizePathSlashes(relative(resolve(modeOutDir), resolve(outputHtmlPath)));
+    return relativeOutputPath === "404.html";
+}
+
 export function injectAppHtml(html: string, appHtml: string): string {
     const replacedMain = html.replace(
         /<main id="app"><\/main>/,
@@ -639,73 +890,11 @@ export function setHtmlLang(html: string, locale: string): string {
     return html.replace(/<html([^>]*)>/, `<html$1 lang="${normalizedLocale}">`);
 }
 
-export function resolveLocaleRedirectPath(args: {
-    supportedLocales: readonly string[];
-    defaultLocale?: string;
-    preferredLocales?: readonly string[];
-}): string {
-    const normalizedSupported = Array.from(
-        new Set(
-            args.supportedLocales
-                .map((locale) => safeToLocalePathSegment(locale))
-                .filter((locale): locale is string => Boolean(locale)),
-        ),
-    );
-
-    if (normalizedSupported.length === 0) {
-        return "/";
-    }
-
-    const localeByExact = new Map<string, string>();
-    const localeByBase = new Map<string, string>();
-    for (const supported of normalizedSupported) {
-        localeByExact.set(supported, supported);
-        const base = supported.split("-")[0];
-        if (base && !localeByBase.has(base)) {
-            localeByBase.set(base, supported);
-        }
-    }
-
-    const preferences = args.preferredLocales ?? [];
-    for (const preferred of preferences) {
-        const normalizedPreferred = safeToLocalePathSegment(preferred);
-        if (!normalizedPreferred) {
-            continue;
-        }
-
-        const exactMatch = localeByExact.get(normalizedPreferred);
-        if (exactMatch) {
-            return `/${exactMatch}/`;
-        }
-
-        const baseLanguage = normalizedPreferred.split("-")[0];
-        if (!baseLanguage) {
-            continue;
-        }
-
-        const baseMatch = localeByBase.get(baseLanguage);
-        if (baseMatch) {
-            return `/${baseMatch}/`;
-        }
-    }
-
-    const normalizedDefault = args.defaultLocale ? safeToLocalePathSegment(args.defaultLocale) : undefined;
-    if (normalizedDefault && localeByExact.has(normalizedDefault)) {
-        return `/${normalizedDefault}/`;
-    }
-
-    const englishFallback = localeByExact.get("en") ?? localeByBase.get("en");
-    if (englishFallback) {
-        return `/${englishFallback}/`;
-    }
-
-    return `/${normalizedSupported[0]}/`;
-}
-
 function buildDefaultLocaleRedirectHtml(
     manifest: { routes: Array<{ path: string; mode: RenderMode; locales: string[] }> },
     defaultLocale: string | undefined,
     localePrefix: "auto" | "always" | undefined,
+    basePath: string,
     siteUrl?: string,
 ): string | null {
     const rootRoute = manifest.routes.find((route) => {
@@ -725,10 +914,11 @@ function buildDefaultLocaleRedirectHtml(
         return null;
     }
 
-    const targetPath = resolveLocaleRedirectPath({
+    const localizedTargetPath = resolveLocaleRedirectPath({
         supportedLocales: supportedLocaleSegments,
         defaultLocale,
     });
+    const targetPath = prependBuildBasePath(localizedTargetPath, basePath);
     const canonicalTarget = siteUrl ? new URL(targetPath, `${siteUrl}/`).toString() : targetPath;
     const supportedLocaleSegmentsJson = JSON.stringify(supportedLocaleSegments);
     const fallbackPathJson = JSON.stringify(targetPath);
@@ -784,12 +974,17 @@ function buildDefaultLocaleRedirectHtml(
     ].join("\n");
 }
 
-function safeToLocalePathSegment(locale: string): string | undefined {
-    try {
-        return toLocalePathSegment(locale);
-    } catch {
-        return undefined;
+function prependBuildBasePath(pathname: string, basePath: string): string {
+    const normalizedBasePath = normalizeFallbackBasePath(basePath);
+    if (normalizedBasePath === "/") {
+        return pathname;
     }
+
+    if (pathname === "/") {
+        return normalizedBasePath;
+    }
+
+    return `${normalizedBasePath.slice(0, -1)}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 
 export function applyRouteHead(
@@ -819,6 +1014,7 @@ export function applyRouteHead(
             meta.name ? ` name="${escapeHtmlAttribute(meta.name)}"` : "",
             meta.property ? ` property="${escapeHtmlAttribute(meta.property)}"` : "",
             ` content="${escapeHtmlAttribute(meta.content)}"`,
+            ` ${MAINZ_HEAD_MANAGED_ATTR}="true"`,
         ].join("");
         tags.push(`<meta${attributes} />`);
     }
@@ -828,6 +1024,7 @@ export function applyRouteHead(
             ` rel="${escapeHtmlAttribute(link.rel)}"`,
             ` href="${escapeHtmlAttribute(link.href)}"`,
             link.hreflang ? ` hreflang="${escapeHtmlAttribute(link.hreflang)}"` : "",
+            ` ${MAINZ_HEAD_MANAGED_ATTR}="true"`,
         ].join("");
         tags.push(`<link${attributes} />`);
     }
@@ -837,137 +1034,6 @@ export function applyRouteHead(
     }
 
     return nextHtml;
-}
-
-export function buildRouteHead(
-    route: {
-        path: string;
-        locales: string[];
-        head?: PageHeadDefinition;
-    },
-    manifest: {
-        routes: Array<{
-            path: string;
-            locales: string[];
-        }>;
-    },
-    locale: string,
-    localePrefix: "auto" | "always" | undefined,
-    defaultLocale?: string,
-    siteUrl?: string,
-): PageHeadDefinition | undefined {
-    const generatedLinks = generateRouteHeadLinks(route, locale, localePrefix, defaultLocale, siteUrl);
-    const manualHead = route.head;
-
-    if (!manualHead && generatedLinks.length === 0) {
-        return undefined;
-    }
-
-    return {
-        title: manualHead?.title,
-        meta: manualHead?.meta ? [...manualHead.meta] : undefined,
-        links: mergeRouteHeadLinks(generatedLinks, manualHead?.links),
-    };
-}
-
-function mergeRouteHeadLinks(
-    generatedLinks: readonly PageHeadLinkDefinition[],
-    manualLinks: readonly PageHeadLinkDefinition[] | undefined,
-): PageHeadLinkDefinition[] {
-    const merged: PageHeadLinkDefinition[] = [];
-    const seenKeys = new Set<string>();
-
-    for (const link of [...generatedLinks, ...(manualLinks ? [...manualLinks] : [])]) {
-        const key = createRouteHeadLinkKey(link);
-        if (seenKeys.has(key)) {
-            continue;
-        }
-
-        seenKeys.add(key);
-        merged.push({ ...link });
-    }
-
-    return merged;
-}
-
-function createRouteHeadLinkKey(link: PageHeadLinkDefinition): string {
-    const rel = link.rel.trim().toLowerCase();
-    if (rel === "canonical") {
-        return "canonical";
-    }
-
-    if (rel === "alternate" && link.hreflang) {
-        return `alternate:${link.hreflang.trim().toLowerCase()}`;
-    }
-
-    return `${rel}:${link.href.trim()}:${link.hreflang?.trim().toLowerCase() ?? ""}`;
-}
-
-function generateRouteHeadLinks(
-    route: { path: string; locales: string[] },
-    locale: string,
-    localePrefix: "auto" | "always" | undefined,
-    defaultLocale: string | undefined,
-    siteUrl: string | undefined,
-): Array<{ rel: string; href: string; hreflang?: string }> {
-    if (route.locales.length === 0) {
-        return [];
-    }
-
-    const links: Array<{ rel: string; href: string; hreflang?: string }> = [];
-    links.push({
-        rel: "canonical",
-        href: buildLocalizedRouteHref(route.path, locale, route.locales, localePrefix, siteUrl),
-    });
-
-    if (route.locales.length > 1) {
-        for (const alternateLocale of route.locales) {
-            links.push({
-                rel: "alternate",
-                href: buildLocalizedRouteHref(route.path, alternateLocale, route.locales, localePrefix, siteUrl),
-                hreflang: alternateLocale,
-            });
-        }
-
-        const xDefaultLocale = route.locales.includes(defaultLocale ?? "")
-            ? defaultLocale!
-            : route.locales[0];
-        links.push({
-            rel: "alternate",
-            href: buildLocalizedRouteHref(route.path, xDefaultLocale, route.locales, localePrefix, siteUrl),
-            hreflang: "x-default",
-        });
-    }
-
-    return links;
-}
-
-function buildLocalizedRouteHref(
-    routePath: string,
-    locale: string,
-    routeLocales: readonly string[],
-    localePrefix: "auto" | "always" | undefined,
-    siteUrl?: string,
-): string {
-    const normalizedRoutePath = routePath === "/" ? "" : routePath;
-    const shouldPrefixLocale = shouldPrefixLocaleForRoute(routeLocales, localePrefix ?? "auto");
-    const localePrefixPath = shouldPrefixLocale ? `/${toLocalePathSegment(locale)}` : "";
-    const href = `${localePrefixPath}${normalizedRoutePath || "/"}`;
-    const isLocalizedRootRoute = normalizedRoutePath === "" && localePrefixPath !== "";
-    const normalizedHref = isLocalizedRootRoute
-        ? `${localePrefixPath}/`
-        : href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
-
-    if (!siteUrl) {
-        return normalizedHref;
-    }
-
-    const absoluteHref = new URL(normalizedHref, `${siteUrl}/`).toString();
-    if (normalizedHref === "/" || normalizedHref.endsWith("/")) {
-        return absoluteHref;
-    }
-
-    return absoluteHref.replace(/\/+$/, "");
 }
 
 function escapeHtml(value: string): string {

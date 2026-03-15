@@ -18,6 +18,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/",
                 mode: "csr",
+                notFound: undefined,
                 head: {
                     title: "Home",
                     meta: [
@@ -34,6 +35,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/search",
                 mode: "ssg",
+                notFound: undefined,
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
             },

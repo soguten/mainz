@@ -75,6 +75,8 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
             routeId: "index",
             locale: "en",
             outputHtmlPath: "dist/playground/index.html",
+            renderPath: "/",
+            notFound: undefined,
         },
     ]);
 });
@@ -111,6 +113,39 @@ Deno.test("routing/manifest: should fail when discovered pages conflict in the s
             ],
         });
     }, Error, "conflicting routes");
+});
+
+Deno.test("routing/manifest: should reject multiple notFound pages", () => {
+    assertThrows(() => {
+        buildTargetRouteManifest({
+            target: {
+                name: "site",
+                rootDir: "./site",
+                pagesDir: "./site/pages",
+                locales: ["en"],
+            },
+            discoveredPages: [
+                { file: "./site/pages/not-found-a.page.tsx", exportName: "NotFoundA", path: "/404-a", mode: "ssg", notFound: true },
+                { file: "./site/pages/not-found-b.page.tsx", exportName: "NotFoundB", path: "/404-b", mode: "ssg", notFound: true },
+            ],
+        });
+    }, Error, "multiple notFound routes");
+});
+
+Deno.test("routing/manifest: should require notFound pages to use ssg mode", () => {
+    assertThrows(() => {
+        buildTargetRouteManifest({
+            target: {
+                name: "site",
+                rootDir: "./site",
+                pagesDir: "./site/pages",
+                locales: ["en"],
+            },
+            discoveredPages: [
+                { file: "./site/pages/not-found.page.tsx", exportName: "NotFoundPage", path: "/404", mode: "csr", notFound: true },
+            ],
+        });
+    }, Error, 'must use mode "ssg"');
 });
 
 Deno.test("routing/manifest: should require target defaultMode for filesystem routing", () => {
@@ -164,6 +199,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             path: "/",
             pattern: "/",
             mode: "csr",
+            notFound: undefined,
             locales: ["en"],
             head: {
                 title: "Home",
@@ -179,6 +215,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             path: "/docs",
             pattern: "/docs",
             mode: "ssg",
+            notFound: undefined,
             locales: ["pt-BR"],
             head: undefined,
         },
@@ -223,18 +260,24 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
             routeId: "docs-install",
             locale: "en",
             outputHtmlPath: "dist/site/en/docs/install/index.html",
+            renderPath: "/en/docs/install",
+            notFound: undefined,
         },
         {
             target: "site",
             routeId: "docs-install",
             locale: "pt-BR",
             outputHtmlPath: "dist/site/pt-br/docs/install/index.html",
+            renderPath: "/pt-br/docs/install",
+            notFound: undefined,
         },
         {
             target: "site",
             routeId: "home",
             locale: "en",
             outputHtmlPath: "dist/site/index.html",
+            renderPath: "/",
+            notFound: undefined,
         },
     ]);
 });
@@ -262,6 +305,8 @@ Deno.test("routing/manifest: should emit no locale prefix when a route resolves 
             routeId: "docs",
             locale: "en",
             outputHtmlPath: "dist/playground/docs/index.html",
+            renderPath: "/docs",
+            notFound: undefined,
         },
     ]);
 });
@@ -289,12 +334,16 @@ Deno.test("routing/manifest: should emit locale prefixes when a route resolves t
             routeId: "docs",
             locale: "en",
             outputHtmlPath: "dist/playground/en/docs/index.html",
+            renderPath: "/en/docs",
+            notFound: undefined,
         },
         {
             target: "playground",
             routeId: "docs",
             locale: "pt-BR",
             outputHtmlPath: "dist/playground/pt-br/docs/index.html",
+            renderPath: "/pt-br/docs",
+            notFound: undefined,
         },
     ]);
 });
@@ -324,6 +373,56 @@ Deno.test("routing/manifest: should allow forcing locale prefixes even when a ro
             routeId: "docs",
             locale: "en",
             outputHtmlPath: "dist/playground/en/docs/index.html",
+            renderPath: "/en/docs",
+            notFound: undefined,
+        },
+    ]);
+});
+
+Deno.test("routing/manifest: should emit a root 404.html for notFound routes", () => {
+    const manifest: TargetRouteManifest = {
+        target: "site",
+        routes: [
+            {
+                id: "not-found",
+                source: "filesystem",
+                path: "/404",
+                pattern: "/404",
+                mode: "ssg",
+                notFound: true,
+                locales: ["en", "pt-BR"],
+            },
+        ],
+    };
+
+    const outputs = buildSsgOutputEntries(manifest, "dist/site", {
+        defaultLocale: "pt-BR",
+    });
+
+    assertEquals(outputs, [
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "en",
+            outputHtmlPath: "dist/site/en/404/index.html",
+            renderPath: "/en/404",
+            notFound: true,
+        },
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "pt-BR",
+            outputHtmlPath: "dist/site/pt-br/404/index.html",
+            renderPath: "/pt-br/404",
+            notFound: true,
+        },
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "pt-BR",
+            outputHtmlPath: "dist/site/404.html",
+            renderPath: "/pt-br/404",
+            notFound: true,
         },
     ]);
 });
