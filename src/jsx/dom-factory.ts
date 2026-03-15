@@ -1,4 +1,5 @@
 import { Component } from "../components";
+import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { getCurrentRenderOwner } from "./render-owner.ts";
 
 export interface ManagedDOMEventDescriptor {
@@ -22,11 +23,7 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
 
     if (typeof tag === "function") {
         if (tag.prototype instanceof Component) {
-            const tagName = tag.getTagName();
-
-            if (!customElements.get(tagName)) {
-                customElements.define(tagName, tag);
-            }
+            const tagName = ensureMainzCustomElementDefined(tag);
 
             const el = document.createElement(tagName) as HTMLElement;
 

@@ -1,4 +1,5 @@
 import { Window } from "happy-dom";
+import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 
 export type MainzComponentCtor<T extends HTMLElement> = {
     getTagName(): string;
@@ -107,13 +108,7 @@ function ensureTestRoot(): HTMLElement {
 }
 
 function ensureDefined<T extends HTMLElement>(Ctor: MainzComponentCtor<T>): string {
-    const tag = Ctor.getTagName();
-
-    if (!customElements.get(tag)) {
-        customElements.define(tag, Ctor);
-    }
-
-    return tag;
+    return ensureMainzCustomElementDefined(Ctor as unknown as CustomElementConstructor & { getTagName(): string });
 }
 
 function createRenderResult<T extends HTMLElement>(

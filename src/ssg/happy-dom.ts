@@ -24,6 +24,7 @@ const GLOBAL_DOM_KEYS = [
     "cancelIdleCallback",
     "getComputedStyle",
     "HTMLInputElement",
+    "MouseEvent",
     "HTMLTextAreaElement",
     "HTMLSelectElement",
     "HTMLOptionElement",
@@ -33,7 +34,6 @@ const GLOBAL_DOM_KEYS = [
 ] as const;
 
 type GlobalDomKey = (typeof GLOBAL_DOM_KEYS)[number];
-
 export async function withHappyDom<T>(
     fn: (window: Window) => Promise<T> | T,
     options?: { url?: string },

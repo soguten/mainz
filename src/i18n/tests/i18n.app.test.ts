@@ -3,6 +3,7 @@
 import { assertEquals } from "@std/assert";
 import { createAppDictionaryI18n } from "../index.ts";
 import { withHappyDom } from "../../ssg/happy-dom.ts";
+import { MAINZ_LOCALE_CHANGE_EVENT } from "../../runtime-events.ts";
 
 Deno.test({
     name: "i18n/app: should prefer locale from path segment",
@@ -90,5 +91,38 @@ Deno.test({
             assertEquals(i18n.getLocale(), "en");
             assertEquals(i18n.t("common.title"), "Hello");
         }, { url: "https://mainz.local/pt/" });
+    },
+});
+
+Deno.test({
+    name: "i18n/app: should follow Mainz locale change events after startup",
+    sanitizeOps: false,
+    sanitizeResources: false,
+    fn: async () => {
+        await withHappyDom(async () => {
+            const i18n = createAppDictionaryI18n({
+                defaultLocale: "en",
+                dictionaries: {
+                    en: { common: { title: "Hello" } },
+                    pt: { common: { title: "Ola" } },
+                },
+                detect: {
+                    path: false,
+                    document: false,
+                    navigator: false,
+                },
+            });
+
+            document.dispatchEvent(new CustomEvent(MAINZ_LOCALE_CHANGE_EVENT, {
+                detail: {
+                    locale: "pt",
+                    url: "https://mainz.local/pt/",
+                    basePath: "/",
+                },
+            }));
+
+            assertEquals(i18n.getLocale(), "pt");
+            assertEquals(i18n.t("common.title"), "Ola");
+        }, { url: "https://mainz.local/" });
     },
 });

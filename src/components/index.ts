@@ -1,5 +1,6 @@
 export { Component } from "./component.ts";
 export { Page, isPageConstructor } from "./page.ts";
+export { ensureMainzCustomElementDefined } from "./registry.ts";
 export type { DefaultProps, DefaultState } from "./types.ts";
 export type {
     PageConstructor,

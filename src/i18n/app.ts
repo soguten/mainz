@@ -1,4 +1,5 @@
 import { createDictionaryI18n, detectNavigatorLocale, DictionaryI18n, normalizeLocaleTag } from "./core.ts";
+import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
 
 export interface DictionaryI18nAppDetectOptions {
     path?: boolean;
@@ -32,7 +33,7 @@ export function createAppDictionaryI18n<
 
     const initialLocale = options.initialLocale ?? detectInitialLocale(locales, options.detect);
 
-    return createDictionaryI18n<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>>({
+    const i18n = createDictionaryI18n<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>>({
         defaultLocale: options.defaultLocale,
         locales,
         dictionaries: options.dictionaries as Record<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>>,
@@ -40,6 +41,9 @@ export function createAppDictionaryI18n<
         initialLocale,
         onMissingTranslation: options.onMissingTranslation,
     });
+
+    bindLocaleChangeEvents(i18n);
+    return i18n;
 }
 
 function detectInitialLocale<Locale extends string>(
@@ -142,4 +146,21 @@ function matchSupportedLocale<Locale extends string>(
     }
 
     return undefined;
+}
+
+function bindLocaleChangeEvents<Locale extends string, Dictionary extends object>(
+    i18n: DictionaryI18n<Locale, Dictionary>,
+): void {
+    if (typeof document === "undefined") {
+        return;
+    }
+
+    document.addEventListener(MAINZ_LOCALE_CHANGE_EVENT, (event) => {
+        const detail = (event as CustomEvent<MainzLocaleChangeDetail>).detail;
+        if (!detail?.locale) {
+            return;
+        }
+
+        i18n.setLocale(detail.locale);
+    });
 }
