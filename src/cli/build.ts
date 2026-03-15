@@ -52,7 +52,7 @@ const DEFAULT_BUILD_PROFILE_NAME = "production";
 
 export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCliOptions): BuildJob[] {
     const targetSelection = options.target?.trim();
-    const modeSelection = normalizeModeSelection(options.mode?.trim());
+    const modeSelection = options.mode?.trim();
 
     const targets = targetSelection && targetSelection !== "all"
         ? config.targets.filter((target) => target.name === targetSelection)
@@ -152,18 +152,6 @@ export async function resolvePublicationMetadata(
         renderMode,
         siteUrl: profile.siteUrl,
     };
-}
-
-function normalizeModeSelection(mode: string | undefined): string | undefined {
-    if (!mode) {
-        return mode;
-    }
-
-    if (mode === "spa") {
-        return "csr";
-    }
-
-    return mode;
 }
 
 function targetSupportsRenderMode(target: NormalizedMainzTarget, mode: RenderMode): boolean {

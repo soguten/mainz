@@ -10,7 +10,6 @@ import {
     DiscoveredPageDefinition,
     FilesystemRoute,
     RenderMode,
-    RenderModeInput,
     RouteManifestEntry,
     RouteSource,
     SsgOutputEntry,
@@ -165,7 +164,7 @@ function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): Candid
     try {
         filesystemRoutes = inferFilesystemRoutes([...input.filesystemPageFiles], {
             pagesDir: target.pagesDir,
-            defaultMode: normalizeRenderMode(target.defaultMode!),
+            defaultMode: target.defaultMode!,
         });
     } catch (error) {
         throw new Error(
@@ -519,12 +518,4 @@ function toErrorMessage(error: unknown): string {
     }
 
     return String(error);
-}
-
-function normalizeRenderMode(mode: RenderModeInput): RenderMode {
-    if (mode === "spa") {
-        return "csr";
-    }
-
-    return mode;
 }

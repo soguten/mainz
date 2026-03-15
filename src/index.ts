@@ -37,7 +37,6 @@ export type {
     FilesystemRoute,
     FilesystemRoutingOptions,
     RenderMode,
-    RenderModeInput,
     RouteManifestEntry,
     RouteSource,
     SsgOutputEntry,

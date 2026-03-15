@@ -20,7 +20,7 @@ Deno.test("cli/build: should create full matrix when target and mode are omitted
             },
         ],
         render: {
-            modes: ["spa", "ssg"],
+            modes: ["csr", "ssg"],
         },
     });
 
@@ -52,7 +52,7 @@ Deno.test("cli/build: should filter jobs by target and mode", () => {
             },
         ],
         render: {
-            modes: ["spa", "ssg"],
+            modes: ["csr", "ssg"],
         },
     });
 
@@ -66,7 +66,7 @@ Deno.test("cli/build: should filter jobs by target and mode", () => {
     assertEquals(jobs[0].mode, "ssg");
 });
 
-Deno.test("cli/build: should accept spa as a legacy mode alias for csr", () => {
+Deno.test("cli/build: should reject unknown render mode filters", () => {
     const config = normalizeMainzConfig({
         targets: [
             {
@@ -81,13 +81,12 @@ Deno.test("cli/build: should accept spa as a legacy mode alias for csr", () => {
         },
     });
 
-    const jobs = resolveBuildJobs(config, {
-        target: "site",
-        mode: "spa",
-    });
-
-    assertEquals(jobs.length, 1);
-    assertEquals(jobs[0].mode, "csr");
+    assertThrows(() => {
+        resolveBuildJobs(config, {
+            target: "site",
+            mode: "spa",
+        });
+    }, Error, 'No render modes matched "spa"');
 });
 
 Deno.test("cli/build: should fail for unknown target", () => {

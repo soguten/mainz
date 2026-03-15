@@ -42,15 +42,11 @@
         "preview:site": "deno run -A npm:vite preview --config vite.config.site.ts",
         "build:mainz": "deno run -A ./src/cli/mainz.ts build",
         "build:site:csr": "deno run -A ./src/cli/mainz.ts build --target site --mode csr",
-        "build:site:spa": "deno run -A ./src/cli/mainz.ts build --target site --mode spa",
         "build:site:ssg": "deno run -A ./src/cli/mainz.ts build --target site --mode ssg",
         "preview:site:csr": "$env:MAINZ_OUT_DIR='dist/site/csr'; $env:MAINZ_RENDER_MODE='csr'; deno run -A npm:vite preview --config vite.config.site.ts --host --port 4173",
-        "preview:site:spa": "$env:MAINZ_OUT_DIR='dist/site/csr'; $env:MAINZ_RENDER_MODE='csr'; deno run -A npm:vite preview --config vite.config.site.ts --host --port 4173",
         "preview:site:ssg": "deno run -A jsr:@std/http/file-server ./dist/site/ssg --host 127.0.0.1 --port 4173",
         "build:playground:csr": "deno run -A ./src/cli/mainz.ts build --target playground --mode csr",
-        "build:playground:spa": "deno run -A ./src/cli/mainz.ts build --target playground --mode spa",
         "preview:playground:csr": "$env:MAINZ_OUT_DIR='dist/playground/csr'; $env:MAINZ_RENDER_MODE='csr'; deno run -A npm:vite preview --config vite.config.playground.ts --host --port 4174",
-        "preview:playground:spa": "$env:MAINZ_OUT_DIR='dist/playground/csr'; $env:MAINZ_RENDER_MODE='csr'; deno run -A npm:vite preview --config vite.config.playground.ts --host --port 4174",
         "test": "deno test -A"
     }
 }

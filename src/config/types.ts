@@ -1,11 +1,10 @@
 import {
     RenderMode,
-    RenderModeInput,
 } from "../routing/index.ts";
 import { I18nConfig } from "../i18n/index.ts";
 
 export interface MainzRenderConfig {
-    modes?: readonly RenderModeInput[];
+    modes?: readonly RenderMode[];
 }
 
 export interface MainzTargetDefinition {
@@ -15,14 +14,14 @@ export interface MainzTargetDefinition {
     locales?: readonly string[];
     i18n?: Omit<I18nConfig<string>, "locales" | "detectLocale">;
     outDir?: string;
-    defaultMode?: RenderModeInput;
+    defaultMode?: RenderMode;
     viteConfig: string;
     buildConfig?: string;
 }
 
 export interface TargetBuildProfileDefinition {
     basePath?: string;
-    overridePageMode?: RenderModeInput;
+    overridePageMode?: RenderMode;
     siteUrl?: string;
 }
 

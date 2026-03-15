@@ -79,13 +79,13 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
     ]);
 });
 
-Deno.test("routing/manifest: should normalize legacy spa mode to csr for filesystem pages", () => {
+Deno.test("routing/manifest: should use explicit csr defaultMode for filesystem pages", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "playground",
             rootDir: "./playground",
             pagesDir: "./playground/pages",
-            defaultMode: "spa",
+            defaultMode: "csr",
             locales: ["en"],
         },
         filesystemPageFiles: [

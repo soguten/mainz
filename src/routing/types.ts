@@ -1,7 +1,6 @@
 import type { PageDefinition, PageHeadDefinition } from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
-export type RenderModeInput = RenderMode | "spa";
 export type RouteSource = "filesystem";
 
 export interface FilesystemRoutingOptions {
@@ -35,7 +34,7 @@ export interface TargetDefinition {
         fallbackLocale?: string;
     };
     outDir?: string;
-    defaultMode?: RenderModeInput;
+    defaultMode?: RenderMode;
 }
 
 export interface RouteManifestEntry {

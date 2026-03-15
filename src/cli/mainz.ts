@@ -120,9 +120,6 @@ function printHelp(): void {
             "  mainz build --target site --mode ssg",
             "  mainz build --target playground --mode csr",
             "  mainz publish-info --target site --profile gh-pages",
-            "",
-            "Notes:",
-            '  "spa" is kept as a legacy alias for "csr".',
         ].join("\n"),
     );
 }

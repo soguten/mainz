@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { RenderMode, RenderModeInput } from "../routing/index.ts";
+import { RenderMode } from "../routing/index.ts";
 import {
     LoadedMainzConfig,
     MainzConfig,
@@ -54,7 +54,7 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     assertUniqueTargetNames(normalizedTargets);
 
     const requestedModes: RenderMode[] = input.render?.modes && input.render.modes.length > 0
-        ? input.render.modes.map(normalizeRenderModeInput)
+        ? [...input.render.modes]
         : ["csr", "ssg"];
 
     const renderModes = dedupeRenderModes(requestedModes);
@@ -93,19 +93,19 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
 
     return {
         ...target,
-        defaultMode: target.defaultMode ? normalizeRenderModeInput(target.defaultMode) : undefined,
+        defaultMode: target.defaultMode,
         outDir,
     };
 }
 
 function normalizeTargetBuildProfile(profile: {
     basePath?: string;
-    overridePageMode?: RenderModeInput;
+    overridePageMode?: RenderMode;
     siteUrl?: string;
 }): NormalizedTargetBuildProfile {
     return {
         basePath: normalizeBasePath(profile.basePath),
-        overridePageMode: profile.overridePageMode ? normalizeRenderModeInput(profile.overridePageMode) : undefined,
+        overridePageMode: profile.overridePageMode,
         siteUrl: normalizeSiteUrl(profile.siteUrl),
     };
 }
@@ -130,7 +130,7 @@ function dedupeRenderModes(modes: RenderMode[]): RenderMode[] {
 
     for (const mode of modes) {
         if (!allowed.has(mode)) {
-            throw new Error(`Unsupported render mode "${mode}". Use "csr" or "ssg" (legacy alias: "spa").`);
+            throw new Error(`Unsupported render mode "${mode}". Use "csr" or "ssg".`);
         }
 
         if (seen.has(mode)) continue;
@@ -139,14 +139,6 @@ function dedupeRenderModes(modes: RenderMode[]): RenderMode[] {
     }
 
     return unique;
-}
-
-function normalizeRenderModeInput(mode: RenderModeInput): RenderMode {
-    if (mode === "spa") {
-        return "csr";
-    }
-
-    return mode;
 }
 
 function normalizeBasePath(basePath: string | undefined): string | undefined {
