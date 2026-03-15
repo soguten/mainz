@@ -9,22 +9,75 @@
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
-import { setLocale } from "../../i18n/index.ts";
+import { buildSiteLocaleHref, setLocale } from "../../i18n/index.ts";
 import { pageStyles } from "../../styles/pageStyles.ts";
 
 await setupMainzDom();
 
 const fixtures = await import("./MainzTutorialPage.fixture.tsx") as typeof import("./MainzTutorialPage.fixture.tsx");
 const sandboxFixtures = await import("./InteractiveSandbox.fixture.tsx") as typeof import("./InteractiveSandbox.fixture.tsx");
+const pageFixtures = await import("../../pages/NotFound.page.tsx") as typeof import("../../pages/NotFound.page.tsx");
 
 Deno.test("site/layout: should render the top nav without floating behavior classes", () => {
     setLocale("pt");
+    window.history.replaceState(null, "", "/pt/");
     const screen = renderMainzComponent(fixtures.MainzTutorialPage);
 
     try {
         const header = screen.getBySelector<HTMLElement>("header.top-nav");
         assert(header.classList.contains("top-nav"));
         assert(!header.classList.contains("floating"));
+    } finally {
+        screen.cleanup();
+    }
+});
+
+Deno.test("site/layout: should render a locale switcher that preserves the current section across languages", () => {
+    setLocale("pt");
+    window.history.replaceState(null, "", "/pt/");
+    const screen = renderMainzComponent(fixtures.MainzTutorialPage);
+
+    try {
+        const activeLocale = screen.getBySelector<HTMLAnchorElement>(".locale-chip.active");
+        const englishLocale = screen.getBySelector<HTMLAnchorElement>('.locale-chip[data-locale="en"]');
+        const portugueseLocale = screen.getBySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]');
+
+        assertEquals(activeLocale.textContent?.trim(), "PT");
+        assertEquals(portugueseLocale.getAttribute("aria-current"), "true");
+        assertEquals(englishLocale.getAttribute("href"), "/en/");
+        assertEquals(portugueseLocale.getAttribute("href"), "/pt/");
+    } finally {
+        screen.cleanup();
+    }
+});
+
+Deno.test("site/layout: locale helper should preserve the active section when switching languages", () => {
+    setLocale("pt");
+
+    const englishHref = buildSiteLocaleHref("en", {
+        pathname: "/pt/",
+        search: "",
+        hash: "#trilha",
+    });
+
+    const portugueseHref = buildSiteLocaleHref("pt", {
+        pathname: "/en/",
+        search: "",
+        hash: "#journey",
+    });
+
+    assertEquals(englishHref, "/en/#journey");
+    assertEquals(portugueseHref, "/pt/#trilha");
+});
+
+Deno.test("site/layout: notFound locale switcher should keep invalid paths while moving the locale prefix", () => {
+    setLocale("en");
+    window.history.replaceState(null, "", "/pgffhgh");
+    const screen = renderMainzComponent(pageFixtures.NotFoundPage);
+
+    try {
+        const portugueseLocale = screen.getBySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]');
+        assertEquals(portugueseLocale.getAttribute("href"), "/pt/pgffhgh/");
     } finally {
         screen.cleanup();
     }
@@ -88,4 +141,12 @@ Deno.test("site/layout: should keep mobile overflow protections in the page styl
     assertStringIncludes(pageStyles, "max-width: 100%;");
     assertStringIncludes(pageStyles, ".chapter-row");
     assertStringIncludes(pageStyles, "grid-template-columns: 1fr;");
+    assertStringIncludes(pageStyles, ".locale-switcher");
+    assertStringIncludes(pageStyles, ".top-nav-actions");
+});
+
+Deno.test("site/layout: should avoid page-load animation styles that cause enhanced-mpa flicker", () => {
+    assertEquals(pageStyles.includes("press-reveal"), false);
+    assertEquals(pageStyles.includes("mainz-page-enter"), false);
+    assertEquals(pageStyles.includes("@view-transition"), false);
 });

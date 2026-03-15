@@ -1,6 +1,10 @@
 import type { SiteDictionary } from "../types.ts";
 
 const pt: SiteDictionary = {
+    localeNames: {
+        en: "Ingles",
+        pt: "Portugues",
+    },
     anchors: {
         top: "inicio",
         hero: "hero",
@@ -13,6 +17,8 @@ const pt: SiteDictionary = {
     nav: {
         brand: "mainz",
         ariaLabel: "Navegacao principal",
+        languageLabel: "Idioma",
+        languageMenuLabel: "Seletor de idioma",
         home: "Inicio",
         journey: "Trilha",
         concepts: "Conceitos",

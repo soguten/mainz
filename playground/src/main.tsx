@@ -1,3 +1,4 @@
+import { startNavigation } from "mainz";
 import { CheckedScenario } from "./checked-scenario.tsx";
 import { Counter } from "./counter.tsx";
 import { InputValueScenario } from "./input-value-scenario.tsx";
@@ -7,6 +8,11 @@ import { StaleInlineHandlerCounter } from "./StaleInlineHandlerCounter.tsx";
 
 const app = document.getElementById("app")!;
 
+startNavigation({
+    mode: __MAINZ_NAVIGATION_MODE__,
+    basePath: __MAINZ_BASE_PATH__,
+});
+
 app.append(<Counter initial={10} />);
 
 app.append(<ListIdentityScenario />);
@@ -15,4 +21,3 @@ app.append(<InputValueScenario />);
 app.append(<CheckedScenario />);
 
 app.append(<StaleInlineHandlerCounter />);
-

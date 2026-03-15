@@ -4,11 +4,16 @@ export default defineTargetBuild({
     profiles: {
         dev: {
             overridePageMode: "csr",
+            overrideNavigation: "spa",
         },
         production: {},
+        "plain-static": {
+            overrideNavigation: "mpa",
+        },
         "gh-pages": {
             // Published at the domain root.
             basePath: "/",
+            // Used by to generate hreflang with absolute url
             siteUrl: "https://mainz.soguten.com",
         },
     },

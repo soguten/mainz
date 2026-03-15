@@ -6,6 +6,7 @@ import { CheckpointQuiz } from "./CheckpointQuiz.tsx";
 import { ConceptCard } from "./ConceptCard.tsx";
 import { HeroIntro } from "./HeroIntro.tsx";
 import { InteractiveSandbox } from "./InteractiveSandbox.tsx";
+import { LanguageSwitcher } from "./LanguageSwitcher.tsx";
 import type { ConceptCardData, NextStepCardData, StageData } from "./types.ts";
 
 interface TutorialState {
@@ -52,13 +53,16 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
             <div id={anchors.top} className="page-shell">
                 <header className="top-nav panel">
                     <a className="brand" href={`#${anchors.top}`}>{t("nav.brand")}</a>
-                    <nav className="top-links" aria-label={t("nav.ariaLabel")}>
-                        <a href={`#${anchors.hero}`}>{t("nav.home")}</a>
-                        <a href={`#${anchors.journey}`}>{t("nav.journey")}</a>
-                        <a href={`#${anchors.concepts}`}>{t("nav.concepts")}</a>
-                        <a href={`#${anchors.checkpoint}`}>{t("nav.checkpoint")}</a>
-                        <a href={`#${anchors.sandbox}`}>{t("nav.workshop")}</a>
-                    </nav>
+                    <div className="top-nav-actions">
+                        <nav className="top-links" aria-label={t("nav.ariaLabel")}>
+                            <a href={`#${anchors.hero}`}>{t("nav.home")}</a>
+                            <a href={`#${anchors.journey}`}>{t("nav.journey")}</a>
+                            <a href={`#${anchors.concepts}`}>{t("nav.concepts")}</a>
+                            <a href={`#${anchors.checkpoint}`}>{t("nav.checkpoint")}</a>
+                            <a href={`#${anchors.sandbox}`}>{t("nav.workshop")}</a>
+                        </nav>
+                        <LanguageSwitcher />
+                    </div>
                 </header>
 
                 <HeroIntro />

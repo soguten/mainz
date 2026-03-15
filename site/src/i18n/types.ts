@@ -5,6 +5,10 @@ import type {
 } from "../components/types.ts";
 
 export interface SiteDictionary {
+    localeNames: {
+        en: string;
+        pt: string;
+    };
     anchors: {
         top: string;
         hero: string;
@@ -17,6 +21,8 @@ export interface SiteDictionary {
     nav: {
         brand: string;
         ariaLabel: string;
+        languageLabel: string;
+        languageMenuLabel: string;
         home: string;
         journey: string;
         concepts: string;
