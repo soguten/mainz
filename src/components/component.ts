@@ -82,6 +82,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     public setState(partial: Partial<S>) {
         const nextState = { ...this.state, ...partial };
         this.state = nextState;
+        if (!this.isConnected) {
+            return;
+        }
         this.renderDOM();
     }
 

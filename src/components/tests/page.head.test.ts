@@ -22,3 +22,63 @@ Deno.test("components/page head: should apply managed head tags when a Page is m
 
     screen.cleanup();
 });
+
+Deno.test("components/page head: should replace managed tags when navigating between pages and preserve unmanaged nodes", () => {
+    const unmanagedMeta = document.createElement("meta");
+    unmanagedMeta.setAttribute("name", "viewport-marker");
+    unmanagedMeta.setAttribute("content", "persist");
+    document.head.appendChild(unmanagedMeta);
+
+    const unmanagedStyle = document.createElement("style");
+    unmanagedStyle.setAttribute("data-role", "global-style");
+    unmanagedStyle.textContent = "body { background: white; }";
+    document.head.appendChild(unmanagedStyle);
+
+    const firstScreen = renderMainzComponent(fixtures.HeadFixturePage);
+    const secondScreen = renderMainzComponent(fixtures.AlternateHeadFixturePage);
+
+    try {
+        assertEquals(document.title, "Alternate Fixture Title");
+        assertEquals(document.head.querySelectorAll('[data-mainz-head-managed="true"]').length, 3);
+        assertEquals(
+            document.head.querySelector('meta[data-mainz-head-managed="true"][name="description"]'),
+            null,
+        );
+        assertEquals(
+            document.head.querySelector('meta[data-mainz-head-managed="true"][property="og:title"]')?.getAttribute(
+                "content",
+            ),
+            "Alternate Fixture OG",
+        );
+        assertEquals(
+            document.head.querySelector('link[data-mainz-head-managed="true"][rel="canonical"]')?.getAttribute("href"),
+            "/head-alt",
+        );
+        assertEquals(
+            document.head.querySelector(
+                'link[data-mainz-head-managed="true"][rel="alternate"][hreflang="en"]',
+            )?.getAttribute("href"),
+            "/head-alt",
+        );
+        assertEquals(document.head.querySelector('meta[name="viewport-marker"]')?.getAttribute("content"), "persist");
+        assertEquals(
+            document.head.querySelector('style[data-role="global-style"]')?.textContent,
+            "body { background: white; }",
+        );
+    } finally {
+        firstScreen.cleanup();
+        secondScreen.cleanup();
+        unmanagedMeta.remove();
+        unmanagedStyle.remove();
+    }
+});
+
+Deno.test("components/page head: should remove previously managed tags when a headless page is mounted", () => {
+    const firstScreen = renderMainzComponent(fixtures.HeadFixturePage);
+    const secondScreen = renderMainzComponent(fixtures.HeadlessFixturePage);
+
+    assertEquals(document.head.querySelectorAll('[data-mainz-head-managed="true"]').length, 0);
+
+    firstScreen.cleanup();
+    secondScreen.cleanup();
+});

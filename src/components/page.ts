@@ -60,6 +60,13 @@ export function applyPageHeadToDocument(pageCtor: PageConstructor): void {
         return;
     }
 
+    const head = document.head;
+    if (!head) {
+        return;
+    }
+
+    head.querySelectorAll(`[${MAINZ_HEAD_MANAGED}]`).forEach((node) => node.remove());
+
     const page = pageCtor.page;
     if (!page?.head) {
         return;
@@ -68,13 +75,6 @@ export function applyPageHeadToDocument(pageCtor: PageConstructor): void {
     if (page.head.title) {
         document.title = page.head.title;
     }
-
-    const head = document.head;
-    if (!head) {
-        return;
-    }
-
-    head.querySelectorAll(`[${MAINZ_HEAD_MANAGED}]`).forEach((node) => node.remove());
 
     for (const meta of page.head.meta ?? []) {
         const element = document.createElement("meta");
