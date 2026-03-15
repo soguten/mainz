@@ -138,3 +138,17 @@ export class NestedOwnerBoundaryComponent extends Component<{}, { version: numbe
         );
     }
 }
+
+export class ThrowingRenderOwnerComponent extends Component<{}, { shouldThrow: boolean }> {
+    protected override initState() {
+        return { shouldThrow: true };
+    }
+
+    override render(): HTMLElement {
+        if (this.state.shouldThrow) {
+            throw new Error("render-owner fixture failure");
+        }
+
+        return <button type="button">ok</button>;
+    }
+}

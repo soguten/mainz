@@ -45,3 +45,24 @@ Deno.test("inline events: stable instance handler should continue working across
     assertEquals(screen.getBySelector("button").textContent, "2");
     screen.cleanup();
 });
+
+Deno.test("inline events: replaced conditional branch should not keep stale listeners on the old node", () => {
+    const screen = renderMainzComponent(fixtures.ConditionalBranchComponent);
+    const oldActionButton = screen.getBySelector<HTMLButtonElement>("button[data-role='action']");
+
+    try {
+        oldActionButton.click();
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "1|0");
+
+        screen.click("button[data-role='toggle']");
+        assertEquals(screen.getBySelector("button[data-role='action']").textContent, "secondary:0");
+
+        oldActionButton.click();
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "1|0");
+
+        screen.click("button[data-role='action']");
+        assertEquals(screen.getBySelector("p[data-role='summary']").textContent, "1|1");
+    } finally {
+        screen.cleanup();
+    }
+});

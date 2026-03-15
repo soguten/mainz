@@ -52,3 +52,48 @@ export class StableHandlerComponent extends Component<{}, { count: number }> {
         );
     }
 }
+
+export class ConditionalBranchComponent extends Component<
+    {},
+    { showPrimary: boolean; primaryClicks: number; secondaryClicks: number }
+> {
+    protected override initState() {
+        return { showPrimary: true, primaryClicks: 0, secondaryClicks: 0 };
+    }
+
+    private toggleBranch = () => {
+        this.setState({ showPrimary: !this.state.showPrimary });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <div>
+                <button type="button" data-role="toggle" onClick={this.toggleBranch}>
+                    toggle
+                </button>
+                {this.state.showPrimary
+                    ? (
+                        <button
+                            key="primary"
+                            type="button"
+                            data-role="action"
+                            onClick={() => this.setState({ primaryClicks: this.state.primaryClicks + 1 })}
+                        >
+                            primary:{this.state.primaryClicks}
+                        </button>
+                    )
+                    : (
+                        <button
+                            key="secondary"
+                            type="button"
+                            data-role="action"
+                            onClick={() => this.setState({ secondaryClicks: this.state.secondaryClicks + 1 })}
+                        >
+                            secondary:{this.state.secondaryClicks}
+                        </button>
+                    )}
+                <p data-role="summary">{`${this.state.primaryClicks}|${this.state.secondaryClicks}`}</p>
+            </div>
+        );
+    }
+}

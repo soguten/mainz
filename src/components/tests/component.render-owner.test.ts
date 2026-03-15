@@ -7,8 +7,9 @@
  * associated with the current Mainz component.
  */
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
+import { getCurrentRenderOwner } from "../../jsx/render-owner.ts";
 
 await setupMainzDom();
 
@@ -150,5 +151,23 @@ Deno.test("render owner: parent subtree removal should tear down nested subtree 
         assertEquals(childButton.textContent, "1");
     } finally {
         screen.cleanup();
+    }
+});
+
+Deno.test("render owner: should restore owner stack after render throws", () => {
+    assertThrows(
+        () => renderMainzComponent(fixtures.ThrowingRenderOwnerComponent),
+        Error,
+        "render-owner fixture failure",
+    );
+
+    assertEquals(getCurrentRenderOwner(), undefined);
+
+    const recoveryScreen = renderMainzComponent(fixtures.OwnerBoundClickComponent);
+    try {
+        recoveryScreen.click("button");
+        assertEquals(recoveryScreen.getBySelector("button").textContent, "1");
+    } finally {
+        recoveryScreen.cleanup();
     }
 });
