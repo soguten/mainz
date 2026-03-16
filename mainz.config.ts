@@ -27,6 +27,22 @@ export default defineMainzConfig({
             defaultMode: "ssg",
             defaultNavigation: "spa",
         },
+        {
+            name: "docs-2",
+            rootDir: "./docs-2",
+            viteConfig: "./vite.config.docs-2.ts",
+            pagesDir: "./docs-2/src/pages",
+            buildConfig: "./docs-2/mainz.build.ts",
+            locales: ["en"],
+            i18n: {
+                defaultLocale: "en",
+                localePrefix: "auto",
+                fallbackLocale: "en",
+            },
+            outDir: "dist/docs-2",
+            defaultMode: "ssg",
+            defaultNavigation: "enhanced-mpa",
+        },
     ],
     render: {
         modes: ["csr", "ssg"],
