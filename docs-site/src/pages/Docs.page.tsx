@@ -8,7 +8,7 @@ export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Re
     static override customElementTag = "x-mainz-docs-docs-page";
 
     static override page = {
-        path: "/docs/:slug",
+        path: "/:slug",
         mode: "ssg" as const,
         locales: ["en"],
         head: {
