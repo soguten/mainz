@@ -22,7 +22,7 @@ export default defineTargetBuild({
         "gh-pages": {
             basePath: "/mainz",
             overrideNavigation: "enhanced-mpa",
-            siteUrl: "https://mainz.soguten.com",
+            siteUrl: "https://mainz.dev",
         },
     },
 });
@@ -50,7 +50,7 @@ export default defineTargetBuild({
             basePath: "/mainz/",
             overridePageMode: undefined,
             overrideNavigation: "enhanced-mpa",
-            siteUrl: "https://mainz.soguten.com",
+            siteUrl: "https://mainz.dev",
         });
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
@@ -103,7 +103,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
     profiles: {
         "gh-pages": {
             basePath: "/mainz/",
-            siteUrl: "https://mainz.soguten.com/",
+            siteUrl: "https://mainz.dev/",
         },
     },
 };
@@ -135,7 +135,7 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
             basePath: "/mainz/",
             renderMode: "ssg",
             navigationMode: "enhanced-mpa",
-            siteUrl: "https://mainz.soguten.com",
+            siteUrl: "https://mainz.dev",
         });
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });

@@ -90,3 +90,16 @@ Use these files as the canonical starter when creating a new suite:
 
 - `_template.test.ts`
 - `_template.fixture.tsx`
+
+## Render Owner Checklist
+
+When a change touches JSX event registration or render owner stack behavior,
+confirm whether `jsx.render-owner.test.ts` should be updated alongside the
+component-level owner suites.
+
+Typical triggers:
+
+- changing `pushRenderOwner` / `popRenderOwner`
+- changing how JSX event handlers bind to the current owner
+- changing how nested render paths restore owner context
+- changing error handling around render owner setup/teardown

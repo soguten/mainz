@@ -6,10 +6,10 @@ interface ThemeToggleState {
     theme: ThemeName;
 }
 
-const STORAGE_KEY = "mainz-docs-2-theme";
+const STORAGE_KEY = "mainz-docs-theme";
 
 export class ThemeToggle extends Component<Record<string, never>, ThemeToggleState> {
-    static override customElementTag = "x-mainz-docs-2-theme-toggle";
+    static override customElementTag = "x-mainz-docs-theme-toggle";
 
     protected override initState(): ThemeToggleState {
         return {

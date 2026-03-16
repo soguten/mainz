@@ -7,12 +7,12 @@ Deno.test("config/build-profile: should normalize siteUrl for SEO publication me
     const config = normalizeTargetBuildConfig({
         profiles: {
             production: {
-                siteUrl: "https://mainz.soguten.com/",
+                siteUrl: "https://mainz.dev/",
             },
         },
     });
 
-    assertEquals(config.profiles.production?.siteUrl, "https://mainz.soguten.com");
+    assertEquals(config.profiles.production?.siteUrl, "https://mainz.dev");
 });
 
 Deno.test("config/build-profile: should reject non-absolute siteUrl", () => {

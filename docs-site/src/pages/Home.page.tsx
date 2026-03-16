@@ -3,14 +3,14 @@ import { DocsShell } from "../components/DocsShell.tsx";
 import { docsArticles, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
 export class HomePage extends Page {
-    static override customElementTag = "x-mainz-docs-2-home-page";
+    static override customElementTag = "x-mainz-docs-home-page";
 
     static override page = {
         path: "/",
         mode: "ssg" as const,
         locales: ["en"],
         head: {
-            title: "Mainz Docs 2",
+            title: "Mainz Docs",
             meta: [
                 {
                     name: "description",
@@ -25,7 +25,7 @@ export class HomePage extends Page {
         return (
             <DocsShell
                 title="Build documentation that feels like a product"
-                summary="Docs 2 is a Mainz demo that leans into a familiar docs layout while dogfooding page-first routing, dynamic entries, and runtime data loading."
+                summary="Docs is a Mainz demo that leans into a familiar docs layout while dogfooding page-first routing, dynamic entries, and runtime data loading."
                 activeSlug={undefined}
                 navSections={getDocsNavSections()}
                 overviewCards={docsArticles.map((article) => ({

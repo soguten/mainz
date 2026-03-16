@@ -10,7 +10,7 @@ const targetLocales = JSON.parse(process.env.MAINZ_TARGET_LOCALES ?? "[]") as st
 const defaultLocale = process.env.MAINZ_DEFAULT_LOCALE || undefined;
 const localePrefix = process.env.MAINZ_LOCALE_PREFIX === "always" ? "always" : "auto";
 const siteUrl = process.env.MAINZ_SITE_URL || undefined;
-const outputDir = process.env.MAINZ_OUT_DIR ?? `dist/docs-2/${renderMode}`;
+const outputDir = process.env.MAINZ_OUT_DIR ?? `dist/docs/${renderMode}`;
 
 export default defineConfig({
     appType: navigationMode === "spa" ? "spa" : "mpa",
@@ -23,7 +23,7 @@ export default defineConfig({
             { find: /^mainz$/, replacement: `${srcPath}/index.ts` },
         ],
     },
-    root: "docs-2",
+    root: "docs-site",
     build: {
         outDir: normalizePath(fileURLToPath(new URL(outputDir, import.meta.url))),
         emptyOutDir: true,
@@ -32,7 +32,7 @@ export default defineConfig({
     define: {
         __MAINZ_RENDER_MODE__: JSON.stringify(renderMode),
         __MAINZ_NAVIGATION_MODE__: JSON.stringify(navigationMode),
-        __MAINZ_TARGET_NAME__: JSON.stringify("docs-2"),
+        __MAINZ_TARGET_NAME__: JSON.stringify("docs"),
         __MAINZ_BASE_PATH__: JSON.stringify(base),
         __MAINZ_TARGET_LOCALES__: JSON.stringify(targetLocales),
         __MAINZ_DEFAULT_LOCALE__: JSON.stringify(defaultLocale),

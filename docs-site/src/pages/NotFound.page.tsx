@@ -3,7 +3,7 @@ import { DocsShell } from "../components/DocsShell.tsx";
 import { getDocsNavSections } from "../lib/docs.ts";
 
 export class NotFoundPage extends Page {
-    static override customElementTag = "x-mainz-docs-2-not-found-page";
+    static override customElementTag = "x-mainz-docs-not-found-page";
 
     static override page = {
         path: "/404",
@@ -11,11 +11,11 @@ export class NotFoundPage extends Page {
         notFound: true,
         locales: ["en"],
         head: {
-            title: "404 | Mainz Docs 2",
+            title: "404 | Mainz Docs",
             meta: [
                 {
                     name: "description",
-                    content: "The requested page was not found in the Mainz Docs 2 demo.",
+                    content: "The requested page was not found in the Mainz Docs demo.",
                 },
             ],
         },

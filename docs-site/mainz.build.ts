@@ -10,5 +10,10 @@ export default defineTargetBuild({
         "plain-static": {
             overrideNavigation: "mpa",
         },
+        "gh-pages": {
+            // Published under the docs subpath.
+            basePath: "/docs/",
+            siteUrl: "https://mainz.dev",
+        },
     },
 });

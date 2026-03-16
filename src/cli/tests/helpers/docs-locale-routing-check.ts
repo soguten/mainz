@@ -13,14 +13,14 @@ const [mode, navigation] = Deno.args as [("csr" | "ssg")?, ("spa" | "mpa" | "enh
 
 if (!mode || !navigation) {
     throw new Error(
-        "Usage: deno run -A ./src/cli/tests/helpers/docs-2-locale-routing-check.ts <mode> <navigation>",
+        "Usage: deno run -A ./src/cli/tests/helpers/docs-locale-routing-check.ts <mode> <navigation>",
     );
 }
 
 await runBuildCommand([
     "build",
     "--target",
-    "docs-2",
+    "docs",
     "--mode",
     mode,
     "--navigation",
@@ -35,13 +35,13 @@ async function assertRootLocaleRedirect(args: {
     mode: "csr" | "ssg";
     navigation: "spa" | "mpa" | "enhanced-mpa";
 }): Promise<void> {
-    const outputDir = resolve(repoRoot, `dist/docs-2/${args.mode}`);
+    const outputDir = resolve(repoRoot, `dist/docs/${args.mode}`);
     const rootHtmlPath = resolve(outputDir, "index.html");
     const html = await Deno.readTextFile(rootHtmlPath);
 
     if (args.mode === "csr" && args.navigation === "spa") {
         const scriptSrc = extractModuleScriptSrc(html);
-        assert(scriptSrc, "Could not find docs-2 CSR SPA root module script.");
+        assert(scriptSrc, "Could not find docs CSR SPA root module script.");
 
         const scriptPath = resolveOutputScriptPath(outputDir, rootHtmlPath, scriptSrc);
         await Deno.stat(scriptPath);
@@ -59,7 +59,7 @@ async function assertRootLocaleRedirect(args: {
     }
 
     const redirectScript = extractInlineRedirectScript(html);
-    assert(redirectScript, `Could not find docs-2 locale redirect script for ${args.mode} + ${args.navigation}.`);
+    assert(redirectScript, `Could not find docs locale redirect script for ${args.mode} + ${args.navigation}.`);
 
     await withHappyDom(async (window) => {
         overrideNavigatorLocale(window.navigator, "en-US");
@@ -79,7 +79,7 @@ async function assertLocalizedHomeLinks(args: {
 }): Promise<void> {
     const fixture = await resolveRouteFixture(args.mode, args.navigation, "/en/");
     const scriptSrc = extractModuleScriptSrc(fixture.html);
-    assert(scriptSrc, `Could not find docs-2 module script for ${args.mode} + ${args.navigation} (/en/).`);
+    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/en/).`);
 
     const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
     await Deno.stat(scriptPath);
@@ -89,7 +89,7 @@ async function assertLocalizedHomeLinks(args: {
         document.close();
 
         await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${args.mode}-${args.navigation}-home`);
-        await waitFor(() => document.title === "Mainz Docs 2");
+        await waitFor(() => document.title === "Mainz Docs");
 
         assertEquals(document.documentElement.lang, "en");
         assertEquals(readAnchorHref("Overview"), "/en/");
@@ -117,7 +117,7 @@ async function assertLocalizedDocsRoute(args: {
 }): Promise<void> {
     const fixture = await resolveRouteFixture(args.mode, args.navigation, "/en/docs/quickstart");
     const scriptSrc = extractModuleScriptSrc(fixture.html);
-    assert(scriptSrc, `Could not find docs-2 module script for ${args.mode} + ${args.navigation} (/en/docs/quickstart).`);
+    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/en/docs/quickstart).`);
 
     const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
     await Deno.stat(scriptPath);
@@ -146,7 +146,7 @@ async function resolveRouteFixture(
     navigationMode: "spa" | "mpa" | "enhanced-mpa",
     routePath: string,
 ): Promise<{ html: string; htmlPath: string; outputDir: string; responseStatus?: number }> {
-    const outputDir = resolve(repoRoot, `dist/docs-2/${renderMode}`);
+    const outputDir = resolve(repoRoot, `dist/docs/${renderMode}`);
 
     if (renderMode === "csr" && navigationMode === "spa") {
         const htmlPath = resolve(outputDir, "index.html");
@@ -184,7 +184,7 @@ async function runBuildCommand(args: string[]): Promise<void> {
 
     const stdout = decoder.decode(result.stdout);
     const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build docs-2 for locale routing check.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+    throw new Error(`Failed to build docs for locale routing check.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
 }
 
 function extractInlineRedirectScript(html: string): string | null {

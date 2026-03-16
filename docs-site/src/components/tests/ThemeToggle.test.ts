@@ -20,7 +20,7 @@ Deno.test("ThemeToggle toggles document theme and persists the choice", async ()
 
         assertEquals(document.documentElement.dataset.theme, "dark");
         assertEquals(document.documentElement.style.colorScheme, "dark");
-        assertEquals(localStorage.getItem("mainz-docs-2-theme"), "dark");
+        assertEquals(localStorage.getItem("mainz-docs-theme"), "dark");
     } finally {
         view.cleanup();
         localStorage.clear();

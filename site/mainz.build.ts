@@ -14,7 +14,7 @@ export default defineTargetBuild({
             // Published at the domain root.
             basePath: "/",
             // Used by to generate hreflang with absolute url
-            siteUrl: "https://mainz.soguten.com",
+            siteUrl: "https://mainz.dev",
         },
     },
 });

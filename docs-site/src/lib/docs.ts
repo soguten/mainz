@@ -56,21 +56,21 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         title: "Quickstart",
         summary: "Start with a page-first app, ship static HTML, and keep hydration predictable.",
         navSection: "Getting Started",
-        contentPath: "../../content/getting-started/quickstart.md",
+        contentPath: "../../../docs/getting-started/quickstart.md",
     },
     {
         slug: "installation",
         title: "Installation",
         summary: "Set up Mainz in a repo and understand the minimum moving pieces.",
         navSection: "Getting Started",
-        contentPath: "../../content/getting-started/installation.md",
+        contentPath: "../../../docs/getting-started/installation.md",
     },
     {
         slug: "project-structure",
         title: "Project Structure",
         summary: "Organize targets, pages, and content without hiding how the framework works.",
         navSection: "Getting Started",
-        contentPath: "../../content/getting-started/project-structure.md",
+        contentPath: "../../../docs/getting-started/project-structure.md",
     },
     {
         slug: "routing",
@@ -78,7 +78,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Separate render from navigation and choose the combination that matches the product.",
         navSection: "Concepts",
         navGroup: "Core",
-        contentPath: "../../content/concepts/core/routing.md",
+        contentPath: "../../../docs/concepts/core/routing.md",
     },
     {
         slug: "data-loading",
@@ -86,7 +86,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Expand dynamic SSG paths at build time and load page data with one contract.",
         navSection: "Concepts",
         navGroup: "Core",
-        contentPath: "../../content/concepts/core/data-loading.md",
+        contentPath: "../../../docs/concepts/core/data-loading.md",
     },
     {
         slug: "navigation-runtime",
@@ -94,7 +94,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Understand what SPA, MPA, and enhanced-MPA do in practice inside the browser.",
         navSection: "Concepts",
         navGroup: "Core",
-        contentPath: "../../content/concepts/core/navigation-runtime.md",
+        contentPath: "../../../docs/concepts/core/navigation-runtime.md",
     },
     {
         slug: "page-model",
@@ -102,7 +102,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Keep routes, head metadata, and behavior close to the page itself.",
         navSection: "Concepts",
         navGroup: "Pages",
-        contentPath: "../../content/concepts/pages/page-model.md",
+        contentPath: "../../../docs/concepts/pages/page-model.md",
     },
     {
         slug: "head-and-seo",
@@ -110,7 +110,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Let Mainz manage canonical, hreflang, and page metadata without head duplication.",
         navSection: "Concepts",
         navGroup: "Pages",
-        contentPath: "../../content/concepts/pages/head-and-seo.md",
+        contentPath: "../../../docs/concepts/pages/head-and-seo.md",
     },
     {
         slug: "not-found",
@@ -118,28 +118,28 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         summary: "Model custom 404 behavior across SPA and document-first navigation.",
         navSection: "Concepts",
         navGroup: "Pages",
-        contentPath: "../../content/concepts/pages/not-found.md",
+        contentPath: "../../../docs/concepts/pages/not-found.md",
     },
     {
         slug: "styling",
         title: "Styling and Theme",
         summary: "Build a bold docs interface without giving up static output or progressive enhancement.",
         navSection: "Advanced",
-        contentPath: "../../content/advanced/styling.md",
+        contentPath: "../../../docs/advanced/styling.md",
     },
     {
         slug: "testing-matrix",
         title: "Testing Matrix",
         summary: "Protect the render and navigation combinations with focused matrix tests.",
         navSection: "Advanced",
-        contentPath: "../../content/advanced/testing-matrix.md",
+        contentPath: "../../../docs/advanced/testing-matrix.md",
     },
     {
         slug: "deploy-gh-pages",
         title: "Deploy to GitHub Pages",
         summary: "Handle basePath, siteUrl, and localized routes when publishing under a subpath.",
         navSection: "Advanced",
-        contentPath: "../../content/advanced/deploy-gh-pages.md",
+        contentPath: "../../../docs/advanced/deploy-gh-pages.md",
     },
 ];
 
@@ -218,7 +218,7 @@ function readMarkdownContent(contentPath: string): string {
     let markdownModules: Record<string, string> | null = null;
 
     try {
-        markdownModules = import.meta.glob<string>("../../content/**/*.md", {
+        markdownModules = import.meta.glob<string>("../../../docs/**/*.md", {
             eager: true,
             query: "?raw",
             import: "default",

@@ -39,21 +39,21 @@ Deno.test("e2e/csr seo: gh-pages profile should emit absolute locale seo links f
     const ptHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/pt/index.html"));
     const rootHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/index.html"));
 
-    assertEquals(extractCanonicalHrefs(enHtml), ["https://mainz.soguten.com/en/"]);
+    assertEquals(extractCanonicalHrefs(enHtml), ["https://mainz.dev/en/"]);
     assertEquals(extractAlternateLinks(enHtml), [
-        { href: "https://mainz.soguten.com/en/", hreflang: "en" },
-        { href: "https://mainz.soguten.com/pt/", hreflang: "pt" },
-        { href: "https://mainz.soguten.com/en/", hreflang: "x-default" },
+        { href: "https://mainz.dev/en/", hreflang: "en" },
+        { href: "https://mainz.dev/pt/", hreflang: "pt" },
+        { href: "https://mainz.dev/en/", hreflang: "x-default" },
     ]);
 
-    assertEquals(extractCanonicalHrefs(ptHtml), ["https://mainz.soguten.com/pt/"]);
+    assertEquals(extractCanonicalHrefs(ptHtml), ["https://mainz.dev/pt/"]);
     assertEquals(extractAlternateLinks(ptHtml), [
-        { href: "https://mainz.soguten.com/en/", hreflang: "en" },
-        { href: "https://mainz.soguten.com/pt/", hreflang: "pt" },
-        { href: "https://mainz.soguten.com/en/", hreflang: "x-default" },
+        { href: "https://mainz.dev/en/", hreflang: "en" },
+        { href: "https://mainz.dev/pt/", hreflang: "pt" },
+        { href: "https://mainz.dev/en/", hreflang: "x-default" },
     ]);
 
-    assertEquals(extractCanonicalHrefs(rootHtml), ["https://mainz.soguten.com/en/"]);
+    assertEquals(extractCanonicalHrefs(rootHtml), ["https://mainz.dev/en/"]);
     assertStringIncludes(rootHtml, 'http-equiv="refresh" content="0; url=/en/"');
 });
 

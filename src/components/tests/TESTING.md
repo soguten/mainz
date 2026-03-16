@@ -107,6 +107,8 @@ Each test file should start with a short suite comment containing:
 
 The test environment requires `setupMainzDom()` before loading modules that depend on `HTMLElement`, `document`, or JSX runtime evaluation.
 
+Mainz now guards the base `Component` class so server-side imports do not fail immediately when `HTMLElement` is missing. That fallback only prevents early module crashes during build/tooling. It does not replace DOM setup for component tests.
+
 Safe order:
 
 1. import test helpers
@@ -126,3 +128,34 @@ Use these files as the canonical starter when creating a new suite:
 
 - `_template.test.ts`
 - `_template.fixture.tsx`
+
+## Runtime Contract Checklist
+
+When a change touches `src/components/component.ts`, `src/components/page.ts`, or
+core render/lifecycle behavior, review whether one or more of these contracts
+must be covered or updated.
+
+- host-owned persistent nodes survive rerender
+  Examples: injected `style` nodes, managed page head nodes
+- keyed patching preserves identity and correct listener behavior
+  Examples: reorder, insert, remove
+- conditional subtree replacement removes stale listeners from old nodes
+- render owner cleanup still works after rerender, unmount, and render failure
+- multiple roots and nested component/app boundaries remain isolated
+- async state updates after unmount do not rerender detached components
+- page head transitions replace managed tags without touching unmanaged head nodes
+
+When a renderer change affects one of those areas, prefer updating an existing
+contract suite before creating a brand new ad hoc test.
+
+Relevant suites in this folder:
+
+- `component.patching.test.ts`
+- `component.inline-events.test.ts`
+- `component.render-owner.test.ts`
+- `component.async-lifecycle.test.ts`
+- `page.head.test.ts`
+
+See also RFC 0008 for the broader regression matrix:
+
+- `docs/rfcs/0008-runtime-regression-test-matrix.md`

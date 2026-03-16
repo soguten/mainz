@@ -2,11 +2,16 @@
 
 A Mainz app works best when the directory structure reflects the product structure.
 
-Pages live under the target, build config lives with the target, and app-specific content can stay alongside the app itself.
+Pages live under the target, build config lives with the target, and docs content can stay separate from the app that renders it.
 
 ```tsx title="Suggested layout"
-docs-2/
-  content/
+site/
+  src/
+docs/
+  getting-started/
+  concepts/
+  advanced/
+docs-site/
   src/
     pages/
     components/

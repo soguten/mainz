@@ -5,7 +5,7 @@ import { docsArticles, getDocsArticle, getDocsNavSections, getDocsPager } from "
 type DocsRouteData = NonNullable<ReturnType<typeof getDocsArticle>>;
 
 export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Record<string, string> } }> {
-    static override customElementTag = "x-mainz-docs-2-docs-page";
+    static override customElementTag = "x-mainz-docs-docs-page";
 
     static override page = {
         path: "/docs/:slug",
@@ -16,7 +16,7 @@ export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Re
             meta: [
                 {
                     name: "description",
-                    content: "Documentation article from the Mainz Docs 2 demo.",
+                    content: "Documentation article from the Mainz Docs demo.",
                 },
             ],
         },

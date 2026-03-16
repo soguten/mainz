@@ -23,7 +23,7 @@ interface DocsShellProps {
 }
 
 export class DocsShell extends Component<DocsShellProps> {
-    static override customElementTag = "x-mainz-docs-2-shell";
+    static override customElementTag = "x-mainz-docs-shell";
     static override styles = docsStyles;
 
     override onMount(): void {
@@ -46,7 +46,7 @@ export class DocsShell extends Component<DocsShellProps> {
                         <a class="docs-brand" href={buildDocsHref("/")}>
                             <span class="docs-brand-mark">Mz</span>
                             <span class="docs-brand-copy">
-                                <span class="docs-brand-label">Mainz Docs 2</span>
+                                <span class="docs-brand-label">Mainz Docs</span>
                                 <span class="docs-brand-meta">Documentation demo for Mainz</span>
                             </span>
                         </a>
@@ -208,7 +208,7 @@ interface DocsCodeBlockState {
 }
 
 export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockState> {
-    static override customElementTag = "x-mainz-docs-2-code-block";
+    static override customElementTag = "x-mainz-docs-code-block";
     static copyFeedbackDurationMs = 1200;
 
     protected override initState(): DocsCodeBlockState {
