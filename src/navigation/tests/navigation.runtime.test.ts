@@ -125,7 +125,7 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
         notFound: SpaNotFoundPage,
     });
 
-    await waitFor(() => document.title === "Home");
+    await waitFor(() => document.title === "Home" && document.documentElement.lang === "pt");
 
     assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
     assertEquals(document.documentElement.lang, "pt");
@@ -210,6 +210,32 @@ Deno.test("navigation/runtime: should fallback the spa root redirect to the prim
     controller.cleanup();
 });
 
+Deno.test("navigation/runtime: should not prefix the spa root for single-locale auto targets", async () => {
+    await setupMainzDom();
+    resetNavigationTestDom();
+    const { SpaHomePage } = await loadSpaFixtures();
+
+    (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__ = "auto";
+
+    document.body.innerHTML = '<main id="app"></main>';
+    window.history.replaceState(null, "", "/");
+    overrideNavigatorLocale("en-US");
+
+    const controller = startNavigation({
+        mode: "spa",
+        mount: "#app",
+        pages: [SpaHomePage],
+        locales: ["en"],
+    });
+
+    await waitFor(() => window.location.pathname === "/" && document.title === "Home");
+
+    assertEquals(window.location.pathname, "/");
+    assertEquals(document.documentElement.lang, "en");
+
+    controller.cleanup();
+});
+
 Deno.test("navigation/runtime: should apply generated canonical and hreflang links for spa routes", async () => {
     await setupMainzDom();
     resetNavigationTestDom();
@@ -267,7 +293,7 @@ Deno.test("navigation/runtime: should bootstrap document-first pages without app
         },
     });
 
-    await waitFor(() => document.title === "Home");
+    await waitFor(() => document.title === "Home" && seenContexts[0]?.path === "/");
 
     assertEquals(document.title, "Home");
     assertEquals(seenContexts[0]?.path, "/");
@@ -295,7 +321,7 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
         },
     });
 
-    await waitFor(() => document.title === "Home");
+    await waitFor(() => document.title === "Home" && document.documentElement.lang === "pt");
 
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
