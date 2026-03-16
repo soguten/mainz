@@ -54,8 +54,8 @@ export class DocsShell extends Component<DocsShellProps> {
                         <div class="docs-topbar-actions">
                             <nav class="docs-top-links" aria-label="Primary">
                                 <a href={buildDocsHref("/")}>Overview</a>
-                                <a href={buildDocsHref("/docs/quickstart")}>Guides</a>
-                                <a href={buildDocsHref("/docs/data-loading")}>Reference</a>
+                                <a href={buildDocsHref("/quickstart")}>Guides</a>
+                                <a href={buildDocsHref("/data-loading")}>Reference</a>
                             </nav>
                             <ThemeToggle />
                         </div>
@@ -83,7 +83,7 @@ export class DocsShell extends Component<DocsShellProps> {
                                                     {section.items.map((item) => (
                                                         <a
                                                             class={`docs-nav-link${item.slug === props.activeSlug ? " active" : ""}`}
-                                                            href={buildDocsHref(`/docs/${item.slug}`)}
+                                                            href={buildDocsHref(`/${item.slug}`)}
                                                             aria-current={item.slug === props.activeSlug ? "page" : undefined}
                                                         >
                                                             <span class="docs-nav-title">{item.title}</span>
@@ -100,7 +100,7 @@ export class DocsShell extends Component<DocsShellProps> {
                                                     {group.items.map((item) => (
                                                         <a
                                                             class={`docs-nav-link docs-nav-link-nested${item.slug === props.activeSlug ? " active" : ""}`}
-                                                            href={buildDocsHref(`/docs/${item.slug}`)}
+                                                            href={buildDocsHref(`/${item.slug}`)}
                                                             aria-current={item.slug === props.activeSlug ? "page" : undefined}
                                                         >
                                                             <span class="docs-nav-title">{item.title}</span>
@@ -144,7 +144,7 @@ export class DocsShell extends Component<DocsShellProps> {
                                         <div class="docs-pager">
                                             {props.previous
                                                 ? (
-                                                    <a class="docs-pager-link" href={buildDocsHref(`/docs/${props.previous.slug}`)}>
+                                                    <a class="docs-pager-link" href={buildDocsHref(`/${props.previous.slug}`)}>
                                                         <span class="docs-pager-kicker">Previous page</span>
                                                         <strong>{props.previous.title}</strong>
                                                     </a>
@@ -153,7 +153,7 @@ export class DocsShell extends Component<DocsShellProps> {
 
                                             {props.next
                                                 ? (
-                                                    <a class="docs-pager-link" href={buildDocsHref(`/docs/${props.next.slug}`)}>
+                                                    <a class="docs-pager-link" href={buildDocsHref(`/${props.next.slug}`)}>
                                                         <span class="docs-pager-kicker">Next page</span>
                                                         <strong>{props.next.title}</strong>
                                                     </a>

@@ -31,14 +31,14 @@ export class HomePage extends Page {
                 overviewCards={docsArticles.map((article) => ({
                     title: article.title,
                     description: article.summary,
-                    href: `/docs/${article.slug}`,
+                    href: `/${article.slug}`,
                 }))}
                 markdown={`
 ## What this demo proves
 
 The layout is intentionally recognizable as a documentation site, but the runtime model stays Mainz: pages own routes, the build owns artifacts, and the app entry stays tiny.
 
-This demo also exercises dynamic routes through \`/docs/:slug\`, which now expand through \`entries()\` and load per-page data through \`load()\`.
+This demo also exercises dynamic routes through \`/:slug\`, which now expand through \`entries()\` and load per-page data through \`load()\`.
 
 ## Start with these pages
 
