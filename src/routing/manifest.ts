@@ -1,6 +1,6 @@
 import { inferFilesystemRoutes } from "./filesystem.ts";
 import type { I18nConfig } from "../i18n/index.ts";
-import type { PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
+import type { PageEntryDefinition, PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
 import {
     normalizeLocaleTag,
     toLocalePathSegment as toLocalePathSegmentFromI18n,
@@ -10,6 +10,7 @@ import {
     DiscoveredPageDefinition,
     FilesystemRoute,
     RenderMode,
+    ResolvedSsgRouteEntry,
     RouteManifestEntry,
     RouteSource,
     SsgOutputEntry,
@@ -47,6 +48,7 @@ interface ExpandedRouteLocale {
 interface BuildSsgOutputEntriesOptions {
     localePrefix?: I18nConfig["localePrefix"];
     defaultLocale?: string;
+    routeEntriesByRouteId?: ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>;
 }
 
 export function buildTargetRouteManifest(input: BuildTargetRouteManifestInput): TargetRouteManifest {
@@ -104,29 +106,41 @@ export function buildSsgOutputEntries(
 
         const shouldPrefixLocale = shouldPrefixLocaleForRoute(route.locales, localePrefix);
         const normalizedPath = normalizeRoutePath(route.path);
+        const routeEntries = options.routeEntriesByRouteId?.get(route.id);
+
+        if (isDynamicRoutePath(normalizedPath) && !routeEntries) {
+            throw new Error(`SSG route "${route.path}" requires entries() to resolve concrete static paths.`);
+        }
 
         for (const locale of route.locales) {
             const localePathSegment = toLocalePathSegment(locale);
-            const renderPath = buildLocalizedRoutePath({
-                routePath: normalizedPath,
-                localeSegment: localePathSegment,
-                shouldPrefixLocale,
-            });
-            const outputHtmlPath = buildOutputHtmlPath({
-                outDir,
-                routePath: normalizedPath,
-                localeSegment: localePathSegment,
-                shouldPrefixLocale,
-            });
+            const localizedEntries = routeEntries?.filter((entry) => entry.locale === locale)
+                ?? [{ locale, params: {} as PageEntryDefinition["params"] }];
 
-            outputEntries.push({
-                target: manifest.target,
-                routeId: route.id,
-                locale,
-                outputHtmlPath,
-                renderPath,
-                notFound: route.notFound === true ? true : undefined,
-            });
+            for (const localizedEntry of localizedEntries) {
+                const concreteRoutePath = materializeRoutePath(normalizedPath, localizedEntry.params);
+                const renderPath = buildLocalizedRoutePath({
+                    routePath: concreteRoutePath,
+                    localeSegment: localePathSegment,
+                    shouldPrefixLocale,
+                });
+                const outputHtmlPath = buildOutputHtmlPath({
+                    outDir,
+                    routePath: concreteRoutePath,
+                    localeSegment: localePathSegment,
+                    shouldPrefixLocale,
+                });
+
+                outputEntries.push({
+                    target: manifest.target,
+                    routeId: route.id,
+                    locale,
+                    outputHtmlPath,
+                    renderPath,
+                    ...(Object.keys(localizedEntry.params).length > 0 ? { params: localizedEntry.params } : {}),
+                    notFound: route.notFound === true ? true : undefined,
+                });
+            }
         }
     }
 
@@ -156,6 +170,65 @@ export function buildSsgOutputEntries(
 
 export function toLocalePathSegment(locale: string): string {
     return toLocalePathSegmentFromI18n(locale);
+}
+
+export function isDynamicRoutePath(path: string): boolean {
+    const normalizedPath = normalizeRoutePath(path);
+    return getRouteSegments(normalizedPath).some((segment) =>
+        segment === "*" || segment.startsWith(":") || isBracketDynamicSegment(segment) || segment.startsWith("[...")
+    );
+}
+
+export function materializeRoutePath(path: string, params: PageEntryDefinition["params"]): string {
+    const normalizedPath = normalizeRoutePath(path);
+    if (normalizedPath === "/") {
+        return "/";
+    }
+
+    const segments = getRouteSegments(normalizedPath).map((segment) => {
+        if (segment === "*") {
+            const catchAll = params["*"];
+            if (!catchAll) {
+                throw new Error(`Missing "*" param while expanding dynamic route "${path}".`);
+            }
+
+            return splitCatchAllParam(catchAll).map(encodeRouteParamSegment).join("/");
+        }
+
+        if (segment.startsWith("[...")) {
+            const catchAllName = segment.slice(4, -1);
+            const catchAll = params[catchAllName];
+            if (!catchAll) {
+                throw new Error(`Missing "${catchAllName}" param while expanding dynamic route "${path}".`);
+            }
+
+            return splitCatchAllParam(catchAll).map(encodeRouteParamSegment).join("/");
+        }
+
+        if (segment.startsWith(":")) {
+            const paramName = segment.slice(1);
+            const value = params[paramName];
+            if (!value) {
+                throw new Error(`Missing "${paramName}" param while expanding dynamic route "${path}".`);
+            }
+
+            return encodeRouteParamSegment(value);
+        }
+
+        if (isBracketDynamicSegment(segment)) {
+            const paramName = segment.slice(1, -1);
+            const value = params[paramName];
+            if (!value) {
+                throw new Error(`Missing "${paramName}" param while expanding dynamic route "${path}".`);
+            }
+
+            return encodeRouteParamSegment(value);
+        }
+
+        return segment;
+    });
+
+    return `/${segments.filter(Boolean).join("/")}`;
 }
 
 export function shouldPrefixLocaleForRoute(
@@ -517,6 +590,22 @@ function dedupeLocales(locales: readonly string[]): string[] {
     }
 
     return unique;
+}
+
+function getRouteSegments(path: string): string[] {
+    return normalizeRoutePath(path).split("/").filter(Boolean);
+}
+
+function isBracketDynamicSegment(segment: string): boolean {
+    return /^\[[^\].]+\]$/.test(segment);
+}
+
+function splitCatchAllParam(value: string): string[] {
+    return value.split("/").filter(Boolean);
+}
+
+function encodeRouteParamSegment(value: string): string {
+    return encodeURIComponent(value);
 }
 
 function normalizeRoutePath(path: string): string {

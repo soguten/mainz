@@ -1,6 +1,6 @@
 import { Component } from "./component.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
-import type { RenderMode } from "../routing/types.ts";
+import type { NavigationMode, RenderMode } from "../routing/types.ts";
 
 export interface PageHeadMetaDefinition {
     name?: string;
@@ -20,6 +20,24 @@ export interface PageHeadDefinition {
     links?: readonly PageHeadLinkDefinition[];
 }
 
+export type PageRouteParams = Readonly<Record<string, string>>;
+
+export interface PageEntriesContext {
+    locale?: string;
+}
+
+export interface PageEntryDefinition {
+    params: PageRouteParams;
+}
+
+export interface PageLoadContext {
+    params: PageRouteParams;
+    locale?: string;
+    url: URL;
+    renderMode: RenderMode;
+    navigationMode: NavigationMode;
+}
+
 export interface PageDefinition {
     path: string;
     mode?: RenderMode;
@@ -30,6 +48,8 @@ export interface PageDefinition {
 
 export type PageConstructor = typeof Component & {
     page?: PageDefinition;
+    entries?(context: PageEntriesContext): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
+    load?(context: PageLoadContext): unknown | Promise<unknown>;
 };
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";

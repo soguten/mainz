@@ -1,4 +1,4 @@
-import type { PageDefinition, PageHeadDefinition } from "../components/page.ts";
+import type { PageDefinition, PageEntryDefinition, PageHeadDefinition } from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
 export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
@@ -68,5 +68,10 @@ export interface SsgOutputEntry {
     locale: string;
     outputHtmlPath: string;
     renderPath: string;
+    params?: PageEntryDefinition["params"];
     notFound?: boolean;
+}
+
+export interface ResolvedSsgRouteEntry extends PageEntryDefinition {
+    locale: string;
 }

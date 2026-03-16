@@ -16,11 +16,15 @@ export type {
     StartNavigationOptions,
 } from "./navigation/index.ts";
 export type {
+    PageEntriesContext,
+    PageEntryDefinition,
+    PageLoadContext,
     PageConstructor,
     PageDefinition,
     PageHeadDefinition,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
+    PageRouteParams,
 } from "./components/index.ts";
 export {
     createAppDictionaryI18n,
@@ -44,6 +48,8 @@ export {
     inferFilesystemRoute,
     inferFilesystemRoutes,
     isFilesystemPageFile,
+    isDynamicRoutePath,
+    materializeRoutePath,
     toLocalePathSegment,
 } from "./routing/index.ts";
 export type {
@@ -51,6 +57,7 @@ export type {
     FilesystemRoute,
     FilesystemRoutingOptions,
     NavigationMode,
+    ResolvedSsgRouteEntry,
     RenderMode,
     RouteManifestEntry,
     RouteSource,

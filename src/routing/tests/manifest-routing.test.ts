@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { buildSsgOutputEntries, buildTargetRouteManifest, toLocalePathSegment } from "../index.ts";
+import { buildSsgOutputEntries, buildTargetRouteManifest, isDynamicRoutePath, materializeRoutePath, toLocalePathSegment } from "../index.ts";
 import { TargetRouteManifest } from "../types.ts";
 
 Deno.test("routing/manifest: should allow app-only targets with no routing input", () => {
@@ -306,6 +306,84 @@ Deno.test("routing/manifest: should emit no locale prefix when a route resolves 
             locale: "en",
             outputHtmlPath: "dist/playground/docs/index.html",
             renderPath: "/docs",
+            notFound: undefined,
+        },
+    ]);
+});
+
+Deno.test("routing/manifest: should identify dynamic route patterns and materialize concrete paths", () => {
+    assertEquals(isDynamicRoutePath("/docs/:slug"), true);
+    assertEquals(isDynamicRoutePath("/docs/[...parts]"), true);
+    assertEquals(isDynamicRoutePath("/docs/install"), false);
+
+    assertEquals(materializeRoutePath("/docs/:slug", { slug: "intro guide" }), "/docs/intro%20guide");
+    assertEquals(materializeRoutePath("/docs/[...parts]", { parts: "guides/getting-started" }), "/docs/guides/getting-started");
+});
+
+Deno.test("routing/manifest: should require entries for dynamic ssg outputs", () => {
+    const manifest: TargetRouteManifest = {
+        target: "site",
+        routes: [
+            {
+                id: "docs-slug",
+                source: "filesystem",
+                path: "/docs/:slug",
+                pattern: "/docs/:slug",
+                mode: "ssg",
+                locales: ["en", "pt"],
+            },
+        ],
+    };
+
+    assertThrows(() => {
+        buildSsgOutputEntries(manifest, "dist/site");
+    }, Error, "requires entries()");
+});
+
+Deno.test("routing/manifest: should expand dynamic ssg outputs from resolved entries", () => {
+    const manifest: TargetRouteManifest = {
+        target: "site",
+        routes: [
+            {
+                id: "docs-slug",
+                source: "filesystem",
+                path: "/docs/:slug",
+                pattern: "/docs/:slug",
+                mode: "ssg",
+                locales: ["en", "pt"],
+            },
+        ],
+    };
+
+    const outputs = buildSsgOutputEntries(manifest, "dist/site", {
+        routeEntriesByRouteId: new Map([
+            [
+                "docs-slug",
+                [
+                    { locale: "en", params: { slug: "intro" } },
+                    { locale: "pt", params: { slug: "guia-inicial" } },
+                ],
+            ],
+        ]),
+    });
+
+    assertEquals(outputs, [
+        {
+            target: "site",
+            routeId: "docs-slug",
+            locale: "en",
+            outputHtmlPath: "dist/site/en/docs/intro/index.html",
+            renderPath: "/en/docs/intro",
+            params: { slug: "intro" },
+            notFound: undefined,
+        },
+        {
+            target: "site",
+            routeId: "docs-slug",
+            locale: "pt",
+            outputHtmlPath: "dist/site/pt/docs/guia-inicial/index.html",
+            renderPath: "/pt/docs/guia-inicial",
+            params: { slug: "guia-inicial" },
             notFound: undefined,
         },
     ]);

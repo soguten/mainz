@@ -27,13 +27,23 @@ export class RouteParamsDocsPage extends Page {
         },
     };
 
+    static async load(
+        { params, locale }: { params: Record<string, string>; locale?: string },
+    ) {
+        return {
+            title: `${locale ?? "en"}:${params.slug ?? ""}`,
+        };
+    }
+
     override render(): HTMLElement {
         const element = document.createElement("section");
         const slug = String(this.props?.route?.params?.slug ?? "");
+        const title = String((this.props as { data?: { title?: string } } | undefined)?.data?.title ?? "");
         element.textContent = `Docs page:${slug}`;
         element.setAttribute("data-page", "docs");
         element.setAttribute("data-slug", slug);
         element.setAttribute("data-locale", String(this.props?.route?.locale ?? ""));
+        element.setAttribute("data-title", title);
         return element;
     }
 }

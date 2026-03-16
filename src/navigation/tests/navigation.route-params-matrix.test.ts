@@ -78,6 +78,7 @@ for (const testCase of spaStartupCases) {
         assert(mountedContent);
         assertEquals(mountedContent.getAttribute("data-slug"), testCase.expectedSlug);
         assertEquals(mountedContent.getAttribute("data-locale"), testCase.expectedLocale);
+        assertEquals(mountedContent.getAttribute("data-title"), `${testCase.expectedLocale}:${testCase.expectedSlug}`);
         assertEquals(document.documentElement.lang, testCase.expectedLocale);
         assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), testCase.expectedCanonical);
 
@@ -180,6 +181,7 @@ Deno.test("navigation/route params matrix: spa should keep params when navigatin
     assert(mountedPage);
     assert(mountedContent);
     assertEquals(mountedContent.getAttribute("data-slug"), "lazy-intro");
+    assertEquals(mountedContent.getAttribute("data-title"), "pt:lazy-intro");
     assertEquals(document.documentElement.lang, "pt");
 
     controller.cleanup();
@@ -208,7 +210,12 @@ for (const navigationMode of ["mpa", "enhanced-mpa"] as const satisfies readonly
                 locales: ["en", "pt"],
             });
 
-            await waitFor(() => document.title === "Docs");
+            await waitFor(() => {
+                const mountedContent = document.querySelector(
+                    `#app ${RouteParamsDocsPage.getTagName()} [data-page="docs"]`,
+                );
+                return document.title === "Docs" && mountedContent?.getAttribute("data-slug") === "intro";
+            });
 
             const mountedPage = document.querySelector(`#app ${RouteParamsDocsPage.getTagName()}`);
             const mountedContent = document.querySelector(`#app ${RouteParamsDocsPage.getTagName()} [data-page="docs"]`);
@@ -216,6 +223,7 @@ for (const navigationMode of ["mpa", "enhanced-mpa"] as const satisfies readonly
             assert(mountedContent);
             assertEquals(mountedContent.getAttribute("data-slug"), "intro");
             assertEquals(mountedContent.getAttribute("data-locale"), "pt");
+            assertEquals(mountedContent.getAttribute("data-title"), "pt:intro");
             assertEquals(document.documentElement.lang, "pt");
             assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), "https://mainz.dev/pt/docs/intro");
             assertEquals(readAlternateHref("en"), "https://mainz.dev/en/docs/intro");

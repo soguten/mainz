@@ -5,14 +5,17 @@ import {
     buildRouteHead,
     buildSsgOutputEntries,
     buildTargetRouteManifest,
+    isDynamicRoutePath,
+    materializeRoutePath,
     NavigationMode,
+    ResolvedSsgRouteEntry,
     RenderMode,
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
 } from "../routing/index.ts";
 import { discoverPagesFromFiles } from "../routing/server.ts";
-import { MAINZ_HEAD_MANAGED_ATTR, type PageHeadDefinition } from "../components/page.ts";
+import { MAINZ_HEAD_MANAGED_ATTR, type PageConstructor, type PageHeadDefinition } from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
@@ -313,7 +316,7 @@ async function emitSsgArtifacts(
         }
 
         const routeHead = buildRouteHead({
-            path: route.path,
+            path: entry.params ? materializeRoutePath(route.path, entry.params) : route.path,
             locale: entry.locale,
             locales: route.locales,
             head: route.head,
@@ -393,7 +396,7 @@ async function emitCsrRouteArtifacts(
         }
 
         const routeHead = buildRouteHead({
-            path: route.path,
+            path: entry.params ? materializeRoutePath(route.path, entry.params) : route.path,
             locale: entry.locale,
             locales: route.locales,
             head: route.head,
@@ -451,9 +454,11 @@ async function resolveStaticRouteBuildContext(
     const templateHtml = await readBuildTemplateHtml(modeOutDir, cwd, job.target.name, buildLabel);
     const manifest = await resolveTargetRouteBuildContext(config, job, cwd);
     const targetI18n = resolveTargetI18nConfig(job.target);
+    const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(manifest, cwd);
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
         localePrefix: targetI18n?.localePrefix,
         defaultLocale: targetI18n?.defaultLocale,
+        routeEntriesByRouteId,
     });
     const routeById = new Map(manifest.routes.map((route) => [route.id, route]));
 
@@ -464,6 +469,79 @@ async function resolveStaticRouteBuildContext(
         routeById,
         targetI18n,
     };
+}
+
+async function resolveSsgRouteEntriesByRouteId(
+    manifest: ReturnType<typeof buildTargetRouteManifest>,
+    cwd: string,
+): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
+    const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
+
+    for (const route of manifest.routes) {
+        if (route.mode !== "ssg" || !isDynamicRoutePath(route.path)) {
+            continue;
+        }
+
+        const pageCtor = await loadRoutePageConstructor(route, cwd);
+        if (typeof pageCtor.entries !== "function") {
+            throw new Error(`SSG route "${route.path}" must define static entries() to expand dynamic params.`);
+        }
+
+        const resolvedEntries: ResolvedSsgRouteEntry[] = [];
+        for (const locale of route.locales) {
+            const localizedEntries = await pageCtor.entries({ locale });
+            for (const entry of localizedEntries) {
+                resolvedEntries.push({
+                    locale,
+                    params: normalizeStaticEntryParams(entry.params, route.path),
+                });
+            }
+        }
+
+        routeEntriesByRouteId.set(route.id, resolvedEntries);
+    }
+
+    return routeEntriesByRouteId;
+}
+
+async function loadRoutePageConstructor(
+    route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
+    cwd: string,
+): Promise<PageConstructor> {
+    if (!route.file || !route.exportName) {
+        throw new Error(`Route "${route.path}" must include file and export metadata to resolve dynamic entries().`);
+    }
+
+    const moduleUrl =
+        `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const moduleExports = await import(moduleUrl) as Record<string, unknown>;
+    const exportedValue = moduleExports[route.exportName];
+
+    if (typeof exportedValue !== "function") {
+        throw new Error(`Route "${route.path}" export "${route.exportName}" could not be resolved as a Page constructor.`);
+    }
+
+    return exportedValue as PageConstructor;
+}
+
+function normalizeStaticEntryParams(
+    params: Record<string, string>,
+    routePath: string,
+): Record<string, string> {
+    if (typeof params !== "object" || params === null || Array.isArray(params)) {
+        throw new Error(`entries() for route "${routePath}" must return objects with a params record.`);
+    }
+
+    const normalizedParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(params)) {
+        if (typeof value !== "string") {
+            throw new Error(`entries() for route "${routePath}" must return string params only. Received "${key}".`);
+        }
+
+        normalizedParams[key] = value;
+    }
+
+    return normalizedParams;
 }
 
 async function readBuildTemplateHtml(

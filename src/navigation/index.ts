@@ -1,7 +1,7 @@
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
-import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageHeadDefinition, PageLoadContext } from "../components/page.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
-import { buildRouteHead, resolveLocaleRedirectPath } from "../routing/index.ts";
+import { buildRouteHead, resolveLocaleRedirectPath, shouldPrefixLocaleForRoute } from "../routing/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
@@ -24,6 +24,7 @@ export interface SpaPageConstructor extends CustomElementConstructor {
         locales?: readonly string[];
         head?: PageHeadDefinition;
     };
+    load?(context: PageLoadContext): unknown | Promise<unknown>;
     getTagName(): string;
     name: string;
 }
@@ -50,6 +51,7 @@ export interface SpaNavigationRenderContext {
     path: string;
     matchedPath: string;
     params: SpaRouteParams;
+    data?: unknown;
     head?: PageHeadDefinition;
     locale?: string;
     url: URL;
@@ -425,6 +427,12 @@ async function renderSpaRoute(args: {
 
     const pageTagName = page.getTagName();
     const locale = resolveNavigationLocale(args.url, args.basePath, args.locales);
+    const data = await resolvePageRouteData({
+        page,
+        params: routeMatch.params,
+        locale,
+        url: args.url,
+    });
     const head = resolveSpaRouteHead({
         page,
         matchedPath: currentPath,
@@ -436,6 +444,7 @@ async function renderSpaRoute(args: {
         path: routeMatch.route.path,
         matchedPath: currentPath,
         params: routeMatch.params,
+        data,
         head,
         locale,
         url: args.url,
@@ -717,6 +726,7 @@ function applySpaRouteContext(element: HTMLElement, context: SpaNavigationRender
     const nextProps = {
         ...readSpaElementProps(element),
         route: context,
+        data: context.data,
     };
 
     (element as HTMLElement & { props?: Record<string, unknown> }).props = nextProps;
@@ -817,6 +827,27 @@ function resolveSpaRouteLocales(page: SpaPageConstructor, fallbackLocales?: read
 
     const targetLocales = readMainzTargetLocales();
     return targetLocales.length > 0 ? targetLocales : [];
+}
+
+async function resolvePageRouteData(args: {
+    page: SpaPageConstructor;
+    params: SpaRouteParams;
+    locale?: string;
+    url: URL;
+}): Promise<unknown> {
+    if (typeof args.page.load !== "function") {
+        return undefined;
+    }
+
+    const context: PageLoadContext = {
+        params: args.params,
+        locale: args.locale,
+        url: args.url,
+        renderMode: resolveMainzRenderMode(),
+        navigationMode: resolveMainzNavigationMode(),
+    };
+
+    return await args.page.load(context);
 }
 
 function updateSpaScrollPosition(url: URL): void {
@@ -1051,6 +1082,10 @@ function shouldRedirectSpaRootToLocalizedPath(url: URL, basePath: string, locale
         return false;
     }
 
+    if (!shouldPrefixLocaleForRoute(locales, resolveMainzLocalePrefix())) {
+        return false;
+    }
+
     const appPath = toAppRelativePath(url, basePath);
     if (!appPath || appPath === "/") {
         return true;
@@ -1245,6 +1280,15 @@ function resolveMainzNavigationMode(): NavigationMode {
     return "enhanced-mpa";
 }
 
+function resolveMainzRenderMode(): "csr" | "ssg" {
+    if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
+        return __MAINZ_RENDER_MODE__;
+    }
+
+    const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
+    return fromGlobal === "ssg" ? "ssg" : "csr";
+}
+
 function resolveMainzBasePath(): string {
     if (typeof __MAINZ_BASE_PATH__ !== "undefined") {
         return __MAINZ_BASE_PATH__;
@@ -1350,11 +1394,18 @@ async function resolveMountedRouteContext(
 
         const mountedElement = mount.querySelector(matchedPage.getTagName());
             if (mountedElement instanceof HTMLElement) {
+                const data = await resolvePageRouteData({
+                    page: matchedPage,
+                    params: context.routeMatch?.params ?? {},
+                    locale: context.locale,
+                    url: context.url,
+                });
                 const routeContext = {
                 page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
                 params: context.routeMatch?.params ?? {},
+                data,
                 head: resolveSpaRouteHead({
                     page: matchedPage,
                     matchedPath: context.currentPath,
@@ -1386,11 +1437,18 @@ async function resolveMountedRouteContext(
 
         ensurePageCustomElement(route.page);
 
+        const data = await resolvePageRouteData({
+            page: route.page,
+            params: context.routeMatch?.route === route ? context.routeMatch.params : {},
+            locale: context.locale,
+            url: context.url,
+        });
         const routeContext = {
             page: route.page,
             path: route.path,
             matchedPath: context.currentPath,
             params: context.routeMatch?.route === route ? context.routeMatch.params : {},
+            data,
             head: resolveSpaRouteHead({
                 page: route.page,
                 matchedPath: context.currentPath,
