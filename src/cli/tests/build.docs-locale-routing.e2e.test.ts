@@ -17,7 +17,7 @@ const combinations = [
 
 for (const combination of combinations) {
     Deno.test(
-        `e2e/docs locale routing: ${combination.mode} + ${combination.navigation} should keep docs routes locale-prefixed`,
+        `e2e/docs routing: ${combination.mode} + ${combination.navigation} should keep docs routes unprefixed for a single-locale target`,
         async () => {
             const command = new Deno.Command("deno", {
                 args: [
@@ -40,7 +40,7 @@ for (const combination of combinations) {
             const stdout = decoder.decode(result.stdout);
             const stderr = decoder.decode(result.stderr);
             throw new Error(
-                `Docs locale routing check failed for ${combination.mode} + ${combination.navigation}.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+                `Docs routing check failed for ${combination.mode} + ${combination.navigation}.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
             );
         },
     );

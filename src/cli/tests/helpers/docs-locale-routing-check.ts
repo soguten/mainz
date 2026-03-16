@@ -27,11 +27,11 @@ await runBuildCommand([
     navigation,
 ]);
 
-await assertRootLocaleRedirect({ mode, navigation });
-await assertLocalizedHomeLinks({ mode, navigation });
-await assertLocalizedDocsRoute({ mode, navigation });
+await assertRootRoute({ mode, navigation });
+await assertHomeLinks({ mode, navigation });
+await assertDocsRoute({ mode, navigation });
 
-async function assertRootLocaleRedirect(args: {
+async function assertRootRoute(args: {
     mode: "csr" | "ssg";
     navigation: "spa" | "mpa" | "enhanced-mpa";
 }): Promise<void> {
@@ -52,34 +52,27 @@ async function assertRootLocaleRedirect(args: {
             document.close();
 
             await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${args.mode}-${args.navigation}-root`);
-            await waitFor(() => window.location.pathname === "/en/");
+            await waitFor(() => window.location.pathname === "/");
         }, { url: "https://mainz.local/" });
 
         return;
     }
 
-    const redirectScript = extractInlineRedirectScript(html);
-    assert(redirectScript, `Could not find docs locale redirect script for ${args.mode} + ${args.navigation}.`);
-
     await withHappyDom(async (window) => {
         overrideNavigatorLocale(window.navigator, "en-US");
         document.write(html);
         document.close();
-
-        window.eval(redirectScript);
-        await nextTick();
-
-        assertEquals(window.location.pathname, "/en/");
+        assertEquals(window.location.pathname, "/");
     }, { url: "https://mainz.local/" });
 }
 
-async function assertLocalizedHomeLinks(args: {
+async function assertHomeLinks(args: {
     mode: "csr" | "ssg";
     navigation: "spa" | "mpa" | "enhanced-mpa";
 }): Promise<void> {
-    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/en/");
+    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/");
     const scriptSrc = extractModuleScriptSrc(fixture.html);
-    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/en/).`);
+    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/).`);
 
     const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
     await Deno.stat(scriptPath);
@@ -92,10 +85,10 @@ async function assertLocalizedHomeLinks(args: {
         await waitFor(() => document.title === "Mainz Docs");
 
         assertEquals(document.documentElement.lang, "en");
-        assertEquals(readAnchorHref("Overview"), "/en/");
-        assertEquals(readAnchorHref("Guides"), "/en/docs/quickstart");
-        assertEquals(readAnchorHref("Reference"), "/en/docs/data-loading");
-        assert(document.querySelector('a[href="/en/docs/quickstart"]'));
+        assertEquals(readAnchorHref("Overview"), "/");
+        assertEquals(readAnchorHref("Guides"), "/quickstart");
+        assertEquals(readAnchorHref("Reference"), "/data-loading");
+        assert(document.querySelector('a[href="/quickstart"]'));
 
         if (args.navigation === "spa") {
             const guidesLink = Array.from(document.querySelectorAll("a"))
@@ -104,20 +97,20 @@ async function assertLocalizedHomeLinks(args: {
 
             guidesLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
             await waitFor(() =>
-                window.location.pathname === "/en/docs/quickstart" &&
+                window.location.pathname === "/quickstart" &&
                 (document.body.textContent ?? "").includes("Why Mainz")
             );
         }
-    }, { url: "https://mainz.local/en/" });
+    }, { url: "https://mainz.local/" });
 }
 
-async function assertLocalizedDocsRoute(args: {
+async function assertDocsRoute(args: {
     mode: "csr" | "ssg";
     navigation: "spa" | "mpa" | "enhanced-mpa";
 }): Promise<void> {
-    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/en/docs/quickstart");
+    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/quickstart");
     const scriptSrc = extractModuleScriptSrc(fixture.html);
-    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/en/docs/quickstart).`);
+    assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/quickstart).`);
 
     const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
     await Deno.stat(scriptPath);
@@ -137,8 +130,8 @@ async function assertLocalizedDocsRoute(args: {
         assertStringIncludes(document.body.textContent ?? "", "Why Mainz");
         assertStringIncludes(document.body.textContent ?? "", "Create your first page");
         assert(!(document.body.textContent ?? "").includes("Document not found"));
-        assertEquals(readAnchorHref("Guides"), "/en/docs/quickstart");
-    }, { url: "https://mainz.local/en/docs/quickstart" });
+        assertEquals(readAnchorHref("Guides"), "/quickstart");
+    }, { url: "https://mainz.local/quickstart" });
 }
 
 async function resolveRouteFixture(
