@@ -1,4 +1,4 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import { t } from "../i18n/index.ts";
 
 interface CheckpointItem {
@@ -16,9 +16,8 @@ interface CheckpointState {
     answers: number[];
 }
 
+@customElement("x-checkpoint-quiz")
 export class CheckpointQuiz extends Component<{}, CheckpointState> {
-    static override customElementTag = "x-checkpoint-quiz";
-
     protected override initState(): CheckpointState {
         return {
             currentIndex: 0,
@@ -74,7 +73,8 @@ export class CheckpointQuiz extends Component<{}, CheckpointState> {
         const currentItem = items[this.state.currentIndex];
         const isLast = this.state.currentIndex >= items.length - 1;
         const selectedIndex = this.state.selectedIndex;
-        const isCorrect = selectedIndex != null && selectedIndex === currentItem.correctIndex;
+        const isCorrect = selectedIndex != null &&
+            selectedIndex === currentItem.correctIndex;
         const hasResult = this.state.checked;
         const canSubmit = selectedIndex != null && !this.state.checked;
 
@@ -108,7 +108,9 @@ export class CheckpointQuiz extends Component<{}, CheckpointState> {
                         <button
                             key={`${this.state.currentIndex}-${option}`}
                             type="button"
-                            className={`checkpoint-option ${selectedIndex === index ? "active" : ""}`}
+                            className={`checkpoint-option ${
+                                selectedIndex === index ? "active" : ""
+                            }`}
                             onClick={() => this.selectOption(index)}
                         >
                             {option}
@@ -127,13 +129,21 @@ export class CheckpointQuiz extends Component<{}, CheckpointState> {
                     </button>
 
                     {hasResult && !isLast && (
-                        <button type="button" className="button button-ghost" onClick={this.goToNextQuestion}>
+                        <button
+                            type="button"
+                            className="button button-ghost"
+                            onClick={this.goToNextQuestion}
+                        >
                             {t("checkpoint.next")}
                         </button>
                     )}
 
                     {hasResult && isLast && (
-                        <button type="button" className="button button-ghost" onClick={this.restartCheckpoint}>
+                        <button
+                            type="button"
+                            className="button button-ghost"
+                            onClick={this.restartCheckpoint}
+                        >
                             {t("checkpoint.retry")}
                         </button>
                     )}
@@ -151,7 +161,9 @@ export class CheckpointQuiz extends Component<{}, CheckpointState> {
                     </p>
                 )}
 
-                <a className="back-link" href={`#${t("anchors.top")}`}>{t("common.backToTop")}</a>
+                <a className="back-link" href={`#${t("anchors.top")}`}>
+                    {t("common.backToTop")}
+                </a>
             </section>
         );
     }

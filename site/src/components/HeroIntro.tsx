@@ -1,9 +1,8 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import { t } from "../i18n/index.ts";
 
+@customElement("x-hero-intro")
 export class HeroIntro extends Component {
-    static override customElementTag = "x-hero-intro";
-
     override render(): HTMLElement {
         return (
             <section id={t("anchors.hero")} className="hero panel">
@@ -15,8 +14,15 @@ export class HeroIntro extends Component {
                     {t("hero.lead")}
                 </p>
                 <div className="hero-cta-row">
-                    <a className="button button-primary" href={`#${t("anchors.journey")}`}>{t("hero.tutorialCta")}</a>
-                    <a className="button button-ghost" href={`#${t("anchors.sandbox")}`}>{t("hero.workshopCta")}</a>
+                    <a
+                        className="button button-primary"
+                        href={`#${t("anchors.journey")}`}
+                    >
+                        {t("hero.tutorialCta")}
+                    </a>
+                    <a className="button button-ghost" href={`#${t("anchors.sandbox")}`}>
+                        {t("hero.workshopCta")}
+                    </a>
                 </div>
             </section>
         );

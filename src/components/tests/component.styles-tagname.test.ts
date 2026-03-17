@@ -12,7 +12,9 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./component.styles-tagname.fixture.tsx") as typeof import("./component.styles-tagname.fixture.tsx");
+const fixtures = await import(
+    "./component.styles-tagname.fixture.tsx"
+) as typeof import("./component.styles-tagname.fixture.tsx");
 
 Deno.test("styles: should inject string styles only once across re-renders", async () => {
     const screen = renderMainzComponent(fixtures.StringStylesComponent);
@@ -26,7 +28,10 @@ Deno.test("styles: should inject string styles only once across re-renders", asy
 
     const styleAfter = screen.component.querySelectorAll("style");
     assertEquals(styleAfter.length, 1);
-    assert(styleAfter[0] === styleBefore[0], "Expected style node identity to be preserved");
+    assert(
+        styleAfter[0] === styleBefore[0],
+        "Expected style node identity to be preserved",
+    );
 
     await screen.cleanup();
 });
@@ -47,7 +52,10 @@ Deno.test("tagName: getTagName should be stable and cached for the same construc
     const second = fixtures.ArrayStylesComponent.getTagName();
 
     assertEquals(first, second);
-    assert(first.startsWith("x-"), "Expected custom element tag names to use x- prefix");
+    assert(
+        first.startsWith("x-"),
+        "Expected custom element tag names to use x- prefix",
+    );
 });
 
 Deno.test("tagName: constructors with same class name should receive unique tags", () => {
@@ -59,7 +67,7 @@ Deno.test("tagName: constructors with same class name should receive unique tags
     assertEquals(b, "x-shared-name-1");
 });
 
-Deno.test("tagName: should honor explicit customElementTag when provided", () => {
-    const explicit = fixtures.ExplicitTagComponent.getTagName();
+Deno.test("tagName: should honor @customElement when provided", () => {
+    const explicit = fixtures.DecoratedTagComponent.getTagName();
     assertEquals(explicit, "x-explicit-tag");
 });

@@ -1,9 +1,8 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import type { ConceptCardData } from "./types.ts";
 
+@customElement("x-concept-card")
 export class ConceptCard extends Component<ConceptCardData> {
-    static override customElementTag = "x-concept-card";
-
     override render(): HTMLElement {
         return (
             <article className="concept-card">

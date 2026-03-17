@@ -1,5 +1,5 @@
-export { Component } from "./components/index.ts";
-export { Page, isPageConstructor, route } from "./components/index.ts";
+export { Component, customElement } from "./components/index.ts";
+export { isPageConstructor, Page, route } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
 export type { DefaultProps, DefaultState } from "./components/index.ts";
 export type {
@@ -7,23 +7,23 @@ export type {
     RoutePathResolver,
     SpaLazyPageDefinition,
     SpaNavigationOptions,
-    SpaPageConstructor,
-    SpaPageModule,
     SpaNavigationRenderContext,
+    SpaPageConstructor,
     SpaPageDefinition,
+    SpaPageModule,
     SpaRouteParams,
-    StartPagesAppOptions,
     StartNavigationOptions,
+    StartPagesAppOptions,
 } from "./navigation/index.ts";
 export type {
-    PageEntriesContext,
-    PageEntryDefinition,
-    PageLoadContext,
     PageConstructor,
     PageDefinition,
+    PageEntriesContext,
+    PageEntryDefinition,
     PageHeadDefinition,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
+    PageLoadContext,
     PageRouteParams,
 } from "./components/index.ts";
 export {
@@ -47,8 +47,8 @@ export {
     buildTargetRouteManifest,
     inferFilesystemRoute,
     inferFilesystemRoutes,
-    isFilesystemPageFile,
     isDynamicRoutePath,
+    isFilesystemPageFile,
     materializeRoutePath,
     toLocalePathSegment,
 } from "./routing/index.ts";
@@ -57,8 +57,8 @@ export type {
     FilesystemRoute,
     FilesystemRoutingOptions,
     NavigationMode,
-    ResolvedSsgRouteEntry,
     RenderMode,
+    ResolvedSsgRouteEntry,
     RouteManifestEntry,
     RouteSource,
     SsgOutputEntry,

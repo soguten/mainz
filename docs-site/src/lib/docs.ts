@@ -40,8 +40,14 @@ const docsOrder = [
     "installation",
     "project-structure",
     "routing",
+    "route-metadata",
     "data-loading",
     "navigation-runtime",
+    "component-model",
+    "functional-components",
+    "custom-elements",
+    "state-and-events",
+    "render-owner",
     "page-model",
     "head-and-seo",
     "not-found",
@@ -75,10 +81,19 @@ const docsArticleSources: readonly DocsArticleSource[] = [
     {
         slug: "routing",
         title: "Routing Modes",
-        summary: "Separate render from navigation and choose the combination that matches the product.",
+        summary:
+            "Separate render from navigation and choose the combination that matches the product.",
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/routing.md",
+    },
+    {
+        slug: "route-metadata",
+        title: "Route Metadata",
+        summary: "Keep route patterns, params, and page ownership visible right on the class.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/route-metadata.md",
     },
     {
         slug: "data-loading",
@@ -97,6 +112,51 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         contentPath: "../../../docs/concepts/core/navigation-runtime.md",
     },
     {
+        slug: "component-model",
+        title: "Component Model",
+        summary:
+            "Understand how Component, props, state, and render fit together before page-specific concerns.",
+        navSection: "Concepts",
+        navGroup: "Components",
+        contentPath: "../../../docs/concepts/components/component-model.md",
+    },
+    {
+        slug: "functional-components",
+        title: "Functional Components",
+        summary:
+            "Use functions for composition, while class components remain the stateful runtime boundary.",
+        navSection: "Concepts",
+        navGroup: "Components",
+        contentPath: "../../../docs/concepts/components/functional-components.md",
+    },
+    {
+        slug: "custom-elements",
+        title: "Custom Elements",
+        summary:
+            "Define stable explicit tags with @customElement(...) and keep registration predictable.",
+        navSection: "Concepts",
+        navGroup: "Components",
+        contentPath: "../../../docs/concepts/components/custom-elements.md",
+    },
+    {
+        slug: "state-and-events",
+        title: "State and Events",
+        summary:
+            "Use initState(), setState(), and managed DOM events to build interactive components.",
+        navSection: "Concepts",
+        navGroup: "Components",
+        contentPath: "../../../docs/concepts/components/state-and-events.md",
+    },
+    {
+        slug: "render-owner",
+        title: "Render Owner",
+        summary:
+            "Understand how Mainz assigns DOM listener ownership to the class component currently rendering.",
+        navSection: "Concepts",
+        navGroup: "Components",
+        contentPath: "../../../docs/concepts/components/render-owner.md",
+    },
+    {
         slug: "page-model",
         title: "Page Model",
         summary: "Keep routes, head metadata, and behavior close to the page itself.",
@@ -107,7 +167,8 @@ const docsArticleSources: readonly DocsArticleSource[] = [
     {
         slug: "head-and-seo",
         title: "Head and SEO",
-        summary: "Let Mainz manage canonical, hreflang, and page metadata without head duplication.",
+        summary:
+            "Let Mainz manage canonical, hreflang, and page metadata without head duplication.",
         navSection: "Concepts",
         navGroup: "Pages",
         contentPath: "../../../docs/concepts/pages/head-and-seo.md",
@@ -123,7 +184,8 @@ const docsArticleSources: readonly DocsArticleSource[] = [
     {
         slug: "styling",
         title: "Styling and Theme",
-        summary: "Build a bold docs interface without giving up static output or progressive enhancement.",
+        summary:
+            "Build a bold docs interface without giving up static output or progressive enhancement.",
         navSection: "Advanced",
         contentPath: "../../../docs/advanced/styling.md",
     },
@@ -148,7 +210,9 @@ const docsArticles = docsArticleSources.map((source) => ({
     markdown: readMarkdownContent(source.contentPath),
 })) satisfies readonly DocsArticle[];
 
-const docsArticleMap = new Map(docsArticles.map((article) => [article.slug, article] as const));
+const docsArticleMap = new Map(
+    docsArticles.map((article) => [article.slug, article] as const),
+);
 
 export { docsArticles };
 
@@ -157,7 +221,10 @@ export function getDocsArticle(slug: string): DocsArticle | undefined {
 }
 
 export function getDocsNavSections(): readonly DocsNavSection[] {
-    const bySection = new Map<string, { items: DocsNavLeaf[]; groups: Map<string, DocsNavLeaf[]> }>();
+    const bySection = new Map<
+        string,
+        { items: DocsNavLeaf[]; groups: Map<string, DocsNavLeaf[]> }
+    >();
 
     for (const article of docsArticles) {
         const section = bySection.get(article.navSection) ?? {
@@ -188,7 +255,9 @@ export function getDocsNavSections(): readonly DocsNavSection[] {
     }));
 }
 
-export function getDocsPager(slug?: string): { previous?: DocsPagerLink; next?: DocsPagerLink } {
+export function getDocsPager(
+    slug?: string,
+): { previous?: DocsPagerLink; next?: DocsPagerLink } {
     if (!slug) {
         const first = docsArticles[0];
         return {

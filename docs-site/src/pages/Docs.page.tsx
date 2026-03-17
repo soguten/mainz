@@ -1,13 +1,21 @@
-import { Page, route, type PageEntriesContext, type PageEntryDefinition, type PageLoadContext } from "mainz";
+import {
+    customElement,
+    Page,
+    type PageEntriesContext,
+    type PageEntryDefinition,
+    type PageLoadContext,
+    route,
+} from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { docsArticles, getDocsArticle, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
 type DocsRouteData = NonNullable<ReturnType<typeof getDocsArticle>>;
 
+@customElement("x-mainz-docs-docs-page")
 @route("/:slug")
-export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Record<string, string> } }> {
-    static override customElementTag = "x-mainz-docs-docs-page";
-
+export class DocsPage extends Page<
+    { data?: DocsRouteData; route?: { params?: Record<string, string> } }
+> {
     static override page = {
         mode: "ssg" as const,
         locales: ["en"],
@@ -22,7 +30,9 @@ export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Re
         },
     };
 
-    static async entries(_context: PageEntriesContext): Promise<readonly PageEntryDefinition[]> {
+    static async entries(
+        _context: PageEntriesContext,
+    ): Promise<readonly PageEntryDefinition[]> {
         return docsArticles.map((article) => ({
             params: {
                 slug: article.slug,
@@ -30,7 +40,9 @@ export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Re
         }));
     }
 
-    static async load(context: PageLoadContext): Promise<DocsRouteData | undefined> {
+    static async load(
+        context: PageLoadContext,
+    ): Promise<DocsRouteData | undefined> {
         return getDocsArticle(context.params.slug);
     }
 
@@ -41,9 +53,9 @@ export class DocsPage extends Page<{ data?: DocsRouteData; route?: { params?: Re
         if (!article) {
             return (
                 <DocsShell
-                title="Document not found"
-                summary="This slug is not part of the docs collection. The demo keeps the docs shell intact so missing content still feels deliberate."
-                markdown={slug
+                    title="Document not found"
+                    summary="This slug is not part of the docs collection. The demo keeps the docs shell intact so missing content still feels deliberate."
+                    markdown={slug
                         ? `## Unknown slug
 
 No docs article was found for \`${slug}\`.

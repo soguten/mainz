@@ -1,4 +1,4 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 
 type ThemeName = "light" | "dark";
 
@@ -8,9 +8,8 @@ interface ThemeToggleState {
 
 const STORAGE_KEY = "mainz-docs-theme";
 
+@customElement("x-mainz-docs-theme-toggle")
 export class ThemeToggle extends Component<Record<string, never>, ThemeToggleState> {
-    static override customElementTag = "x-mainz-docs-theme-toggle";
-
     protected override initState(): ThemeToggleState {
         return {
             theme: readCurrentTheme(),

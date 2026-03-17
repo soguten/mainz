@@ -1,10 +1,9 @@
-import { Page, route } from "mainz";
+import { customElement, Page, route } from "mainz";
 import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 
+@customElement("x-mainz-home-page")
 @route("/")
 export class HomePage extends Page {
-    static override customElementTag = "x-mainz-home-page";
-
     static override page = {
         mode: "ssg" as const,
         locales: ["en", "pt"],
@@ -13,15 +12,14 @@ export class HomePage extends Page {
             meta: [
                 {
                     name: "description",
-                    content: "Mainz tutorial experience with component-first UI and page-first routing.",
+                    content:
+                        "Mainz tutorial experience with component-first UI and page-first routing.",
                 },
             ],
         },
     };
 
     override render() {
-        return (
-            <MainzTutorialPage />
-        );
+        return <MainzTutorialPage />;
     }
 }

@@ -7,16 +7,53 @@ import { parseMarkdown } from "../markdown.ts";
 Deno.test("docs helpers group navigation into sections and nested groups", () => {
     const sections = getDocsNavSections();
 
-    assertEquals(sections.map((section) => section.title), ["Getting Started", "Concepts", "Advanced"]);
+    assertEquals(sections.map((section) => section.title), [
+        "Getting Started",
+        "Concepts",
+        "Advanced",
+    ]);
     assertEquals(sections[1].groups?.[0].title, "Core");
-    assertEquals(sections[1].groups?.[0].items.map((item) => item.slug), ["routing", "data-loading", "navigation-runtime"]);
-    assertEquals(sections[1].groups?.[1].title, "Pages");
+    assertEquals(sections[1].groups?.[0].items.map((item) => item.slug), [
+        "routing",
+        "route-metadata",
+        "data-loading",
+        "navigation-runtime",
+    ]);
+    assertEquals(sections[1].groups?.[1].title, "Components");
+    assertEquals(sections[1].groups?.[1].items.map((item) => item.slug), [
+        "component-model",
+        "functional-components",
+        "custom-elements",
+        "state-and-events",
+        "render-owner",
+    ]);
+    assertEquals(sections[1].groups?.[2].title, "Pages");
+    assertEquals(sections[1].groups?.[2].items.map((item) => item.slug), [
+        "page-model",
+        "head-and-seo",
+        "not-found",
+    ]);
 });
 
 Deno.test("docs helpers compute previous and next article links", () => {
     assertEquals(getDocsPager("data-loading"), {
-        previous: { slug: "routing", title: "Routing Modes" },
+        previous: { slug: "route-metadata", title: "Route Metadata" },
         next: { slug: "navigation-runtime", title: "Navigation Runtime" },
+    });
+
+    assertEquals(getDocsPager("custom-elements"), {
+        previous: { slug: "functional-components", title: "Functional Components" },
+        next: { slug: "state-and-events", title: "State and Events" },
+    });
+
+    assertEquals(getDocsPager("render-owner"), {
+        previous: { slug: "state-and-events", title: "State and Events" },
+        next: { slug: "page-model", title: "Page Model" },
+    });
+
+    assertEquals(getDocsPager("page-model"), {
+        previous: { slug: "render-owner", title: "Render Owner" },
+        next: { slug: "head-and-seo", title: "Head and SEO" },
     });
 
     assertEquals(getDocsPager(), {
@@ -37,7 +74,12 @@ console.log("hi");
 \`\`\`
 `);
 
-    assertEquals(blocks[0], { type: "heading", level: 2, text: "Intro", id: "intro" });
+    assertEquals(blocks[0], {
+        type: "heading",
+        level: 2,
+        text: "Intro",
+        id: "intro",
+    });
     assertEquals(blocks[1], { type: "paragraph", text: "Hello `world`." });
     assertEquals(blocks[2], { type: "blockquote", text: "Useful note." });
     assertEquals(blocks[3], {

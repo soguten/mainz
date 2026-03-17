@@ -1,11 +1,11 @@
-import { Page, route } from "mainz";
+import { customElement, Page, route } from "mainz";
 import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
 
+@customElement("x-mainz-not-found-page")
 @route("/404")
 export class NotFoundPage extends Page {
-    static override customElementTag = "x-mainz-not-found-page";
     static override styles = pageStyles;
 
     static override page = {
@@ -17,7 +17,8 @@ export class NotFoundPage extends Page {
             meta: [
                 {
                     name: "description",
-                    content: "Mainz page not found experience for static and enhanced MPA navigation.",
+                    content:
+                        "Mainz page not found experience for static and enhanced MPA navigation.",
                 },
             ],
         },
@@ -42,8 +43,14 @@ export class NotFoundPage extends Page {
                 </header>
 
                 <section className="panel">
-                    <p className="eyebrow">{isPortuguese ? "pagina nao encontrada" : "page not found"}</p>
-                    <h1>{isPortuguese ? "Essa rota nao existe no Mainz." : "That route does not exist in Mainz."}</h1>
+                    <p className="eyebrow">
+                        {isPortuguese ? "pagina nao encontrada" : "page not found"}
+                    </p>
+                    <h1>
+                        {isPortuguese
+                            ? "Essa rota nao existe no Mainz."
+                            : "That route does not exist in Mainz."}
+                    </h1>
                     <p className="lead">
                         {isPortuguese
                             ? "A pagina que voce tentou abrir nao foi encontrada. Voce pode voltar para a trilha principal e continuar explorando o framework."
@@ -54,7 +61,12 @@ export class NotFoundPage extends Page {
                         <a className="button button-primary" href={homeHref}>
                             {isPortuguese ? "Voltar para o inicio" : "Back to the homepage"}
                         </a>
-                        <a className="button button-ghost" href="https://github.com/soguten/mainz" target="_blank" rel="noreferrer">
+                        <a
+                            className="button button-ghost"
+                            href="https://github.com/soguten/mainz"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             {isPortuguese ? "Ver repositorio" : "Open repository"}
                         </a>
                     </div>

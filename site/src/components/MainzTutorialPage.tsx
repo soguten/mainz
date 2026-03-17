@@ -1,4 +1,4 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import { t } from "../i18n/index.ts";
 import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 import { pageStyles } from "../styles/pageStyles.ts";
@@ -13,8 +13,8 @@ interface TutorialState {
     currentStage: number;
 }
 
+@customElement("x-mainz-tutorial-page")
 export class MainzTutorialPage extends Component<{}, TutorialState> {
-    static override customElementTag = "x-mainz-tutorial-page";
     static override styles = pageStyles;
 
     protected override initState(): TutorialState {
@@ -46,8 +46,11 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
         const concepts = t<ConceptCardData[]>("concepts.cards");
         const nextStepCards = t<NextStepCardData[]>("nextSteps.cards");
         const anchors = t<Record<string, string>>("anchors");
-        const progress = Math.round(((this.state.currentStage + 1) / stages.length) * 100);
-        const currentJourneySnippet = journeySnippets[this.state.currentStage] ?? journeySnippets[0] ?? "";
+        const progress = Math.round(
+            ((this.state.currentStage + 1) / stages.length) * 100,
+        );
+        const currentJourneySnippet = journeySnippets[this.state.currentStage] ??
+            journeySnippets[0] ?? "";
 
         return (
             <div id={anchors.top} className="page-shell">
@@ -73,7 +76,9 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
                             <p className="eyebrow">{t("journey.eyebrow")}</p>
                             <h2 className="chapter-title">{t("journey.title")}</h2>
                         </div>
-                        <span className="progress-chip">{progress}% {t("journey.progressSuffix")}</span>
+                        <span className="progress-chip">
+                            {progress}% {t("journey.progressSuffix")}
+                        </span>
                     </div>
 
                     <div className="chapter-row">
@@ -81,7 +86,9 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
                             <button
                                 key={stage.label}
                                 type="button"
-                                className={`chapter-button ${this.state.currentStage === index ? "active" : ""}`}
+                                className={`chapter-button ${
+                                    this.state.currentStage === index ? "active" : ""
+                                }`}
                                 onClick={() => this.goToStage(index)}
                             >
                                 {index + 1}. {stage.label}
@@ -89,7 +96,9 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
                         ))}
                     </div>
 
-                    <p className="chapter-description">{stages[this.state.currentStage].description}</p>
+                    <p className="chapter-description">
+                        {stages[this.state.currentStage].description}
+                    </p>
                     <div className="journey-code">
                         <p className="eyebrow">{t("journey.codeTitle")}</p>
                         <pre>
@@ -98,7 +107,9 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
                             </code>
                         </pre>
                     </div>
-                    <a className="back-link" href={`#${anchors.top}`}>{t("common.backToTop")}</a>
+                    <a className="back-link" href={`#${anchors.top}`}>
+                        {t("common.backToTop")}
+                    </a>
                 </section>
 
                 <section id={anchors.concepts} className="panel concept-section">
@@ -109,11 +120,18 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
 
                     <div className="concept-grid">
                         {concepts.map((item) => (
-                            <ConceptCard key={item.title} title={item.title} description={item.description} tag={item.tag} />
+                            <ConceptCard
+                                key={item.title}
+                                title={item.title}
+                                description={item.description}
+                                tag={item.tag}
+                            />
                         ))}
                     </div>
 
-                    <a className="back-link" href={`#${anchors.top}`}>{t("common.backToTop")}</a>
+                    <a className="back-link" href={`#${anchors.top}`}>
+                        {t("common.backToTop")}
+                    </a>
                 </section>
 
                 <CheckpointQuiz />
@@ -135,12 +153,19 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
                         ))}
                     </div>
 
-                    <a className="back-link" href={`#${anchors.top}`}>{t("common.backToTop")}</a>
+                    <a className="back-link" href={`#${anchors.top}`}>
+                        {t("common.backToTop")}
+                    </a>
                 </section>
 
                 <footer className="panel footer">
                     <p>{t("footer.note")}</p>
-                    <a className="source-link" href="https://github.com/soguten/mainz" target="_blank" rel="noreferrer">
+                    <a
+                        className="source-link"
+                        href="https://github.com/soguten/mainz"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
                         {t("footer.sourceLabel")}
                     </a>
                 </footer>

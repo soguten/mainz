@@ -1,9 +1,8 @@
-import { Component } from "mainz";
-import { buildSiteLocaleHref, getLocale, siteLocales, t, type SiteLocale } from "../i18n/index.ts";
+import { Component, customElement } from "mainz";
+import { buildSiteLocaleHref, getLocale, type SiteLocale, siteLocales, t } from "../i18n/index.ts";
 
+@customElement("x-language-switcher")
 export class LanguageSwitcher extends Component {
-    static override customElementTag = "x-language-switcher";
-
     override render(): HTMLElement {
         const currentLocale = getLocale();
 

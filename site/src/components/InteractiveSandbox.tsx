@@ -1,4 +1,4 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import { t } from "../i18n/index.ts";
 import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 
@@ -19,9 +19,8 @@ interface WorkshopState {
     feedbackMode: "ok" | "fail" | "idle";
 }
 
+@customElement("x-interactive-sandbox")
 export class InteractiveSandbox extends Component<{}, WorkshopState> {
-    static override customElementTag = "x-interactive-sandbox";
-
     protected override initState(): WorkshopState {
         const challenges = t<WorkshopChallenge[]>("sandbox.challenges");
 
@@ -110,8 +109,7 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
         const value = textarea.value;
         const indent = "    ";
 
-        const nextValue =
-            value.slice(0, start) +
+        const nextValue = value.slice(0, start) +
             indent +
             value.slice(end);
 
@@ -131,7 +129,6 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
         });
     }
 
-
     private handleEditorKeyDown = (event: KeyboardEvent) => {
         if (event.key !== "Tab") return;
 
@@ -144,7 +141,9 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
     };
 
     private syncEditorViewport() {
-        const textarea = this.querySelector<HTMLTextAreaElement>("#workshop-editor");
+        const textarea = this.querySelector<HTMLTextAreaElement>(
+            "#workshop-editor",
+        );
         const preview = this.querySelector<HTMLElement>(".sandbox-editor-preview");
         const gutter = this.querySelector<HTMLElement>(".sandbox-editor-gutter");
 
@@ -176,7 +175,9 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                     <p>{t("sandbox.description")}</p>
                 </div>
 
-                <p className="progress-chip">{t("sandbox.challengeLabel")} {challengeNumber}/{total}</p>
+                <p className="progress-chip">
+                    {t("sandbox.challengeLabel")} {challengeNumber}/{total}
+                </p>
 
                 <article className="sandbox-card">
                     <h3>{challenge.title}</h3>
@@ -187,11 +188,17 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                     </label>
                     <div className="sandbox-editor-shell">
                         <div className="sandbox-editor-gutter" aria-hidden="true">
-                            {Array.from({ length: lineCount }, (_, index) => (
-                                <span key={`line-${challengeNumber}-${index + 1}`} className="sandbox-editor-line">
-                                    {index + 1}
-                                </span>
-                            ))}
+                            {Array.from(
+                                { length: lineCount },
+                                (_, index) => (
+                                    <span
+                                        key={`line-${challengeNumber}-${index + 1}`}
+                                        className="sandbox-editor-line"
+                                    >
+                                        {index + 1}
+                                    </span>
+                                ),
+                            )}
                         </div>
                         <div className="sandbox-editor-stack">
                             <pre className="sandbox-editor-preview" aria-hidden="true">
@@ -244,7 +251,11 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                     </div>
 
                     {this.state.feedbackMode !== "idle" && (
-                        <p className={`checkpoint-result ${this.state.feedbackMode === "ok" ? "ok" : "fail"}`}>
+                        <p
+                            className={`checkpoint-result ${
+                                this.state.feedbackMode === "ok" ? "ok" : "fail"
+                            }`}
+                        >
                             {this.state.feedback}
                         </p>
                     )}
@@ -264,7 +275,9 @@ export class InteractiveSandbox extends Component<{}, WorkshopState> {
                     </article>
                 )}
 
-                <a className="back-link" href={`#${anchors.top}`}>{t("common.backToTop")}</a>
+                <a className="back-link" href={`#${anchors.top}`}>
+                    {t("common.backToTop")}
+                </a>
             </section>
         );
     }

@@ -1,8 +1,8 @@
-import { Page, route } from "../../index.ts";
+import { customElement, Page, route } from "../../index.ts";
 
+@customElement("x-mainz-navigation-spa-home-page")
 @route("/")
 export class SpaHomePage extends Page {
-    static override customElementTag = "x-mainz-navigation-spa-home-page";
     static override page = {
         head: {
             title: "Home",
@@ -17,9 +17,9 @@ export class SpaHomePage extends Page {
     }
 }
 
+@customElement("x-mainz-navigation-spa-docs-page")
 @route("/docs/:slug")
 export class SpaDocsPage extends Page {
-    static override customElementTag = "x-mainz-navigation-spa-docs-page";
     static override page = {
         head: {
             title: "Docs",
@@ -38,9 +38,9 @@ export class SpaDocsPage extends Page {
     }
 }
 
+@customElement("x-mainz-navigation-spa-not-found-page")
 @route("/404")
 export class SpaNotFoundPage extends Page {
-    static override customElementTag = "x-mainz-navigation-spa-not-found-page";
     static override page = {
         head: {
             title: "Not Found",

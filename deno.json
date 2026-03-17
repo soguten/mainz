@@ -30,6 +30,11 @@
         "vite": "npm:vite",
         "happy-dom": "npm:happy-dom"
     },
+    "fmt": {
+        "indentWidth": 4,
+        "useTabs": false,
+        "lineWidth": 100
+    },
     "lint": {
         "rules": {
             "exclude": [

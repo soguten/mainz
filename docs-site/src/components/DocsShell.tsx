@@ -1,8 +1,8 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 import type { DocsNavSection, DocsPagerLink } from "../lib/docs.ts";
 import { highlightDocsCodeBlocks } from "../lib/highlight.ts";
 import { buildDocsHref } from "../lib/links.ts";
-import { parseMarkdown, type MarkdownBlock } from "../lib/markdown.ts";
+import { type MarkdownBlock, parseMarkdown } from "../lib/markdown.ts";
 import { docsStyles } from "../styles/docsStyles.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
@@ -22,8 +22,8 @@ interface DocsShellProps {
     statusLabel?: string;
 }
 
+@customElement("x-mainz-docs-shell")
 export class DocsShell extends Component<DocsShellProps> {
-    static override customElementTag = "x-mainz-docs-shell";
     static override styles = docsStyles;
 
     override onMount(): void {
@@ -40,14 +40,19 @@ export class DocsShell extends Component<DocsShellProps> {
         const blocks = props.markdown ? parseMarkdown(props.markdown) : [];
 
         return (
-            <div class="docs-app" data-theme={document.documentElement.dataset.theme ?? "light"}>
+            <div
+                class="docs-app"
+                data-theme={document.documentElement.dataset.theme ?? "light"}
+            >
                 <div class="docs-frame">
                     <header class="docs-topbar">
                         <a class="docs-brand" href={buildDocsHref("/")}>
                             <span class="docs-brand-mark">Mz</span>
                             <span class="docs-brand-copy">
                                 <span class="docs-brand-label">Mainz Docs</span>
-                                <span class="docs-brand-meta">Documentation demo for Mainz</span>
+                                <span class="docs-brand-meta">
+                                    Documentation demo for Mainz
+                                </span>
                             </span>
                         </a>
 
@@ -66,7 +71,9 @@ export class DocsShell extends Component<DocsShellProps> {
                             <p class="docs-sidebar-title">Documentation</p>
                             <div class="docs-nav-sections">
                                 <a
-                                    class={`docs-nav-link docs-nav-link-root${!props.activeSlug ? " active" : ""}`}
+                                    class={`docs-nav-link docs-nav-link-root${
+                                        !props.activeSlug ? " active" : ""
+                                    }`}
                                     href={buildDocsHref("/")}
                                     aria-current={!props.activeSlug ? "page" : undefined}
                                 >
@@ -82,11 +89,20 @@ export class DocsShell extends Component<DocsShellProps> {
                                                 <nav class="docs-nav">
                                                     {section.items.map((item) => (
                                                         <a
-                                                            class={`docs-nav-link${item.slug === props.activeSlug ? " active" : ""}`}
+                                                            class={`docs-nav-link${
+                                                                item.slug === props.activeSlug
+                                                                    ? " active"
+                                                                    : ""
+                                                            }`}
                                                             href={buildDocsHref(`/${item.slug}`)}
-                                                            aria-current={item.slug === props.activeSlug ? "page" : undefined}
+                                                            aria-current={item.slug ===
+                                                                    props.activeSlug
+                                                                ? "page"
+                                                                : undefined}
                                                         >
-                                                            <span class="docs-nav-title">{item.title}</span>
+                                                            <span class="docs-nav-title">
+                                                                {item.title}
+                                                            </span>
                                                         </a>
                                                     ))}
                                                 </nav>
@@ -99,11 +115,20 @@ export class DocsShell extends Component<DocsShellProps> {
                                                 <nav class="docs-nav docs-nav-nested">
                                                     {group.items.map((item) => (
                                                         <a
-                                                            class={`docs-nav-link docs-nav-link-nested${item.slug === props.activeSlug ? " active" : ""}`}
+                                                            class={`docs-nav-link docs-nav-link-nested${
+                                                                item.slug === props.activeSlug
+                                                                    ? " active"
+                                                                    : ""
+                                                            }`}
                                                             href={buildDocsHref(`/${item.slug}`)}
-                                                            aria-current={item.slug === props.activeSlug ? "page" : undefined}
+                                                            aria-current={item.slug ===
+                                                                    props.activeSlug
+                                                                ? "page"
+                                                                : undefined}
                                                         >
-                                                            <span class="docs-nav-title">{item.title}</span>
+                                                            <span class="docs-nav-title">
+                                                                {item.title}
+                                                            </span>
                                                         </a>
                                                     ))}
                                                 </nav>
@@ -126,7 +151,10 @@ export class DocsShell extends Component<DocsShellProps> {
                                     ? (
                                         <div class="docs-overview-grid">
                                             {props.overviewCards.map((card) => (
-                                                <a class="docs-card" href={buildDocsHref(card.href)}>
+                                                <a
+                                                    class="docs-card"
+                                                    href={buildDocsHref(card.href)}
+                                                >
                                                     <h3>{card.title}</h3>
                                                     <p>{card.description}</p>
                                                 </a>
@@ -137,15 +165,26 @@ export class DocsShell extends Component<DocsShellProps> {
 
                                 {blocks.length > 0
                                     ? blocks.map((block) => <MarkdownBlockView block={block} />)
-                                    : <div class="docs-empty">This page is still being drafted.</div>}
+                                    : (
+                                        <div class="docs-empty">
+                                            This page is still being drafted.
+                                        </div>
+                                    )}
 
                                 {props.previous || props.next
                                     ? (
                                         <div class="docs-pager">
                                             {props.previous
                                                 ? (
-                                                    <a class="docs-pager-link" href={buildDocsHref(`/${props.previous.slug}`)}>
-                                                        <span class="docs-pager-kicker">Previous page</span>
+                                                    <a
+                                                        class="docs-pager-link"
+                                                        href={buildDocsHref(
+                                                            `/${props.previous.slug}`,
+                                                        )}
+                                                    >
+                                                        <span class="docs-pager-kicker">
+                                                            Previous page
+                                                        </span>
                                                         <strong>{props.previous.title}</strong>
                                                     </a>
                                                 )
@@ -153,8 +192,13 @@ export class DocsShell extends Component<DocsShellProps> {
 
                                             {props.next
                                                 ? (
-                                                    <a class="docs-pager-link" href={buildDocsHref(`/${props.next.slug}`)}>
-                                                        <span class="docs-pager-kicker">Next page</span>
+                                                    <a
+                                                        class="docs-pager-link"
+                                                        href={buildDocsHref(`/${props.next.slug}`)}
+                                                    >
+                                                        <span class="docs-pager-kicker">
+                                                            Next page
+                                                        </span>
                                                         <strong>{props.next.title}</strong>
                                                     </a>
                                                 )
@@ -194,7 +238,13 @@ function MarkdownBlockView(props: { block: MarkdownBlock }) {
         return <div class="docs-note">{renderInlineMarkdown(block.text)}</div>;
     }
 
-    return <DocsCodeBlock language={block.language} label={block.label ?? block.language} content={block.content} />;
+    return (
+        <DocsCodeBlock
+            language={block.language}
+            label={block.label ?? block.language}
+            content={block.content}
+        />
+    );
 }
 
 interface DocsCodeBlockProps {
@@ -207,8 +257,8 @@ interface DocsCodeBlockState {
     copied: boolean;
 }
 
+@customElement("x-mainz-docs-code-block")
 export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockState> {
-    static override customElementTag = "x-mainz-docs-code-block";
     static copyFeedbackDurationMs = 1200;
 
     protected override initState(): DocsCodeBlockState {

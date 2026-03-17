@@ -1,4 +1,4 @@
-import { Component } from "mainz";
+import { Component, customElement } from "mainz";
 
 export class StringStylesComponent extends Component<{}, { count: number }> {
     static override styles = ".counter { color: red; }";
@@ -40,9 +40,8 @@ export const DuplicateTagNameB = class SharedName extends Component {
     }
 };
 
-export class ExplicitTagComponent extends Component {
-    static override customElementTag = "x-explicit-tag";
-
+@customElement("x-explicit-tag")
+export class DecoratedTagComponent extends Component {
     override render(): HTMLElement {
         return document.createElement("div");
     }

@@ -1,6 +1,10 @@
 import { DefaultProps, DefaultState } from "./types.ts";
-import { getManagedDOMEvents, setManagedDOMEvents, ManagedDOMEventDescriptor } from "../jsx/dom-factory.ts";
-import { pushRenderOwner, popRenderOwner } from "../jsx/render-owner.ts";
+import {
+    getManagedDOMEvents,
+    ManagedDOMEventDescriptor,
+    setManagedDOMEvents,
+} from "../jsx/dom-factory.ts";
+import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
 
 interface TrackedEventListener {
     target: EventTarget;
@@ -10,6 +14,25 @@ interface TrackedEventListener {
 }
 
 const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
+const COMPONENT_CUSTOM_ELEMENT_TAG = Symbol(
+    "mainz.component.custom-element-tag",
+);
+
+type MainzComponentConstructor =
+    & (abstract new (...args: unknown[]) => Component<any, any>)
+    & {
+        name: string;
+        [COMPONENT_CUSTOM_ELEMENT_TAG]?: string;
+    };
+
+export function customElement(tagName: string) {
+    return function <T extends MainzComponentConstructor>(
+        value: T,
+        _context?: ClassDecoratorContext<T>,
+    ): void {
+        applyDecoratedCustomElementTag(value, tagName);
+    };
+}
 
 /**
  * Abstract base class for custom web components.
@@ -63,7 +86,11 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         this.onUnmount?.();
 
         for (const entry of this.eventListeners) {
-            entry.target.removeEventListener(entry.type, entry.listener, entry.options);
+            entry.target.removeEventListener(
+                entry.type,
+                entry.listener,
+                entry.options,
+            );
         }
 
         this.eventListeners = [];
@@ -142,7 +169,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     protected injectStyles() {
         if (Object.prototype.hasOwnProperty.call(this, "styles")) {
             console.warn(
-                `${this.constructor.name} has 'styles' on the instance; use static styles.`
+                `${this.constructor.name} has 'styles' on the instance; use static styles.`,
             );
         }
 
@@ -186,7 +213,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 return;
             }
 
-            const renderedNodesAreAttached = this.renderedNodes.every((node) => node.parentNode === this);
+            const renderedNodesAreAttached = this.renderedNodes.every((node) =>
+                node.parentNode === this
+            );
 
             if (this.renderedNodes.length === 0 || !renderedNodesAreAttached) {
                 for (const currentNode of this.renderedNodes) {
@@ -205,7 +234,11 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
                 return;
             }
 
-            this.renderedNodes = this.patchChildNodeList(this, this.renderedNodes, nextNodes);
+            this.renderedNodes = this.patchChildNodeList(
+                this,
+                this.renderedNodes,
+                nextNodes,
+            );
             this.pruneDetachedEventListeners();
             this.afterRender?.();
         } finally {
@@ -219,7 +252,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
             return next;
         }
 
-        if (current.nodeType === Node.TEXT_NODE && next.nodeType === Node.TEXT_NODE) {
+        if (
+            current.nodeType === Node.TEXT_NODE && next.nodeType === Node.TEXT_NODE
+        ) {
             if (current.textContent !== next.textContent) {
                 current.textContent = next.textContent;
             }
@@ -245,11 +280,22 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     private patchChildren(current: HTMLElement, next: HTMLElement) {
-        this.patchChildNodeList(current, Array.from(current.childNodes), Array.from(next.childNodes));
+        this.patchChildNodeList(
+            current,
+            Array.from(current.childNodes),
+            Array.from(next.childNodes),
+        );
     }
 
-    private patchChildNodeList(parent: HTMLElement, currentChildren: Node[], nextChildren: Node[]): Node[] {
-        const managedStartIndex = this.findManagedChildStartIndex(parent, currentChildren);
+    private patchChildNodeList(
+        parent: HTMLElement,
+        currentChildren: Node[],
+        nextChildren: Node[],
+    ): Node[] {
+        const managedStartIndex = this.findManagedChildStartIndex(
+            parent,
+            currentChildren,
+        );
         const keyedCurrent = new Map<string, Node>();
         const unkeyedCurrent: Node[] = [];
 
@@ -294,7 +340,10 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
         const orderedChildrenSet = new Set(orderedChildren);
         for (const currentChild of currentChildren) {
-            if (!orderedChildrenSet.has(currentChild) && currentChild.parentNode === parent) {
+            if (
+                !orderedChildrenSet.has(currentChild) &&
+                currentChild.parentNode === parent
+            ) {
                 parent.removeChild(currentChild);
             }
         }
@@ -302,13 +351,18 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         return orderedChildren;
     }
 
-    private findManagedChildStartIndex(parent: HTMLElement, currentChildren: Node[]): number {
+    private findManagedChildStartIndex(
+        parent: HTMLElement,
+        currentChildren: Node[],
+    ): number {
         for (const currentChild of currentChildren) {
             if (currentChild.parentNode !== parent) {
                 continue;
             }
 
-            const childIndex = Array.from(parent.childNodes).findIndex((node) => node === currentChild);
+            const childIndex = Array.from(parent.childNodes).findIndex((node) =>
+                node === currentChild
+            );
             if (childIndex >= 0) {
                 return childIndex;
             }
@@ -333,8 +387,13 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     ): Node | undefined {
         const key = this.getNodeKey(nextChild);
         if (key != null) {
-            const candidate = keyedCurrent.get(this.buildNodeLookupKey(nextChild, key));
-            if (candidate && !usedCurrent.has(candidate) && this.isSameNodeType(candidate, nextChild)) {
+            const candidate = keyedCurrent.get(
+                this.buildNodeLookupKey(nextChild, key),
+            );
+            if (
+                candidate && !usedCurrent.has(candidate) &&
+                this.isSameNodeType(candidate, nextChild)
+            ) {
                 return candidate;
             }
 
@@ -367,7 +426,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     }
 
     private syncProperties(current: HTMLElement, next: HTMLElement) {
-        if (current instanceof HTMLInputElement && next instanceof HTMLInputElement) {
+        if (
+            current instanceof HTMLInputElement && next instanceof HTMLInputElement
+        ) {
             if (current.value !== next.value) {
                 current.value = next.value;
             }
@@ -379,14 +440,19 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
             return;
         }
 
-        if (current instanceof HTMLTextAreaElement && next instanceof HTMLTextAreaElement) {
+        if (
+            current instanceof HTMLTextAreaElement &&
+            next instanceof HTMLTextAreaElement
+        ) {
             if (current.value !== next.value) {
                 current.value = next.value;
             }
             return;
         }
 
-        if (current instanceof HTMLSelectElement && next instanceof HTMLSelectElement) {
+        if (
+            current instanceof HTMLSelectElement && next instanceof HTMLSelectElement
+        ) {
             if (current.value !== next.value) {
                 current.value = next.value;
             }
@@ -419,7 +485,10 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         setManagedDOMEvents(next, []);
     }
 
-    private unregisterSpecificEvent(target: EventTarget, event: ManagedDOMEventDescriptor) {
+    private unregisterSpecificEvent(
+        target: EventTarget,
+        event: ManagedDOMEventDescriptor,
+    ) {
         const normalizedOptions = event.options === true;
         target.removeEventListener(event.type, event.listener, normalizedOptions);
         this.eventListeners = this.eventListeners.filter((entry) => {
@@ -432,17 +501,27 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         });
     }
 
-    private unregisterEventsByTargetAndType(target: EventTarget, type: string, options: boolean) {
+    private unregisterEventsByTargetAndType(
+        target: EventTarget,
+        type: string,
+        options: boolean,
+    ) {
         const staleEntries = this.eventListeners.filter((entry) => {
-            return entry.target === target && entry.type === type && entry.options === options;
+            return entry.target === target && entry.type === type &&
+                entry.options === options;
         });
 
         for (const staleEntry of staleEntries) {
-            staleEntry.target.removeEventListener(staleEntry.type, staleEntry.listener, staleEntry.options);
+            staleEntry.target.removeEventListener(
+                staleEntry.type,
+                staleEntry.listener,
+                staleEntry.options,
+            );
         }
 
         this.eventListeners = this.eventListeners.filter((entry) => {
-            return !(entry.target === target && entry.type === type && entry.options === options);
+            return !(entry.target === target && entry.type === type &&
+                entry.options === options);
         });
     }
 
@@ -471,9 +550,9 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     private getNodeKey(node: Node): string | null {
         if (!(node instanceof Element)) return null;
 
-        return node.getAttribute("key")
-            ?? node.getAttribute("data-key")
-            ?? node.getAttribute("data-id");
+        return node.getAttribute("key") ??
+            node.getAttribute("data-key") ??
+            node.getAttribute("data-id");
     }
 
     private buildNodeLookupKey(node: Node, key: string): string {
@@ -549,36 +628,25 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     protected static extendStyles(...extra: string[]): string[] {
         const parentClass = Object.getPrototypeOf(this) as typeof Component;
         const parentStyles = parentClass.styles
-            ? Array.isArray(parentClass.styles)
-                ? parentClass.styles
-                : [parentClass.styles]
+            ? Array.isArray(parentClass.styles) ? parentClass.styles : [parentClass.styles]
             : [];
         return [...parentStyles, ...extra];
     }
 
     afterRender?(): void;
 
-    /**
-     * Optional stable custom element tag.
-     * Useful for SSG/CSR consistency when class names may be minified.
-     */
-    static customElementTag?: string;
-
     private static toKebabCase(str: string): string {
         return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
     }
 
     private static resolveDesiredTagName(ctor: typeof Component): string {
-        const explicitTag = ctor.customElementTag;
+        const explicitTag = Component.normalizeExplicitTag(
+            ctor,
+            resolveDecoratedCustomElementTag(ctor),
+            "@customElement(...)",
+        );
         if (explicitTag) {
-            const normalizedExplicitTag = explicitTag.trim().toLowerCase();
-            if (/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(normalizedExplicitTag)) {
-                return normalizedExplicitTag;
-            }
-
-            console.warn(
-                `${ctor.name} has invalid customElementTag "${explicitTag}". Falling back to generated tag.`,
-            );
+            return explicitTag;
         }
 
         const normalizedName = Component.toKebabCase(ctor.name)
@@ -587,6 +655,40 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
 
         return `x-${normalizedName}`;
     }
+
+    private static normalizeExplicitTag(
+        ctor: typeof Component,
+        explicitTag: string | undefined,
+        source: "@customElement(...)",
+    ): string | undefined {
+        if (!explicitTag) {
+            return undefined;
+        }
+
+        const normalizedExplicitTag = explicitTag.trim().toLowerCase();
+        if (/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(normalizedExplicitTag)) {
+            return normalizedExplicitTag;
+        }
+
+        console.warn(
+            `${ctor.name} has invalid ${source} "${explicitTag}". Falling back to generated tag.`,
+        );
+        return undefined;
+    }
+}
+
+function applyDecoratedCustomElementTag(
+    ctor: MainzComponentConstructor,
+    tagName: string,
+): void {
+    ctor[COMPONENT_CUSTOM_ELEMENT_TAG] = tagName;
+}
+
+function resolveDecoratedCustomElementTag(
+    ctor: MainzComponentConstructor,
+): string | undefined {
+    const tagName = ctor[COMPONENT_CUSTOM_ELEMENT_TAG]?.trim();
+    return tagName ? tagName : undefined;
 }
 
 function elementTagName(element: Element): string {

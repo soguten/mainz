@@ -1,30 +1,37 @@
 ## Why Mainz
 
-Mainz treats pages as first-class units, so routing, head metadata, build output, and hydration stay connected.
+Mainz treats pages as first-class units, so routing, head metadata, build output, and hydration stay
+connected.
 
-That means less framework ceremony in `main.tsx` and more of the product model living close to the page itself.
+That means less framework ceremony in `main.tsx` and more of the product model living close to the
+page itself.
 
 ## Create your first page
 
-A page only needs a route annotation, optional static metadata, and a render method. The framework takes care of custom element registration and head management.
+A page only needs a route annotation, a custom element name, optional static metadata, and a render
+method. The framework takes care of registration and head management.
 
 ```tsx title="Home.page.tsx"
-import { Page, route } from "mainz";
+import { customElement, Page, route } from "mainz";
 
+@customElement("app-home-page")
 @route("/")
 export class HomePage extends Page {
-  static override page = {
-    mode: "ssg" as const,
-    head: {
-      title: "Hello Mainz",
-    },
-  };
+    static override page = {
+        mode: "ssg" as const,
+        head: {
+            title: "Hello Mainz",
+        },
+    };
 
-  override render() {
-    return <section>Hello from Mainz</section>;
-  }
+    override render() {
+        return <section>Hello from Mainz</section>;
+    }
 }
 ```
+
+`@route(...)` keeps route metadata on the page, and `@customElement(...)` is the single source of
+truth for the generated web component name.
 
 ## Bootstrap the app
 
@@ -36,7 +43,7 @@ import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 startPagesApp({
-  pages: [HomePage],
-  notFound: NotFoundPage,
+    pages: [HomePage],
+    notFound: NotFoundPage,
 });
 ```
