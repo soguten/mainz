@@ -39,20 +39,20 @@ export interface PageLoadContext {
 }
 
 export interface PageDefinition {
-    path: string;
     mode?: RenderMode;
     notFound?: boolean;
     locales?: readonly string[];
     head?: PageHeadDefinition;
 }
 
-export type PageConstructor = typeof Component & {
-    page?: PageDefinition;
-    entries?(context: PageEntriesContext): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
-    load?(context: PageLoadContext): unknown | Promise<unknown>;
-};
-
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
+const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
+
+export function route(path: string) {
+    return function <T extends PageConstructor>(value: T, _context?: ClassDecoratorContext<T>): void {
+        applyPageRoutePath(value, path);
+    };
+}
 
 export abstract class Page<P = DefaultProps, S = DefaultState> extends Component<P, S> {
     static page?: PageDefinition;
@@ -68,12 +68,37 @@ export abstract class Page<P = DefaultProps, S = DefaultState> extends Component
     }
 }
 
+export interface PageConstructor {
+    new (...args: unknown[]): Page<any, any>;
+    readonly prototype: Page<any, any>;
+    readonly name: string;
+    page?: PageDefinition;
+    entries?(context: PageEntriesContext): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
+    load?(context: PageLoadContext): unknown | Promise<unknown>;
+    [PAGE_ROUTE_PATH]?: string;
+}
+
 export function isPageConstructor(value: unknown): value is PageConstructor {
     if (typeof value !== "function") {
         return false;
     }
 
     return value === Page || value.prototype instanceof Page;
+}
+
+export function resolvePageRoutePath(pageCtor: object): string | undefined {
+    const routeOwner = pageCtor as { [PAGE_ROUTE_PATH]?: string };
+    const path = routeOwner[PAGE_ROUTE_PATH]?.trim();
+    return path ? path : undefined;
+}
+
+export function requirePageRoutePath(pageCtor: object, errorMessage: string): string {
+    const path = resolvePageRoutePath(pageCtor);
+    if (!path) {
+        throw new Error(errorMessage);
+    }
+
+    return path;
 }
 
 export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unknown): void {
@@ -147,4 +172,8 @@ function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
 
     const candidate = value as Record<string, unknown>;
     return "title" in candidate || "meta" in candidate || "links" in candidate;
+}
+
+function applyPageRoutePath(pageCtor: PageConstructor, path: string): void {
+    pageCtor[PAGE_ROUTE_PATH] = path;
 }

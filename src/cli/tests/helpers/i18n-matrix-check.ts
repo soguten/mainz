@@ -1,12 +1,20 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+import { nextTick, waitFor } from "../../../testing/async-testing.ts";
+import {
+    assertDocumentState,
+    type CliTestNavigationMode,
+    type CliTestRenderMode,
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    resolveDirectLoadFixture,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "../test-helpers.ts";
 
 const [mode, navigation] = Deno.args as [("csr" | "ssg")?, ("spa" | "mpa" | "enhanced-mpa")?];
 
@@ -14,15 +22,18 @@ if (!mode || !navigation) {
     throw new Error("Usage: deno run -A ./src/cli/tests/helpers/i18n-matrix-check.ts <mode> <navigation>");
 }
 
-await runBuildCommand([
-    "build",
-    "--target",
-    "site",
-    "--mode",
-    mode,
-    "--navigation",
-    navigation,
-]);
+await runMainzCliCommand(
+    [
+        "build",
+        "--target",
+        "site",
+        "--mode",
+        mode,
+        "--navigation",
+        navigation,
+    ],
+    "Failed to build site for i18n matrix check.",
+);
 
 await assertRootLocaleRedirect({
     mode,
@@ -68,7 +79,7 @@ async function assertRootLocaleRedirect(args: {
         const scriptSrc = extractModuleScriptSrc(html);
         assert(scriptSrc, "Could not find CSR SPA root module script.");
 
-        const scriptPath = resolveOutputScriptPath(outputDir, rootHtmlPath, scriptSrc);
+        const scriptPath = resolveOutputScriptPath({ outputDir, htmlPath: rootHtmlPath, scriptSrc });
         await Deno.stat(scriptPath);
 
         await withHappyDom(async (window) => {
@@ -112,7 +123,7 @@ async function assertLocalizedRoute(args: {
 
     assert(scriptSrc, `Could not find module script src for ${args.mode} + ${args.navigation} (${args.locale}).`);
 
-    const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: fixture.outputDir, htmlPath: fixture.htmlPath, scriptSrc });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -122,10 +133,12 @@ async function assertLocalizedRoute(args: {
         await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${args.mode}-${args.navigation}-${args.locale}`);
         await nextTick();
 
-        assertEquals(document.documentElement.dataset.mainzNavigation, args.navigation);
-        assertEquals(document.documentElement.lang, args.locale);
-        assertEquals(document.title, "Mainz");
-        assertStringIncludes(document.body.textContent ?? "", args.expectedText);
+        assertDocumentState({
+            navigation: args.navigation,
+            locale: args.locale,
+            title: "Mainz",
+            bodyIncludes: args.expectedText,
+        });
         assertEquals(
             document.querySelector<HTMLAnchorElement>(`a[data-locale="${args.locale === "en" ? "pt" : "en"}"]`)?.getAttribute("href"),
             args.alternateHref,
@@ -134,68 +147,28 @@ async function assertLocalizedRoute(args: {
 }
 
 async function resolveLocalizedRouteFixture(
-    renderMode: "csr" | "ssg",
-    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+    renderMode: CliTestRenderMode,
+    navigationMode: CliTestNavigationMode,
     locale: "en" | "pt",
 ): Promise<{ html: string; htmlPath: string; outputDir: string }> {
     const outputDir = resolve(repoRoot, `dist/site/${renderMode}`);
-
-    if (renderMode === "csr" && navigationMode === "spa") {
-        const htmlPath = resolve(outputDir, "index.html");
-        return {
-            html: await Deno.readTextFile(htmlPath),
-            htmlPath,
-            outputDir,
-        };
-    }
-
-    const htmlPath = resolve(outputDir, locale, "index.html");
-    return {
-        html: await Deno.readTextFile(htmlPath),
-        htmlPath,
+    const fixture = await resolveDirectLoadFixture({
         outputDir,
-    };
-}
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
+        renderMode,
+        navigationMode,
+        documentHtmlPath: `${locale}/index.html`,
     });
 
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build site for i18n matrix check.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+    return {
+        html: fixture.html,
+        htmlPath: fixture.htmlPath,
+        outputDir: fixture.outputDir,
+    };
 }
 
 function extractInlineRedirectScript(html: string): string | null {
     const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i);
     return match?.[1]?.trim() ?? null;
-}
-
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
-}
-
-function resolveOutputScriptPath(outputDir: string, htmlPath: string, scriptSrc: string): string {
-    if (scriptSrc.startsWith("/")) {
-        return resolve(outputDir, `.${scriptSrc}`);
-    }
-
-    return resolve(dirname(htmlPath), scriptSrc);
 }
 
 function overrideNavigatorLocale(
@@ -214,23 +187,6 @@ function overrideNavigatorLocale(
         configurable: true,
         value: [locale],
     });
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-}
-
-async function waitFor(predicate: () => boolean, message = "Expected condition to become true."): Promise<void> {
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await nextTick();
-    }
-
-    throw new Error(message);
 }
 
 function overrideGlobalNavigatorLocale(locale: string): void {

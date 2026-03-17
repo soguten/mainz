@@ -2,7 +2,6 @@ import { Page } from "../../index.ts";
 
 export class HeadFixturePage extends Page {
     static override page = {
-        path: "/head",
         head: {
             title: "Fixture Title",
             meta: [
@@ -21,7 +20,6 @@ export class HeadFixturePage extends Page {
 
 export class AlternateHeadFixturePage extends Page {
     static override page = {
-        path: "/head-alt",
         head: {
             title: "Alternate Fixture Title",
             meta: [
@@ -40,9 +38,7 @@ export class AlternateHeadFixturePage extends Page {
 }
 
 export class HeadlessFixturePage extends Page {
-    static override page = {
-        path: "/headless",
-    };
+    static override page = {};
 
     override render(): HTMLElement {
         return <main>Headless fixture</main>;

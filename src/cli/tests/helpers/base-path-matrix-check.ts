@@ -1,12 +1,22 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, relative, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+import { nextTick, waitFor } from "../../../testing/async-testing.ts";
+import {
+    assertDocumentState,
+    assertSeoState,
+    type CliTestNavigationMode,
+    type CliTestRenderMode,
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    readAlternateHref,
+    resolveDirectLoadFixture,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "../test-helpers.ts";
 const matrixBasePath = "/docs/mainz/";
 const matrixSiteUrl = "https://example.com/docs/mainz";
 
@@ -23,19 +33,22 @@ const testRoot = await Deno.makeTempDir({ dir: repoRoot, prefix: ".mainz-base-pa
 try {
     const { configPath, outputDir } = await writeMatrixConfig(testRoot);
 
-    await runBuildCommand([
-        "build",
-        "--config",
-        configPath,
-        "--target",
-        "site",
-        "--profile",
-        "gh-pages",
-        "--mode",
-        mode,
-        "--navigation",
-        navigation,
-    ]);
+    await runMainzCliCommand(
+        [
+            "build",
+            "--config",
+            configPath,
+            "--target",
+            "site",
+            "--profile",
+            "gh-pages",
+            "--mode",
+            mode,
+            "--navigation",
+            navigation,
+        ],
+        "Failed to build site for basePath matrix check.",
+    );
 
     await assertLocalizedHomeRoute({
         mode,
@@ -62,7 +75,12 @@ async function assertLocalizedHomeRoute(args: {
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(scriptSrc, `Could not find module script src for localized home route (${args.mode} + ${args.navigation}).`);
 
-    const scriptPath = resolveOutputScriptPath(modeOutputDir, fixture.htmlPath, scriptSrc, matrixBasePath);
+    const scriptPath = resolveOutputScriptPath({
+        outputDir: modeOutputDir,
+        htmlPath: fixture.htmlPath,
+        scriptSrc,
+        basePath: matrixBasePath,
+    });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -75,12 +93,18 @@ async function assertLocalizedHomeRoute(args: {
             document.documentElement.lang === "en"
         );
 
-        assertEquals(document.documentElement.dataset.mainzNavigation, args.navigation);
+        assertDocumentState({
+            navigation: args.navigation,
+            locale: "en",
+            bodyIncludes: "Start guided journey",
+        });
         assertEquals(window.location.pathname, `${matrixBasePath}en/`);
-        assertEquals(document.documentElement.lang, "en");
-        assertStringIncludes(document.body.textContent ?? "", "Start guided journey");
-        assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), `${matrixSiteUrl}/en/`);
-        assertEquals(readAlternateHref("pt"), `${matrixSiteUrl}/pt/`);
+        assertSeoState({
+            canonical: `${matrixSiteUrl}/en/`,
+            alternates: {
+                pt: `${matrixSiteUrl}/pt/`,
+            },
+        });
 
         const localeLink = document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]');
         assert(localeLink, "Expected the PT locale switcher link to exist under a basePath.");
@@ -98,9 +122,13 @@ async function assertLocalizedHomeRoute(args: {
             assertEquals(clickResult, false);
             assertEquals(clickEvent.defaultPrevented, true);
             assertEquals(window.location.pathname, `${matrixBasePath}pt/`);
-            assertEquals(document.documentElement.lang, "pt");
-            assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
-            assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), `${matrixSiteUrl}/pt/`);
+            assertDocumentState({
+                locale: "pt",
+                bodyIncludes: "Iniciar trilha guiada",
+            });
+            assertSeoState({
+                canonical: `${matrixSiteUrl}/pt/`,
+            });
             assertEquals(prefetchHref, null);
             assertEquals(document.documentElement.dataset.mainzTransitionPhase, undefined);
             return;
@@ -109,8 +137,10 @@ async function assertLocalizedHomeRoute(args: {
         assertEquals(clickResult, true);
         assertEquals(clickEvent.defaultPrevented, false);
         assertEquals(window.location.pathname, `${matrixBasePath}pt/`);
-        assertEquals(document.documentElement.lang, "en");
-        assertStringIncludes(document.body.textContent ?? "", "Start guided journey");
+        assertDocumentState({
+            locale: "en",
+            bodyIncludes: "Start guided journey",
+        });
 
         if (args.navigation === "enhanced-mpa") {
             assertEquals(prefetchHref, `https://mainz.local${matrixBasePath}pt/`);
@@ -133,7 +163,12 @@ async function assertLocalizedNotFoundRoute(args: {
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(scriptSrc, `Could not find module script src for localized notFound route (${args.mode} + ${args.navigation}).`);
 
-    const scriptPath = resolveOutputScriptPath(modeOutputDir, fixture.htmlPath, scriptSrc, matrixBasePath);
+    const scriptPath = resolveOutputScriptPath({
+        outputDir: modeOutputDir,
+        htmlPath: fixture.htmlPath,
+        scriptSrc,
+        basePath: matrixBasePath,
+    });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -146,60 +181,59 @@ async function assertLocalizedNotFoundRoute(args: {
             document.documentElement.lang === "pt"
         );
 
-        assertEquals(document.documentElement.dataset.mainzNavigation, args.navigation);
-        assertEquals(document.documentElement.lang, "pt");
-        assertStringIncludes(document.body.textContent ?? "", "Essa rota nao existe no Mainz.");
+        assertDocumentState({
+            navigation: args.navigation,
+            locale: "pt",
+            bodyIncludes: "Essa rota nao existe no Mainz.",
+        });
 
         const localeLink = document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="en"]');
         assert(localeLink, "Expected the EN locale switcher link to exist on the localized 404 page.");
         assertEquals(localeLink.getAttribute("href"), `${matrixBasePath}en/nao-existe`);
 
-        assertEquals(
-            document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
-            `${matrixSiteUrl}/pt/nao-existe`,
-        );
-        assertEquals(readAlternateHref("en"), `${matrixSiteUrl}/en/nao-existe`);
-        assertEquals(readAlternateHref("pt"), `${matrixSiteUrl}/pt/nao-existe`);
+        assertSeoState({
+            canonical: `${matrixSiteUrl}/pt/nao-existe`,
+            alternates: {
+                en: `${matrixSiteUrl}/en/nao-existe`,
+                pt: `${matrixSiteUrl}/pt/nao-existe`,
+            },
+        });
     }, { url: `${matrixSiteUrl.replace("https://example.com", "https://mainz.local")}/pt/nao-existe` });
 }
 
 async function resolveHomeFixture(
     outputDir: string,
-    renderMode: "csr" | "ssg",
-    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+    renderMode: CliTestRenderMode,
+    navigationMode: CliTestNavigationMode,
 ): Promise<{ html: string; htmlPath: string }> {
-    if (renderMode === "csr" && navigationMode === "spa") {
-        const htmlPath = resolve(outputDir, "index.html");
-        return {
-            html: await Deno.readTextFile(htmlPath),
-            htmlPath,
-        };
-    }
+    const fixture = await resolveDirectLoadFixture({
+        outputDir,
+        renderMode,
+        navigationMode,
+        documentHtmlPath: "en/index.html",
+    });
 
-    const htmlPath = resolve(outputDir, "en", "index.html");
     return {
-        html: await Deno.readTextFile(htmlPath),
-        htmlPath,
+        html: fixture.html,
+        htmlPath: fixture.htmlPath,
     };
 }
 
 async function resolveNotFoundFixture(
     outputDir: string,
-    renderMode: "csr" | "ssg",
-    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+    renderMode: CliTestRenderMode,
+    navigationMode: CliTestNavigationMode,
 ): Promise<{ html: string; htmlPath: string }> {
-    if (renderMode === "csr" && navigationMode === "spa") {
-        const htmlPath = resolve(outputDir, "index.html");
-        return {
-            html: await Deno.readTextFile(htmlPath),
-            htmlPath,
-        };
-    }
+    const fixture = await resolveDirectLoadFixture({
+        outputDir,
+        renderMode,
+        navigationMode,
+        documentHtmlPath: "404.html",
+    });
 
-    const htmlPath = resolve(outputDir, "404.html");
     return {
-        html: await Deno.readTextFile(htmlPath),
-        htmlPath,
+        html: fixture.html,
+        htmlPath: fixture.htmlPath,
     };
 }
 
@@ -257,65 +291,6 @@ async function writeMatrixConfig(rootDir: string): Promise<{ configPath: string;
     };
 }
 
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build site for basePath matrix check.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
-}
-
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
-}
-
-function resolveOutputScriptPath(outputDir: string, htmlPath: string, scriptSrc: string, basePath: string): string {
-    if (scriptSrc.startsWith("/")) {
-        const normalizedBasePath = basePath.replace(/\/+$/, "/");
-        const sourceWithoutBasePath = scriptSrc.startsWith(normalizedBasePath)
-            ? scriptSrc.slice(normalizedBasePath.length - 1)
-            : scriptSrc;
-        return resolve(outputDir, `.${sourceWithoutBasePath}`);
-    }
-
-    return resolve(dirname(htmlPath), scriptSrc);
-}
-
-function readAlternateHref(hreflang: string): string | null {
-    return document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)?.getAttribute("href") ?? null;
-}
-
-async function waitFor(
-    predicate: () => boolean,
-    message = "Expected condition to become true.",
-): Promise<void> {
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await nextTick();
-    }
-
-    throw new Error(message);
-}
-
 async function waitForHomeClick(navigationMode: "spa" | "mpa" | "enhanced-mpa"): Promise<void> {
     if (navigationMode === "spa") {
         await waitFor(() =>
@@ -328,9 +303,4 @@ async function waitForHomeClick(navigationMode: "spa" | "mpa" | "enhanced-mpa"):
     }
 
     await nextTick();
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
 }

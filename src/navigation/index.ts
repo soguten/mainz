@@ -1,5 +1,5 @@
+import { requirePageRoutePath, type PageHeadDefinition, type PageLoadContext } from "../components/page.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
-import type { PageHeadDefinition, PageLoadContext } from "../components/page.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
 import { buildRouteHead, resolveLocaleRedirectPath, shouldPrefixLocaleForRoute } from "../routing/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
@@ -20,7 +20,6 @@ export interface NavigationLocaleContext {
 
 export interface SpaPageConstructor extends CustomElementConstructor {
     page?: {
-        path: string;
         locales?: readonly string[];
         head?: PageHeadDefinition;
     };
@@ -497,10 +496,15 @@ function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLa
     }
 
     const page = isSpaPageDefinition(entry) ? entry.page : entry;
-    const path = normalizeRoutePath(isSpaPageDefinition(entry) ? entry.path ?? page.page?.path : page.page?.path);
+    const missingRouteMessage = `SPA navigation page "${page.name}" must define @route(...) or an explicit route path.`;
+    const path = normalizeRoutePath(
+        isSpaPageDefinition(entry)
+            ? entry.path ?? requirePageRoutePath(page, missingRouteMessage)
+            : requirePageRoutePath(page, missingRouteMessage),
+    );
 
     if (!path) {
-        throw new Error(`SPA navigation page "${page.name}" must define page.path or an explicit route path.`);
+        throw new Error(`SPA navigation page "${page.name}" must define @route(...) or an explicit route path.`);
     }
 
     return {

@@ -1,14 +1,14 @@
-import { Page } from "mainz";
+import { Page, route } from "mainz";
 import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
 
+@route("/404")
 export class NotFoundPage extends Page {
     static override customElementTag = "x-mainz-not-found-page";
     static override styles = pageStyles;
 
     static override page = {
-        path: "/404",
         mode: "ssg" as const,
         notFound: true,
         locales: ["en", "pt"],

@@ -1,14 +1,14 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { resolve } from "node:path";
+import { cliTestsRepoRoot as repoRoot, runMainzCliCommand } from "./test-helpers.ts";
 
 Deno.test("e2e/csr seo: mpa build should emit relative locale seo links", async () => {
-    await runBuildCommand(["build", "--target", "site", "--mode", "csr", "--navigation", "mpa"]);
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "csr", "--navigation", "mpa"],
+        "Failed to build site for CSR SEO e2e test.",
+    );
 
     const enHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/en/index.html"));
     const ptHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/pt/index.html"));
@@ -33,7 +33,10 @@ Deno.test("e2e/csr seo: mpa build should emit relative locale seo links", async 
 });
 
 Deno.test("e2e/csr seo: gh-pages profile should emit absolute locale seo links for document routes", async () => {
-    await runBuildCommand(["build", "--target", "site", "--mode", "csr", "--profile", "gh-pages"]);
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "csr", "--profile", "gh-pages"],
+        "Failed to build site for CSR SEO e2e test.",
+    );
 
     const enHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/en/index.html"));
     const ptHtml = await Deno.readTextFile(resolve(repoRoot, "dist/site/csr/pt/index.html"));
@@ -56,29 +59,6 @@ Deno.test("e2e/csr seo: gh-pages profile should emit absolute locale seo links f
     assertEquals(extractCanonicalHrefs(rootHtml), ["https://mainz.dev/en/"]);
     assertStringIncludes(rootHtml, 'http-equiv="refresh" content="0; url=/en/"');
 });
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build site for CSR SEO e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
-}
 
 function extractCanonicalHrefs(html: string): string[] {
     return Array.from(

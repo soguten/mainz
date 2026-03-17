@@ -1,9 +1,9 @@
-import { Page } from "../../index.ts";
+import { Page, route } from "../../index.ts";
 
+@route("/")
 export class SpaHomePage extends Page {
     static override customElementTag = "x-mainz-navigation-spa-home-page";
     static override page = {
-        path: "/",
         head: {
             title: "Home",
         },
@@ -17,10 +17,10 @@ export class SpaHomePage extends Page {
     }
 }
 
+@route("/docs/:slug")
 export class SpaDocsPage extends Page {
     static override customElementTag = "x-mainz-navigation-spa-docs-page";
     static override page = {
-        path: "/docs/:slug",
         head: {
             title: "Docs",
         },
@@ -38,10 +38,10 @@ export class SpaDocsPage extends Page {
     }
 }
 
+@route("/404")
 export class SpaNotFoundPage extends Page {
     static override customElementTag = "x-mainz-navigation-spa-not-found-page";
     static override page = {
-        path: "/404",
         head: {
             title: "Not Found",
         },

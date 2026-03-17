@@ -21,6 +21,7 @@ export interface FilesystemRoute {
 export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
     file: string;
     exportName: string;
+    path: string;
     mode: RenderMode;
 }
 

@@ -1,13 +1,18 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { createSsgPreviewHandler } from "../../../preview/ssg-server.ts";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+import { nextTick, waitFor } from "../../../testing/async-testing.ts";
+import {
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    resolvePreviewFixture,
+    resolveOutputHtmlPath,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "../test-helpers.ts";
 
 const [mode, navigation] = Deno.args as [("csr" | "ssg")?, ("spa" | "mpa" | "enhanced-mpa")?];
 
@@ -17,15 +22,18 @@ if (!mode || !navigation) {
     );
 }
 
-await runBuildCommand([
-    "build",
-    "--target",
-    "docs",
-    "--mode",
-    mode,
-    "--navigation",
-    navigation,
-]);
+await runMainzCliCommand(
+    [
+        "build",
+        "--target",
+        "docs",
+        "--mode",
+        mode,
+        "--navigation",
+        navigation,
+    ],
+    "Failed to build docs for locale routing check.",
+);
 
 await assertRootRoute({ mode, navigation });
 await assertHomeLinks({ mode, navigation });
@@ -43,7 +51,7 @@ async function assertRootRoute(args: {
         const scriptSrc = extractModuleScriptSrc(html);
         assert(scriptSrc, "Could not find docs CSR SPA root module script.");
 
-        const scriptPath = resolveOutputScriptPath(outputDir, rootHtmlPath, scriptSrc);
+        const scriptPath = resolveOutputScriptPath({ outputDir, htmlPath: rootHtmlPath, scriptSrc });
         await Deno.stat(scriptPath);
 
         await withHappyDom(async (window) => {
@@ -74,7 +82,7 @@ async function assertHomeLinks(args: {
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/).`);
 
-    const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: fixture.outputDir, htmlPath: fixture.htmlPath, scriptSrc });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -112,7 +120,7 @@ async function assertDocsRoute(args: {
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(scriptSrc, `Could not find docs module script for ${args.mode} + ${args.navigation} (/quickstart).`);
 
-    const scriptPath = resolveOutputScriptPath(fixture.outputDir, fixture.htmlPath, scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: fixture.outputDir, htmlPath: fixture.htmlPath, scriptSrc });
     await Deno.stat(scriptPath);
 
     if (fixture.responseStatus !== undefined) {
@@ -140,71 +148,20 @@ async function resolveRouteFixture(
     routePath: string,
 ): Promise<{ html: string; htmlPath: string; outputDir: string; responseStatus?: number }> {
     const outputDir = resolve(repoRoot, `dist/docs/${renderMode}`);
-
-    if (renderMode === "csr" && navigationMode === "spa") {
-        const htmlPath = resolve(outputDir, "index.html");
-        return {
-            html: await Deno.readTextFile(htmlPath),
-            htmlPath,
-            outputDir,
-        };
-    }
-
-    const handler = createSsgPreviewHandler(outputDir);
-    const response = await handler(new Request(`http://127.0.0.1:4175${routePath}`));
-    const htmlPath = resolveOutputHtmlPath(outputDir, routePath);
-
-    return {
-        html: await Deno.readTextFile(htmlPath),
-        htmlPath,
+    return await resolvePreviewFixture({
         outputDir,
-        responseStatus: response.status,
-    };
-}
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: ["run", "-A", "./src/cli/mainz.ts", ...args],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
+        renderMode,
+        navigationMode,
+        requestUrl: `http://127.0.0.1:4175${routePath}`,
+        resolveHtmlPath() {
+            return resolveOutputHtmlPath(outputDir, routePath);
+        },
     });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build docs for locale routing check.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
 }
 
 function extractInlineRedirectScript(html: string): string | null {
     const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i);
     return match?.[1]?.trim() ?? null;
-}
-
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
-}
-
-function resolveOutputScriptPath(outputDir: string, htmlPath: string, scriptSrc: string): string {
-    if (scriptSrc.startsWith("/")) {
-        return resolve(outputDir, `.${scriptSrc}`);
-    }
-
-    return resolve(dirname(htmlPath), scriptSrc);
-}
-
-function resolveOutputHtmlPath(outputDir: string, routePath: string): string {
-    const normalizedPath = routePath.replace(/^\/+/, "").replace(/\/+$/, "");
-    if (!normalizedPath) {
-        return resolve(outputDir, "index.html");
-    }
-
-    return resolve(outputDir, normalizedPath, "index.html");
 }
 
 function readAnchorHref(label: string): string | null {
@@ -249,21 +206,4 @@ function overrideGlobalNavigatorLocale(locale: string): void {
         writable: true,
         value: navigatorProxy,
     });
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-}
-
-async function waitFor(predicate: () => boolean, message = "Expected condition to become true."): Promise<void> {
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await nextTick();
-    }
-
-    throw new Error(message);
 }

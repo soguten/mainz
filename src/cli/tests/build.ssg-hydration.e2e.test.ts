@@ -2,12 +2,17 @@
 
 import { assert, assertEquals, assertNotEquals, assertStringIncludes } from "@std/assert";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { createSsgPreviewHandler } from "../../preview/ssg-server.ts";
 import { withHappyDom } from "../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { nextTick } from "../../testing/async-testing.ts";
+import {
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    readJsonFile,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "./test-helpers.ts";
 
 Deno.test("e2e/ssg hydration: prerendered site should hydrate and keep click interactivity", async () => {
     await buildSiteSsg();
@@ -137,7 +142,7 @@ Deno.test("e2e/ssg hydration: 404 artifact should prerender and hydrate the site
     assert(scriptSrc, "Could not find module script src in prerendered 404 html.");
     assertStringIncludes(scriptSrc, "/assets/");
 
-    const scriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/ssg"), scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: resolve(repoRoot, "dist/site/ssg"), scriptSrc });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -182,7 +187,7 @@ Deno.test("e2e/ssg preview: localized missing routes should hydrate the localize
 
     const scriptSrc = extractModuleScriptSrc(html);
     assert(scriptSrc, "Could not find module script src in localized prerendered 404 html.");
-    const scriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/ssg"), scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: resolve(repoRoot, "dist/site/ssg"), scriptSrc });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -230,61 +235,27 @@ Deno.test("e2e/ssg hydration: gh-pages profile should hydrate localized routes u
 });
 
 async function buildSiteSsg(): Promise<void> {
-    await runBuildCommand(["build", "--target", "site", "--mode", "ssg"]);
-}
-
-async function buildSiteGhPages(): Promise<void> {
-    await runBuildCommand(["build", "--target", "site", "--profile", "gh-pages"]);
-}
-
-async function buildSitePlainStatic(): Promise<void> {
-    await runBuildCommand(["build", "--target", "site", "--profile", "plain-static"]);
-}
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(
-        `Failed to build site for hydration e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "ssg"],
+        "Failed to build site for hydration e2e test.",
     );
 }
 
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
+async function buildSiteGhPages(): Promise<void> {
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--profile", "gh-pages"],
+        "Failed to build site for hydration e2e test.",
+    );
 }
 
-function resolveOutputScriptPath(outputDir: string, scriptSrc: string): string {
-    if (scriptSrc.startsWith("/")) {
-        return resolve(outputDir, `.${scriptSrc}`);
-    }
-
-    return resolve(outputDir, scriptSrc);
+async function buildSitePlainStatic(): Promise<void> {
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--profile", "plain-static"],
+        "Failed to build site for hydration e2e test.",
+    );
 }
 
 async function readHydrationManifest(): Promise<{ target: string; hydration: string; navigation: string }> {
     const hydrationManifestPath = resolve(repoRoot, "dist/site/ssg/hydration.json");
-    return JSON.parse(await Deno.readTextFile(hydrationManifestPath));
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    return await readJsonFile(hydrationManifestPath);
 }

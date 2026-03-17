@@ -1,12 +1,16 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { nextTick } from "../../testing/async-testing.ts";
+import {
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "./test-helpers.ts";
 
 Deno.test("e2e/csr spa: build should emit a direct-load shell that works for localized routes and notFound routes", async () => {
     await buildSiteCsrSpa();
@@ -18,7 +22,7 @@ Deno.test("e2e/csr spa: build should emit a direct-load shell that works for loc
     assert(scriptSrc, "Could not find module script src in CSR SPA html.");
     assertStringIncludes(scriptSrc, "/assets/");
 
-    const scriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/csr"), scriptSrc);
+    const scriptPath = resolveOutputScriptPath({ outputDir: resolve(repoRoot, "dist/site/csr"), scriptSrc });
     await Deno.stat(scriptPath);
 
     await withHappyDom(async () => {
@@ -77,50 +81,10 @@ Deno.test("e2e/csr spa: task contract should preview csr spa with explicit spa n
 });
 
 async function buildSiteCsrSpa(): Promise<void> {
-    await runBuildCommand(["build", "--target", "site", "--mode", "csr", "--navigation", "spa"]);
-}
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(
-        `Failed to build site for CSR SPA e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "csr", "--navigation", "spa"],
+        "Failed to build site for CSR SPA e2e test.",
     );
-}
-
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
-}
-
-function resolveOutputScriptPath(outputDir: string, scriptSrc: string): string {
-    if (scriptSrc.startsWith("/")) {
-        return resolve(outputDir, `.${scriptSrc}`);
-    }
-
-    return resolve(outputDir, scriptSrc);
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
 }
 
 function overrideNavigatorLocale(locale: string): void {

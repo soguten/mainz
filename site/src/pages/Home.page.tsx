@@ -1,11 +1,11 @@
-import { Page } from "mainz";
+import { Page, route } from "mainz";
 import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 
+@route("/")
 export class HomePage extends Page {
     static override customElementTag = "x-mainz-home-page";
 
     static override page = {
-        path: "/",
         mode: "ssg" as const,
         locales: ["en", "pt"],
         head: {

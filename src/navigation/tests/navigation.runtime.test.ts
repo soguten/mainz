@@ -1,34 +1,10 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals } from "@std/assert";
-import { setupMainzDom } from "../../testing/index.ts";
-import {
-    createScrollStorageKey,
-    detectViewTransitionSupport,
-    isPrefetchableAnchor,
-    type SpaNavigationRenderContext,
-    startPagesApp,
-    startNavigation,
-} from "../index.ts";
+import { nextTick, prepareNavigationTest, waitFor } from "../../testing/index.ts";
+import type { SpaNavigationRenderContext } from "../index.ts";
 
 let spaFixturesPromise: Promise<typeof import("./navigation.spa.fixture.ts")> | undefined;
-
-function resetNavigationTestDom(): void {
-    document.head.innerHTML = "";
-    document.body.innerHTML = "";
-    document.title = "";
-    delete document.documentElement.dataset.mainzNavigation;
-    delete document.documentElement.dataset.mainzTransitionPhase;
-    delete document.documentElement.dataset.mainzViewTransitions;
-    delete (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_SITE_URL__;
-    window.sessionStorage.clear();
-    window.history.replaceState(null, "", "/");
-}
 
 async function loadSpaFixtures(): Promise<typeof import("./navigation.spa.fixture.ts")> {
     if (!spaFixturesPromise) {
@@ -39,8 +15,7 @@ async function loadSpaFixtures(): Promise<typeof import("./navigation.spa.fixtur
 }
 
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "mpa" });
 
@@ -52,8 +27,7 @@ Deno.test("navigation/runtime: should mark document with the resolved navigation
 });
 
 Deno.test("navigation/runtime: should render the current SPA route on startup", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
     const seenContexts: SpaNavigationRenderContext[] = [];
 
@@ -85,8 +59,7 @@ Deno.test("navigation/runtime: should render the current SPA route on startup", 
 });
 
 Deno.test("navigation/runtime: should render the SPA notFound page for unknown startup routes", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage, SpaNotFoundPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main>';
@@ -109,8 +82,7 @@ Deno.test("navigation/runtime: should render the SPA notFound page for unknown s
 });
 
 Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inferred locales", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startPagesApp } = await prepareNavigationTest();
     const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
 
     (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
@@ -135,8 +107,7 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
 });
 
 Deno.test("navigation/runtime: should strip locale prefixes and notify locale changes", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
     const seenLocales: string[] = [];
 
@@ -163,8 +134,7 @@ Deno.test("navigation/runtime: should strip locale prefixes and notify locale ch
 });
 
 Deno.test("navigation/runtime: should redirect the spa root to the preferred locale on startup", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main>';
@@ -187,8 +157,7 @@ Deno.test("navigation/runtime: should redirect the spa root to the preferred loc
 });
 
 Deno.test("navigation/runtime: should fallback the spa root redirect to the primary locale when navigator locale is unsupported", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main>';
@@ -211,8 +180,7 @@ Deno.test("navigation/runtime: should fallback the spa root redirect to the prim
 });
 
 Deno.test("navigation/runtime: should not prefix the spa root for single-locale auto targets", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
     (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__ = "auto";
@@ -237,8 +205,7 @@ Deno.test("navigation/runtime: should not prefix the spa root for single-locale 
 });
 
 Deno.test("navigation/runtime: should apply generated canonical and hreflang links for spa routes", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
     (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__ = "en";
@@ -277,8 +244,7 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
 });
 
 Deno.test("navigation/runtime: should bootstrap document-first pages without app-level custom element registration", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
     const seenContexts: SpaNavigationRenderContext[] = [];
 
@@ -303,8 +269,7 @@ Deno.test("navigation/runtime: should bootstrap document-first pages without app
 });
 
 Deno.test("navigation/runtime: should resolve locales for prerendered document-first pages", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
     const seenLocales: string[] = [];
 
@@ -331,8 +296,7 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
 });
 
 Deno.test("navigation/runtime: should intercept SPA links and render the matching page", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="docs-link" href="/docs/intro">Docs</a>';
@@ -365,8 +329,7 @@ Deno.test("navigation/runtime: should intercept SPA links and render the matchin
 });
 
 Deno.test("navigation/runtime: should render the SPA notFound page for unknown internal links", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage, SpaNotFoundPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="missing-link" href="/missing">Missing</a>';
@@ -397,8 +360,7 @@ Deno.test("navigation/runtime: should render the SPA notFound page for unknown i
 });
 
 Deno.test("navigation/runtime: should rerender the current SPA route on popstate", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="docs-link" href="/docs/intro">Docs</a>';
@@ -429,8 +391,7 @@ Deno.test("navigation/runtime: should rerender the current SPA route on popstate
 });
 
 Deno.test("navigation/runtime: should ignore SPA links outside the configured basePath", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="external-app-link" href="/docs/intro">Docs</a>';
@@ -461,8 +422,7 @@ Deno.test("navigation/runtime: should ignore SPA links outside the configured ba
 });
 
 Deno.test("navigation/runtime: should lazy load SPA pages before rendering", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main>';
@@ -500,8 +460,7 @@ Deno.test("navigation/runtime: should lazy load SPA pages before rendering", asy
 });
 
 Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across navigations", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="docs-link" href="/docs/cached">Docs</a>';
@@ -552,8 +511,7 @@ Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across na
 });
 
 Deno.test("navigation/runtime: should expose transition metadata in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { detectViewTransitionSupport, startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "enhanced-mpa" });
 
@@ -564,8 +522,7 @@ Deno.test("navigation/runtime: should expose transition metadata in enhanced-mpa
 });
 
 Deno.test("navigation/runtime: should apply entering phase on pageshow in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "enhanced-mpa" });
 
@@ -579,8 +536,7 @@ Deno.test("navigation/runtime: should apply entering phase on pageshow in enhanc
 });
 
 Deno.test("navigation/runtime: should prefetch same-origin links in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "enhanced-mpa" });
     const anchor = document.createElement("a");
@@ -613,8 +569,7 @@ Deno.test("navigation/runtime: should prefetch same-origin links in enhanced-mpa
 });
 
 Deno.test("navigation/runtime: should not prefetch external links", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { isPrefetchableAnchor } = await prepareNavigationTest();
 
     const anchor = document.createElement("a");
     anchor.href = "https://example.com/docs";
@@ -623,8 +578,7 @@ Deno.test("navigation/runtime: should not prefetch external links", async () => 
 });
 
 Deno.test("navigation/runtime: should not prefetch same-origin links outside the configured basePath", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { isPrefetchableAnchor } = await prepareNavigationTest();
 
     const anchor = document.createElement("a");
     anchor.href = "http://localhost/docs";
@@ -633,8 +587,7 @@ Deno.test("navigation/runtime: should not prefetch same-origin links outside the
 });
 
 Deno.test("navigation/runtime: should mark leaving phase for internal document navigation", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "enhanced-mpa" });
     const anchor = document.createElement("a");
@@ -649,8 +602,7 @@ Deno.test("navigation/runtime: should mark leaving phase for internal document n
 });
 
 Deno.test("navigation/runtime: should ignore links outside the configured basePath in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { startNavigation } = await prepareNavigationTest();
 
     const controller = startNavigation({ mode: "enhanced-mpa", basePath: "/app/" });
     const anchor = document.createElement("a");
@@ -667,8 +619,7 @@ Deno.test("navigation/runtime: should ignore links outside the configured basePa
 });
 
 Deno.test("navigation/runtime: should restore saved scroll position in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { createScrollStorageKey, startNavigation } = await prepareNavigationTest();
 
     const calls: Array<{ x: number; y: number }> = [];
     window.scrollTo = ((x: number, y: number) => {
@@ -688,8 +639,7 @@ Deno.test("navigation/runtime: should restore saved scroll position in enhanced-
 });
 
 Deno.test("navigation/runtime: should persist scroll position on pagehide in enhanced-mpa mode", async () => {
-    await setupMainzDom();
-    resetNavigationTestDom();
+    const { createScrollStorageKey, startNavigation } = await prepareNavigationTest();
 
     Object.defineProperty(window, "scrollX", {
         configurable: true,
@@ -712,11 +662,6 @@ Deno.test("navigation/runtime: should persist scroll position on pagehide in enh
     controller.cleanup();
 });
 
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-}
-
 function overrideNavigatorLocale(locale: string): void {
     const navigatorProxy = Object.create(navigator);
 
@@ -738,16 +683,4 @@ function overrideNavigatorLocale(locale: string): void {
 
 function readAlternateHref(hreflang: string): string | null {
     return document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)?.getAttribute("href") ?? null;
-}
-
-async function waitFor(predicate: () => boolean, message = "Expected condition to become true."): Promise<void> {
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await nextTick();
-    }
-
-    throw new Error(message);
 }

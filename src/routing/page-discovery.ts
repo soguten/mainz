@@ -5,8 +5,8 @@ import { pathToFileURL } from "node:url";
 import {
     isPageConstructor,
     type PageConstructor,
-    type PageDefinition,
     type PageHeadDefinition,
+    requirePageRoutePath,
 } from "../components/page.ts";
 import type { RenderMode } from "./types.ts";
 import { isFilesystemPageFile } from "./filesystem.ts";
@@ -80,19 +80,11 @@ function normalizePageDefinition(
     filePath: string,
     exportName: string,
 ): DiscoveredPage["page"] {
-    const page = ctor.page;
-    if (!page) {
-        throw new Error(
-            `Page export "${exportName}" in "${filePath}" must define static page metadata.`,
-        );
-    }
-
-    const path = page.path?.trim();
-    if (!path) {
-        throw new Error(
-            `Page export "${exportName}" in "${filePath}" must define page.path.`,
-        );
-    }
+    const page = ctor.page ?? {};
+    const path = requirePageRoutePath(
+        ctor,
+        `Page export "${exportName}" in "${filePath}" must define a route with @route(...).`,
+    );
 
     return {
         path,

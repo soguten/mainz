@@ -1,12 +1,12 @@
-import { Page } from "mainz";
+import { Page, route } from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { getDocsNavSections } from "../lib/docs.ts";
 
+@route("/404")
 export class NotFoundPage extends Page {
     static override customElementTag = "x-mainz-docs-not-found-page";
 
     static override page = {
-        path: "/404",
         mode: "ssg" as const,
         notFound: true,
         locales: ["en"],

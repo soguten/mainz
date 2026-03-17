@@ -1,9 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals } from "@std/assert";
-import { setupMainzDom } from "../../testing/index.ts";
+import { prepareNavigationTest, waitFor } from "../../testing/index.ts";
 import type { NavigationMode } from "../../routing/index.ts";
-import { startNavigation } from "../index.ts";
 
 let fixturesPromise: Promise<typeof import("./navigation.route-params.fixture.ts")> | undefined;
 
@@ -13,23 +12,6 @@ async function loadFixtures(): Promise<typeof import("./navigation.route-params.
     }
 
     return await fixturesPromise;
-}
-
-function resetRouteParamsMatrixDom(): void {
-    document.head.innerHTML = "";
-    document.body.innerHTML = "";
-    document.title = "";
-    delete document.documentElement.dataset.mainzNavigation;
-    delete document.documentElement.dataset.mainzTransitionPhase;
-    delete document.documentElement.dataset.mainzViewTransitions;
-    delete (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_SITE_URL__;
-    window.sessionStorage.clear();
-    window.history.replaceState(null, "", "/");
 }
 
 const spaStartupCases = [
@@ -51,8 +33,7 @@ const spaStartupCases = [
 
 for (const testCase of spaStartupCases) {
     Deno.test(`navigation/route params matrix: spa startup should resolve ${testCase.label}`, async () => {
-        await setupMainzDom();
-        resetRouteParamsMatrixDom();
+        const { startNavigation } = await prepareNavigationTest();
         const { RouteParamsHomePage, RouteParamsDocsPage, RouteParamsCatchAllPage, RouteParamsNotFoundPage } =
             await loadFixtures();
 
@@ -87,8 +68,7 @@ for (const testCase of spaStartupCases) {
 }
 
 Deno.test("navigation/route params matrix: spa should prefer the dynamic route over catch-all routes", async () => {
-    await setupMainzDom();
-    resetRouteParamsMatrixDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { RouteParamsHomePage, RouteParamsDocsPage, RouteParamsCatchAllPage, RouteParamsNotFoundPage } =
         await loadFixtures();
 
@@ -112,8 +92,7 @@ Deno.test("navigation/route params matrix: spa should prefer the dynamic route o
 });
 
 Deno.test("navigation/route params matrix: spa should fallback to catch-all params when the dynamic route does not match", async () => {
-    await setupMainzDom();
-    resetRouteParamsMatrixDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { RouteParamsHomePage, RouteParamsDocsPage, RouteParamsCatchAllPage, RouteParamsNotFoundPage } =
         await loadFixtures();
 
@@ -140,8 +119,7 @@ Deno.test("navigation/route params matrix: spa should fallback to catch-all para
 });
 
 Deno.test("navigation/route params matrix: spa should keep params when navigating to a lazy route", async () => {
-    await setupMainzDom();
-    resetRouteParamsMatrixDom();
+    const { startNavigation } = await prepareNavigationTest();
     const { RouteParamsHomePage, RouteParamsDocsPage, RouteParamsNotFoundPage } = await loadFixtures();
 
     document.body.innerHTML = '<main id="app"></main><a id="docs-link" href="/pt/docs/lazy-intro">Docs</a>';
@@ -191,8 +169,7 @@ for (const navigationMode of ["mpa", "enhanced-mpa"] as const satisfies readonly
     Deno.test(
         `navigation/route params matrix: ${navigationMode} should apply route params to prerendered dynamic pages`,
         async () => {
-            await setupMainzDom();
-            resetRouteParamsMatrixDom();
+            const { startNavigation } = await prepareNavigationTest();
             const { RouteParamsDocsPage, RouteParamsCatchAllPage, RouteParamsNotFoundPage } = await loadFixtures();
 
             (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__ = "en";
@@ -236,21 +213,4 @@ for (const navigationMode of ["mpa", "enhanced-mpa"] as const satisfies readonly
 
 function readAlternateHref(hreflang: string): string | null {
     return document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)?.getAttribute("href") ?? null;
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-}
-
-async function waitFor(predicate: () => boolean, message = "Expected condition to become true."): Promise<void> {
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-        if (predicate()) {
-            return;
-        }
-
-        await nextTick();
-    }
-
-    throw new Error(message);
 }

@@ -1,11 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertMatch, assertStringIncludes } from "@std/assert";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { resolve } from "node:path";
+import { cliTestsRepoRoot as repoRoot, runMainzCliCommand } from "./test-helpers.ts";
 
 Deno.test("e2e/ssg seo: production profile should fallback to relative locale SEO links when siteUrl is omitted", async () => {
     await buildSiteSsg();
@@ -59,57 +56,17 @@ Deno.test("e2e/ssg seo: gh-pages profile should emit absolute locale SEO links w
 });
 
 async function buildSiteSsg(): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            "build",
-            "--target",
-            "site",
-            "--mode",
-            "ssg",
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build site for SEO e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "ssg"],
+        "Failed to build site for SEO e2e test.",
+    );
 }
 
 async function buildSiteGhPages(): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            "build",
-            "--target",
-            "site",
-            "--profile",
-            "gh-pages",
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(`Failed to build site for SEO e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--profile", "gh-pages"],
+        "Failed to build site for SEO e2e test.",
+    );
 }
 
 function extractCanonicalHrefs(html: string): string[] {

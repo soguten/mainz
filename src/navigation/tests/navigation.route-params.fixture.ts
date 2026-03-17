@@ -1,9 +1,9 @@
-import { Page } from "../../index.ts";
+import { Page, route } from "../../index.ts";
 
+@route("/")
 export class RouteParamsHomePage extends Page {
     static override customElementTag = "x-mainz-route-params-home-page";
     static override page = {
-        path: "/",
         head: {
             title: "Home",
         },
@@ -17,10 +17,10 @@ export class RouteParamsHomePage extends Page {
     }
 }
 
+@route("/docs/:slug")
 export class RouteParamsDocsPage extends Page {
     static override customElementTag = "x-mainz-route-params-docs-page";
     static override page = {
-        path: "/docs/:slug",
         locales: ["en", "pt"],
         head: {
             title: "Docs",
@@ -48,10 +48,10 @@ export class RouteParamsDocsPage extends Page {
     }
 }
 
+@route("/docs/*")
 export class RouteParamsCatchAllPage extends Page {
     static override customElementTag = "x-mainz-route-params-catch-all-page";
     static override page = {
-        path: "/docs/*",
         locales: ["en", "pt"],
         head: {
             title: "Docs CatchAll",
@@ -68,10 +68,10 @@ export class RouteParamsCatchAllPage extends Page {
     }
 }
 
+@route("/404")
 export class RouteParamsNotFoundPage extends Page {
     static override customElementTag = "x-mainz-route-params-not-found-page";
     static override page = {
-        path: "/404",
         locales: ["en", "pt"],
         head: {
             title: "Not Found",

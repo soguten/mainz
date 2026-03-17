@@ -6,14 +6,14 @@ That means less framework ceremony in `main.tsx` and more of the product model l
 
 ## Create your first page
 
-A page only needs static metadata and a render method. The framework takes care of custom element registration and head management.
+A page only needs a route annotation, optional static metadata, and a render method. The framework takes care of custom element registration and head management.
 
 ```tsx title="Home.page.tsx"
-import { Page } from "mainz";
+import { Page, route } from "mainz";
 
+@route("/")
 export class HomePage extends Page {
   static override page = {
-    path: "/",
     mode: "ssg" as const,
     head: {
       title: "Hello Mainz",

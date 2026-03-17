@@ -1,33 +1,26 @@
 import { Page, route } from "../../index.ts";
 
 @route("/")
-export class HomePage extends Page {
-    static override page = {
-        head: {
-            title: "Home",
-            meta: [
-                { name: "description", content: "Home page" },
-            ],
-        },
-    };
-
+export class DecoratedHomePage extends Page {
     override render(): HTMLElement {
         return <main>Home</main>;
     }
 }
 
 @route("/search")
-export class SearchPage extends Page {
+export class DecoratedSearchPage extends Page {
     static override page = {
         mode: "ssg" as const,
         locales: ["pt-BR", "en-US"],
+        head: {
+            title: "Search",
+            meta: [
+                { name: "description", content: "Search page" },
+            ],
+        },
     };
 
     override render(): HTMLElement {
         return <main>Search</main>;
     }
-}
-
-export function Helper(): HTMLElement {
-    return <div>helper</div>;
 }

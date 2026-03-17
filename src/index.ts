@@ -1,5 +1,5 @@
 export { Component } from "./components/index.ts";
-export { Page, isPageConstructor } from "./components/index.ts";
+export { Page, isPageConstructor, route } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
 export type { DefaultProps, DefaultState } from "./components/index.ts";
 export type {

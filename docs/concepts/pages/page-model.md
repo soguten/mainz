@@ -2,12 +2,14 @@
 
 In Mainz, a page owns the route metadata that matters to that page.
 
-That includes path, render mode, locales, and head information.
+That includes the route annotation plus render mode, locales, and head information.
 
 ```tsx title="Page contract"
+import { Page, route } from "mainz";
+
+@route("/")
 export class HomePage extends Page {
   static override page = {
-    path: "/",
     mode: "ssg" as const,
     head: {
       title: "Home",

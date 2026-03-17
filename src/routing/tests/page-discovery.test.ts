@@ -43,6 +43,44 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
     ]);
 });
 
+Deno.test("routing/page-discovery: should discover route metadata declared with decorators", async () => {
+    await setupMainzDom();
+
+    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.decorator.fixture.tsx"));
+    const pages = await discoverPagesFromFile(file);
+
+    assertEquals(pages, [
+        {
+            exportName: "DecoratedHomePage",
+            file: file.replaceAll("\\", "/"),
+            page: {
+                path: "/",
+                mode: "csr",
+                notFound: undefined,
+                locales: undefined,
+                head: undefined,
+            },
+        },
+        {
+            exportName: "DecoratedSearchPage",
+            file: file.replaceAll("\\", "/"),
+            page: {
+                path: "/search",
+                mode: "ssg",
+                notFound: undefined,
+                locales: ["pt-BR", "en-US"],
+                head: {
+                    title: "Search",
+                    meta: [
+                        { name: "description", content: "Search page" },
+                    ],
+                    links: undefined,
+                },
+            },
+        },
+    ]);
+});
+
 Deno.test("routing/page-discovery: should ignore non-page exports across multiple files", async () => {
     await setupMainzDom();
 
@@ -56,7 +94,7 @@ Deno.test("routing/page-discovery: should ignore non-page exports across multipl
     assertEquals(pages.map((page) => page.exportName), ["HomePage", "SearchPage"]);
 });
 
-Deno.test("routing/page-discovery: should fail when a Page export omits static metadata", async () => {
+Deno.test("routing/page-discovery: should fail when a Page export omits a route annotation", async () => {
     await setupMainzDom();
 
     const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.missing-metadata.fixture.tsx"));
@@ -64,6 +102,6 @@ Deno.test("routing/page-discovery: should fail when a Page export omits static m
     await assertRejects(
         () => discoverPagesFromFile(file),
         Error,
-        "must define static page metadata",
+        "must define a route with @route(...)",
     );
 });

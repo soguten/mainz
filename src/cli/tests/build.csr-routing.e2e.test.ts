@@ -2,12 +2,17 @@
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { createSsgPreviewHandler } from "../../preview/ssg-server.ts";
 import { withHappyDom } from "../../ssg/happy-dom.ts";
-
-const decoder = new TextDecoder();
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+import { nextTick } from "../../testing/async-testing.ts";
+import {
+    cliTestsRepoRoot as repoRoot,
+    extractModuleScriptSrc,
+    readJsonFile,
+    resolveOutputScriptPath,
+    runMainzCliCommand,
+} from "./test-helpers.ts";
 
 Deno.test("e2e/csr routing: mpa build should emit localized route shells and hydrate direct document loads", async () => {
     await buildSiteCsrMpa();
@@ -68,7 +73,10 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
 
     const notFoundScriptSrc = extractModuleScriptSrc(notFoundHtml);
     assert(notFoundScriptSrc, "Could not find module script src in CSR 404 html.");
-    const notFoundScriptPath = resolveOutputScriptPath(resolve(repoRoot, "dist/site/csr"), notFoundScriptSrc);
+    const notFoundScriptPath = resolveOutputScriptPath({
+        outputDir: resolve(repoRoot, "dist/site/csr"),
+        scriptSrc: notFoundScriptSrc,
+    });
 
     await withHappyDom(async () => {
         document.write(notFoundHtml);
@@ -88,10 +96,10 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
 
     const localizedNotFoundScriptSrc = extractModuleScriptSrc(localizedNotFoundHtml);
     assert(localizedNotFoundScriptSrc, "Could not find module script src in localized CSR 404 html.");
-    const localizedNotFoundScriptPath = resolveOutputScriptPath(
-        resolve(repoRoot, "dist/site/csr"),
-        localizedNotFoundScriptSrc,
-    );
+    const localizedNotFoundScriptPath = resolveOutputScriptPath({
+        outputDir: resolve(repoRoot, "dist/site/csr"),
+        scriptSrc: localizedNotFoundScriptSrc,
+    });
 
     await withHappyDom(async () => {
         document.write(localizedNotFoundHtml);
@@ -106,53 +114,13 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
 });
 
 async function buildSiteCsrMpa(): Promise<void> {
-    await runBuildCommand(["build", "--target", "site", "--mode", "csr", "--navigation", "mpa"]);
-}
-
-async function runBuildCommand(args: string[]): Promise<void> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            ...args,
-        ],
-        cwd: repoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    if (result.success) {
-        return;
-    }
-
-    const stdout = decoder.decode(result.stdout);
-    const stderr = decoder.decode(result.stderr);
-    throw new Error(
-        `Failed to build site for CSR routing e2e test.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    await runMainzCliCommand(
+        ["build", "--target", "site", "--mode", "csr", "--navigation", "mpa"],
+        "Failed to build site for CSR routing e2e test.",
     );
-}
-
-function extractModuleScriptSrc(html: string): string | null {
-    const match = html.match(/<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["']/i);
-    return match?.[1] ?? null;
-}
-
-function resolveOutputScriptPath(outputDir: string, scriptSrc: string): string {
-    if (scriptSrc.startsWith("/")) {
-        return resolve(outputDir, `.${scriptSrc}`);
-    }
-
-    return resolve(outputDir, scriptSrc);
 }
 
 async function readHydrationManifest(): Promise<{ target: string; hydration: string; navigation: string }> {
     const hydrationManifestPath = resolve(repoRoot, "dist/site/csr/hydration.json");
-    return JSON.parse(await Deno.readTextFile(hydrationManifestPath));
-}
-
-async function nextTick(): Promise<void> {
-    await Promise.resolve();
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+    return await readJsonFile(hydrationManifestPath);
 }
