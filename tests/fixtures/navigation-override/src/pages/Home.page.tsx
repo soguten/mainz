@@ -1,7 +1,7 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
-@customElement("x-mainz-fixture-navigation-override-home-page")
-@route("/")
+@CustomElement("x-mainz-fixture-navigation-override-home-page")
+@Route("/")
 export class FixtureNavigationOverrideHomePage extends Page {
     static override page = {
         mode: "ssg" as const,

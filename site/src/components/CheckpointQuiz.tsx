@@ -1,4 +1,4 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import { t } from "../i18n/index.ts";
 
 interface CheckpointItem {
@@ -16,7 +16,7 @@ interface CheckpointState {
     answers: number[];
 }
 
-@customElement("x-checkpoint-quiz")
+@CustomElement("x-checkpoint-quiz")
 export class CheckpointQuiz extends Component<{}, CheckpointState> {
     protected override initState(): CheckpointState {
         return {

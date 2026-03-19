@@ -1,10 +1,10 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
 
-@customElement("x-mainz-not-found-page")
-@route("/404")
+@CustomElement("x-mainz-not-found-page")
+@Route("/404")
 export class NotFoundPage extends Page {
     static override styles = pageStyles;
 

@@ -2,12 +2,12 @@
 
 Mainz pages and components are Web Components, so each class eventually needs a tag name.
 
-When you want that tag to be explicit and stable, use `@customElement(...)`.
+When you want that tag to be explicit and stable, use `@CustomElement(...)`.
 
 ```tsx title="HeroCard.tsx"
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 
-@customElement("app-hero-card")
+@CustomElement("app-hero-card")
 export class HeroCard extends Component {
     override render() {
         return <article>Hero</article>;
@@ -17,7 +17,7 @@ export class HeroCard extends Component {
 
 ## One place defines the explicit tag
 
-`@customElement(...)` is the single explicit source of truth for the registered tag name.
+`@CustomElement(...)` is the single explicit source of truth for the registered tag name.
 
 That keeps the name close to the class, avoids duplicated configuration, and makes
 hydration-sensitive pages easier to reason about.
@@ -25,10 +25,10 @@ hydration-sensitive pages easier to reason about.
 Pages use the same pattern:
 
 ```tsx title="Home.page.tsx"
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
-@customElement("app-home-page")
-@route("/")
+@CustomElement("app-home-page")
+@Route("/")
 export class HomePage extends Page {
     override render() {
         return <section>Home</section>;
@@ -38,7 +38,7 @@ export class HomePage extends Page {
 
 ## Generated tags still exist when needed
 
-If you omit `@customElement(...)`, Mainz can still generate a tag from the class name.
+If you omit `@CustomElement(...)`, Mainz can still generate a tag from the class name.
 
 That is useful for quick experiments, but explicit tags are the better choice when a page or
 component needs long-term stability across SSG, hydration, refactors, or minification-sensitive
@@ -52,5 +52,5 @@ A valid custom element name must contain a hyphen, so names like `app-home-page`
 If two classes still collide on the same generated name, Mainz resolves the conflict by suffixing
 later registrations.
 
-That fallback helps in development, but explicit `@customElement(...)` names are the clearest option
+That fallback helps in development, but explicit `@CustomElement(...)` names are the clearest option
 for framework docs, production pages, and shared components.

@@ -1,4 +1,4 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import { t } from "../i18n/index.ts";
 import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 import { pageStyles } from "../styles/pageStyles.ts";
@@ -13,7 +13,7 @@ interface TutorialState {
     currentStage: number;
 }
 
-@customElement("x-mainz-tutorial-page")
+@CustomElement("x-mainz-tutorial-page")
 export class MainzTutorialPage extends Component<{}, TutorialState> {
     static override styles = pageStyles;
 

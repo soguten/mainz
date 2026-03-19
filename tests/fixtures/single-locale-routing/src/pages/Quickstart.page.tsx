@@ -1,7 +1,7 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
-@customElement("x-mainz-fixture-single-locale-quickstart-page")
-@route("/quickstart")
+@CustomElement("x-mainz-fixture-single-locale-quickstart-page")
+@Route("/quickstart")
 export class FixtureSingleLocaleQuickstartPage extends Page {
     static override page = {
         mode: "ssg" as const,

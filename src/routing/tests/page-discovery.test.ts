@@ -102,6 +102,6 @@ Deno.test("routing/page-discovery: should fail when a Page export omits a route 
     await assertRejects(
         () => discoverPagesFromFile(file),
         Error,
-        "must define a route with @route(...)",
+        "must define a route with @Route(...)",
     );
 });

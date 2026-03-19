@@ -496,7 +496,7 @@ function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLa
     }
 
     const page = isSpaPageDefinition(entry) ? entry.page : entry;
-    const missingRouteMessage = `SPA navigation page "${page.name}" must define @route(...) or an explicit route path.`;
+    const missingRouteMessage = `SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`;
     const path = normalizeRoutePath(
         isSpaPageDefinition(entry)
             ? entry.path ?? requirePageRoutePath(page, missingRouteMessage)
@@ -504,7 +504,7 @@ function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLa
     );
 
     if (!path) {
-        throw new Error(`SPA navigation page "${page.name}" must define @route(...) or an explicit route path.`);
+        throw new Error(`SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`);
     }
 
     return {

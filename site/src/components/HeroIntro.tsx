@@ -1,7 +1,7 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import { t } from "../i18n/index.ts";
 
-@customElement("x-hero-intro")
+@CustomElement("x-hero-intro")
 export class HeroIntro extends Component {
     override render(): HTMLElement {
         return (

@@ -1,7 +1,7 @@
-import { customElement, Page, route } from "../../index.ts";
+import { CustomElement, Page, Route } from "../../index.ts";
 
-@customElement("x-mainz-route-params-home-page")
-@route("/")
+@CustomElement("x-mainz-route-params-home-page")
+@Route("/")
 export class RouteParamsHomePage extends Page {
     static override page = {
         head: {
@@ -17,8 +17,8 @@ export class RouteParamsHomePage extends Page {
     }
 }
 
-@customElement("x-mainz-route-params-docs-page")
-@route("/docs/:slug")
+@CustomElement("x-mainz-route-params-docs-page")
+@Route("/docs/:slug")
 export class RouteParamsDocsPage extends Page {
     static override page = {
         locales: ["en", "pt"],
@@ -54,8 +54,8 @@ export class RouteParamsDocsPage extends Page {
     }
 }
 
-@customElement("x-mainz-route-params-catch-all-page")
-@route("/docs/*")
+@CustomElement("x-mainz-route-params-catch-all-page")
+@Route("/docs/*")
 export class RouteParamsCatchAllPage extends Page {
     static override page = {
         locales: ["en", "pt"],
@@ -74,8 +74,8 @@ export class RouteParamsCatchAllPage extends Page {
     }
 }
 
-@customElement("x-mainz-route-params-not-found-page")
-@route("/404")
+@CustomElement("x-mainz-route-params-not-found-page")
+@Route("/404")
 export class RouteParamsNotFoundPage extends Page {
     static override page = {
         locales: ["en", "pt"],

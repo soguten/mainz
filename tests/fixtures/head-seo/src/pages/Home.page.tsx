@@ -1,4 +1,4 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
 type FixtureRouteProps = {
     route?: {
@@ -6,8 +6,8 @@ type FixtureRouteProps = {
     };
 };
 
-@customElement("x-mainz-fixture-head-seo-page")
-@route("/")
+@CustomElement("x-mainz-fixture-head-seo-page")
+@Route("/")
 export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
     static override page = {
         mode: "ssg" as const,

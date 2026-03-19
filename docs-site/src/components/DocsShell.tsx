@@ -1,4 +1,4 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import type { DocsNavSection, DocsPagerLink } from "../lib/docs.ts";
 import { highlightDocsCodeBlocks } from "../lib/highlight.ts";
 import { buildDocsHref } from "../lib/links.ts";
@@ -24,7 +24,7 @@ interface DocsShellProps {
     statusLabel?: string;
 }
 
-@customElement("x-mainz-docs-shell")
+@CustomElement("x-mainz-docs-shell")
 export class DocsShell extends Component<DocsShellProps> {
     static override styles = docsStyles;
 
@@ -260,7 +260,7 @@ interface DocsCodeBlockState {
     copied: boolean;
 }
 
-@customElement("x-mainz-docs-code-block")
+@CustomElement("x-mainz-docs-code-block")
 export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockState> {
     static copyFeedbackDurationMs = 1200;
 

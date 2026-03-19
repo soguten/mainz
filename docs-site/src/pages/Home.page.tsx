@@ -1,9 +1,9 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { docsArticles, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
-@customElement("x-mainz-docs-home-page")
-@route("/")
+@CustomElement("x-mainz-docs-home-page")
+@Route("/")
 export class HomePage extends Page {
     static override page = {
         mode: "ssg" as const,

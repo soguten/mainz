@@ -83,7 +83,7 @@ function normalizePageDefinition(
     const page = ctor.page ?? {};
     const path = requirePageRoutePath(
         ctor,
-        `Page export "${exportName}" in "${filePath}" must define a route with @route(...).`,
+        `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
     );
 
     return {

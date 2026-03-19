@@ -1,18 +1,18 @@
 import {
-    customElement,
+    CustomElement,
     Page,
     type PageEntriesContext,
     type PageEntryDefinition,
     type PageLoadContext,
-    route,
+    Route,
 } from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { docsArticles, getDocsArticle, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
 type DocsRouteData = NonNullable<ReturnType<typeof getDocsArticle>>;
 
-@customElement("x-mainz-docs-docs-page")
-@route("/:slug")
+@CustomElement("x-mainz-docs-docs-page")
+@Route("/:slug")
 export class DocsPage extends Page<
     { data?: DocsRouteData; route?: { params?: Record<string, string> } }
 > {

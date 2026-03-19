@@ -6,10 +6,10 @@ That includes the route annotation, the custom element name, plus render mode, l
 information.
 
 ```tsx title="Page contract"
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
-@customElement("app-home-page")
-@route("/")
+@CustomElement("app-home-page")
+@Route("/")
 export class HomePage extends Page {
     static override page = {
         mode: "ssg" as const,
@@ -20,7 +20,7 @@ export class HomePage extends Page {
 }
 ```
 
-The split is intentional: `@route(...)` describes where the page lives, and `@customElement(...)`
+The split is intentional: `@Route(...)` describes where the page lives, and `@CustomElement(...)`
 defines the stable tag the runtime registers.
 
 ## Keep behavior near the page

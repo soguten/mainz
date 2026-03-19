@@ -43,7 +43,7 @@ function SaveButton(props: { onSave: () => void; label: string }) {
     return <button onClick={props.onSave}>{props.label}</button>;
 }
 
-@customElement("app-owner-example")
+@CustomElement("app-owner-example")
 export class OwnerExample extends Component<{}, { count: number }> {
     protected override initState() {
         return { count: 0 };

@@ -1,13 +1,13 @@
-import { Page, route } from "../../index.ts";
+import { Page, Route } from "../../index.ts";
 
-@route("/")
+@Route("/")
 export class DecoratedHomePage extends Page {
     override render(): HTMLElement {
         return <main>Home</main>;
     }
 }
 
-@route("/search")
+@Route("/search")
 export class DecoratedSearchPage extends Page {
     static override page = {
         mode: "ssg" as const,

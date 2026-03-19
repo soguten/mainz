@@ -1,6 +1,6 @@
-import { Page, route } from "../../index.ts";
+import { Page, Route } from "../../index.ts";
 
-@route("/")
+@Route("/")
 export class HomePage extends Page {
     static override page = {
         head: {
@@ -16,7 +16,7 @@ export class HomePage extends Page {
     }
 }
 
-@route("/search")
+@Route("/search")
 export class SearchPage extends Page {
     static override page = {
         mode: "ssg" as const,

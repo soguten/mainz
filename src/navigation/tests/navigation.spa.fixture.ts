@@ -1,7 +1,7 @@
-import { customElement, Page, route } from "../../index.ts";
+import { CustomElement, Page, Route } from "../../index.ts";
 
-@customElement("x-mainz-navigation-spa-home-page")
-@route("/")
+@CustomElement("x-mainz-navigation-spa-home-page")
+@Route("/")
 export class SpaHomePage extends Page {
     static override page = {
         head: {
@@ -17,8 +17,8 @@ export class SpaHomePage extends Page {
     }
 }
 
-@customElement("x-mainz-navigation-spa-docs-page")
-@route("/docs/:slug")
+@CustomElement("x-mainz-navigation-spa-docs-page")
+@Route("/docs/:slug")
 export class SpaDocsPage extends Page {
     static override page = {
         head: {
@@ -38,8 +38,8 @@ export class SpaDocsPage extends Page {
     }
 }
 
-@customElement("x-mainz-navigation-spa-not-found-page")
-@route("/404")
+@CustomElement("x-mainz-navigation-spa-not-found-page")
+@Route("/404")
 export class SpaNotFoundPage extends Page {
     static override page = {
         head: {

@@ -1,4 +1,4 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
 type CoreContractsRouteProps = {
     route?: {
@@ -7,8 +7,8 @@ type CoreContractsRouteProps = {
     };
 };
 
-@customElement("x-mainz-not-found-page")
-@route("/404")
+@CustomElement("x-mainz-not-found-page")
+@Route("/404")
 export class CoreContractsNotFoundPage extends Page<CoreContractsRouteProps> {
     static override page = {
         mode: "ssg" as const,

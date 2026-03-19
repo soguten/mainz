@@ -1,4 +1,4 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import { t } from "../i18n/index.ts";
 import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 
@@ -19,7 +19,7 @@ interface WorkshopState {
     feedbackMode: "ok" | "fail" | "idle";
 }
 
-@customElement("x-interactive-sandbox")
+@CustomElement("x-interactive-sandbox")
 export class InteractiveSandbox extends Component<{}, WorkshopState> {
     protected override initState(): WorkshopState {
         const challenges = t<WorkshopChallenge[]>("sandbox.challenges");

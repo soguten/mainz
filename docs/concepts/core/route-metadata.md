@@ -1,15 +1,15 @@
 ## Keep route intent on the page
 
-`@route(...)` keeps the URL contract next to the page that owns it.
+`@Route(...)` keeps the URL contract next to the page that owns it.
 
 That matters because routing in Mainz is not an external config file first. The page carries the
 metadata, while the runtime and build pipeline consume it.
 
 ```tsx title="Docs.page.tsx"
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 
-@customElement("app-docs-page")
-@route("/docs/:slug")
+@CustomElement("app-docs-page")
+@Route("/docs/:slug")
 export class DocsPage extends Page {
     static override page = {
         mode: "ssg" as const,
@@ -38,9 +38,9 @@ override render() {
 }
 ```
 
-## `@route(...)` and `entries()` do different jobs
+## `@Route(...)` and `entries()` do different jobs
 
-`@route(...)` declares the pattern.
+`@Route(...)` declares the pattern.
 
 `entries()` expands that pattern into concrete paths when SSG needs real output files.
 
@@ -58,7 +58,7 @@ dynamic SSG page does not know which concrete documents to emit.
 
 ## SPA definitions can still override the path
 
-The page-first default is `@route(...)`, but the navigation runtime also accepts an explicit `path`
+The page-first default is `@Route(...)`, but the navigation runtime also accepts an explicit `path`
 in SPA page definitions when you need to wire pages manually.
 
 That escape hatch is useful for app bootstrap code, but the framework model stays cleaner when the

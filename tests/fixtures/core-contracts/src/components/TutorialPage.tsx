@@ -1,4 +1,4 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 
 type TutorialPageProps = {
     locale: "en" | "pt";
@@ -8,7 +8,7 @@ type TutorialPageState = {
     activeChapter: "intro" | "deep-dive";
 };
 
-@customElement("x-mainz-tutorial-page")
+@CustomElement("x-mainz-tutorial-page")
 export class TutorialPage extends Component<TutorialPageProps, TutorialPageState> {
     override initState(): TutorialPageState {
         return { activeChapter: "intro" };

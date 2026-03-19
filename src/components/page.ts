@@ -48,7 +48,7 @@ export interface PageDefinition {
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
 
-export function route(path: string) {
+export function Route(path: string) {
     return function <T extends PageConstructor>(value: T, _context?: ClassDecoratorContext<T>): void {
         applyPageRoutePath(value, path);
     };

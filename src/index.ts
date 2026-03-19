@@ -1,5 +1,5 @@
-export { Component, customElement } from "./components/index.ts";
-export { isPageConstructor, Page, route } from "./components/index.ts";
+export { Component, CustomElement } from "./components/index.ts";
+export { isPageConstructor, Page, Route } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
 export type { DefaultProps, DefaultState } from "./components/index.ts";
 export type {

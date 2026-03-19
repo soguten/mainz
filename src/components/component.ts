@@ -25,7 +25,7 @@ type MainzComponentConstructor =
         [COMPONENT_CUSTOM_ELEMENT_TAG]?: string;
     };
 
-export function customElement(tagName: string) {
+export function CustomElement(tagName: string) {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -643,7 +643,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
         const explicitTag = Component.normalizeExplicitTag(
             ctor,
             resolveDecoratedCustomElementTag(ctor),
-            "@customElement(...)",
+            "@CustomElement(...)",
         );
         if (explicitTag) {
             return explicitTag;
@@ -659,7 +659,7 @@ export abstract class Component<P = DefaultProps, S = DefaultState> extends HTML
     private static normalizeExplicitTag(
         ctor: typeof Component,
         explicitTag: string | undefined,
-        source: "@customElement(...)",
+        source: "@CustomElement(...)",
     ): string | undefined {
         if (!explicitTag) {
             return undefined;

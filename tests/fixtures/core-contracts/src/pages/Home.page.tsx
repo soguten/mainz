@@ -1,4 +1,4 @@
-import { customElement, Page, route } from "mainz";
+import { CustomElement, Page, Route } from "mainz";
 import { TutorialPage } from "../components/TutorialPage.tsx";
 
 type CoreContractsRouteProps = {
@@ -7,8 +7,8 @@ type CoreContractsRouteProps = {
     };
 };
 
-@customElement("x-mainz-core-contracts-home-page")
-@route("/")
+@CustomElement("x-mainz-core-contracts-home-page")
+@Route("/")
 export class CoreContractsHomePage extends Page<CoreContractsRouteProps> {
     static override page = {
         mode: "ssg" as const,

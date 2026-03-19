@@ -1,7 +1,7 @@
-import { Component, customElement } from "mainz";
+import { Component, CustomElement } from "mainz";
 import type { ConceptCardData } from "./types.ts";
 
-@customElement("x-concept-card")
+@CustomElement("x-concept-card")
 export class ConceptCard extends Component<ConceptCardData> {
     override render(): HTMLElement {
         return (
