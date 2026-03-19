@@ -52,8 +52,7 @@ const docsOrder = [
     "head-and-seo",
     "not-found",
     "styling",
-    "testing-matrix",
-    "deploy-gh-pages",
+    "publish-base-path",
 ] as const;
 
 const docsArticleSources: readonly DocsArticleSource[] = [
@@ -190,18 +189,11 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         contentPath: "../../../docs/advanced/styling.md",
     },
     {
-        slug: "testing-matrix",
-        title: "Testing Matrix",
-        summary: "Protect the render and navigation combinations with focused matrix tests.",
-        navSection: "Advanced",
-        contentPath: "../../../docs/advanced/testing-matrix.md",
-    },
-    {
-        slug: "deploy-gh-pages",
-        title: "Deploy to GitHub Pages",
+        slug: "publish-base-path",
+        title: "Publish Under a Base Path",
         summary: "Handle basePath, siteUrl, and localized routes when publishing under a subpath.",
         navSection: "Advanced",
-        contentPath: "../../../docs/advanced/deploy-gh-pages.md",
+        contentPath: "../../../docs/advanced/publish-base-path.md",
     },
 ];
 

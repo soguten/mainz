@@ -90,6 +90,11 @@
         "preview:docs:ssg:mpa": "deno task build:docs:ssg:mpa && deno task preview:docs:ssg",
         "preview:docs:ssg:enhanced-mpa": "deno task build:docs:ssg:enhanced-mpa && deno task preview:docs:ssg",
         "preview:docs:gh-pages": "deno task build:docs:gh-pages && deno task preview:docs:ssg",
-        "test": "deno test -A"
+        "test": "deno test -A",
+        "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests/build.test.ts src/cli/tests/build.profile.test.ts src/cli/tests/build.ssg-html.test.ts src/cli/tests/mainz.publish-info.test.ts",
+        "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",
+        "test:e2e:core": "deno test -A tests/e2e/core/build.core-matrix.e2e.test.ts tests/e2e/core/build.single-locale-routing.fixture.e2e.test.ts",
+        "test:e2e:special": "deno test -A tests/e2e/special/build.base-path-matrix.e2e.test.ts tests/e2e/special/build.csr-seo.e2e.test.ts tests/e2e/special/build.navigation-override.fixture.e2e.test.ts tests/e2e/special/build.ssg-special.e2e.test.ts",
+        "test:smoke": "deno test -A tests/e2e/smoke/build.csr-routing.e2e.test.ts tests/e2e/smoke/build.csr-spa.e2e.test.ts tests/e2e/smoke/build.single-locale-routing.smoke.e2e.test.ts"
     }
 }

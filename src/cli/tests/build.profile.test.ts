@@ -59,7 +59,7 @@ export default defineTargetBuild({
 
 Deno.test("cli/build profiles: should discover rootDir mainz.build.ts automatically", async () => {
     const fixture = await createTargetBuildFixture(
-`export default {
+        `export default {
     profiles: {
         dev: {
             overridePageMode: "csr",
@@ -126,7 +126,11 @@ Deno.test("cli/build profiles: should resolve publication metadata from profile 
             ],
         });
 
-        const metadata = await resolvePublicationMetadata(config.targets[0], "gh-pages", fixture.cwd);
+        const metadata = await resolvePublicationMetadata(
+            config.targets[0],
+            "gh-pages",
+            fixture.cwd,
+        );
 
         assertEquals(metadata, {
             target: "site",
@@ -207,8 +211,16 @@ Deno.test("cli/build profiles: should derive navigation defaults when target doe
             ],
         });
 
-        const siteMetadata = await resolvePublicationMetadata(config.targets[0], "production", fixture.cwd);
-        const playgroundMetadata = await resolvePublicationMetadata(config.targets[1], "production", fixture.cwd);
+        const siteMetadata = await resolvePublicationMetadata(
+            config.targets[0],
+            "production",
+            fixture.cwd,
+        );
+        const playgroundMetadata = await resolvePublicationMetadata(
+            config.targets[1],
+            "production",
+            fixture.cwd,
+        );
 
         assertEquals(siteMetadata.navigationMode, "enhanced-mpa");
         assertEquals(playgroundMetadata.navigationMode, "spa");
@@ -249,10 +261,15 @@ Deno.test("cli/build profiles: should allow explicit navigation override without
             await resolveTargetBuildProfile(config.targets[0], undefined, fixture.cwd),
             { navigation: "spa" },
         );
-        const metadata = await resolvePublicationMetadata(config.targets[0], undefined, fixture.cwd, {
-            mode: "csr",
-            navigation: "spa",
-        });
+        const metadata = await resolvePublicationMetadata(
+            config.targets[0],
+            undefined,
+            fixture.cwd,
+            {
+                mode: "csr",
+                navigation: "spa",
+            },
+        );
 
         assertEquals(profile.overrideNavigation, "spa");
         assertEquals(profile.basePath, "/docs/");
@@ -264,7 +281,9 @@ Deno.test("cli/build profiles: should allow explicit navigation override without
     }
 });
 
-async function createTargetBuildFixture(source: string): Promise<{ cwd: string; relativeConfigPath: string }> {
+async function createTargetBuildFixture(
+    source: string,
+): Promise<{ cwd: string; relativeConfigPath: string }> {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-build-profile-" });
     const siteDir = join(cwd, "site");
     await Deno.mkdir(siteDir, { recursive: true });

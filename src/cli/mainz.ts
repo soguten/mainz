@@ -40,7 +40,9 @@ export async function main(args: string[]): Promise<void> {
         const target = normalizedConfig.targets.find((entry) => entry.name === targetName);
         if (!target) {
             throw new Error(
-                `No targets matched "${targetName}". Available targets: ${normalizedConfig.targets.map((entry) => entry.name).join(", ")}`,
+                `No targets matched "${targetName}". Available targets: ${
+                    normalizedConfig.targets.map((entry) => entry.name).join(", ")
+                }`,
             );
         }
 
@@ -54,11 +56,17 @@ export async function main(args: string[]): Promise<void> {
 
     const jobs = resolveBuildJobs(normalizedConfig, options);
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
-    const resolvedProfileByTarget = new Map<string, Awaited<ReturnType<typeof resolveTargetBuildProfile>>>();
+    const resolvedProfileByTarget = new Map<
+        string,
+        Awaited<ReturnType<typeof resolveTargetBuildProfile>>
+    >();
     for (const target of selectedTargets.values()) {
         resolvedProfileByTarget.set(
             target.name,
-            applyBuildCliOverrides(await resolveTargetBuildProfile(target, options.profile), options),
+            applyBuildCliOverrides(
+                await resolveTargetBuildProfile(target, options.profile),
+                options,
+            ),
         );
     }
 

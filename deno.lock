@@ -4,6 +4,7 @@
     "jsr:@std/assert@*": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:happy-dom@*": "20.1.0",
+    "npm:happy-dom@20.1.0": "20.1.0",
     "npm:vite@*": "7.3.1_picomatch@4.0.3"
   },
   "jsr": {

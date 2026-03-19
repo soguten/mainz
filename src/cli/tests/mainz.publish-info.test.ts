@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { runMainzCliCommand } from "./test-helpers.ts";
+import { runMainzCliCommand } from "../../../tests/helpers/test-helpers.ts";
 
-Deno.test("cli/mainz: publish-info should print artifact metadata for a target profile", async () => {
+Deno.test("cli/mainz: publish-info should print artifact metadata resolved from a target profile", async () => {
     const { stdout } = await runMainzCliCommand(
         ["publish-info", "--target", "site", "--profile", "gh-pages"],
         "publish-info failed.",

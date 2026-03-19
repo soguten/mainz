@@ -1,4 +1,5 @@
 # mainz
+
 A class-based TSX runtime built on Web Components
 
 ## Build and Routing (CSR + SSG)
@@ -21,10 +22,18 @@ Quick commands:
 - `deno task preview:site:csr`
 - `deno task preview:site:ssg`
 - `deno task preview:playground:csr`
+- `deno task test:fast`
+- `deno task test:e2e:core`
+- `deno task test:e2e:special`
+- `deno task test:smoke`
+- `deno task test`
 
-`preview:site:ssg` now uses a Mainz static preview server that serves the generated `404.html` for missing routes, so custom 404 title and meta tags are preserved during local preview.
+`preview:site:ssg` now uses a Mainz static preview server that serves the generated `404.html` for
+missing routes, so custom 404 title and meta tags are preserved during local preview.
 
 For related framework docs and examples, see:
 
 - [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
 - [`docs/concepts/core/routing.md`](./docs/concepts/core/routing.md)
+- [`docs/concepts/testing/overview.md`](./docs/concepts/testing/overview.md)
+- [`docs/advanced/testing-matrix.md`](./docs/advanced/testing-matrix.md)
