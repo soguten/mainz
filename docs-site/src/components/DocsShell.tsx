@@ -6,6 +6,8 @@ import { type MarkdownBlock, parseMarkdown } from "../lib/markdown.ts";
 import { docsStyles } from "../styles/docsStyles.ts";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
+const docsCodeBlockResetTimeoutIds = new WeakMap<DocsCodeBlock, number>();
+
 interface DocsShellProps {
     title: string;
     summary: string;
@@ -37,6 +39,7 @@ export class DocsShell extends Component<DocsShellProps> {
 
     override render() {
         const props = this.props;
+        const navSections = props.navSections ?? [];
         const blocks = props.markdown ? parseMarkdown(props.markdown) : [];
 
         return (
@@ -80,7 +83,7 @@ export class DocsShell extends Component<DocsShellProps> {
                                     <span class="docs-nav-title">Overview</span>
                                 </a>
 
-                                {props.navSections.map((section) => (
+                                {navSections.map((section) => (
                                     <section class="docs-nav-section">
                                         <h2 class="docs-nav-section-title">{section.title}</h2>
 
@@ -268,8 +271,10 @@ export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockSt
     }
 
     override onUnmount(): void {
-        if (this.resetCopyTimeoutId !== undefined) {
-            window.clearTimeout(this.resetCopyTimeoutId);
+        const resetCopyTimeoutId = docsCodeBlockResetTimeoutIds.get(this);
+        if (resetCopyTimeoutId !== undefined) {
+            window.clearTimeout(resetCopyTimeoutId);
+            docsCodeBlockResetTimeoutIds.delete(this);
         }
     }
 
@@ -302,8 +307,6 @@ export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockSt
         );
     }
 
-    private resetCopyTimeoutId?: number;
-
     private async copyCode(): Promise<void> {
         const copied = await copyTextToClipboard(this.props.content);
 
@@ -313,14 +316,17 @@ export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockSt
 
         this.setState({ copied: true });
 
-        if (this.resetCopyTimeoutId !== undefined) {
-            window.clearTimeout(this.resetCopyTimeoutId);
+        const existingResetTimeoutId = docsCodeBlockResetTimeoutIds.get(this);
+        if (existingResetTimeoutId !== undefined) {
+            window.clearTimeout(existingResetTimeoutId);
         }
 
-        this.resetCopyTimeoutId = window.setTimeout(() => {
+        const resetCopyTimeoutId = window.setTimeout(() => {
             this.setState({ copied: false });
-            this.resetCopyTimeoutId = undefined;
+            docsCodeBlockResetTimeoutIds.delete(this);
         }, (this.constructor as typeof DocsCodeBlock).copyFeedbackDurationMs);
+
+        docsCodeBlockResetTimeoutIds.set(this, resetCopyTimeoutId);
     }
 }
 
