@@ -7,6 +7,7 @@ import {
     type PageConstructor,
     type PageHeadDefinition,
     requirePageRoutePath,
+    resolvePageLocales,
     resolvePageRenderMode,
 } from "../components/page.ts";
 import type { RenderMode } from "./types.ts";
@@ -25,7 +26,9 @@ export interface DiscoveredPage {
     };
 }
 
-export async function discoverPagesFromFiles(filePaths: readonly string[]): Promise<DiscoveredPage[]> {
+export async function discoverPagesFromFiles(
+    filePaths: readonly string[],
+): Promise<DiscoveredPage[]> {
     const pages: DiscoveredPage[] = [];
 
     for (const filePath of filePaths) {
@@ -52,7 +55,9 @@ export async function discoverPagesFromFiles(filePaths: readonly string[]): Prom
 
 export async function discoverPagesFromFile(filePath: string): Promise<DiscoveredPage[]> {
     const normalizedFilePath = normalizePath(resolve(filePath));
-    const moduleUrl = `${pathToFileURL(normalizedFilePath).href}?page-discovery=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const moduleUrl = `${pathToFileURL(normalizedFilePath).href}?page-discovery=${Date.now()}-${
+        Math.random().toString(36).slice(2)
+    }`;
 
     let moduleExports: Record<string, unknown>;
     try {
@@ -83,6 +88,7 @@ function normalizePageDefinition(
     exportName: string,
 ): DiscoveredPage["page"] {
     const page = ctor.page ?? {};
+    const locales = resolvePageLocales(ctor);
     const path = requirePageRoutePath(
         ctor,
         `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
@@ -92,7 +98,7 @@ function normalizePageDefinition(
         path,
         ...resolveDiscoveryMode(ctor, page as Record<string, unknown>, filePath, exportName),
         notFound: page.notFound === true ? true : undefined,
-        locales: page.locales ? [...page.locales] : undefined,
+        locales: locales ? [...locales] : undefined,
         head: page.head ? cloneHead(page.head) : undefined,
     };
 }

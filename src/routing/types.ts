@@ -1,4 +1,8 @@
-import type { PageDefinition, PageEntryDefinition, PageHeadDefinition } from "../components/page.ts";
+import type {
+    PageDefinition,
+    PageEntryDefinition,
+    PageHeadDefinition,
+} from "../components/page.ts";
 
 export type RenderMode = "csr" | "ssg";
 export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
@@ -24,6 +28,7 @@ export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
     path: string;
     mode: RenderMode;
     hasExplicitRenderMode?: boolean;
+    locales?: readonly string[];
 }
 
 export interface TargetDefinition {

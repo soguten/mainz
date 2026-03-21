@@ -1,4 +1,4 @@
-import { CustomElement, load, Page, Route } from "../../index.ts";
+import { CustomElement, load, Locales, Page, Route } from "../../index.ts";
 
 @CustomElement("x-mainz-route-params-home-page")
 @Route("/")
@@ -19,9 +19,9 @@ export class RouteParamsHomePage extends Page {
 
 @CustomElement("x-mainz-route-params-docs-page")
 @Route("/docs/:slug")
+@Locales("en", "pt")
 export class RouteParamsDocsPage extends Page {
     static override page = {
-        locales: ["en", "pt"],
         head: {
             title: "Docs",
         },
@@ -54,9 +54,9 @@ export class RouteParamsDocsPage extends Page {
 
 @CustomElement("x-mainz-route-params-catch-all-page")
 @Route("/docs/*")
+@Locales("en", "pt")
 export class RouteParamsCatchAllPage extends Page {
     static override page = {
-        locales: ["en", "pt"],
         head: {
             title: "Docs CatchAll",
         },
@@ -74,9 +74,9 @@ export class RouteParamsCatchAllPage extends Page {
 
 @CustomElement("x-mainz-route-params-not-found-page")
 @Route("/404")
+@Locales("en", "pt")
 export class RouteParamsNotFoundPage extends Page {
     static override page = {
-        locales: ["en", "pt"],
         head: {
             title: "Not Found",
         },

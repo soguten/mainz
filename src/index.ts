@@ -1,6 +1,4 @@
-export {
-    ComponentResource,
-} from "./components/index.ts";
+export { ComponentResource } from "./components/index.ts";
 export {
     Component,
     CustomElement,
@@ -8,14 +6,23 @@ export {
     resolveComponentRenderConfig,
     resolveComponentRenderStrategy,
 } from "./components/index.ts";
-export { createPageLoadContext, entries, isPageConstructor, load, Page, RenderMode, Route } from "./components/index.ts";
+export {
+    createPageLoadContext,
+    entries,
+    isPageConstructor,
+    load,
+    Locales,
+    Page,
+    RenderMode,
+    Route,
+} from "./components/index.ts";
 export { ResourceBoundary } from "./components/index.ts";
 export { ResourceComponent } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
 export { defineResource, readResource, ResourceAccessError } from "./resources/index.ts";
 export type {
-    ComponentResourceProps,
     ComponentRenderConfig,
+    ComponentResourceProps,
     DefaultProps,
     DefaultState,
     RenderStrategyOptions,
@@ -40,8 +47,8 @@ export type {
     ResourceCachePolicy,
     ResourceDefinition,
     ResourceExecution,
-    ResourceRuntime,
     ResourceReadEnvironment,
+    ResourceRuntime,
     ResourceStrategy,
     ResourceVisibility,
 } from "./resources/index.ts";
@@ -53,9 +60,9 @@ export type {
     PageHeadDefinition,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
+    PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
-    PageLoadContext,
     PageRouteParams,
 } from "./components/index.ts";
 export {

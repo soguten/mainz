@@ -1,6 +1,4 @@
-export {
-    ComponentResource,
-} from "./component-resource.tsx";
+export { ComponentResource } from "./component-resource.tsx";
 export {
     Component,
     CustomElement,
@@ -8,7 +6,16 @@ export {
     resolveComponentRenderConfig,
     resolveComponentRenderStrategy,
 } from "./component.ts";
-export { createPageLoadContext, entries, isPageConstructor, load, Page, RenderMode, Route } from "./page.ts";
+export {
+    createPageLoadContext,
+    entries,
+    isPageConstructor,
+    load,
+    Locales,
+    Page,
+    RenderMode,
+    Route,
+} from "./page.ts";
 export { ResourceBoundary } from "./resource-boundary.ts";
 export { ResourceComponent } from "./resource-component.tsx";
 export { ensureMainzCustomElementDefined } from "./registry.ts";
@@ -23,9 +30,9 @@ export type {
     PageHeadDefinition,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
+    PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
-    PageLoadContext,
     PageRouteParams,
 } from "./page.ts";
 export type { ResourceBoundaryProps } from "./resource-boundary.ts";

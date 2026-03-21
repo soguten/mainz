@@ -1,4 +1,4 @@
-import { Page, RenderMode, Route } from "../../index.ts";
+import { Locales, Page, RenderMode, Route } from "../../index.ts";
 
 @Route("/")
 export class DecoratedHomePage extends Page {
@@ -9,9 +9,9 @@ export class DecoratedHomePage extends Page {
 
 @Route("/search")
 @RenderMode("ssg")
+@Locales("pt-BR", "en-US")
 export class DecoratedSearchPage extends Page {
     static override page = {
-        locales: ["pt-BR", "en-US"],
         head: {
             title: "Search",
             meta: [

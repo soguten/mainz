@@ -1,4 +1,4 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
@@ -6,12 +6,12 @@ import { pageStyles } from "../styles/pageStyles.ts";
 @CustomElement("x-mainz-not-found-page")
 @Route("/404")
 @RenderMode("ssg")
+@Locales("en", "pt")
 export class NotFoundPage extends Page {
     static override styles = pageStyles;
 
     static override page = {
         notFound: true,
-        locales: ["en", "pt"],
         head: {
             title: "404 | Mainz",
             meta: [

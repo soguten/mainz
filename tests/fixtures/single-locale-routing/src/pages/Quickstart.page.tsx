@@ -1,11 +1,11 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("x-mainz-fixture-single-locale-quickstart-page")
 @Route("/quickstart")
 @RenderMode("ssg")
+@Locales("en")
 export class FixtureSingleLocaleQuickstartPage extends Page {
     static override page = {
-        locales: ["en"],
         head: {
             title: "Fixture Quickstart",
         },

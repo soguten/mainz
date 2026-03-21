@@ -1,19 +1,13 @@
-import {
-    CustomElement,
-    entries,
-    Page,
-    RenderMode,
-    Route,
-} from "mainz";
+import { CustomElement, entries, Locales, Page, RenderMode, Route } from "mainz";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
 import { docsArticles } from "../lib/docs.ts";
 
 @CustomElement("x-mainz-docs-docs-page")
 @Route("/:slug")
 @RenderMode("ssg")
+@Locales("en")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
     static override page = {
-        locales: ["en"],
         head: {
             title: "Mainz Docs Article",
             meta: [

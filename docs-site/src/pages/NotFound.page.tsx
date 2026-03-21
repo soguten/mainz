@@ -1,14 +1,14 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { getDocsNavSections } from "../lib/docs.ts";
 
 @CustomElement("x-mainz-docs-not-found-page")
 @Route("/404")
 @RenderMode("ssg")
+@Locales("en")
 export class NotFoundPage extends Page {
     static override page = {
         notFound: true,
-        locales: ["en"],
         head: {
             title: "404 | Mainz Docs",
             meta: [

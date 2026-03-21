@@ -1,12 +1,17 @@
 import {
     createPageLoadContext,
-    requirePageRoutePath,
     type PageHeadDefinition,
     type PageLoadContext,
+    requirePageRoutePath,
+    resolvePageLocales,
 } from "../components/page.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
-import { buildRouteHead, resolveLocaleRedirectPath, shouldPrefixLocaleForRoute } from "../routing/index.ts";
+import {
+    buildRouteHead,
+    resolveLocaleRedirectPath,
+    shouldPrefixLocaleForRoute,
+} from "../routing/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
@@ -25,7 +30,6 @@ export interface NavigationLocaleContext {
 
 export interface SpaPageConstructor extends CustomElementConstructor {
     page?: {
-        locales?: readonly string[];
         head?: PageHeadDefinition;
     };
     load?(context: PageLoadContext): unknown | Promise<unknown>;
@@ -162,7 +166,9 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
     }
 
     if (pageOptions) {
-        void bootstrapDocumentNavigation(pageOptions, normalizedBasePath).catch(reportSpaNavigationError);
+        void bootstrapDocumentNavigation(pageOptions, normalizedBasePath).catch(
+            reportSpaNavigationError,
+        );
     }
 
     if (options.mode !== "enhanced-mpa") {
@@ -258,14 +264,19 @@ export function isPrefetchableAnchor(
         return false;
     }
 
-    if (resolvedUrl.pathname === window.location.pathname && resolvedUrl.search === window.location.search) {
+    if (
+        resolvedUrl.pathname === window.location.pathname &&
+        resolvedUrl.search === window.location.search
+    ) {
         return false;
     }
 
     return true;
 }
 
-export function createScrollStorageKey(locationLike: Pick<Location, "pathname" | "search">): string {
+export function createScrollStorageKey(
+    locationLike: Pick<Location, "pathname" | "search">,
+): string {
     return `${MAINZ_SCROLL_KEY_PREFIX}${locationLike.pathname}${locationLike.search}`;
 }
 
@@ -295,7 +306,11 @@ function startSpaNavigation(
 
     const routes = normalizeSpaRoutes(pageOptions.pages, pageOptions.notFound);
     const mount = resolveSpaMount(pageOptions.mount);
-    const initialUrl = resolveSpaLocalizedDocumentUrl(new URL(window.location.href), normalizedBasePath, pageOptions.locales);
+    const initialUrl = resolveSpaLocalizedDocumentUrl(
+        new URL(window.location.href),
+        normalizedBasePath,
+        pageOptions.locales,
+    );
     if (initialUrl.toString() !== window.location.href) {
         window.history.replaceState({ mainzNavigation: "spa" }, "", initialUrl);
     }
@@ -317,7 +332,10 @@ function startSpaNavigation(
             return;
         }
 
-        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        if (
+            event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey ||
+            event.shiftKey || event.altKey
+        ) {
             return;
         }
 
@@ -332,7 +350,11 @@ function startSpaNavigation(
             return;
         }
 
-        const effectiveTargetUrl = resolveSpaLocalizedDocumentUrl(targetUrl, normalizedBasePath, pageOptions.locales);
+        const effectiveTargetUrl = resolveSpaLocalizedDocumentUrl(
+            targetUrl,
+            normalizedBasePath,
+            pageOptions.locales,
+        );
 
         const targetPath = resolveRoutePath(
             effectiveTargetUrl,
@@ -376,7 +398,11 @@ function startSpaNavigation(
 
     const handlePopState = () => {
         const currentUrl = new URL(window.location.href);
-        const effectiveCurrentUrl = resolveSpaLocalizedDocumentUrl(currentUrl, normalizedBasePath, pageOptions.locales);
+        const effectiveCurrentUrl = resolveSpaLocalizedDocumentUrl(
+            currentUrl,
+            normalizedBasePath,
+            pageOptions.locales,
+        );
         if (effectiveCurrentUrl.toString() !== currentUrl.toString()) {
             window.history.replaceState({ mainzNavigation: "spa" }, "", effectiveCurrentUrl);
         }
@@ -496,7 +522,9 @@ function normalizeSpaRoutes(
         .sort(compareSpaRoutesByPriority);
 }
 
-function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition): NormalizedSpaRoute {
+function normalizeSpaRoute(
+    entry: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition,
+): NormalizedSpaRoute {
     if (isSpaLazyPageDefinition(entry)) {
         const path = normalizeRoutePath(entry.path);
         if (!path) {
@@ -510,7 +538,8 @@ function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLa
     }
 
     const page = isSpaPageDefinition(entry) ? entry.page : entry;
-    const missingRouteMessage = `SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`;
+    const missingRouteMessage =
+        `SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`;
     const path = normalizeRoutePath(
         isSpaPageDefinition(entry)
             ? entry.path ?? requirePageRoutePath(page, missingRouteMessage)
@@ -518,7 +547,9 @@ function normalizeSpaRoute(entry: SpaPageConstructor | SpaPageDefinition | SpaLa
     );
 
     if (!path) {
-        throw new Error(`SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`);
+        throw new Error(
+            `SPA navigation page "${page.name}" must define @Route(...) or an explicit route path.`,
+        );
     }
 
     return {
@@ -646,12 +677,16 @@ function matchRoutePath(routePath: string, currentPath: string): Record<string, 
         const currentSegment = currentSegments[currentIndex];
 
         if (routeSegment === "*") {
-            params["*"] = currentSegments.slice(currentIndex).map(decodeRouteParamSegment).join("/");
+            params["*"] = currentSegments.slice(currentIndex).map(decodeRouteParamSegment).join(
+                "/",
+            );
             return params;
         }
 
         if (routeSegment.startsWith("[...")) {
-            params[routeSegment.slice(4, -1)] = currentSegments.slice(currentIndex).map(decodeRouteParamSegment).join("/");
+            params[routeSegment.slice(4, -1)] = currentSegments.slice(currentIndex).map(
+                decodeRouteParamSegment,
+            ).join("/");
             return params;
         }
 
@@ -711,7 +746,9 @@ function resolveSpaMount(mount?: string | Element): HTMLElement {
 }
 
 function ensurePageCustomElement(page: SpaPageConstructor): void {
-    ensureMainzCustomElementDefined(page as unknown as CustomElementConstructor & { getTagName(): string });
+    ensureMainzCustomElementDefined(
+        page as unknown as CustomElementConstructor & { getTagName(): string },
+    );
 }
 
 async function resolveSpaRoutePage(route: NormalizedSpaRoute): Promise<SpaPageConstructor> {
@@ -737,7 +774,9 @@ function resolveSpaPageModule(module: SpaPageModule): SpaPageConstructor {
         return module.default;
     }
 
-    throw new Error("SPA lazy navigation loader must resolve to a Page constructor or { default: Page }.");
+    throw new Error(
+        "SPA lazy navigation loader must resolve to a Page constructor or { default: Page }.",
+    );
 }
 
 function applySpaRouteContext(element: HTMLElement, context: SpaNavigationRenderContext): void {
@@ -833,8 +872,11 @@ function resolveSpaRouteHead(args: {
     });
 }
 
-function resolveSpaRouteLocales(page: SpaPageConstructor, fallbackLocales?: readonly string[]): readonly string[] {
-    const pageLocales = page.page?.locales;
+function resolveSpaRouteLocales(
+    page: SpaPageConstructor,
+    fallbackLocales?: readonly string[],
+): readonly string[] {
+    const pageLocales = resolvePageLocales(page);
     if (pageLocales?.length) {
         return pageLocales;
     }
@@ -915,7 +957,9 @@ function resolveNavigableAnchorUrl(
         return null;
     }
 
-    if (!isUrlWithinNavigationBasePath(resolvedUrl, normalizeNavigationBasePath(options.basePath))) {
+    if (
+        !isUrlWithinNavigationBasePath(resolvedUrl, normalizeNavigationBasePath(options.basePath))
+    ) {
         return null;
     }
 
@@ -1031,7 +1075,9 @@ function normalizeNavigationBasePath(basePath?: string): string {
         return "/";
     }
 
-    const withLeadingSlash = normalizedBasePath.startsWith("/") ? normalizedBasePath : `/${normalizedBasePath}`;
+    const withLeadingSlash = normalizedBasePath.startsWith("/")
+        ? normalizedBasePath
+        : `/${normalizedBasePath}`;
     return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
@@ -1080,7 +1126,11 @@ function reportSpaNavigationError(error: unknown): void {
     console.error("[mainz] SPA navigation failed.", error);
 }
 
-function resolveSpaLocalizedDocumentUrl(url: URL, basePath: string, locales?: readonly string[]): URL {
+function resolveSpaLocalizedDocumentUrl(
+    url: URL,
+    basePath: string,
+    locales?: readonly string[],
+): URL {
     if (!shouldRedirectSpaRootToLocalizedPath(url, basePath, locales)) {
         return url;
     }
@@ -1095,7 +1145,11 @@ function resolveSpaLocalizedDocumentUrl(url: URL, basePath: string, locales?: re
     return nextUrl;
 }
 
-function shouldRedirectSpaRootToLocalizedPath(url: URL, basePath: string, locales?: readonly string[]): boolean {
+function shouldRedirectSpaRootToLocalizedPath(
+    url: URL,
+    basePath: string,
+    locales?: readonly string[],
+): boolean {
     if (!locales?.length) {
         return false;
     }
@@ -1134,7 +1188,9 @@ function readPreferredNavigationLocales(): readonly string[] {
     }
 
     if (Array.isArray(navigator.languages)) {
-        preferredLocales.push(...navigator.languages.filter((value): value is string => typeof value === "string"));
+        preferredLocales.push(
+            ...navigator.languages.filter((value): value is string => typeof value === "string"),
+        );
     }
 
     if (typeof navigator.language === "string" && navigator.language.trim()) {
@@ -1155,13 +1211,15 @@ function applyNavigationLocale(
     }
 
     document.documentElement.lang = locale;
-    document.dispatchEvent(new CustomEvent<MainzLocaleChangeDetail>(MAINZ_LOCALE_CHANGE_EVENT, {
-        detail: {
-            locale,
-            url: url.toString(),
-            basePath,
-        },
-    }));
+    document.dispatchEvent(
+        new CustomEvent<MainzLocaleChangeDetail>(MAINZ_LOCALE_CHANGE_EVENT, {
+            detail: {
+                locale,
+                url: url.toString(),
+                basePath,
+            },
+        }),
+    );
     onLocaleChange?.({
         locale,
         url,
@@ -1188,7 +1246,11 @@ function resolveRoutePath(
     return stripLocalePrefixFromPath(appPath, locales);
 }
 
-function resolveNavigationLocale(url: URL, basePath: string, locales?: readonly string[]): string | undefined {
+function resolveNavigationLocale(
+    url: URL,
+    basePath: string,
+    locales?: readonly string[],
+): string | undefined {
     if (!locales?.length) {
         const documentLocale = document.documentElement.lang.trim();
         return documentLocale || undefined;
@@ -1198,7 +1260,9 @@ function resolveNavigationLocale(url: URL, basePath: string, locales?: readonly 
     const firstSegment = appPath.split("/").filter(Boolean)[0];
 
     if (firstSegment) {
-        const matchedLocale = locales.find((locale) => locale.toLowerCase() === firstSegment.toLowerCase());
+        const matchedLocale = locales.find((locale) =>
+            locale.toLowerCase() === firstSegment.toLowerCase()
+        );
         if (matchedLocale) {
             return matchedLocale;
         }
@@ -1209,7 +1273,8 @@ function resolveNavigationLocale(url: URL, basePath: string, locales?: readonly 
         return locales[0];
     }
 
-    return locales.find((locale) => locale.toLowerCase() === documentLocale.toLowerCase()) ?? locales[0];
+    return locales.find((locale) => locale.toLowerCase() === documentLocale.toLowerCase()) ??
+        locales[0];
 }
 
 function stripLocalePrefixFromPath(pathname: string, locales?: readonly string[]): string {
@@ -1231,7 +1296,9 @@ function stripLocalePrefixFromPath(pathname: string, locales?: readonly string[]
     return rest.length === 0 ? "/" : `/${rest.join("/")}`;
 }
 
-function resolvePageNavigationOptions(options: StartNavigationOptions): ResolvedPageNavigationOptions | undefined {
+function resolvePageNavigationOptions(
+    options: StartNavigationOptions,
+): ResolvedPageNavigationOptions | undefined {
     const legacySpaOptions = options.spa;
     const pages = options.pages ?? legacySpaOptions?.pages;
     const notFound = options.notFound ?? legacySpaOptions?.notFound;
@@ -1272,7 +1339,7 @@ function resolvePagesAppLocales(
         }
 
         const page = isSpaPageDefinition(entry) ? entry.page : entry;
-        for (const locale of page.page?.locales ?? []) {
+        for (const locale of resolvePageLocales(page) ?? []) {
             inferredLocales.add(locale);
         }
     }
@@ -1306,7 +1373,6 @@ function resolveMainzRenderMode(): "csr" | "ssg" {
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
     return fromGlobal === "ssg" ? "ssg" : "csr";
 }
-
 
 function resolveMainzBasePath(): string {
     if (typeof __MAINZ_BASE_PATH__ !== "undefined") {
@@ -1350,7 +1416,9 @@ function readMainzTargetLocales(): readonly string[] {
     }
 
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;
-    return Array.isArray(fromGlobal) ? fromGlobal.filter((value): value is string => typeof value === "string") : [];
+    return Array.isArray(fromGlobal)
+        ? fromGlobal.filter((value): value is string => typeof value === "string")
+        : [];
 }
 
 async function bootstrapDocumentNavigation(
@@ -1364,7 +1432,8 @@ async function bootstrapDocumentNavigation(
     const mount = resolveSpaMount(options.mount);
     const routes = normalizeSpaRoutes(options.pages, options.notFound);
     const url = new URL(window.location.href);
-    const currentPath = resolveRoutePath(url, basePath, options.resolvePath, options.locales) ?? "/";
+    const currentPath = resolveRoutePath(url, basePath, options.resolvePath, options.locales) ??
+        "/";
     const routeMatch = findMatchingSpaRoute(routes, currentPath);
     const locale = resolveNavigationLocale(url, basePath, options.locales);
 
@@ -1413,21 +1482,21 @@ async function resolveMountedRouteContext(
         ensurePageCustomElement(matchedPage);
 
         const mountedElement = mount.querySelector(matchedPage.getTagName());
-            if (mountedElement instanceof HTMLElement) {
-                const params = context.routeMatch?.params ?? {};
-                const data = resolveSnapshotData(routeSnapshot, {
-                    mountedElement,
-                    path: context.routeMatch?.route.path ?? context.currentPath,
-                    matchedPath: context.currentPath,
-                    params,
-                    locale: context.locale,
-                }) ?? await resolvePageRouteData({
-                    page: matchedPage,
-                    params,
-                    locale: context.locale,
-                    url: context.url,
-                });
-                const routeContext = {
+        if (mountedElement instanceof HTMLElement) {
+            const params = context.routeMatch?.params ?? {};
+            const data = resolveSnapshotData(routeSnapshot, {
+                mountedElement,
+                path: context.routeMatch?.route.path ?? context.currentPath,
+                matchedPath: context.currentPath,
+                params,
+                locale: context.locale,
+            }) ?? await resolvePageRouteData({
+                page: matchedPage,
+                params,
+                locale: context.locale,
+                url: context.url,
+            });
+            const routeContext = {
                 page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
@@ -1443,12 +1512,12 @@ async function resolveMountedRouteContext(
                 url: context.url,
                 navigationType: "initial",
                 basePath: context.basePath,
-                } satisfies SpaNavigationRenderContext;
+            } satisfies SpaNavigationRenderContext;
 
-                applySpaRouteContext(mountedElement, routeContext);
-                applyResolvedPageHeadToDocument(routeContext.head);
-                return routeContext;
-            }
+            applySpaRouteContext(mountedElement, routeContext);
+            applyResolvedPageHeadToDocument(routeContext.head);
+            return routeContext;
+        }
     }
 
     for (const route of routes) {

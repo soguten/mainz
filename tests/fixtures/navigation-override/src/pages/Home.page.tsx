@@ -1,11 +1,11 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("x-mainz-fixture-navigation-override-home-page")
 @Route("/")
 @RenderMode("ssg")
+@Locales("en")
 export class FixtureNavigationOverrideHomePage extends Page {
     static override page = {
-        locales: ["en"],
         head: {
             title: "Fixture Navigation Override",
         },

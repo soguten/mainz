@@ -1,13 +1,13 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 import { DocsShell } from "../components/DocsShell.tsx";
 import { docsArticles, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
 @CustomElement("x-mainz-docs-home-page")
 @Route("/")
 @RenderMode("ssg")
+@Locales("en")
 export class HomePage extends Page {
     static override page = {
-        locales: ["en"],
         head: {
             title: "Mainz Docs",
             meta: [
@@ -39,7 +39,7 @@ The layout is intentionally recognizable as a documentation site, but the runtim
 
 This demo also exercises dynamic routes through \`/:slug\`, which now expand through \`entries()\` and load per-page data through \`load()\`.
 
-The docs article route now uses \`@RenderMode("ssg")\` on the page and a component-level \`@RenderStrategy("blocking")\` to assemble the article shell from a resource.
+The docs article route now uses \`@RenderMode("ssg")\`, \`@Locales("en")\`, and a component-level \`@RenderStrategy("blocking")\` to assemble the article shell from a resource.
 
 The right rail reintroduces **On this page** as a \`deferred\` component, and article pages now show **Recent pages** in the sidebar as a \`client-only\` component backed by local browser state.
 

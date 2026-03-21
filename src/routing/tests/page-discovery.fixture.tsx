@@ -1,4 +1,4 @@
-import { Page, RenderMode, Route } from "../../index.ts";
+import { Locales, Page, RenderMode, Route } from "../../index.ts";
 
 @Route("/")
 export class HomePage extends Page {
@@ -18,11 +18,8 @@ export class HomePage extends Page {
 
 @Route("/search")
 @RenderMode("ssg")
+@Locales("pt-BR", "en-US")
 export class SearchPage extends Page {
-    static override page = {
-        locales: ["pt-BR", "en-US"],
-    };
-
     override render(): HTMLElement {
         return <main>Search</main>;
     }

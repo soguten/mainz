@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { createPageLoadContext, entries, load } from "../index.ts";
+import { createPageLoadContext, entries, load, Locales, Page } from "../index.ts";
+import { resolvePageLocales } from "../page.ts";
 
 Deno.test("components/page helpers: entries.from should wrap mapped params into entry definitions", () => {
     const resolveEntries = entries.from(
@@ -55,9 +56,34 @@ Deno.test("components/page helpers: load.byParams should resolve a param subset 
         navigationMode: "enhanced-mpa",
     });
 
-    const resolveLoad = load.byParams(["locale", "slug"] as const, async (params, currentContext) => {
-        return `${params.locale}:${params.slug}:${currentContext.navigationMode}`;
-    });
+    const resolveLoad = load.byParams(
+        ["locale", "slug"] as const,
+        async (params, currentContext) => {
+            return `${params.locale}:${params.slug}:${currentContext.navigationMode}`;
+        },
+    );
 
     assertEquals(await resolveLoad(context), "pt-br:intro:enhanced-mpa");
+});
+
+Deno.test("components/page helpers: Locales decorator should keep locale metadata outside static page", () => {
+    @Locales("en", "pt-BR")
+    class LocalizedPage extends Page {
+        static override page = {
+            head: {
+                title: "Localized",
+            },
+        };
+
+        override render(): HTMLElement {
+            return document.createElement("main");
+        }
+    }
+
+    assertEquals(LocalizedPage.page, {
+        head: {
+            title: "Localized",
+        },
+    });
+    assertEquals(resolvePageLocales(LocalizedPage), ["en", "pt-BR"]);
 });

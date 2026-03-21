@@ -8,15 +8,16 @@ page itself.
 
 ## Create your first page
 
-A page only needs a route annotation, a custom element name, optional static metadata, and a render
-method. The framework takes care of registration and head management.
+A page only needs a route annotation, a custom element name, optional locale metadata, optional page
+metadata, and a render method. The framework takes care of registration and head management.
 
 ```tsx title="Home.page.tsx"
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("app-home-page")
 @Route("/")
 @RenderMode("ssg")
+@Locales("en", "pt")
 export class HomePage extends Page {
     static override page = {
         head: {
@@ -31,7 +32,9 @@ export class HomePage extends Page {
 ```
 
 `@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the route envelope, and
-`@CustomElement(...)` remains the single source of truth for the generated web component name.
+`@Locales(...)` declares locale-specific routing close to the page. `static page` is then free to
+stay focused on richer metadata like `head` and `notFound`. `@CustomElement(...)` remains the single
+source of truth for the generated web component name.
 
 ## Bootstrap the app
 

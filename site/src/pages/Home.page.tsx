@@ -1,12 +1,12 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 
 @CustomElement("x-mainz-home-page")
 @Route("/")
 @RenderMode("ssg")
+@Locales("en", "pt")
 export class HomePage extends Page {
     static override page = {
-        locales: ["en", "pt"],
         head: {
             title: "Mainz",
             meta: [

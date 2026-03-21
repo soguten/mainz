@@ -1,4 +1,4 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 
 type CoreContractsRouteProps = {
     route?: {
@@ -10,10 +10,10 @@ type CoreContractsRouteProps = {
 @CustomElement("x-mainz-not-found-page")
 @Route("/404")
 @RenderMode("ssg")
+@Locales("en", "pt")
 export class CoreContractsNotFoundPage extends Page<CoreContractsRouteProps> {
     static override page = {
         notFound: true,
-        locales: ["en", "pt"],
         head: {
             title: "404 | Mainz",
         },
