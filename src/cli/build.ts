@@ -611,10 +611,15 @@ async function resolveTargetRouteBuildContext(
     job: BuildJob,
     cwd: string,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const { filesystemPageFiles, discoveredPages } = await resolveTargetDiscoveredPages(
+    const { filesystemPageFiles, discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPages(
         job.target.pagesDir,
         cwd,
     );
+    if (discoveryErrors?.length) {
+        throw new Error(
+            discoveryErrors.map((entry) => `${entry.file}: ${entry.message}`).join("\n"),
+        );
+    }
 
     return buildTargetRouteManifest({
         target: {

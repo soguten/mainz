@@ -34,7 +34,8 @@ export class HomePage extends Page {
 `@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the route envelope, and
 `@Locales(...)` declares locale-specific routing close to the page. `static page` is then free to
 stay focused on richer metadata like `head` and `notFound`. `@CustomElement(...)` remains the single
-source of truth for the generated web component name.
+source of truth for the generated web component name. Locale values should be valid BCP 47 tags
+such as `en`, `pt-BR`, or `sr-Latn-RS`.
 
 ## Bootstrap the app
 

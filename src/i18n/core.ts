@@ -97,29 +97,11 @@ export function normalizeLocaleTag(locale: string): string {
         throw new Error("Locale cannot be empty.");
     }
 
-    const segments = normalized.split("-").filter(Boolean);
-    if (segments.length === 0) {
-        throw new Error(`Invalid locale "${locale}".`);
+    try {
+        return Intl.getCanonicalLocales(normalized)[0]!;
+    } catch {
+        throw new Error(`Invalid locale "${locale}". Expected a valid BCP 47 language tag.`);
     }
-
-    const [language, ...rest] = segments;
-    const output = [language.toLowerCase()];
-
-    for (const segment of rest) {
-        if (/^[A-Za-z]{4}$/.test(segment)) {
-            output.push(segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase());
-            continue;
-        }
-
-        if (/^[A-Za-z]{2}$/.test(segment) || /^[0-9]{3}$/.test(segment)) {
-            output.push(segment.toUpperCase());
-            continue;
-        }
-
-        output.push(segment.toLowerCase());
-    }
-
-    return output.join("-");
 }
 
 export function toLocalePathSegment(locale: string): string {

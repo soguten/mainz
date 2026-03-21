@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { createPageLoadContext, entries, load, Locales, Page } from "../index.ts";
 import { resolvePageLocales } from "../page.ts";
 
@@ -86,4 +86,30 @@ Deno.test("components/page helpers: Locales decorator should keep locale metadat
         },
     });
     assertEquals(resolvePageLocales(LocalizedPage), ["en", "pt-BR"]);
+});
+
+Deno.test("components/page helpers: Locales decorator should normalize and validate locale tags", () => {
+    @Locales("en_us", "sr_latn_rs")
+    class CanonicalizedPage extends Page {
+        override render(): HTMLElement {
+            return document.createElement("main");
+        }
+    }
+
+    assertEquals(resolvePageLocales(CanonicalizedPage), ["en-US", "sr-Latn-RS"]);
+
+    assertThrows(
+        () => {
+            @Locales("en--US")
+            class InvalidLocalizedPage extends Page {
+                override render(): HTMLElement {
+                    return document.createElement("main");
+                }
+            }
+
+            return InvalidLocalizedPage;
+        },
+        Error,
+        '@Locales() received invalid locale "en--US" at index 0.',
+    );
 });

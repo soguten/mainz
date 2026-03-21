@@ -277,6 +277,43 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
     }
 });
 
+Deno.test("cli/mainz: diagnose should report invalid locale tags declared in @Locales(...)", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-invalid-locales",
+        targetName: "diagnostics-invalid-locales",
+        locales: ["en"],
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-invalid-locales fixture.",
+        );
+
+        assertEquals(JSON.parse(stdout), [
+            {
+                target: "diagnostics-invalid-locales",
+                code: "invalid-locale-tag",
+                severity: "error",
+                message:
+                    `Could not load page module "${fixture.fixtureRoot.replaceAll("\\", "/")}/src/pages/Home.page.tsx": ` +
+                    '@Locales() received invalid locale "en--US" at index 0. ' +
+                    'Invalid locale "en--US". Expected a valid BCP 47 language tag.',
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Home.page.tsx",
+                exportName: "(page discovery)",
+            },
+        ]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
 function sortDiagnostics<T extends { target: string; code: string; exportName: string; routePath?: string }>(
     diagnostics: readonly T[],
 ): T[] {

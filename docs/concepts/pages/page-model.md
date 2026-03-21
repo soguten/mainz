@@ -24,7 +24,7 @@ export class HomePage extends Page {
 The split is intentional: `@Route(...)` describes where the page lives, and `@CustomElement(...)`
 defines the stable tag the runtime registers. `@RenderMode(...)` and `@Locales(...)` declare the
 route contract up front, while `static page` stays focused on richer metadata like `head` and
-`notFound`.
+`notFound`. Locale values should be valid BCP 47 tags such as `en`, `pt-BR`, or `sr-Latn-RS`.
 
 That keeps the high-signal routing decisions visible before you read the class body.
 

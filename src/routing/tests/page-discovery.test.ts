@@ -110,6 +110,18 @@ Deno.test("routing/page-discovery: should fail when a Page export omits a route 
     );
 });
 
+Deno.test("routing/page-discovery: should fail when @Locales(...) declares an invalid locale tag", async () => {
+    await setupMainzDom();
+
+    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.invalid-locale.fixture.tsx"));
+
+    await assertRejects(
+        () => discoverPagesFromFile(file),
+        Error,
+        '@Locales() received invalid locale "en--US" at index 0.',
+    );
+});
+
 Deno.test("routing/page-discovery: should discover decorator-only render mode declarations", async () => {
     await setupMainzDom();
 

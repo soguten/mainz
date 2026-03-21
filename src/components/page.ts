@@ -2,6 +2,7 @@ import { Component } from "./component.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
 import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
+import { normalizeLocaleTag } from "../i18n/core.ts";
 
 export interface PageHeadMetaDefinition {
     name?: string;
@@ -330,7 +331,15 @@ function applyPageRenderMode(pageCtor: PageConstructor, mode: RenderMode): void 
 }
 
 function applyPageLocales(pageCtor: PageConstructor, locales: readonly string[]): void {
-    pageCtor[PAGE_LOCALES] = [...locales];
+    pageCtor[PAGE_LOCALES] = locales.map((locale, index) => {
+        try {
+            return normalizeLocaleTag(locale);
+        } catch (error) {
+            throw new Error(
+                `@Locales() received invalid locale "${locale}" at index ${index}. ${toErrorMessage(error)}`,
+            );
+        }
+    });
 }
 
 function resolveMainzResourceRuntime(): ResourceRuntime {
@@ -354,4 +363,12 @@ function normalizePageEntryDefinition(entry: PageEntryLike): PageEntryDefinition
 
 function isPageEntryDefinition(entry: PageEntryLike): entry is PageEntryDefinition {
     return "params" in entry;
+}
+
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return String(error);
 }

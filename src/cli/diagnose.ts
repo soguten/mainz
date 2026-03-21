@@ -8,6 +8,7 @@ import {
     collectComponentSourceDiagnostics,
     collectRouteDiagnostics,
     type ComponentSourceDiagnosticsInput,
+    type MainzDiagnosticCode,
     type MainzDiagnostic,
 } from "../diagnostics/index.ts";
 import { collectFilesystemFiles, resolveTargetDiscoveredPages } from "./route-pages.ts";
@@ -30,7 +31,7 @@ export async function collectCliDiagnostics(
     const diagnostics: CliTargetDiagnostic[] = [];
 
     for (const target of resolveDiagnoseTargets(config, options.target)) {
-        const { discoveredPages } = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
+        const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
         if (discoveredPages?.length) {
             const targetDiagnostics = await collectRouteDiagnostics(
                 discoveredPages.map((page) => ({
@@ -49,6 +50,19 @@ export async function collectCliDiagnostics(
                 ...targetDiagnostics.map((diagnostic) => ({
                     ...diagnostic,
                     target: target.name,
+                })),
+            );
+        }
+
+        if (discoveryErrors?.length) {
+            diagnostics.push(
+                ...discoveryErrors.map((discoveryError) => ({
+                    target: target.name,
+                    code: classifyPageDiscoveryError(discoveryError.message),
+                    severity: "error" as const,
+                    message: discoveryError.message,
+                    file: discoveryError.file,
+                    exportName: "(page discovery)",
                 })),
             );
         }
@@ -185,6 +199,14 @@ function groupDiagnosticsByTarget(
     }
 
     return grouped;
+}
+
+function classifyPageDiscoveryError(message: string): MainzDiagnosticCode {
+    if (message.includes("@Locales() received invalid locale")) {
+        return "invalid-locale-tag";
+    }
+
+    return "page-discovery-failed";
 }
 
 async function discoverTargetComponentSources(

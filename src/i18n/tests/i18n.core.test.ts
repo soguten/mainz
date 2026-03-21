@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
     createDictionaryI18n,
     normalizeLocaleTag,
@@ -12,7 +12,22 @@ Deno.test("i18n/core: should normalize locale tags and locale path segment", () 
     assertEquals(normalizeLocaleTag("en-us"), "en-US");
     assertEquals(normalizeLocaleTag("pt_br"), "pt-BR");
     assertEquals(normalizeLocaleTag("zh-hant-hk"), "zh-Hant-HK");
+    assertEquals(normalizeLocaleTag("sr_latn_rs"), "sr-Latn-RS");
     assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
+});
+
+Deno.test("i18n/core: should reject malformed locale tags", () => {
+    assertThrows(
+        () => normalizeLocaleTag(""),
+        Error,
+        "Locale cannot be empty.",
+    );
+
+    assertThrows(
+        () => normalizeLocaleTag("en--US"),
+        Error,
+        'Invalid locale "en--US". Expected a valid BCP 47 language tag.',
+    );
 });
 
 Deno.test("i18n/core: should resolve locale and fallback to base language", () => {

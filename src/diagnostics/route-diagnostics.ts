@@ -1,4 +1,5 @@
 import { isDynamicRoutePath, validateRouteEntryParams } from "../routing/index.ts";
+import { normalizeLocaleTag } from "../i18n/core.ts";
 import ts from "npm:typescript";
 
 export type MainzDiagnosticSeverity = "warning" | "error";
@@ -7,6 +8,8 @@ export type MainzDiagnosticCode =
     | "dynamic-ssg-missing-entries"
     | "dynamic-ssg-missing-load"
     | "dynamic-ssg-invalid-entries"
+    | "invalid-locale-tag"
+    | "page-discovery-failed"
     | "not-found-must-use-ssg"
     | "multiple-not-found-pages";
 
@@ -53,6 +56,22 @@ export async function collectRouteDiagnostics(
     }
 
     for (const page of pages) {
+        for (const locale of page.page.locales ?? []) {
+            try {
+                normalizeLocaleTag(locale);
+            } catch (error) {
+                diagnostics.push({
+                    code: "invalid-locale-tag",
+                    severity: "error",
+                    message:
+                        `Page "${page.exportName}" declares invalid locale "${locale}" in @Locales(...). ${toErrorMessage(error)}`,
+                    file: page.file,
+                    exportName: page.exportName,
+                    routePath: page.page.path,
+                });
+            }
+        }
+
         if (page.page.hasExplicitRenderMode !== true) {
             diagnostics.push({
                 code: "missing-render-mode-decorator",
