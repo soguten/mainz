@@ -122,6 +122,10 @@ export const docsStyles = `
   margin-top: 24px;
 }
 
+.docs-grid.has-rail {
+  grid-template-columns: 280px minmax(0, 1fr) 220px;
+}
+
 .docs-sidebar {
   position: sticky;
   top: 24px;
@@ -143,6 +147,32 @@ export const docsStyles = `
 .docs-nav-sections {
   display: grid;
   gap: 16px;
+}
+
+.docs-recent-pages {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 16px 14px;
+  border: 1px solid var(--docs-border);
+  border-radius: 18px;
+  background: var(--docs-panel-strong);
+  box-shadow: var(--docs-shadow);
+}
+
+.docs-recent-pages-placeholder {
+  opacity: 0.94;
+}
+
+.docs-recent-pages-empty {
+  margin: 0;
+  color: var(--docs-muted);
+  font: 500 0.92rem/1.6 "Aptos", "Segoe UI Variable Text", sans-serif;
+}
+
+.docs-nav-link-recent {
+  padding: 10px 12px;
+  border-radius: 14px;
 }
 
 .docs-nav-section {
@@ -232,6 +262,57 @@ export const docsStyles = `
 
 .docs-article {
   min-width: 0;
+}
+
+.docs-rail {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.docs-on-this-page {
+  display: grid;
+  gap: 14px;
+  padding: 18px 16px;
+  border: 1px solid var(--docs-border);
+  border-radius: 20px;
+  background: var(--docs-panel-strong);
+  box-shadow: var(--docs-shadow);
+}
+
+.docs-on-this-page-kicker {
+  margin: 0;
+  color: var(--docs-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font: 700 0.72rem "Aptos", "Segoe UI Variable Text", sans-serif;
+}
+
+.docs-on-this-page-placeholder {
+  margin: 0;
+  color: var(--docs-muted);
+  font: 500 0.92rem/1.6 "Aptos", "Segoe UI Variable Text", sans-serif;
+}
+
+.docs-on-this-page-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.docs-on-this-page-link {
+  color: var(--docs-text);
+  text-decoration: none;
+  font: 700 0.9rem/1.45 "Aptos", "Segoe UI Variable Text", sans-serif;
+}
+
+.docs-on-this-page-link.nested {
+  padding-left: 12px;
+  color: var(--docs-muted);
+  font-weight: 600;
+}
+
+.docs-on-this-page-link:hover {
+  color: var(--docs-accent-strong);
 }
 
 .docs-hero {
@@ -539,6 +620,10 @@ export const docsStyles = `
     grid-template-columns: 1fr;
   }
 
+  .docs-grid.has-rail {
+    grid-template-columns: 1fr;
+  }
+
   .docs-sidebar {
     position: static;
     max-height: none;
@@ -549,6 +634,10 @@ export const docsStyles = `
 
   .docs-overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .docs-rail {
+    position: static;
   }
 
   .docs-pager {
@@ -569,6 +658,7 @@ export const docsStyles = `
   .docs-topbar-actions {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .docs-top-links {

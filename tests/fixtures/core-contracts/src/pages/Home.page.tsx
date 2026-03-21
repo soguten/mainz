@@ -1,4 +1,4 @@
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 import { TutorialPage } from "../components/TutorialPage.tsx";
 
 type CoreContractsRouteProps = {
@@ -9,9 +9,9 @@ type CoreContractsRouteProps = {
 
 @CustomElement("x-mainz-core-contracts-home-page")
 @Route("/")
+@RenderMode("ssg")
 export class CoreContractsHomePage extends Page<CoreContractsRouteProps> {
     static override page = {
-        mode: "ssg" as const,
         locales: ["en", "pt"],
         head: {
             title: "Mainz",

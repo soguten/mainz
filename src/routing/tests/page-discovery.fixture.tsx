@@ -1,4 +1,4 @@
-import { Page, Route } from "../../index.ts";
+import { Page, RenderMode, Route } from "../../index.ts";
 
 @Route("/")
 export class HomePage extends Page {
@@ -17,9 +17,9 @@ export class HomePage extends Page {
 }
 
 @Route("/search")
+@RenderMode("ssg")
 export class SearchPage extends Page {
     static override page = {
-        mode: "ssg" as const,
         locales: ["pt-BR", "en-US"],
     };
 

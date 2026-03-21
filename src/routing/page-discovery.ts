@@ -7,6 +7,7 @@ import {
     type PageConstructor,
     type PageHeadDefinition,
     requirePageRoutePath,
+    resolvePageRenderMode,
 } from "../components/page.ts";
 import type { RenderMode } from "./types.ts";
 import { isFilesystemPageFile } from "./filesystem.ts";
@@ -17,6 +18,7 @@ export interface DiscoveredPage {
     page: {
         path: string;
         mode: RenderMode;
+        hasExplicitRenderMode?: boolean;
         notFound?: boolean;
         locales?: readonly string[];
         head?: PageHeadDefinition;
@@ -88,10 +90,24 @@ function normalizePageDefinition(
 
     return {
         path,
-        mode: normalizeMode(page.mode),
+        ...resolveDiscoveryMode(ctor, page as Record<string, unknown>, filePath, exportName),
         notFound: page.notFound === true ? true : undefined,
         locales: page.locales ? [...page.locales] : undefined,
         head: page.head ? cloneHead(page.head) : undefined,
+    };
+}
+
+function resolveDiscoveryMode(
+    ctor: PageConstructor,
+    _page: Record<string, unknown>,
+    filePath: string,
+    exportName: string,
+): { mode: RenderMode; hasExplicitRenderMode?: boolean } {
+    const decoratorMode = resolvePageRenderMode(ctor);
+
+    return {
+        mode: normalizeMode(decoratorMode),
+        hasExplicitRenderMode: decoratorMode !== undefined ? true : undefined,
     };
 }
 

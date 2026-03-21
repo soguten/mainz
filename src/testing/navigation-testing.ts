@@ -14,9 +14,12 @@ export function resetMainzNavigationTestDom(): void {
     document.head.innerHTML = "";
     document.body.innerHTML = "";
     document.title = "";
+    document.documentElement.removeAttribute("lang");
     delete document.documentElement.dataset.mainzNavigation;
     delete document.documentElement.dataset.mainzTransitionPhase;
     delete document.documentElement.dataset.mainzViewTransitions;
+    delete (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
+    delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     delete (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
     delete (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__;
     delete (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;

@@ -1,7 +1,14 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { buildSsgOutputEntries, buildTargetRouteManifest, isDynamicRoutePath, materializeRoutePath, toLocalePathSegment } from "../index.ts";
+import {
+    buildSsgOutputEntries,
+    buildTargetRouteManifest,
+    isDynamicRoutePath,
+    materializeRoutePath,
+    toLocalePathSegment,
+    validateRouteEntryParams,
+} from "../index.ts";
 import { TargetRouteManifest } from "../types.ts";
 
 Deno.test("routing/manifest: should allow app-only targets with no routing input", () => {
@@ -318,6 +325,19 @@ Deno.test("routing/manifest: should identify dynamic route patterns and material
 
     assertEquals(materializeRoutePath("/docs/:slug", { slug: "intro guide" }), "/docs/intro%20guide");
     assertEquals(materializeRoutePath("/docs/[...parts]", { parts: "guides/getting-started" }), "/docs/guides/getting-started");
+});
+
+Deno.test("routing/manifest: should validate required params for dynamic route entries", () => {
+    validateRouteEntryParams("/docs/:slug", { slug: "intro" });
+    validateRouteEntryParams("/docs/[...parts]", { parts: "guides/getting-started" });
+
+    assertThrows(() => {
+        validateRouteEntryParams("/docs/:slug", {});
+    }, Error, 'requires "slug"');
+
+    assertThrows(() => {
+        validateRouteEntryParams("/docs/[...parts]", {});
+    }, Error, 'requires "parts"');
 });
 
 Deno.test("routing/manifest: should require entries for dynamic ssg outputs", () => {

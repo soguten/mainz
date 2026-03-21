@@ -3,6 +3,12 @@
 
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
 import {
+    collectCliDiagnostics,
+    formatCliDiagnosticsHuman,
+    formatCliDiagnosticsJson,
+    shouldFailCliDiagnostics,
+} from "./diagnose.ts";
+import {
     applyBuildCliOverrides,
     BuildCliOptions,
     resolveBuildJobs,
@@ -23,8 +29,8 @@ export async function main(args: string[]): Promise<void> {
         return;
     }
 
-    if (command !== "build" && command !== "publish-info") {
-        throw new Error(`Unknown command "${command}". Use "build" or "publish-info".`);
+    if (command !== "build" && command !== "publish-info" && command !== "diagnose") {
+        throw new Error(`Unknown command "${command}". Use "build", "publish-info", or "diagnose".`);
     }
 
     const options = parseBuildOptions(rest);
@@ -51,6 +57,16 @@ export async function main(args: string[]): Promise<void> {
             navigation: options.navigation,
         });
         console.log(JSON.stringify(metadata, null, 2));
+        return;
+    }
+
+    if (command === "diagnose") {
+        const diagnostics = await collectCliDiagnostics(normalizedConfig, options, Deno.cwd());
+        const format = resolveDiagnoseFormat(options.format);
+        console.log(format === "human" ? formatCliDiagnosticsHuman(diagnostics) : formatCliDiagnosticsJson(diagnostics));
+        if (shouldFailCliDiagnostics(diagnostics, resolveDiagnoseFailOn(options.failOn))) {
+            Deno.exit(1);
+        }
         return;
     }
 
@@ -120,6 +136,18 @@ function parseBuildOptions(args: string[]): BuildCliOptions {
             continue;
         }
 
+        if (current === "--format") {
+            options.format = args[index + 1];
+            index += 1;
+            continue;
+        }
+
+        if (current === "--fail-on") {
+            options.failOn = args[index + 1] as "never" | "error" | "warning" | undefined;
+            index += 1;
+            continue;
+        }
+
         throw new Error(`Unknown option "${current}".`);
     }
 
@@ -134,6 +162,7 @@ function printHelp(): void {
             "Usage:",
             "  mainz build [--target <name|all>] [--profile <name>] [--mode <csr|ssg|all>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz publish-info --target <name> [--profile <name>] [--mode <csr|ssg>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz diagnose [--target <name|all>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
             "Examples:",
             "  mainz build",
@@ -143,6 +172,40 @@ function printHelp(): void {
             "  mainz build --target playground --mode csr",
             "  mainz publish-info --target site --profile gh-pages",
             "  mainz publish-info --target site --mode ssg --navigation mpa",
+            "  mainz diagnose",
+            "  mainz diagnose --target docs",
+            "  mainz diagnose --target docs --format human",
+            "  mainz diagnose --target docs --format human --fail-on error",
         ].join("\n"),
+    );
+}
+
+function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
+    const normalized = format?.trim();
+    if (!normalized || normalized === "json") {
+        return "json";
+    }
+
+    if (normalized === "human") {
+        return "human";
+    }
+
+    throw new Error(`Unsupported diagnose format "${format}". Use "json" or "human".`);
+}
+
+function resolveDiagnoseFailOn(
+    failOn: string | undefined,
+): "never" | "error" | "warning" {
+    const normalized = failOn?.trim();
+    if (!normalized || normalized === "never") {
+        return "never";
+    }
+
+    if (normalized === "error" || normalized === "warning") {
+        return normalized;
+    }
+
+    throw new Error(
+        `Unsupported diagnose fail mode "${failOn}". Use "never", "error", or "warning".`,
     );
 }

@@ -5,6 +5,7 @@ import {
     setManagedDOMEvents,
 } from "../jsx/dom-factory.ts";
 import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
+import type { RenderStrategy } from "../resources/index.ts";
 
 interface TrackedEventListener {
     target: EventTarget;
@@ -17,12 +18,25 @@ const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLEleme
 const COMPONENT_CUSTOM_ELEMENT_TAG = Symbol(
     "mainz.component.custom-element-tag",
 );
+const COMPONENT_RENDER_STRATEGY = Symbol(
+    "mainz.component.render-strategy",
+);
+
+export interface RenderStrategyOptions {
+    fallback?: unknown | (() => unknown);
+    errorFallback?: unknown | ((error: unknown) => unknown);
+}
+
+export interface ComponentRenderConfig extends RenderStrategyOptions {
+    strategy: RenderStrategy;
+}
 
 type MainzComponentConstructor =
     & (abstract new (...args: unknown[]) => Component<any, any>)
     & {
         name: string;
         [COMPONENT_CUSTOM_ELEMENT_TAG]?: string;
+        [COMPONENT_RENDER_STRATEGY]?: ComponentRenderConfig;
     };
 
 export function CustomElement(tagName: string) {
@@ -31,6 +45,22 @@ export function CustomElement(tagName: string) {
         _context?: ClassDecoratorContext<T>,
     ): void {
         applyDecoratedCustomElementTag(value, tagName);
+    };
+}
+
+export function RenderStrategy(
+    strategy: RenderStrategy,
+    options: RenderStrategyOptions = {},
+) {
+    return function <T extends MainzComponentConstructor>(
+        value: T,
+        _context?: ClassDecoratorContext<T>,
+    ): void {
+        applyDecoratedRenderStrategy(value, {
+            strategy,
+            fallback: options.fallback,
+            errorFallback: options.errorFallback,
+        });
     };
 }
 
@@ -684,11 +714,31 @@ function applyDecoratedCustomElementTag(
     ctor[COMPONENT_CUSTOM_ELEMENT_TAG] = tagName;
 }
 
+function applyDecoratedRenderStrategy(
+    ctor: MainzComponentConstructor,
+    config: ComponentRenderConfig,
+): void {
+    ctor[COMPONENT_RENDER_STRATEGY] = config;
+}
+
 function resolveDecoratedCustomElementTag(
     ctor: MainzComponentConstructor,
 ): string | undefined {
     const tagName = ctor[COMPONENT_CUSTOM_ELEMENT_TAG]?.trim();
     return tagName ? tagName : undefined;
+}
+
+export function resolveComponentRenderStrategy(
+    componentCtor: object,
+): RenderStrategy | undefined {
+    return resolveComponentRenderConfig(componentCtor)?.strategy;
+}
+
+export function resolveComponentRenderConfig(
+    componentCtor: object,
+): ComponentRenderConfig | undefined {
+    const componentOwner = componentCtor as { [COMPONENT_RENDER_STRATEGY]?: ComponentRenderConfig };
+    return componentOwner[COMPONENT_RENDER_STRATEGY];
 }
 
 function elementTagName(element: Element): string {

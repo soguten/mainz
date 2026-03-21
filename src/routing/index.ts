@@ -12,6 +12,7 @@ export {
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
+    validateRouteEntryParams,
 } from "./manifest.ts";
 
 export type {

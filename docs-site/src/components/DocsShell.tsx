@@ -4,11 +4,13 @@ import { highlightDocsCodeBlocks } from "../lib/highlight.ts";
 import { buildDocsHref } from "../lib/links.ts";
 import { type MarkdownBlock, parseMarkdown } from "../lib/markdown.ts";
 import { docsStyles } from "../styles/docsStyles.ts";
+import { OnThisPage } from "./OnThisPage.tsx";
+import { RecentlyViewedDocs, recordRecentlyViewedDoc } from "./RecentlyViewedDocs.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
 
 const docsCodeBlockResetTimeoutIds = new WeakMap<DocsCodeBlock, number>();
 
-interface DocsShellProps {
+export interface DocsShellProps {
     title: string;
     summary: string;
     markdown?: string;
@@ -35,6 +37,7 @@ export class DocsShell extends Component<DocsShellProps> {
 
     override afterRender(): void {
         highlightDocsCodeBlocks(this);
+        this.recordCurrentDocVisit();
     }
 
     override render() {
@@ -69,7 +72,7 @@ export class DocsShell extends Component<DocsShellProps> {
                         </div>
                     </header>
 
-                    <div class="docs-grid">
+                    <div class={`docs-grid${props.activeSlug ? " has-rail" : ""}`}>
                         <aside class="docs-sidebar">
                             <p class="docs-sidebar-title">Documentation</p>
                             <div class="docs-nav-sections">
@@ -139,6 +142,10 @@ export class DocsShell extends Component<DocsShellProps> {
                                         ))}
                                     </section>
                                 ))}
+
+                                {props.activeSlug
+                                    ? <RecentlyViewedDocs currentSlug={props.activeSlug} />
+                                    : null}
                             </div>
                         </aside>
 
@@ -166,13 +173,17 @@ export class DocsShell extends Component<DocsShellProps> {
                                     )
                                     : null}
 
-                                {blocks.length > 0
-                                    ? blocks.map((block) => <MarkdownBlockView block={block} />)
-                                    : (
-                                        <div class="docs-empty">
-                                            This page is still being drafted.
-                                        </div>
-                                    )}
+                                <div class="docs-article-body">
+                                    {blocks.length > 0
+                                        ? blocks.map((block) => (
+                                            <MarkdownBlockView block={block} />
+                                        ))
+                                        : (
+                                            <div class="docs-empty">
+                                                This page is still being drafted.
+                                            </div>
+                                        )}
+                                </div>
 
                                 {props.previous || props.next
                                     ? (
@@ -211,6 +222,8 @@ export class DocsShell extends Component<DocsShellProps> {
                                     : null}
                             </div>
                         </article>
+
+                        {props.activeSlug ? <OnThisPage slug={props.activeSlug} /> : null}
                     </div>
                 </div>
             </div>
@@ -220,6 +233,17 @@ export class DocsShell extends Component<DocsShellProps> {
     private handleWindowLoad = () => {
         highlightDocsCodeBlocks(this);
     };
+
+    private recordCurrentDocVisit(): void {
+        if (!this.props.activeSlug) {
+            return;
+        }
+
+        recordRecentlyViewedDoc({
+            slug: this.props.activeSlug,
+            title: this.props.title,
+        });
+    }
 }
 
 function MarkdownBlockView(props: { block: MarkdownBlock }) {

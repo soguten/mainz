@@ -1,11 +1,11 @@
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 import { buildLocaleHref, type FixtureRouteProps } from "./shared.ts";
 
 @CustomElement("x-mainz-fixture-base-path-home-page")
 @Route("/")
+@RenderMode("ssg")
 export class FixtureBasePathHomePage extends Page<FixtureRouteProps> {
     static override page = {
-        mode: "ssg" as const,
         locales: ["en", "pt"],
         head: {
             title: "Fixture Base Path",

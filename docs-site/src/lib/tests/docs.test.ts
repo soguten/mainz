@@ -15,6 +15,10 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     assertEquals(sections[1].groups?.[0].title, "Core");
     assertEquals(sections[1].groups?.[0].items.map((item) => item.slug), [
         "routing",
+        "diagnostics-cli",
+        "render-mode-and-strategy",
+        "resource-model",
+        "public-shell-private-island",
         "route-metadata",
         "data-loading",
         "navigation-runtime",

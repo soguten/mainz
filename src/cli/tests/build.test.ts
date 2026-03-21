@@ -1,8 +1,9 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { resolveBuildJobs } from "../build.ts";
+import { cliTestsRepoRoot, createCliFixtureTargetConfig } from "../../../tests/helpers/test-helpers.ts";
 
 Deno.test("cli/build: should create full matrix when target and mode are omitted", () => {
     const config = normalizeMainzConfig({
@@ -147,4 +148,44 @@ Deno.test("cli/build: should fail when ssg is requested for an app-only target",
             mode: "ssg",
         });
     }, Error, "only supports csr app builds");
+});
+
+Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is prerendered", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "forbidden-in-ssg-build",
+        targetName: "forbidden-in-ssg-build",
+        locales: ["en"],
+    });
+
+    try {
+        const command = new Deno.Command("deno", {
+            args: [
+                "run",
+                "-A",
+                "./src/cli/mainz.ts",
+                "build",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+                "--mode",
+                "ssg",
+                "--navigation",
+                "enhanced-mpa",
+            ],
+            cwd: cliTestsRepoRoot,
+            stdout: "piped",
+            stderr: "piped",
+        });
+
+        const result = await command.output();
+        const stdout = new TextDecoder().decode(result.stdout);
+        const stderr = new TextDecoder().decode(result.stderr);
+
+        assertEquals(result.code, 1);
+        assertStringIncludes(stdout + stderr, 'Failed to prerender SSG route "/"');
+        assertStringIncludes(stdout + stderr, 'Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.');
+    } finally {
+        await fixture.cleanup();
+    }
 });

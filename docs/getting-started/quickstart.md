@@ -12,13 +12,13 @@ A page only needs a route annotation, a custom element name, optional static met
 method. The framework takes care of registration and head management.
 
 ```tsx title="Home.page.tsx"
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("app-home-page")
 @Route("/")
+@RenderMode("ssg")
 export class HomePage extends Page {
     static override page = {
-        mode: "ssg" as const,
         head: {
             title: "Hello Mainz",
         },
@@ -30,8 +30,8 @@ export class HomePage extends Page {
 }
 ```
 
-`@Route(...)` keeps route metadata on the page, and `@CustomElement(...)` is the single source of
-truth for the generated web component name.
+`@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the route envelope, and
+`@CustomElement(...)` remains the single source of truth for the generated web component name.
 
 ## Bootstrap the app
 

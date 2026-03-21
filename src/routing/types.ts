@@ -23,6 +23,7 @@ export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
     exportName: string;
     path: string;
     mode: RenderMode;
+    hasExplicitRenderMode?: boolean;
 }
 
 export interface TargetDefinition {

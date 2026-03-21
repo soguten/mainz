@@ -1,4 +1,4 @@
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 
 type FixtureRouteProps = {
     route?: {
@@ -8,9 +8,9 @@ type FixtureRouteProps = {
 
 @CustomElement("x-mainz-fixture-head-seo-page")
 @Route("/")
+@RenderMode("ssg")
 export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
     static override page = {
-        mode: "ssg" as const,
         locales: ["en", "pt"],
         head: {
             title: "Fixture Head SEO",

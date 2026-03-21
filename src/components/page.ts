@@ -1,6 +1,7 @@
 import { Component } from "./component.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
+import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
 
 export interface PageHeadMetaDefinition {
     name?: string;
@@ -30,16 +31,42 @@ export interface PageEntryDefinition {
     params: PageRouteParams;
 }
 
+type PageEntryLike = PageEntryDefinition | PageRouteParams;
+type PageEntriesMapper<Item> = (item: Item, context: PageEntriesContext) => PageEntryLike;
+type PageEntriesLoader<Item> = (context: PageEntriesContext) => readonly Item[] | Promise<readonly Item[]>;
+type PageLoadByParamResolver<Value> = (value: string, context: PageLoadContext) => Value | Promise<Value>;
+type PageLoadByParamsResolver<Names extends readonly string[], Value> = (
+    params: { readonly [K in Names[number]]: string },
+    context: PageLoadContext,
+) => Value | Promise<Value>;
+
 export interface PageLoadContext {
     params: PageRouteParams;
     locale?: string;
     url: URL;
     renderMode: RenderMode;
     navigationMode: NavigationMode;
+    resources: PageLoadResources;
+}
+
+export interface PageLoadResources {
+    read<Params, Context, Value>(
+        resource: Resource<Params, Context, Value>,
+        params: Params,
+        context: Context,
+    ): Value | Promise<Value>;
+}
+
+export interface PageLoadContextInit {
+    params: PageRouteParams;
+    locale?: string;
+    url: URL;
+    renderMode: RenderMode;
+    navigationMode: NavigationMode;
+    runtime?: ResourceRuntime;
 }
 
 export interface PageDefinition {
-    mode?: RenderMode;
     notFound?: boolean;
     locales?: readonly string[];
     head?: PageHeadDefinition;
@@ -47,10 +74,17 @@ export interface PageDefinition {
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
+const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
 
 export function Route(path: string) {
     return function <T extends PageConstructor>(value: T, _context?: ClassDecoratorContext<T>): void {
         applyPageRoutePath(value, path);
+    };
+}
+
+export function RenderMode(mode: RenderMode) {
+    return function <T extends PageConstructor>(value: T, _context?: ClassDecoratorContext<T>): void {
+        applyPageRenderMode(value, mode);
     };
 }
 
@@ -76,6 +110,73 @@ export interface PageConstructor {
     entries?(context: PageEntriesContext): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
     load?(context: PageLoadContext): unknown | Promise<unknown>;
     [PAGE_ROUTE_PATH]?: string;
+    [PAGE_RENDER_MODE]?: RenderMode;
+}
+
+export const entries = {
+    from<Item>(
+        items: readonly Item[],
+        mapper: PageEntriesMapper<Item>,
+    ): (context: PageEntriesContext) => readonly PageEntryDefinition[] {
+        return (context) => items.map((item) => normalizePageEntryDefinition(mapper(item, context)));
+    },
+    fromAsync<Item>(
+        loader: PageEntriesLoader<Item>,
+        mapper?: PageEntriesMapper<Item>,
+    ): (context: PageEntriesContext) => Promise<readonly PageEntryDefinition[]> {
+        return async (context) => {
+            const items = await loader(context);
+            return items.map((item) =>
+                normalizePageEntryDefinition(mapper ? mapper(item, context) : item as PageEntryLike)
+            );
+        };
+    },
+};
+
+export const load = {
+    byParam<Value>(
+        name: string,
+        resolver: PageLoadByParamResolver<Value>,
+    ): (context: PageLoadContext) => Value | Promise<Value> {
+        return (context) => resolver(context.params[name], context);
+    },
+    byParams<const Names extends readonly string[], Value>(
+        names: Names,
+        resolver: PageLoadByParamsResolver<Names, Value>,
+    ): (context: PageLoadContext) => Value | Promise<Value> {
+        return (context) => {
+            const selectedParams = Object.fromEntries(
+                names.map((name) => [name, context.params[name]]),
+            ) as { readonly [K in Names[number]]: string };
+
+            return resolver(selectedParams, context);
+        };
+    },
+};
+
+export function createPageLoadContext(init: PageLoadContextInit): PageLoadContext {
+    const baseContext = {
+        params: init.params,
+        locale: init.locale,
+        url: init.url,
+        renderMode: init.renderMode,
+        navigationMode: init.navigationMode,
+        runtime: init.runtime ?? resolveMainzResourceRuntime(),
+    } satisfies PageLoadContextInit;
+
+    return {
+        ...baseContext,
+        resources: {
+            read(resource, params, context) {
+                return readResource(resource, params, context, {
+                    renderMode: baseContext.renderMode,
+                    navigationMode: baseContext.navigationMode,
+                    runtime: baseContext.runtime,
+                    consumer: "page-load",
+                });
+            },
+        },
+    };
 }
 
 export function isPageConstructor(value: unknown): value is PageConstructor {
@@ -99,6 +200,11 @@ export function requirePageRoutePath(pageCtor: object, errorMessage: string): st
     }
 
     return path;
+}
+
+export function resolvePageRenderMode(pageCtor: object): RenderMode | undefined {
+    const routeOwner = pageCtor as { [PAGE_RENDER_MODE]?: RenderMode };
+    return routeOwner[PAGE_RENDER_MODE];
 }
 
 export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unknown): void {
@@ -176,4 +282,31 @@ function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
 
 function applyPageRoutePath(pageCtor: PageConstructor, path: string): void {
     pageCtor[PAGE_ROUTE_PATH] = path;
+}
+
+function applyPageRenderMode(pageCtor: PageConstructor, mode: RenderMode): void {
+    pageCtor[PAGE_RENDER_MODE] = mode;
+}
+
+function resolveMainzResourceRuntime(): ResourceRuntime {
+    if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
+        return __MAINZ_RUNTIME_ENV__;
+    }
+
+    const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
+    return fromGlobal === "build" ? "build" : "client";
+}
+
+function normalizePageEntryDefinition(entry: PageEntryLike): PageEntryDefinition {
+    if (isPageEntryDefinition(entry)) {
+        return entry;
+    }
+
+    return {
+        params: entry,
+    };
+}
+
+function isPageEntryDefinition(entry: PageEntryLike): entry is PageEntryDefinition {
+    return "params" in entry;
 }

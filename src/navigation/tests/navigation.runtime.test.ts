@@ -5,6 +5,7 @@ import { nextTick, prepareNavigationTest, waitFor } from "../../testing/index.ts
 import type { SpaNavigationRenderContext } from "../index.ts";
 
 let spaFixturesPromise: Promise<typeof import("./navigation.spa.fixture.ts")> | undefined;
+let snapshotFixturePromise: Promise<typeof import("./navigation.snapshot.fixture.ts")> | undefined;
 
 async function loadSpaFixtures(): Promise<typeof import("./navigation.spa.fixture.ts")> {
     if (!spaFixturesPromise) {
@@ -12,6 +13,14 @@ async function loadSpaFixtures(): Promise<typeof import("./navigation.spa.fixtur
     }
 
     return await spaFixturesPromise;
+}
+
+async function loadSnapshotFixture(): Promise<typeof import("./navigation.snapshot.fixture.ts")> {
+    if (!snapshotFixturePromise) {
+        snapshotFixturePromise = import("./navigation.snapshot.fixture.ts");
+    }
+
+    return await snapshotFixturePromise;
 }
 
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
@@ -291,6 +300,43 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
     assertEquals(document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent, "Home page");
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should reuse route snapshot for document-first bootstrap without rerunning load", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SnapshotDocsPage, readSnapshotLoadCount, resetSnapshotLoadCount } = await loadSnapshotFixture();
+    resetSnapshotLoadCount();
+
+    document.body.innerHTML =
+        `<main id="app"><${SnapshotDocsPage.getTagName()}></${SnapshotDocsPage.getTagName()}></main>` +
+        `<script id="mainz-route-snapshot" type="application/json">${JSON.stringify({
+            pageTagName: SnapshotDocsPage.getTagName(),
+            path: "/docs/:slug",
+            matchedPath: "/docs/intro",
+            params: { slug: "intro" },
+            locale: undefined,
+            data: { slug: "intro", source: "snapshot" },
+        })}</script>`;
+    window.history.replaceState(null, "", "/docs/intro");
+
+    const controller = startNavigation({
+        mode: "mpa",
+        mount: "#app",
+        pages: [SnapshotDocsPage],
+    });
+
+    for (let attempt = 0; attempt < 75; attempt += 1) {
+        if (document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent === "snapshot:intro") {
+            break;
+        }
+
+        await nextTick();
+    }
+
+    assertEquals(document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent, "snapshot:intro");
+    assertEquals(readSnapshotLoadCount(), 0);
 
     controller.cleanup();
 });

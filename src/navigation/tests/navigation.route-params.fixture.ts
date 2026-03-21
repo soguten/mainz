@@ -1,4 +1,4 @@
-import { CustomElement, Page, Route } from "../../index.ts";
+import { CustomElement, load, Page, Route } from "../../index.ts";
 
 @CustomElement("x-mainz-route-params-home-page")
 @Route("/")
@@ -27,13 +27,11 @@ export class RouteParamsDocsPage extends Page {
         },
     };
 
-    static async load(
-        { params, locale }: { params: Record<string, string>; locale?: string },
-    ) {
+    static load = load.byParam("slug", (slug, { locale }) => {
         return {
-            title: `${locale ?? "en"}:${params.slug ?? ""}`,
+            title: `${locale ?? "en"}:${slug}`,
         };
-    }
+    });
 
     override render(): HTMLElement {
         const element = document.createElement("section");

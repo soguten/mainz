@@ -231,6 +231,22 @@ export function materializeRoutePath(path: string, params: PageEntryDefinition["
     return `/${segments.filter(Boolean).join("/")}`;
 }
 
+export function validateRouteEntryParams(path: string, params: PageEntryDefinition["params"]): void {
+    const normalizedPath = normalizeRoutePath(path);
+    const missingParams = getRequiredRouteParamNames(normalizedPath).filter((paramName) => {
+        const value = params[paramName];
+        return typeof value !== "string" || value.length === 0;
+    });
+
+    if (missingParams.length === 0) {
+        return;
+    }
+
+    const quotedParams = missingParams.map((paramName) => `"${paramName}"`).join(", ");
+    const verb = missingParams.length > 1 ? "are" : "is";
+    throw new Error(`Dynamic route "${path}" requires ${quotedParams}; these params ${verb} missing from entries().`);
+}
+
 export function shouldPrefixLocaleForRoute(
     locales: readonly string[],
     localePrefix: I18nConfig["localePrefix"] = "auto",
@@ -594,6 +610,28 @@ function dedupeLocales(locales: readonly string[]): string[] {
 
 function getRouteSegments(path: string): string[] {
     return normalizeRoutePath(path).split("/").filter(Boolean);
+}
+
+function getRequiredRouteParamNames(path: string): string[] {
+    return getRouteSegments(path).flatMap((segment) => {
+        if (segment === "*") {
+            return ["*"];
+        }
+
+        if (segment.startsWith("[...")) {
+            return [segment.slice(4, -1)];
+        }
+
+        if (segment.startsWith(":")) {
+            return [segment.slice(1)];
+        }
+
+        if (isBracketDynamicSegment(segment)) {
+            return [segment.slice(1, -1)];
+        }
+
+        return [];
+    });
 }
 
 function isBracketDynamicSegment(segment: string): boolean {

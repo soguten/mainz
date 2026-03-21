@@ -13,8 +13,8 @@ import {
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
+    validateRouteEntryParams,
 } from "../routing/index.ts";
-import { discoverPagesFromFiles } from "../routing/server.ts";
 import { MAINZ_HEAD_MANAGED_ATTR, type PageConstructor, type PageHeadDefinition } from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
@@ -23,7 +23,9 @@ import {
     normalizeTargetBuildConfig,
     type TargetBuildDefinition,
 } from "../config/index.ts";
+import { ResourceAccessError } from "../resources/index.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
+import { resolveTargetDiscoveredPages } from "./route-pages.ts";
 
 export interface BuildCliOptions {
     target?: string;
@@ -37,6 +39,15 @@ export interface BuildJob {
     target: NormalizedMainzTarget;
     mode: RenderMode;
     profile: ResolvedTargetBuildProfile;
+}
+
+interface InitialRouteSnapshot {
+    pageTagName: string;
+    path: string;
+    matchedPath: string;
+    params: Record<string, string>;
+    locale?: string;
+    data?: unknown;
 }
 
 export interface ResolvedTargetBuildProfile {
@@ -326,15 +337,40 @@ async function emitSsgArtifacts(
             siteUrl: job.profile.siteUrl,
         });
 
-        const appHtml = await renderSsgAppHtml({
-            html,
-            absoluteOutputPath,
-            modeOutDir: resolve(cwd, modeOutDir),
-            locale: entry.locale,
-            basePath: toViteBasePath(job.profile.basePath),
-            renderPath: entry.renderPath,
-        });
-        html = injectAppHtml(html, appHtml);
+        let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
+        try {
+            renderedApp = await renderSsgAppHtml({
+                html,
+                absoluteOutputPath,
+                modeOutDir: resolve(cwd, modeOutDir),
+                locale: entry.locale,
+                basePath: toViteBasePath(job.profile.basePath),
+                renderPath: entry.renderPath,
+            });
+        } catch (error) {
+            throw new Error(formatSsgPrerenderError({
+                routePath: route.path,
+                renderPath: entry.renderPath,
+                locale: entry.locale,
+                error,
+            }));
+        }
+        for (const warning of renderedApp.warnings) {
+            console.warn(formatSsgPrerenderWarning({
+                routePath: route.path,
+                renderPath: entry.renderPath,
+                locale: entry.locale,
+                warning,
+            }));
+        }
+        html = injectAppHtml(html, renderedApp.appHtml);
+        try {
+            html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
+        } catch (error) {
+            throw new Error(
+                `SSG route snapshot for "${entry.renderPath}" (route "${route.path}", locale "${entry.locale}") contains non-public or non-serializable data: ${toErrorMessage(error)}`,
+            );
+        }
         html = setHtmlLang(html, entry.locale);
         html = applyRouteHead(html, { head: routeHead });
 
@@ -490,10 +526,19 @@ async function resolveSsgRouteEntriesByRouteId(
         const resolvedEntries: ResolvedSsgRouteEntry[] = [];
         for (const locale of route.locales) {
             const localizedEntries = await pageCtor.entries({ locale });
-            for (const entry of localizedEntries) {
+            for (const [entryIndex, entry] of localizedEntries.entries()) {
+                const normalizedParams = normalizeStaticEntryParams(entry.params, route.path);
+                try {
+                    validateRouteEntryParams(route.path, normalizedParams);
+                } catch (error) {
+                    throw new Error(
+                        `entries() for route "${route.path}" returned an invalid entry at index ${entryIndex} for locale "${locale}": ${toErrorMessage(error)}`,
+                    );
+                }
+
                 resolvedEntries.push({
                     locale,
-                    params: normalizeStaticEntryParams(entry.params, route.path),
+                    params: normalizedParams,
                 });
             }
         }
@@ -566,16 +611,10 @@ async function resolveTargetRouteBuildContext(
     job: BuildJob,
     cwd: string,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const filesystemPageFiles = job.target.pagesDir
-        ? await collectFilesystemPageFiles(resolve(cwd, job.target.pagesDir))
-        : undefined;
-    const discoveredPages = filesystemPageFiles?.length
-        ? (await discoverPagesFromFiles(filesystemPageFiles)).map((entry) => ({
-            file: entry.file,
-            exportName: entry.exportName,
-            ...entry.page,
-        }))
-        : undefined;
+    const { filesystemPageFiles, discoveredPages } = await resolveTargetDiscoveredPages(
+        job.target.pagesDir,
+        cwd,
+    );
 
     return buildTargetRouteManifest({
         target: {
@@ -585,25 +624,6 @@ async function resolveTargetRouteBuildContext(
         filesystemPageFiles,
         discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
     });
-}
-
-async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
-    const filePaths: string[] = [];
-
-    for await (const entry of Deno.readDir(pagesDir)) {
-        const absolutePath = resolve(pagesDir, entry.name);
-
-        if (entry.isDirectory) {
-            const nested = await collectFilesystemPageFiles(absolutePath);
-            filePaths.push(...nested);
-            continue;
-        }
-
-        if (!entry.isFile) continue;
-        filePaths.push(normalizePathSlashes(absolutePath));
-    }
-
-    return filePaths;
 }
 
 function applyDiscoveredPageModeOverride(
@@ -780,7 +800,7 @@ async function renderSsgAppHtml(args: {
     locale: string;
     basePath: string;
     renderPath: string;
-}): Promise<string> {
+}): Promise<{ appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }> {
     const moduleScriptSrc = extractModuleScriptSrc(args.html);
     if (!moduleScriptSrc) {
         throw new Error(
@@ -800,30 +820,98 @@ async function renderSsgAppHtml(args: {
 
     return await withHappyDom(async (window) => {
         setNavigatorLocale(window, args.locale);
+        const warnings: string[] = [];
+        const errors: unknown[] = [];
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        console.warn = (...entries: unknown[]) => {
+            warnings.push(entries.map((entry) => String(entry)).join(" "));
+        };
+        console.error = (...entries: unknown[]) => {
+            const mainzNavigationError = resolveCapturedMainzNavigationError(entries);
+            errors.push(mainzNavigationError ?? entries.map((entry) => String(entry)).join(" "));
+            originalError(...entries);
+        };
 
-        document.write(htmlWithoutScripts);
-        document.close();
+        try {
+            document.write(htmlWithoutScripts);
+            document.close();
 
-        const appContainer = document.querySelector("#app");
-        if (!appContainer) {
-            throw new Error(
-                `Template "${args.absoluteOutputPath}" must include an #app container for SSG.`,
-            );
+            const appContainer = document.querySelector("#app");
+            if (!appContainer) {
+                throw new Error(
+                    `Template "${args.absoluteOutputPath}" must include an #app container for SSG.`,
+                );
+            }
+
+            await import(moduleScriptUrl);
+            await Promise.resolve();
+            await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+
+            if (errors.length > 0) {
+                throw errors[0];
+            }
+
+            const hydratedContainer = document.querySelector("#app");
+            if (!hydratedContainer) {
+                throw new Error(
+                    `Hydration removed #app while rendering "${args.absoluteOutputPath}".`,
+                );
+            }
+
+            return {
+                appHtml: hydratedContainer.innerHTML,
+                routeSnapshot: extractInitialRouteSnapshot(hydratedContainer),
+                warnings,
+            };
+        } finally {
+            console.warn = originalWarn;
+            console.error = originalError;
         }
-
-        await import(moduleScriptUrl);
-        await Promise.resolve();
-        await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-
-        const hydratedContainer = document.querySelector("#app");
-        if (!hydratedContainer) {
-            throw new Error(
-                `Hydration removed #app while rendering "${args.absoluteOutputPath}".`,
-            );
-        }
-
-        return hydratedContainer.innerHTML;
     }, { url: pageUrl });
+}
+
+function resolveCapturedMainzNavigationError(entries: unknown[]): unknown {
+    const [firstEntry, secondEntry] = entries;
+    if (firstEntry === "[mainz] SPA navigation failed." && typeof secondEntry !== "undefined") {
+        return secondEntry;
+    }
+
+    return undefined;
+}
+
+function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapshot | undefined {
+    const routeElement = [appContainer, ...Array.from(appContainer.querySelectorAll("*"))].find((element) => {
+        const props = (element as Element & { props?: unknown }).props;
+        if (!props || typeof props !== "object") {
+            return false;
+        }
+
+        const propsRecord = props as Record<string, unknown>;
+        const route = propsRecord.route;
+        return typeof route === "object" && route !== null;
+    }) as (Element & { props?: Record<string, unknown> }) | undefined;
+
+    if (!routeElement?.props || typeof routeElement.props !== "object") {
+        return undefined;
+    }
+
+    const route = routeElement.props.route;
+    if (!route || typeof route !== "object") {
+        return undefined;
+    }
+
+    const routeRecord = route as Record<string, unknown>;
+    const params = routeRecord.params;
+
+    return {
+        pageTagName: routeElement.tagName.toLowerCase(),
+        path: String(routeRecord.path ?? ""),
+        matchedPath: String(routeRecord.matchedPath ?? ""),
+        params: isStringRecord(params) ? params : {},
+        locale: typeof routeRecord.locale === "string" ? routeRecord.locale : undefined,
+        data: routeElement.props.data,
+    };
 }
 
 function extractModuleScriptSrc(html: string): string | null {
@@ -955,6 +1043,130 @@ export function injectAppHtml(html: string, appHtml: string): string {
     );
 }
 
+export function injectRouteSnapshot(html: string, snapshot: InitialRouteSnapshot | undefined): string {
+    if (!snapshot) {
+        return html;
+    }
+
+    const serializedSnapshot = serializeRouteSnapshot(snapshot)
+        .replace(/</g, "\\u003c")
+        .replace(/\u2028/g, "\\u2028")
+        .replace(/\u2029/g, "\\u2029");
+    const scriptTag = `<script id="mainz-route-snapshot" type="application/json">${serializedSnapshot}</script>`;
+
+    if (html.includes('id="mainz-route-snapshot"')) {
+        return html.replace(
+            /<script id="mainz-route-snapshot" type="application\/json">[\s\S]*?<\/script>/,
+            scriptTag,
+        );
+    }
+
+    if (html.includes("</body>")) {
+        return html.replace("</body>", `${scriptTag}\n</body>`);
+    }
+
+    return `${html}\n${scriptTag}`;
+}
+
+export function formatSsgPrerenderError(args: {
+    routePath: string;
+    renderPath: string;
+    locale: string;
+    error: unknown;
+}): string {
+    return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}" (locale "${args.locale}"): ${formatSsgPrerenderCause(args.error)}`;
+}
+
+export function formatSsgPrerenderWarning(args: {
+    routePath: string;
+    renderPath: string;
+    locale: string;
+    warning: string;
+}): string {
+    return `SSG prerender warning for route "${args.routePath}" and output "${args.renderPath}" (locale "${args.locale}"): ${args.warning}`;
+}
+
+function formatSsgPrerenderCause(error: unknown): string {
+    if (error instanceof ResourceAccessError) {
+        switch (error.code) {
+            case "private-in-ssg":
+                return `${error.message} Move this resource behind a deferred or client-only boundary.`;
+            case "client-in-ssg":
+                return `${error.message} Read it on the client or replace it with a build-compatible resource.`;
+            case "forbidden-in-ssg":
+                return `${error.message} Remove it from the SSG path or render this route in a non-SSG mode.`;
+        }
+    }
+
+    return toErrorMessage(error);
+}
+
+function serializeRouteSnapshot(snapshot: InitialRouteSnapshot): string {
+    return JSON.stringify(normalizePublicSnapshotValue(snapshot, "$"));
+}
+
+function normalizePublicSnapshotValue(value: unknown, path: string): unknown {
+    if (value === null) {
+        return null;
+    }
+
+    switch (typeof value) {
+        case "string":
+        case "boolean":
+            return value;
+        case "number":
+            if (!Number.isFinite(value)) {
+                throw new Error(`${path} must not contain non-finite numbers.`);
+            }
+            return value;
+        case "undefined":
+            return undefined;
+        case "bigint":
+        case "function":
+        case "symbol":
+            throw new Error(`${path} must contain JSON-serializable plain data only.`);
+        case "object":
+            break;
+    }
+
+    if (Array.isArray(value)) {
+        const normalizedArray: unknown[] = [];
+        for (let index = 0; index < value.length; index += 1) {
+            if (!(index in value)) {
+                normalizedArray.push(null);
+                continue;
+            }
+
+            const normalizedEntry = normalizePublicSnapshotValue(value[index], `${path}[${index}]`);
+            normalizedArray.push(normalizedEntry ?? null);
+        }
+        return normalizedArray;
+    }
+
+    if (!isPlainObject(value)) {
+        throw new Error(`${path} must contain plain objects only.`);
+    }
+
+    const normalizedObject: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+        const normalizedNested = normalizePublicSnapshotValue(nested, `${path}.${key}`);
+        if (typeof normalizedNested !== "undefined") {
+            normalizedObject[key] = normalizedNested;
+        }
+    }
+
+    return normalizedObject;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype || prototype === null;
+}
+
 export function setHtmlLang(html: string, locale: string): string {
     const normalizedLocale = locale.trim();
     if (!normalizedLocale) {
@@ -1050,6 +1262,11 @@ function buildDefaultLocaleRedirectHtml(
         "</html>",
         "",
     ].join("\n");
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+    return typeof value === "object" && value !== null &&
+        Object.values(value).every((entry) => typeof entry === "string");
 }
 
 function prependBuildBasePath(pathname: string, basePath: string): string {

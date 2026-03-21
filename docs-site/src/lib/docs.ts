@@ -40,6 +40,10 @@ const docsOrder = [
     "installation",
     "project-structure",
     "routing",
+    "diagnostics-cli",
+    "render-mode-and-strategy",
+    "resource-model",
+    "public-shell-private-island",
     "route-metadata",
     "data-loading",
     "navigation-runtime",
@@ -87,6 +91,42 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         contentPath: "../../../docs/concepts/core/routing.md",
     },
     {
+        slug: "diagnostics-cli",
+        title: "Diagnostics CLI",
+        summary:
+            "Use mainz diagnose in the terminal or CI without tying framework diagnostics to one editor.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/diagnostics-cli.md",
+    },
+    {
+        slug: "render-mode-and-strategy",
+        title: "Render Mode and Render Strategy",
+        summary:
+            "Understand how pages define the route envelope and how components decide whether they block, defer, or wait for the browser.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/render-mode-and-strategy.md",
+    },
+    {
+        slug: "resource-model",
+        title: "Resource Model",
+        summary:
+            "Understand how defineResource(...), ComponentResource, and @RenderStrategy(...) fit together without mixing route ownership and component assembly.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/resource-model.md",
+    },
+    {
+        slug: "public-shell-private-island",
+        title: "Public Shell, Private Island",
+        summary:
+            "Keep SSG pages public and deterministic while letting authenticated or browser-local UI resolve after hydration.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/public-shell-private-island.md",
+    },
+    {
         slug: "route-metadata",
         title: "Route Metadata",
         summary: "Keep route patterns, params, and page ownership visible right on the class.",
@@ -96,8 +136,9 @@ const docsArticleSources: readonly DocsArticleSource[] = [
     },
     {
         slug: "data-loading",
-        title: "Dynamic Routes with entries() and load()",
-        summary: "Expand dynamic SSG paths at build time and load page data with one contract.",
+        title: "Dynamic Routes with entries() and component resources",
+        summary:
+            "Expand dynamic SSG paths at build time and let components assemble route content with explicit render strategy.",
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/data-loading.md",

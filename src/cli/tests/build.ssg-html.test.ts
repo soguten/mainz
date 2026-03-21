@@ -1,13 +1,17 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import {
     applyRouteHead,
+    formatSsgPrerenderError,
+    formatSsgPrerenderWarning,
+    injectRouteSnapshot,
     injectAppHtml,
     rewriteAssetPaths,
     setHtmlLang,
 } from "../build.ts";
 import { buildRouteHead, resolveLocaleRedirectPath } from "../../routing/index.ts";
+import { ResourceAccessError } from "../../resources/index.ts";
 
 Deno.test("build html helpers: rewrites nested asset paths for SSG routes", () => {
     const input = '<script type="module" src="./assets/index.js"></script>';
@@ -28,6 +32,217 @@ Deno.test("build html helpers: injects app html in #app", () => {
     const output = injectAppHtml(input, "<x-page></x-page>");
 
     assertEquals(output, '<main id="app"><x-page></x-page></main>');
+});
+
+Deno.test("build html helpers: injects route snapshot into html", () => {
+    const input = "<html><body><main id=\"app\"></main></body></html>";
+    const output = injectRouteSnapshot(input, {
+        pageTagName: "x-page",
+        path: "/docs/:slug",
+        matchedPath: "/docs/intro",
+        params: { slug: "intro" },
+        locale: "en",
+        data: { title: "Intro" },
+    });
+
+    assertStringIncludes(output, 'id="mainz-route-snapshot"');
+    assertStringIncludes(output, '"matchedPath":"/docs/intro"');
+});
+
+Deno.test("build html helpers: formats route-aware prerender errors", () => {
+    const message = formatSsgPrerenderError({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        error: new Error('Resource "current-user" is private and cannot be read during SSG.'),
+    });
+
+    assertEquals(
+        message,
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "current-user" is private and cannot be read during SSG.',
+    );
+});
+
+Deno.test("build html helpers: formats route-aware prerender warnings", () => {
+    const message = formatSsgPrerenderWarning({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        warning:
+            'ResourceBoundary for resource "related-docs" is using strategy "deferred" during SSG without a fallback. Provide a fallback to avoid empty prerender output.',
+    });
+
+    assertEquals(
+        message,
+        'SSG prerender warning for route "/docs/:slug" and output "/docs/intro" (locale "en"): ResourceBoundary for resource "related-docs" is using strategy "deferred" during SSG without a fallback. Provide a fallback to avoid empty prerender output.',
+    );
+});
+
+Deno.test("build html helpers: formats private resource access errors with SSG guidance", () => {
+    const message = formatSsgPrerenderError({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        error: new ResourceAccessError({
+            code: "private-in-ssg",
+            resourceName: "current-user",
+            message: 'Resource "current-user" is private and cannot be read during SSG.',
+        }),
+    });
+
+    assertEquals(
+        message,
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "current-user" is private and cannot be read during SSG. Move this resource behind a deferred or client-only boundary.',
+    );
+});
+
+Deno.test("build html helpers: formats client-only resource access errors with SSG guidance", () => {
+    const message = formatSsgPrerenderError({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        error: new ResourceAccessError({
+            code: "client-in-ssg",
+            resourceName: "current-user",
+            message: 'Resource "current-user" is client-only and cannot execute during SSG.',
+        }),
+    });
+
+    assertEquals(
+        message,
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "current-user" is client-only and cannot execute during SSG. Read it on the client or replace it with a build-compatible resource.',
+    );
+});
+
+Deno.test("build html helpers: formats forbidden-in-ssg strategy errors with SSG guidance", () => {
+    const message = formatSsgPrerenderError({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        error: new ResourceAccessError({
+            code: "forbidden-in-ssg",
+            resourceName: "live-preview",
+            message: 'Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.',
+        }),
+    });
+
+    assertEquals(
+        message,
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG. Remove it from the SSG path or render this route in a non-SSG mode.',
+    );
+});
+
+Deno.test("build html helpers: rejects non-plain route snapshot data", () => {
+    assertThrows(() => {
+        injectRouteSnapshot("<html><body></body></html>", {
+            pageTagName: "x-page",
+            path: "/docs/:slug",
+            matchedPath: "/docs/intro",
+            params: { slug: "intro" },
+            locale: "en",
+            data: {
+                generatedAt: new Date("2026-03-19T12:00:00.000Z"),
+            },
+        });
+    }, Error, "$.data.generatedAt must contain plain objects only.");
+});
+
+Deno.test("build html helpers: omits undefined object values inside route snapshot data", () => {
+    const output = injectRouteSnapshot("<html><body></body></html>", {
+        pageTagName: "x-page",
+        path: "/docs/:slug",
+        matchedPath: "/docs/intro",
+        params: { slug: "intro" },
+        locale: "en",
+        data: {
+            title: undefined,
+            slug: "intro",
+        },
+    });
+
+    assertStringIncludes(output, '"slug":"intro"');
+    assertEquals(output.includes('"title"'), false);
+});
+
+Deno.test("build html helpers: omits nested undefined object values inside route snapshot data", () => {
+    const output = injectRouteSnapshot("<html><body></body></html>", {
+        pageTagName: "x-page",
+        path: "/docs/:slug",
+        matchedPath: "/docs/intro",
+        params: { slug: "intro" },
+        locale: "en",
+        data: {
+            article: {
+                slug: "intro",
+                description: undefined,
+            },
+        },
+    });
+
+    assertStringIncludes(output, '"article":{"slug":"intro"}');
+    assertEquals(output.includes('"description"'), false);
+});
+
+Deno.test("build html helpers: normalizes undefined array entries inside route snapshot data", () => {
+    const output = injectRouteSnapshot("<html><body></body></html>", {
+        pageTagName: "x-page",
+        path: "/docs/:slug",
+        matchedPath: "/docs/intro",
+        params: { slug: "intro" },
+        locale: "en",
+        data: {
+            items: ["intro", undefined, "routing"],
+        },
+    });
+
+    assertStringIncludes(output, '"items":["intro",null,"routing"]');
+});
+
+Deno.test("build html helpers: rejects non-finite numbers inside route snapshot data", () => {
+    assertThrows(() => {
+        injectRouteSnapshot("<html><body></body></html>", {
+            pageTagName: "x-page",
+            path: "/docs/:slug",
+            matchedPath: "/docs/intro",
+            params: { slug: "intro" },
+            locale: "en",
+            data: {
+                score: Number.NaN,
+            },
+        });
+    }, Error, "$.data.score must not contain non-finite numbers.");
+});
+
+Deno.test("build html helpers: rejects maps inside route snapshot data", () => {
+    assertThrows(() => {
+        injectRouteSnapshot("<html><body></body></html>", {
+            pageTagName: "x-page",
+            path: "/docs/:slug",
+            matchedPath: "/docs/intro",
+            params: { slug: "intro" },
+            locale: "en",
+            data: {
+                entries: new Map([["slug", "intro"]]),
+            },
+        });
+    }, Error, "$.data.entries must contain plain objects only.");
+});
+
+Deno.test("build html helpers: rejects functions inside route snapshot data", () => {
+    assertThrows(() => {
+        injectRouteSnapshot("<html><body></body></html>", {
+            pageTagName: "x-page",
+            path: "/docs/:slug",
+            matchedPath: "/docs/intro",
+            params: { slug: "intro" },
+            locale: "en",
+            data: {
+                resolve() {
+                    return "intro";
+                },
+            },
+        });
+    }, Error, "$.data.resolve must contain JSON-serializable plain data only.");
 });
 
 Deno.test("build html helpers: sets lang for rendered locale", () => {

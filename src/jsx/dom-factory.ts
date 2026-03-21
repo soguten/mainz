@@ -1,4 +1,4 @@
-import { Component } from "../components";
+import { Component } from "../components/component.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { getCurrentRenderOwner } from "./render-owner.ts";
 

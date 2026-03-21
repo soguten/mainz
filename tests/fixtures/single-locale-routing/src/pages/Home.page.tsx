@@ -1,10 +1,10 @@
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("x-mainz-fixture-single-locale-home-page")
 @Route("/")
+@RenderMode("ssg")
 export class FixtureSingleLocaleHomePage extends Page {
     static override page = {
-        mode: "ssg" as const,
         locales: ["en"],
         head: {
             title: "Fixture Single Locale",

@@ -142,3 +142,7 @@ vite.config.ts.timestamp-*
 /dist/
 /dist-site/
 /dist-playground/
+
+# Internal workspace-only docs and agent notes
+/AGENTS.md
+/internal-docs/

@@ -1,4 +1,9 @@
-import { requirePageRoutePath, type PageHeadDefinition, type PageLoadContext } from "../components/page.ts";
+import {
+    createPageLoadContext,
+    requirePageRoutePath,
+    type PageHeadDefinition,
+    type PageLoadContext,
+} from "../components/page.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
 import { buildRouteHead, resolveLocaleRedirectPath, shouldPrefixLocaleForRoute } from "../routing/index.ts";
@@ -117,6 +122,15 @@ interface ResolvedPageNavigationOptions {
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
     onRoute?(context: SpaNavigationRenderContext): void;
+}
+
+interface InitialRouteSnapshot {
+    pageTagName: string;
+    path: string;
+    matchedPath: string;
+    params: Record<string, string>;
+    locale?: string;
+    data?: unknown;
 }
 
 export function startPagesApp(options: StartPagesAppOptions): NavigationController {
@@ -843,13 +857,13 @@ async function resolvePageRouteData(args: {
         return undefined;
     }
 
-    const context: PageLoadContext = {
+    const context: PageLoadContext = createPageLoadContext({
         params: args.params,
         locale: args.locale,
         url: args.url,
         renderMode: resolveMainzRenderMode(),
         navigationMode: resolveMainzNavigationMode(),
-    };
+    });
 
     return await args.page.load(context);
 }
@@ -1293,6 +1307,7 @@ function resolveMainzRenderMode(): "csr" | "ssg" {
     return fromGlobal === "ssg" ? "ssg" : "csr";
 }
 
+
 function resolveMainzBasePath(): string {
     if (typeof __MAINZ_BASE_PATH__ !== "undefined") {
         return __MAINZ_BASE_PATH__;
@@ -1392,15 +1407,23 @@ async function resolveMountedRouteContext(
         locales?: readonly string[];
     },
 ): Promise<SpaNavigationRenderContext | null> {
+    const routeSnapshot = readInitialRouteSnapshot();
     const matchedPage = context.routeMatch?.route.page;
     if (matchedPage) {
         ensurePageCustomElement(matchedPage);
 
         const mountedElement = mount.querySelector(matchedPage.getTagName());
             if (mountedElement instanceof HTMLElement) {
-                const data = await resolvePageRouteData({
+                const params = context.routeMatch?.params ?? {};
+                const data = resolveSnapshotData(routeSnapshot, {
+                    mountedElement,
+                    path: context.routeMatch?.route.path ?? context.currentPath,
+                    matchedPath: context.currentPath,
+                    params,
+                    locale: context.locale,
+                }) ?? await resolvePageRouteData({
                     page: matchedPage,
-                    params: context.routeMatch?.params ?? {},
+                    params,
                     locale: context.locale,
                     url: context.url,
                 });
@@ -1441,9 +1464,16 @@ async function resolveMountedRouteContext(
 
         ensurePageCustomElement(route.page);
 
-        const data = await resolvePageRouteData({
+        const params = context.routeMatch?.route === route ? context.routeMatch.params : {};
+        const data = resolveSnapshotData(routeSnapshot, {
+            mountedElement,
+            path: route.path,
+            matchedPath: context.currentPath,
+            params,
+            locale: context.locale,
+        }) ?? await resolvePageRouteData({
             page: route.page,
-            params: context.routeMatch?.route === route ? context.routeMatch.params : {},
+            params,
             locale: context.locale,
             url: context.url,
         });
@@ -1451,7 +1481,7 @@ async function resolveMountedRouteContext(
             page: route.page,
             path: route.path,
             matchedPath: context.currentPath,
-            params: context.routeMatch?.route === route ? context.routeMatch.params : {},
+            params,
             data,
             head: resolveSpaRouteHead({
                 page: route.page,
@@ -1471,4 +1501,88 @@ async function resolveMountedRouteContext(
     }
 
     return null;
+}
+
+function readInitialRouteSnapshot(): InitialRouteSnapshot | undefined {
+    const snapshotScript = document.getElementById("mainz-route-snapshot");
+    if (!(snapshotScript instanceof Element) || snapshotScript.tagName !== "SCRIPT") {
+        return undefined;
+    }
+
+    const snapshotText = snapshotScript.textContent?.trim();
+    if (!snapshotText) {
+        return undefined;
+    }
+
+    try {
+        const parsed = JSON.parse(snapshotText) as Record<string, unknown>;
+        if (!isInitialRouteSnapshot(parsed)) {
+            return undefined;
+        }
+
+        return parsed;
+    } catch {
+        return undefined;
+    }
+}
+
+function resolveSnapshotData(
+    snapshot: InitialRouteSnapshot | undefined,
+    args: {
+        mountedElement: HTMLElement;
+        path: string;
+        matchedPath: string;
+        params: Record<string, string>;
+        locale?: string;
+    },
+): unknown | undefined {
+    if (!snapshot) {
+        return undefined;
+    }
+
+    if (snapshot.pageTagName !== args.mountedElement.tagName.toLowerCase()) {
+        return undefined;
+    }
+
+    if (snapshot.path !== args.path || snapshot.matchedPath !== args.matchedPath) {
+        return undefined;
+    }
+
+    if ((snapshot.locale ?? undefined) !== (args.locale ?? undefined)) {
+        return undefined;
+    }
+
+    if (!recordsEqual(snapshot.params, args.params)) {
+        return undefined;
+    }
+
+    return snapshot.data;
+}
+
+function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    return typeof candidate.pageTagName === "string" &&
+        typeof candidate.path === "string" &&
+        typeof candidate.matchedPath === "string" &&
+        isStringRecord(candidate.params) &&
+        (typeof candidate.locale === "string" || typeof candidate.locale === "undefined");
+}
+
+function recordsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
+    const leftEntries = Object.entries(left);
+    const rightEntries = Object.entries(right);
+    if (leftEntries.length !== rightEntries.length) {
+        return false;
+    }
+
+    return leftEntries.every(([key, value]) => right[key] === value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+    return typeof value === "object" && value !== null &&
+        Object.values(value).every((entry) => typeof entry === "string");
 }

@@ -18,6 +18,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/",
                 mode: "csr",
+                hasExplicitRenderMode: undefined,
                 notFound: undefined,
                 head: {
                     title: "Home",
@@ -35,6 +36,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/search",
                 mode: "ssg",
+                hasExplicitRenderMode: true,
                 notFound: undefined,
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
@@ -56,6 +58,7 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/",
                 mode: "csr",
+                hasExplicitRenderMode: undefined,
                 notFound: undefined,
                 locales: undefined,
                 head: undefined,
@@ -67,6 +70,7 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/search",
                 mode: "ssg",
+                hasExplicitRenderMode: true,
                 notFound: undefined,
                 locales: ["pt-BR", "en-US"],
                 head: {
@@ -104,4 +108,26 @@ Deno.test("routing/page-discovery: should fail when a Page export omits a route 
         Error,
         "must define a route with @Route(...)",
     );
+});
+
+Deno.test("routing/page-discovery: should discover decorator-only render mode declarations", async () => {
+    await setupMainzDom();
+
+    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.conflict.fixture.tsx"));
+    const pages = await discoverPagesFromFile(file);
+
+    assertEquals(pages, [
+        {
+            exportName: "ConflictingPage",
+            file: file.replaceAll("\\", "/"),
+            page: {
+                path: "/conflict",
+                mode: "csr",
+                hasExplicitRenderMode: true,
+                notFound: undefined,
+                locales: undefined,
+                head: undefined,
+            },
+        },
+    ]);
 });

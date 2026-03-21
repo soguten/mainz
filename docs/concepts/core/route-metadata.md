@@ -6,15 +6,12 @@ That matters because routing in Mainz is not an external config file first. The 
 metadata, while the runtime and build pipeline consume it.
 
 ```tsx title="Docs.page.tsx"
-import { CustomElement, Page, Route } from "mainz";
+import { CustomElement, Page, RenderMode, Route } from "mainz";
 
 @CustomElement("app-docs-page")
 @Route("/docs/:slug")
-export class DocsPage extends Page {
-    static override page = {
-        mode: "ssg" as const,
-    };
-}
+@RenderMode("ssg")
+export class DocsPage extends Page {}
 ```
 
 ## Dynamic segments stay readable
@@ -29,9 +26,7 @@ Mainz currently supports a few route patterns that keep intent obvious in the cl
 Those params flow into `entries()`, `load()`, and runtime navigation.
 
 ```tsx title="Docs.page.tsx"
-static async load({ params }: { params: Record<string, string> }) {
-  return await fetchDoc(params.slug);
-}
+static load = load.byParam("slug", (slug) => fetchDoc(slug));
 
 override render() {
   return <article>{this.props.data?.title}</article>;

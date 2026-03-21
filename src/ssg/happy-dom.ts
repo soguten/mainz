@@ -71,9 +71,18 @@ export async function withHappyDom<T>(
         });
     }
 
+    const previousRuntime = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
+    (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = "build";
+
     try {
         return await fn(window);
     } finally {
+        if (previousRuntime === undefined) {
+            delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
+        } else {
+            (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = previousRuntime;
+        }
+
         for (const key of GLOBAL_DOM_KEYS) {
             const previous = previousValues.get(key);
             if (previous === undefined) {
