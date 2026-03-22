@@ -6,13 +6,12 @@ Pages extend that same component model, but regular components let you compose t
 attaching route metadata to every class.
 
 ```tsx title="CounterCard.tsx"
-import { Component, CustomElement, type NoProps } from "mainz";
+import { Component, type NoProps } from "mainz";
 
 interface CounterState {
     count: number;
 }
 
-@CustomElement("ui-counter-card")
 export class CounterCard extends Component<NoProps, CounterState> {
     protected override initState(): CounterState {
         return { count: 0 };

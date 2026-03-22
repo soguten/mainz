@@ -46,6 +46,7 @@ export default defineConfig({
         __MAINZ_SITE_URL__: JSON.stringify(siteUrl),
     },
     esbuild: {
+        keepNames: true,
         jsx: "automatic",
         jsxImportSource: "mainz",
     },

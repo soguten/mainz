@@ -32,12 +32,11 @@ It means:
 ## Example: docs page with authenticated menu
 
 ```tsx title="Docs.page.tsx"
-import { CustomElement, entries, Page, RenderMode, Route } from "mainz";
+import { entries, Page, RenderMode, Route } from "mainz";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
 import { CurrentUserMenu } from "../components/CurrentUserMenu.tsx";
 import { docsArticles } from "../lib/docs.ts";
 
-@CustomElement("x-mainz-docs-page")
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {

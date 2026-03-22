@@ -22,7 +22,6 @@ It answers questions like:
 - or should it only come alive in the browser?
 
 ```tsx title="Docs.page.tsx"
-@CustomElement("x-mainz-docs-page")
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
@@ -75,7 +74,6 @@ Those are three separate decisions.
 The same component strategy ideas also apply to a static route like `/about`.
 
 ```tsx title="About.page.tsx"
-@CustomElement("x-mainz-about-page")
 @Route("/about")
 @RenderMode("ssg")
 export class AboutPage extends Page {

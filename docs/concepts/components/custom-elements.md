@@ -40,9 +40,11 @@ export class HomePage extends Page {
 
 If you omit `@CustomElement(...)`, Mainz can still generate a tag from the class name.
 
-That is useful for quick experiments, but explicit tags are the better choice when a page or
-component needs long-term stability across SSG, hydration, refactors, or minification-sensitive
-builds.
+Explicit tags are still the better choice when a page or component needs a deliberate public name
+that stays stable across refactors.
+
+When you rely on generated names, keep `esbuild.keepNames = true` in your Vite config so production
+builds preserve the class names Mainz uses to derive those tags.
 
 ## Tag rules stay close to platform rules
 
@@ -52,5 +54,5 @@ A valid custom element name must contain a hyphen, so names like `app-home-page`
 If two classes still collide on the same generated name, Mainz resolves the conflict by suffixing
 later registrations.
 
-That fallback helps in development, but explicit `@CustomElement(...)` names are the clearest option
-for framework docs, production pages, and shared components.
+That fallback helps in development, while explicit `@CustomElement(...)` names remain the clearest
+option for framework docs, production pages, and shared components that want a deliberate tag API.

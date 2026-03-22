@@ -39,13 +39,12 @@ That gives Mainz a concrete place to:
 ## Example: functional child, class owner
 
 ```tsx title="OwnerExample.tsx"
-import { Component, CustomElement, type NoProps } from "mainz";
+import { Component, type NoProps } from "mainz";
 
 function SaveButton(props: { onSave: () => void; label: string }) {
     return <button onClick={props.onSave}>{props.label}</button>;
 }
 
-@CustomElement("app-owner-example")
 export class OwnerExample extends Component<NoProps, { count: number }> {
     protected override initState() {
         return { count: 0 };

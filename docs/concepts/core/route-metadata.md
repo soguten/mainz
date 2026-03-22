@@ -6,9 +6,8 @@ That matters because routing in Mainz is not an external config file first. The 
 metadata, while the runtime and build pipeline consume it.
 
 ```tsx title="Docs.page.tsx"
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { Page, RenderMode, Route } from "mainz";
 
-@CustomElement("app-docs-page")
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {}

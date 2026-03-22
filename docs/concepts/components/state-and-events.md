@@ -3,13 +3,12 @@
 Mainz components can preload local state before the first render with `initState()`.
 
 ```tsx title="ToggleCard.tsx"
-import { Component, CustomElement, type NoProps } from "mainz";
+import { Component, type NoProps } from "mainz";
 
 interface ToggleState {
     open: boolean;
 }
 
-@CustomElement("ui-toggle-card")
 export class ToggleCard extends Component<NoProps, ToggleState> {
     protected override initState(): ToggleState {
         return { open: false };
@@ -66,7 +65,7 @@ If a component only needs async data, prefer `NoState` and keep the model small.
 If a component needs async data plus local UI behavior, keep them separate:
 
 ```tsx title="FilterableArticleList.tsx"
-import { Component, CustomElement, type NoProps, RenderStrategy } from "mainz";
+import { Component, type NoProps, RenderStrategy } from "mainz";
 
 interface FilterableArticleListState {
     filter: string;
@@ -78,7 +77,6 @@ interface ArticleSummary {
     title: string;
 }
 
-@CustomElement("docs-filterable-article-list")
 @RenderStrategy("deferred", {
     fallback: () => <p>Loading articles...</p>,
 })

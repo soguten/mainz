@@ -2,13 +2,12 @@
 
 In Mainz, a page owns the metadata that matters to that page.
 
-That includes the route annotation, the custom element name, plus render mode, locales, and head
-information.
+That includes the route annotation, render mode, locales, head information, and any optional
+explicit custom element name.
 
 ```tsx title="Page contract"
-import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
+import { Locales, Page, RenderMode, Route } from "mainz";
 
-@CustomElement("app-home-page")
 @Route("/")
 @RenderMode("ssg")
 @Locales("en", "pt")
@@ -21,10 +20,13 @@ export class HomePage extends Page {
 }
 ```
 
-The split is intentional: `@Route(...)` describes where the page lives, and `@CustomElement(...)`
-defines the stable tag the runtime registers. `@RenderMode(...)` and `@Locales(...)` declare the
-route contract up front, while `static page` stays focused on richer metadata like `head` and
-`notFound`. Locale values should be valid BCP 47 tags such as `en`, `pt-BR`, or `sr-Latn-RS`.
+The split is intentional: `@Route(...)` describes where the page lives, while `@RenderMode(...)` and
+`@Locales(...)` declare the route contract up front. `static page` then stays focused on richer
+metadata like `head` and `notFound`.
+
+When you want an explicit stable tag instead of the generated class-based one, add
+`@CustomElement(...)`. Locale values should be valid BCP 47 tags such as `en`, `pt-BR`, or
+`sr-Latn-RS`.
 
 That keeps the high-signal routing decisions visible before you read the class body.
 

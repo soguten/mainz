@@ -23,13 +23,12 @@ The stateful unit in Mainz is the class component:
 - `Component` is what becomes a Web Component instance
 
 ```tsx title="CounterPanel.tsx"
-import { Component, CustomElement, type NoProps } from "mainz";
+import { Component, type NoProps } from "mainz";
 
 function Badge(props: { text: string }) {
     return <strong>{props.text}</strong>;
 }
 
-@CustomElement("ui-counter-panel")
 export class CounterPanel extends Component<NoProps, { count: number }> {
     protected override initState() {
         return { count: 0 };

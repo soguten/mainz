@@ -41,6 +41,7 @@ export default defineConfig({
     },
 
     esbuild: {
+        keepNames: true,
         jsx: "automatic",
         jsxImportSource: "mainz",
     },

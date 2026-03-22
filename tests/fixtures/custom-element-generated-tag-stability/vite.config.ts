@@ -8,7 +8,7 @@ const fixtureRoot = normalizePath(fileURLToPath(new URL("./", import.meta.url)))
 const base = process.env.MAINZ_BASE_PATH ?? "./";
 const renderMode = process.env.MAINZ_RENDER_MODE ?? "csr";
 const navigationMode = process.env.MAINZ_NAVIGATION_MODE ?? "enhanced-mpa";
-const targetName = process.env.MAINZ_TARGET_NAME ?? "diagnostics-invalid-locales";
+const targetName = process.env.MAINZ_TARGET_NAME ?? "custom-element-generated-tag-stability";
 const targetLocales = JSON.parse(process.env.MAINZ_TARGET_LOCALES ?? "[]") as string[];
 const defaultLocale = process.env.MAINZ_DEFAULT_LOCALE || undefined;
 const localePrefix = process.env.MAINZ_LOCALE_PREFIX === "always" ? "always" : "auto";

@@ -173,7 +173,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         slug: "custom-elements",
         title: "Custom Elements",
         summary:
-            "Define stable explicit tags with @CustomElement(...) and keep registration predictable.",
+            "Use generated tags by default, or add @CustomElement(...) when you want an explicit stable name.",
         navSection: "Concepts",
         navGroup: "Components",
         contentPath: "../../../docs/concepts/components/custom-elements.md",
