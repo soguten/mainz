@@ -1,4 +1,3 @@
-export { ComponentResource } from "./components/index.ts";
 export {
     Component,
     CustomElement,
@@ -16,17 +15,15 @@ export {
     RenderMode,
     Route,
 } from "./components/index.ts";
-export { ResourceBoundary } from "./components/index.ts";
-export { ResourceComponent } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
-export { defineResource, readResource, ResourceAccessError } from "./resources/index.ts";
 export type {
+    ChildrenOnlyProps,
     ComponentRenderConfig,
-    ComponentResourceProps,
     DefaultProps,
     DefaultState,
+    NoProps,
+    NoState,
     RenderStrategyOptions,
-    ResourceBoundaryProps,
 } from "./components/index.ts";
 export type {
     NavigationLocaleContext,
@@ -41,17 +38,6 @@ export type {
     StartNavigationOptions,
     StartPagesAppOptions,
 } from "./navigation/index.ts";
-export type {
-    Resource,
-    ResourceAccessErrorCode,
-    ResourceCachePolicy,
-    ResourceDefinition,
-    ResourceExecution,
-    ResourceReadEnvironment,
-    ResourceRuntime,
-    ResourceStrategy,
-    ResourceVisibility,
-} from "./resources/index.ts";
 export type {
     PageConstructor,
     PageDefinition,

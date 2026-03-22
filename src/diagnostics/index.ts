@@ -13,7 +13,6 @@ export type {
 } from "./component-diagnostics.ts";
 export {
     collectComponentDiagnostics,
-    collectComponentSourceDiagnostics,
 } from "./component-diagnostics.ts";
 
 import type { MainzDiagnostic as RouteDiagnostic } from "./route-diagnostics.ts";

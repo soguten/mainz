@@ -1,0 +1,54 @@
+import {
+    Component,
+    CustomElement,
+    type NoProps,
+    type NoState,
+    RenderStrategy,
+} from "../../index.ts";
+
+@CustomElement("x-mainz-diagnostics-missing-strategy-load-component")
+export class MissingStrategyLoadComponent extends Component<NoProps, NoState, { title: string }> {
+    override async load() {
+        return { title: "Docs" };
+    }
+
+    override render(): HTMLElement {
+        return <p>{this.data.title}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-missing-fallback-load-component")
+@RenderStrategy("client-only")
+export class MissingFallbackLoadComponent extends Component<NoProps, NoState, { title: string }> {
+    override async load() {
+        return { title: "Preview" };
+    }
+
+    override render(): HTMLElement {
+        return <p>{this.data.title}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-strategy-without-load-component")
+@RenderStrategy("blocking")
+export class StrategyWithoutLoadComponent extends Component {
+    override render(): HTMLElement {
+        return <p>Static content</p>;
+    }
+}
+
+abstract class DeferredLoadBase extends Component<NoProps, NoState, { title: string }> {
+    override async load() {
+        return { title: "Guides" };
+    }
+
+    override render(): HTMLElement {
+        return <p>{this.data.title}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-valid-load-component")
+@RenderStrategy("deferred", {
+    fallback: () => <p>loading</p>,
+})
+export class ValidLoadComponent extends DeferredLoadBase {}

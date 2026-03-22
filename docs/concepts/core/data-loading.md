@@ -1,131 +1,232 @@
+## Route expansion, route data, and component loading
+
+Mainz now treats async loading as an ownership question.
+
+- `entries()` belongs to the page because route expansion is a page concern
+- `Page.load()` belongs to the page when the route itself owns the data
+- `Component.load()` belongs to the component when the component owns the async assembly
+
+That keeps the mental model aligned with the class tree you already see in the app.
+
 ## `entries()` expands static paths
 
-For SSG, a dynamic route needs concrete params. `entries()` gives the build enough information to materialize real paths.
+For SSG, a dynamic route needs concrete params. `entries()` gives the build enough information to
+materialize real paths.
 
-The framework only passes `locale`. Everything else can be loaded directly by the page from files, CMS, or any service reachable at build time.
+The framework only passes `locale`. Everything else can be loaded directly by the page from files,
+CMS, or any service reachable at build time.
 
 ```tsx title="Docs.page.tsx"
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {
-static async entries({ locale }: { locale?: string }) {
-  return getDocsForLocale(locale).map((doc) => ({
-    params: { slug: doc.slug },
-  }));
-}
+    static async entries({ locale }: { locale?: string }) {
+        return getDocsForLocale(locale).map((doc) => ({
+            params: { slug: doc.slug },
+        }));
+    }
 }
 ```
 
-## `load()` is still available for route-blocking data
+`entries()` answers only one question:
 
-`load()` receives params, locale, URL, renderMode, and navigationMode.
+- which concrete route params exist?
 
-It runs in the runtime path for SPA navigation and also during document-first boot.
+It does not share data with `Page.load()` or `Component.load()`.
+
+## `Page.load()` is for route-owned data
+
+Use `Page.load()` when the page itself owns the data contract.
+
+Typical examples:
+
+- head metadata
+- route-level entity identity
+- route data the page must know before it can define its output
 
 ```tsx title="Docs.page.tsx"
-static load = load.byParam("slug", async (slug) => {
-  return await fetchDoc(slug);
-});
+@Route("/docs/:slug")
+@RenderMode("ssg")
+export class DocsPage extends Page {
+    static entries = entries.from(docs, (doc) => ({
+        slug: doc.slug,
+    }));
 
-override render() {
-  const doc = this.props.data;
-  return <article>{doc.title}</article>;
+    static load = load.byParam("slug", async (slug) => {
+        return {
+            head: await fetchDocHead(slug),
+        };
+    });
+
+    override render() {
+        const slug = this.props.route?.params?.slug;
+        return <DocsArticleContent slug={slug} />;
+    }
 }
 ```
 
-Use `load()` when the page itself truly owns route-blocking data.
+Use `Page.load()` when the route owns the answer.
 
-## Components can now assemble the page body
+## `Component.load()` is for component-owned async assembly
 
-When the page only needs to declare the route and enumerate SSG outputs, a component can own the
-resource read and its render strategy.
+When the page only needs to declare the route and maybe expand SSG outputs, the component can own
+the async assembly directly.
 
-For the full model behind `defineResource(...)` and `ComponentResource`, see
-[Resource Model](./resource-model.md).
+This is now the main user-facing async path in Mainz:
+
+- `Component`
+- `@RenderStrategy(...)`
+- `Component.load()`
+
+When a loaded component has no local state, use `NoState` in the second generic slot:
+
+- `Component<Props, NoState, Data>`
 
 ```tsx title="Docs.page.tsx"
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
-  static entries = entries.from(docs, (doc) => ({
-    slug: doc.slug,
-  }));
+    static entries = entries.from(docs, (doc) => ({
+        slug: doc.slug,
+    }));
 
-  override render() {
-    return <DocsArticleContent slug={this.props.route?.params?.slug} />;
-  }
+    override render() {
+        return <DocsArticleContent slug={this.props.route?.params?.slug} />;
+    }
 }
 ```
 
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<{ slug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={docsArticleResource}
-        params={{ slug: this.props.slug }}
-        context={undefined}
-      >
-        {(article) => <DocsShell title={article.title} markdown={article.markdown} />}
-      </ComponentResource>
-    );
-  }
+export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsPageModel> {
+    override async load() {
+        return buildDocsArticlePageModel(this.props.slug);
+    }
+
+    override render() {
+        return <DocsArticlePage article={this.data} />;
+    }
 }
 ```
 
-## `client-only` components keep browser-local state out of SSG
+In other words:
 
-Use `client-only` when the data depends on browser-only or user-specific state.
+- page owns the route
+- component owns the async assembly
+- `render()` stays synchronous and only consumes already available state
+
+## `this.data` is the resolved component value
+
+When a component declares `load()`, Mainz exposes the resolved value through `this.data`.
+
+That means:
+
+- `load()` stays the async hook
+- `render()` stays synchronous
+- the component reads its own resolved value directly from `this.data`
+
+```tsx
+@RenderStrategy("blocking")
+export class ProductDetails extends Component<{ slug: string }, NoState, Product> {
+    override async load() {
+        return await getProduct(this.props.slug);
+    }
+
+    override render() {
+        return <article>{this.data.title}</article>;
+    }
+}
+```
+
+## `@RenderStrategy(...)` now applies to `Component.load()`
+
+`@RenderStrategy(...)` stays a component concern, but it now describes how `Component.load()`
+participates in rendering.
+
+### `blocking`
+
+- the component load can participate in the initial render path
+- use this when the component belongs in the first render
+
+### `deferred`
+
+- the component renders its fallback first
+- the load resolves later
+
+### `client-only`
+
+- the component load resolves only in the browser
+- use this for browser-local or user-specific state
+
+### `forbidden-in-ssg`
+
+- the component cannot appear inside an SSG path
+
+If a component uses `deferred` or `client-only`, provide a fallback so the placeholder stays
+explicit.
+
+## Example: `deferred`
+
+```tsx title="OnThisPage.tsx"
+@RenderStrategy("deferred", {
+    fallback: () => <p>Scanning sections...</p>,
+})
+export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
+    override async load() {
+        return collectArticleHeadings();
+    }
+
+    override render() {
+        return <OnThisPagePanel headings={this.data} />;
+    }
+}
+```
+
+## Example: `client-only`
 
 ```tsx title="RecentlyViewedDocs.tsx"
-const recentlyViewedDocsResource = defineResource({
-  name: "recent-docs",
-  visibility: "private",
-  execution: "client",
-  cache: "no-store",
-  key: ({ currentSlug }) => ["recent-docs", currentSlug ?? null],
-  load: ({ currentSlug }) => readRecentDocsFromLocalStorage(currentSlug),
-});
-
 @RenderStrategy("client-only", {
-  fallback: () => <RecentDocsPlaceholder />,
+    fallback: () => <RecentDocsPlaceholder />,
 })
-export class RecentlyViewedDocs extends Component<{ currentSlug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={recentlyViewedDocsResource}
-        params={{ currentSlug: this.props.currentSlug }}
-        context={undefined}
-      >
-        {(items) => <RecentDocsNav items={items} />}
-      </ComponentResource>
-    );
-  }
+export class RecentlyViewedDocs extends Component<
+    { currentSlug?: string },
+    NoState,
+    readonly RecentlyViewedDoc[]
+> {
+    override async load() {
+        return readRecentDocsFromLocalStorage(this.props.currentSlug);
+    }
+
+    override render() {
+        return <RecentDocsNav items={this.data} />;
+    }
 }
 ```
 
-This keeps the SSG HTML shared and deterministic while still letting the browser personalize the
-page after hydration.
+This keeps SSG HTML shared and deterministic while still letting the browser personalize the page
+after hydration.
 
-For the larger architectural pattern, see
-[Public Shell, Private Island](./public-shell-private-island.md).
+## A practical rule
 
-## `RenderMode(...)` and `RenderStrategy(...)` are different layers
+Ask these questions in order:
 
-If the distinction still feels fuzzy, read [Render Mode and Render Strategy](./render-mode-and-strategy.md).
+1. Does the route itself own this data?
+2. Or does a nested component own the corresponding sub-tree?
+
+If the route owns it, use `Page.load()`.
+
+If the component owns it, use `Component.load()`.
+
+If the route only needs concrete SSG params, use `entries()` and stop there.
+
+## `RenderMode(...)` and `RenderStrategy(...)` are still different layers
+
+If the distinction still feels fuzzy, read
+[Render Mode and Render Strategy](./render-mode-and-strategy.md).
 
 The short version is:
 
 - `@RenderMode(...)` belongs to the page and defines the route envelope
-- `@RenderStrategy(...)` belongs to the component and defines how that component participates inside the route
-- `ComponentResource` is the primitive that resolves the component's data
-
-## What this slice covers
-
-The current implementation expands SSG routes with `entries()`, keeps `load()` for route-blocking
-data, and also allows component-driven assembly through `@RenderStrategy(...)` plus
-`ComponentResource`.
-
-Passing build-time data from `entries()` directly into prerender output can come later if you want a richer SSG preload story.
+- `@RenderStrategy(...)` belongs to the component and defines how that component participates inside
+  the route
+- `Component.load()` is the normal component-owned async path

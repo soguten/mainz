@@ -8,79 +8,86 @@ Mainz keeps routing and component assembly separate on purpose.
 Think about them like this:
 
 - `RenderMode` defines the route envelope
-- `RenderStrategy` defines how one part of that route participates in rendering
+- `RenderStrategy` defines how one component participates inside that route
 
-Those two decisions are independent from whether the route is static or dynamic.
+Those two decisions stay separate from whether a route is static or dynamic.
 
-- a route can be static or dynamic
-- a page can use `csr` or `ssg`
-- a component inside that page can still be `blocking`, `deferred`, or `client-only`
+## Page decides the route envelope
 
-Dynamic routes make the examples easier to see because they often involve real data loading, but
-`@RenderStrategy(...)` is not a "dynamic route feature". It is a component rendering policy.
+`@RenderMode(...)` is page-level.
+
+It answers questions like:
+
+- should this route be prerendered as shared HTML?
+- or should it only come alive in the browser?
 
 ```tsx title="Docs.page.tsx"
-import { CustomElement, Page, RenderMode, Route } from "mainz";
-import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
-
 @CustomElement("x-mainz-docs-page")
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
-  override render() {
-    return <DocsArticleContent slug={this.props.route?.params?.slug} />;
-  }
+    override render() {
+        return <DocsArticleContent slug={this.props.route?.params?.slug} />;
+    }
 }
 ```
+
+The page decides that `/docs/:slug` is an SSG route.
+
+## Component decides render participation
+
+`@RenderStrategy(...)` is component-level.
+
+It answers questions like:
+
+- should this component block the first render?
+- can it show fallback first?
+- should it wait for the browser?
 
 ```tsx title="DocsArticleContent.tsx"
-import { Component, ComponentResource, RenderStrategy } from "mainz";
+@RenderStrategy("blocking")
+export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
+    override async load() {
+        return await buildDocsArticleModel(this.props.slug);
+    }
 
-@RenderStrategy("blocking", {
-  fallback: () => <p>Loading article...</p>,
-})
-export class DocsArticleContent extends Component<{ slug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={docsArticleResource}
-        params={{ slug: this.props.slug }}
-        context={undefined}
-      >
-        {(article) => <article>{article.title}</article>}
-      </ComponentResource>
-    );
-  }
+    override render() {
+        return <DocsArticlePage article={this.data} />;
+    }
 }
 ```
 
-The page decides that `/docs/:slug` is an SSG route. The component decides whether its own data is
-blocking, deferred, or client-only inside that route.
+The component decides how its own `load()` participates inside the page.
 
-In this example:
+When a component has `load()` but no local state, prefer `NoState` in the second generic slot so the
+intent stays visible.
+
+## These are separate choices
+
+In that example:
 
 - the route is dynamic because of `:slug`
 - the page is `ssg` because of `@RenderMode("ssg")`
 - the component is `blocking` because of `@RenderStrategy("blocking")`
 
-Those are three separate choices.
+Those are three separate decisions.
 
-The same component strategy ideas also apply to a static route like `/about`:
+The same component strategy ideas also apply to a static route like `/about`.
 
 ```tsx title="About.page.tsx"
 @CustomElement("x-mainz-about-page")
 @Route("/about")
 @RenderMode("ssg")
 export class AboutPage extends Page {
-  override render() {
-    return (
-      <>
-        <AboutHero />
-        <TeamLocations />
-        <RecentlyViewedDocs />
-      </>
-    );
-  }
+    override render() {
+        return (
+            <>
+                <AboutHero />
+                <TeamLocations />
+                <RecentlyViewedDocs />
+            </>
+        );
+    }
 }
 ```
 
@@ -92,11 +99,12 @@ Here the route is static, but the components can still have different strategies
 
 ## The mental model
 
-- `RenderMode("ssg")` asks: can Mainz emit HTML for this route ahead of time?
+- `RenderMode("ssg")` asks: can Mainz emit shared HTML for this route ahead of time?
 - `RenderMode("csr")` asks: should this route only come alive in the browser?
-- `RenderStrategy("blocking")` asks: should this component participate in the first render?
+- `RenderStrategy("blocking")` asks: should this component participate in the first render path?
 - `RenderStrategy("deferred")` asks: can this component wait and render a placeholder first?
-- `RenderStrategy("client-only")` asks: should this component skip build-time rendering and resolve only in the browser?
+- `RenderStrategy("client-only")` asks: should this component skip build-time loading and resolve
+  only in the browser?
 
 That means `RenderStrategy(...)` is not an SSG-only feature. It matters most in SSG because build
 output makes the differences visible, but it still describes component behavior in CSR too.
@@ -106,80 +114,63 @@ output makes the differences visible, but it still describes component behavior 
 ### `csr` page + `blocking` component
 
 - the component loads in the client runtime
-- it can still show a fallback while its resource resolves
-- there is no SSG HTML to protect
+- it participates in the first render path for that CSR route
 
 Use this when the component is important to the first interactive render of a CSR page.
 
 ### `csr` page + `deferred` component
 
-- the component also loads in the client runtime
+- the component loads in the client runtime
 - it can show a fallback first and fill in later
-- today the runtime path is close to `blocking`, but the intent is different
 
 Use this when the component is secondary and should not be treated as first-render-critical.
 
 ### `csr` page + `client-only` component
 
-- the component loads in the client runtime
-- there is no build step involved, so the practical difference is smaller
-- the strategy still documents that this component never belongs in prerendered output
-
-Use this when the component depends on browser APIs, session state, `localStorage`, or any other
-browser-local source of truth.
+- the component still loads in the client runtime
+- the practical difference is smaller because there is no prerendered HTML to protect
+- the strategy still documents that this data belongs in the browser only
 
 ### `ssg` page + `blocking` component
 
 - the component can participate in build output
-- the resource must be public and build-compatible
-- Mainz may render the final HTML during prerender
+- its `load()` can resolve during prerender
 
-Use this for the main article body, public docs content, or any data that must exist in the first
-HTML response.
+Use this for public content that belongs in the first HTML response.
 
 ```tsx title="DocsArticleContent.tsx"
-@RenderStrategy("blocking", {
-  fallback: () => <p>Loading article...</p>,
-})
-export class DocsArticleContent extends Component<{ slug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={docsArticleResource}
-        params={{ slug: this.props.slug }}
-        context={undefined}
-      >
-        {(article) => <DocsShell title={article.title} markdown={article.markdown} />}
-      </ComponentResource>
-    );
-  }
+@RenderStrategy("blocking")
+export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
+    override async load() {
+        return await buildDocsArticleModel(this.props.slug);
+    }
+
+    override render() {
+        return <DocsArticlePage article={this.data} />;
+    }
 }
 ```
 
 ### `ssg` page + `deferred` component
 
-- the page can still be prerendered
-- the component does not block the initial HTML
-- Mainz keeps the fallback in SSG output and resolves the resource later in the browser
+- the page still prerenders
+- the component keeps its fallback in shared HTML
+- the component resolves later in the browser
 
-Use this for secondary UI like `On this page`, related articles, or non-critical callouts.
+Use this for secondary UI like `On this page`, related content, or non-critical side panels.
 
 ```tsx title="OnThisPage.tsx"
 @RenderStrategy("deferred", {
-  fallback: () => <p>Scanning sections...</p>,
+    fallback: () => <p>Scanning sections...</p>,
 })
-export class OnThisPage extends Component<{ slug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={onThisPageResource}
-        params={{ slug: this.props.slug }}
-        context={undefined}
-      >
-        {(headings) => <OnThisPagePanel headings={headings} />}
-      </ComponentResource>
-    );
-  }
+export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
+    override async load() {
+        return collectArticleHeadings();
+    }
+
+    override render() {
+        return <OnThisPagePanel headings={this.data} />;
+    }
 }
 ```
 
@@ -189,27 +180,34 @@ export class OnThisPage extends Component<{ slug?: string }> {
 - the component skips build-time data resolution
 - Mainz emits the fallback in shared HTML, then resolves the component after hydration
 
-Use this for browser-local or user-specific state like recently viewed pages, local preferences, or
+Use this for browser-local or user-specific state like recent pages, local preferences, or
 authenticated UI.
 
 ```tsx title="RecentlyViewedDocs.tsx"
 @RenderStrategy("client-only", {
-  fallback: () => <p>Recent pages appear after you browse the docs.</p>,
+    fallback: () => <p>Recent pages appear after you browse the docs.</p>,
 })
-export class RecentlyViewedDocs extends Component<{ currentSlug?: string }> {
-  override render() {
-    return (
-      <ComponentResource
-        resource={recentlyViewedDocsResource}
-        params={{ currentSlug: this.props.currentSlug }}
-        context={undefined}
-      >
-        {(items) => <RecentDocsNav items={items} />}
-      </ComponentResource>
-    );
-  }
+export class RecentlyViewedDocs extends Component<
+    { currentSlug?: string },
+    NoState,
+    readonly RecentlyViewedDoc[]
+> {
+    override async load() {
+        return readRecentDocsFromLocalStorage(this.props.currentSlug);
+    }
+
+    override render() {
+        return <RecentDocsNav items={this.data} />;
+    }
 }
 ```
+
+### `ssg` page + `forbidden-in-ssg` component
+
+- the component is not allowed inside an SSG path
+- Mainz should fail fast instead of pretending the route can prerender safely
+
+Use this when the component is fundamentally incompatible with SSG.
 
 ## Why this matters more in SSG
 
@@ -226,11 +224,12 @@ render policy everywhere else.
 
 - page decides the route envelope
 - component decides its render participation
-- `ComponentResource` resolves the component's data
+- `Component.load()` is the normal component-owned async path
 
 If a route should be statically emitted, use `@RenderMode("ssg")`.
 
-If a component should block, defer, or wait for the browser, use `@RenderStrategy(...)`.
+If a component should block, defer, wait for the browser, or reject SSG participation, use
+`@RenderStrategy(...)`.
 
-For the data layer that sits underneath those strategies, see
-[Resource Model](./resource-model.md).
+For route expansion and the ownership split between page and component, see
+[Data Loading](./data-loading.md).

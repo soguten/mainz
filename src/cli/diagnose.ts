@@ -5,7 +5,6 @@ import { resolve } from "node:path";
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import {
     collectComponentDiagnostics,
-    collectComponentSourceDiagnostics,
     collectRouteDiagnostics,
     type ComponentSourceDiagnosticsInput,
     type MainzDiagnosticCode,
@@ -76,13 +75,6 @@ export async function collectCliDiagnostics(
             })),
         );
 
-        const componentSourceDiagnostics = await collectComponentSourceDiagnostics(componentSources);
-        diagnostics.push(
-            ...componentSourceDiagnostics.map((diagnostic) => ({
-                ...diagnostic,
-                target: target.name,
-            })),
-        );
     }
 
     return diagnostics.sort(compareDiagnostics);

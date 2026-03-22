@@ -6,14 +6,14 @@ Pages extend that same component model, but regular components let you compose t
 attaching route metadata to every class.
 
 ```tsx title="CounterCard.tsx"
-import { Component, CustomElement } from "mainz";
+import { Component, CustomElement, type NoProps } from "mainz";
 
 interface CounterState {
     count: number;
 }
 
 @CustomElement("ui-counter-card")
-export class CounterCard extends Component<{}, CounterState> {
+export class CounterCard extends Component<NoProps, CounterState> {
     protected override initState(): CounterState {
         return { count: 0 };
     }
@@ -22,6 +22,38 @@ export class CounterCard extends Component<{}, CounterState> {
         return <button>{String(this.state.count)}</button>;
     }
 }
+```
+
+## Generic order and utility types
+
+`Component` uses the generic order `Component<Props, State, Data>`.
+
+Mainz also exports a few utility types to make common cases easier to read:
+
+- `NoProps` for components that should not accept any props, including `children`
+- `NoState` for components that do not use local state
+- `ChildrenOnlyProps` for wrapper components that only accept JSX children
+
+```tsx
+import { type ChildrenOnlyProps, Component, type NoProps, type NoState } from "mainz";
+
+class Badge extends Component<{ tone: string }> {}
+
+class CounterCard extends Component<NoProps, { count: number }> {}
+
+class RelatedDocs extends Component<{ slug: string }, NoState, DocsModel> {}
+
+class Card extends Component<ChildrenOnlyProps> {
+    override render() {
+        return <section>{this.props.children}</section>;
+    }
+}
+```
+
+When a component has no local state and does not need `Data`, you can still omit the second slot:
+
+```tsx
+class Badge extends Component<{ tone: string }> {}
 ```
 
 ## Props, state, and render stay on one class

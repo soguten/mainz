@@ -1,10 +1,4 @@
-import {
-    Component,
-    ComponentResource,
-    CustomElement,
-    defineResource,
-    RenderStrategy,
-} from "mainz";
+import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
 import { buildDocsHref } from "../lib/links.ts";
 
 interface RecentlyViewedDocsProps {
@@ -19,23 +13,6 @@ interface RecentlyViewedDoc {
 const RECENT_DOCS_STORAGE_KEY = "mainz-docs-recent-pages";
 const MAX_RECENT_DOCS = 4;
 
-const recentlyViewedDocsResource = defineResource<
-    { currentSlug?: string },
-    void,
-    readonly RecentlyViewedDoc[]
->({
-    name: "docs-recent-pages",
-    visibility: "private",
-    execution: "client",
-    cache: "no-store",
-    key(params) {
-        return ["docs-recent-pages", params.currentSlug ?? null];
-    },
-    load(params) {
-        return readRecentlyViewedDocs(params.currentSlug);
-    },
-});
-
 @CustomElement("x-mainz-docs-recently-viewed")
 @RenderStrategy("client-only", {
     fallback: () => (
@@ -47,17 +24,17 @@ const recentlyViewedDocsResource = defineResource<
         </section>
     ),
 })
-export class RecentlyViewedDocs extends Component<RecentlyViewedDocsProps> {
+export class RecentlyViewedDocs extends Component<
+    RecentlyViewedDocsProps,
+    NoState,
+    readonly RecentlyViewedDoc[]
+> {
+    override async load(): Promise<readonly RecentlyViewedDoc[]> {
+        return readRecentlyViewedDocs(this.props.currentSlug);
+    }
+
     override render() {
-        return (
-            <ComponentResource
-                resource={recentlyViewedDocsResource}
-                params={{ currentSlug: this.props.currentSlug }}
-                context={undefined}
-            >
-                {(items: readonly RecentlyViewedDoc[]) => renderRecentlyViewedDocs(items)}
-            </ComponentResource>
-        );
+        return renderRecentlyViewedDocs(this.data);
     }
 }
 
@@ -95,7 +72,10 @@ function renderRecentlyViewedDocs(items: readonly RecentlyViewedDoc[]) {
             <p class="docs-sidebar-title">Recent pages</p>
             <nav class="docs-nav" aria-label="Recently viewed pages">
                 {items.map((item) => (
-                    <a class="docs-nav-link docs-nav-link-recent" href={buildDocsHref(`/${item.slug}`)}>
+                    <a
+                        class="docs-nav-link docs-nav-link-recent"
+                        href={buildDocsHref(`/${item.slug}`)}
+                    >
                         <span class="docs-nav-title">{item.title}</span>
                     </a>
                 ))}
@@ -139,4 +119,3 @@ function isRecentlyViewedDoc(value: unknown): value is RecentlyViewedDoc {
     const candidate = value as { slug?: unknown; title?: unknown };
     return typeof candidate.slug === "string" && typeof candidate.title === "string";
 }
-

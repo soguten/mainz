@@ -112,7 +112,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         slug: "resource-model",
         title: "Resource Model",
         summary:
-            "Understand how defineResource(...), ComponentResource, and @RenderStrategy(...) fit together without mixing route ownership and component assembly.",
+            "Extract reusable data contracts without hiding whether the page or component owns the async work.",
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/resource-model.md",
@@ -136,9 +136,9 @@ const docsArticleSources: readonly DocsArticleSource[] = [
     },
     {
         slug: "data-loading",
-        title: "Dynamic Routes with entries() and component resources",
+        title: "Dynamic Routes with entries() and component loading",
         summary:
-            "Expand dynamic SSG paths at build time and let components assemble route content with explicit render strategy.",
+            "Expand dynamic SSG paths with entries(), keep route data on Page.load(), and let components own async assembly with Component.load().",
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/data-loading.md",
@@ -173,7 +173,7 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         slug: "custom-elements",
         title: "Custom Elements",
         summary:
-        "Define stable explicit tags with @CustomElement(...) and keep registration predictable.",
+            "Define stable explicit tags with @CustomElement(...) and keep registration predictable.",
         navSection: "Concepts",
         navGroup: "Components",
         contentPath: "../../../docs/concepts/components/custom-elements.md",

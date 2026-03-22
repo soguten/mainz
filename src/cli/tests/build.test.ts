@@ -1,5 +1,6 @@
 /// <reference lib="deno.ns" />
 
+import { resolve } from "node:path";
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { resolveBuildJobs } from "../build.ts";
@@ -184,7 +185,66 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
 
         assertEquals(result.code, 1);
         assertStringIncludes(stdout + stderr, 'Failed to prerender SSG route "/"');
-        assertStringIncludes(stdout + stderr, 'Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.');
+        assertStringIncludes(
+            stdout + stderr,
+            'Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.',
+        );
+        assertStringIncludes(
+            stdout + stderr,
+            "Remove it from the SSG path or render this route in a non-SSG mode.",
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/build: should warn for ownership-based deferred placeholders without fallback during ssg prerender", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "component-load-ssg-warnings-build",
+        targetName: "component-load-ssg-warnings-build",
+        locales: ["en"],
+    });
+
+    try {
+        const command = new Deno.Command("deno", {
+            args: [
+                "run",
+                "-A",
+                "./src/cli/mainz.ts",
+                "build",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+                "--mode",
+                "ssg",
+                "--navigation",
+                "enhanced-mpa",
+            ],
+            cwd: cliTestsRepoRoot,
+            stdout: "piped",
+            stderr: "piped",
+        });
+
+        const result = await command.output();
+        const stdout = new TextDecoder().decode(result.stdout);
+        const stderr = new TextDecoder().decode(result.stderr);
+        const combinedOutput = stdout + stderr;
+
+        assertEquals(result.code, 0);
+        assertStringIncludes(
+            combinedOutput,
+            'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+        );
+        assertEquals(
+            combinedOutput.match(/SSG prerender warning for route "\/" and output "\/" \(locale "en"\):/g)?.length ?? 0,
+            1,
+        );
+
+        const html = await Deno.readTextFile(resolve(fixture.outputDir, "ssg", "index.html"));
+        assertStringIncludes(html, "Component Load SSG Warnings");
+        assertStringIncludes(html, "loading related docs");
+        assertStringIncludes(html, "loading recent docs");
     } finally {
         await fixture.cleanup();
     }

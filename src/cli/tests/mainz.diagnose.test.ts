@@ -39,239 +39,176 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
             "diagnose failed for diagnostics-routes fixture.",
         );
 
-        assertEquals(sortDiagnostics(JSON.parse(stdout)), sortDiagnostics([
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-missing-render-strategy",
-                severity: "error",
-                message:
-                    'Component "MissingStrategyComponentResourceOwner" renders ComponentResource but does not declare @RenderStrategy(...). ' +
-                    "ComponentResource requires a fixed component-level render strategy on its owner.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/components/BadComponentResourceOwner.tsx",
-                exportName: "MissingStrategyComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-missing-render-strategy",
-                severity: "error",
-                message:
-                    'Component "MissingStrategyPageComponentResourceOwner" renders ComponentResource but does not declare @RenderStrategy(...). ' +
-                    "ComponentResource requires a fixed component-level render strategy on its owner.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/pages/BadPageComponentResourceOwner.page.tsx",
-                exportName: "MissingStrategyPageComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-missing-entries",
-                severity: "error",
-                message: 'SSG route "/docs/:slug" must define entries() to expand dynamic params.',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgWithoutEntriesPage",
-                routePath: "/docs/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "resource-component-missing-render-strategy",
-                severity: "error",
-                message:
-                    'ResourceComponent "MissingStrategyResourceComponent" must declare @RenderStrategy(...). ' +
-                    "ResourceComponent requires a fixed component-level render strategy.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/BadResourceComponent.tsx",
-                exportName: "MissingStrategyResourceComponent",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/tips/:slug" returned an invalid entry at index 0: Dynamic route "/tips/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidEntriesHelperPage",
-                routePath: "/tips/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/async/:slug" returned an invalid entry at index 0: Dynamic route "/async/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
-                routePath: "/async/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/shared/:slug" returned an invalid entry at index 0: Dynamic route "/shared/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidSharedParamsPage",
-                routePath: "/shared/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/helper/:slug" returned an invalid entry at index 0: Dynamic route "/helper/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidParamsHelperPage",
-                routePath: "/helper/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/nested/:slug" returned an invalid entry at index 0: Dynamic route "/nested/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidNestedParamsHelperPage",
-                routePath: "/nested/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/entry-helper/:slug" returned an invalid entry at index 0: Dynamic route "/entry-helper/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidEntryHelperPage",
-                routePath: "/entry-helper/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/spread/:slug" returned an invalid entry at index 0: Dynamic route "/spread/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidSpreadParamsPage",
-                routePath: "/spread/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/shared-spread/:slug" returned an invalid entry at index 0: Dynamic route "/shared-spread/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidSharedSpreadParamsPage",
-                routePath: "/shared-spread/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/local-spread/:slug" returned an invalid entry at index 0: Dynamic route "/local-spread/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidLocalSpreadAliasPage",
-                routePath: "/local-spread/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/entries-ref/:slug" returned an invalid entry at index 0: Dynamic route "/entries-ref/:slug" requires "slug"; these params is missing from entries().',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgInvalidReferencedEntriesPage",
-                routePath: "/entries-ref/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-blocking-client-resource",
-                severity: "warning",
-                message:
-                    'Component "BlockingClientComponentResourceOwner" renders ComponentResource with @RenderStrategy("blocking") using client-only resource "live-preview". ' +
-                    "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/components/BadComponentResourceOwner.tsx",
-                exportName: "BlockingClientComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-blocking-private-resource",
-                severity: "warning",
-                message:
-                    'Component "BlockingImplicitPrivateComponentResourceOwner" renders ComponentResource with @RenderStrategy("blocking") using private resource "draft-preview". ' +
-                    "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/components/BadComponentResourceOwner.tsx",
-                exportName: "BlockingImplicitPrivateComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-blocking-private-resource",
-                severity: "warning",
-                message:
-                    'Component "BlockingPrivateComponentResourceOwner" renders ComponentResource with @RenderStrategy("blocking") using private resource "current-user". ' +
-                    "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/components/BadComponentResourceOwner.tsx",
-                exportName: "BlockingPrivateComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "component-resource-missing-fallback",
-                severity: "warning",
-                message:
-                    'Component "MissingFallbackComponentResourceOwner" renders ComponentResource with @RenderStrategy("client-only") without a fallback. ' +
-                    "Add a fallback to make the component's async placeholder explicit.",
-                file:
-                    fixture.fixtureRoot.replaceAll("\\", "/") +
-                    "/src/components/BadComponentResourceOwner.tsx",
-                exportName: "MissingFallbackComponentResourceOwner",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "dynamic-ssg-missing-load",
-                severity: "warning",
-                message:
-                    'Dynamic SSG route "/guides/:slug" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Diagnostics.page.tsx",
-                exportName: "DynamicSsgWithoutLoadPage",
-                routePath: "/guides/:slug",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "resource-component-blocking-client-resource",
-                severity: "warning",
-                message:
-                    'ResourceComponent "BlockingClientResourceComponent" uses @RenderStrategy("blocking") with client-only resource "live-preview". ' +
-                    "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/BadResourceComponent.tsx",
-                exportName: "BlockingClientResourceComponent",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "resource-component-blocking-private-resource",
-                severity: "warning",
-                message:
-                    'ResourceComponent "BlockingPrivateResourceComponent" uses @RenderStrategy("blocking") with private resource "current-user". ' +
-                    "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/BadResourceComponent.tsx",
-                exportName: "BlockingPrivateResourceComponent",
-            },
-            {
-                target: "diagnostics-routes",
-                code: "resource-component-missing-fallback",
-                severity: "warning",
-                message:
-                    'ResourceComponent "MissingFallbackResourceComponent" uses @RenderStrategy("deferred") without a fallback. ' +
-                    "Add a fallback to make the component's async placeholder explicit.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/BadResourceComponent.tsx",
-                exportName: "MissingFallbackResourceComponent",
-            },
-        ]));
+        assertEquals(
+            sortDiagnostics(JSON.parse(stdout)),
+            sortDiagnostics([
+                {
+                    target: "diagnostics-routes",
+                    code: "component-load-missing-render-strategy",
+                    severity: "error",
+                    message:
+                        'Component "MissingStrategyLoadOwner" declares load() but does not declare @RenderStrategy(...). ' +
+                        "Component.load() requires a fixed component-level render strategy.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/components/BadComponentLoadOwner.tsx",
+                    exportName: "MissingStrategyLoadOwner",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-missing-entries",
+                    severity: "error",
+                    message:
+                        'SSG route "/docs/:slug" must define entries() to expand dynamic params.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgWithoutEntriesPage",
+                    routePath: "/docs/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/tips/:slug" returned an invalid entry at index 0: Dynamic route "/tips/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntriesHelperPage",
+                    routePath: "/tips/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/async/:slug" returned an invalid entry at index 0: Dynamic route "/async/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
+                    routePath: "/async/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/shared/:slug" returned an invalid entry at index 0: Dynamic route "/shared/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidSharedParamsPage",
+                    routePath: "/shared/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/helper/:slug" returned an invalid entry at index 0: Dynamic route "/helper/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidParamsHelperPage",
+                    routePath: "/helper/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/nested/:slug" returned an invalid entry at index 0: Dynamic route "/nested/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidNestedParamsHelperPage",
+                    routePath: "/nested/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/entry-helper/:slug" returned an invalid entry at index 0: Dynamic route "/entry-helper/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntryHelperPage",
+                    routePath: "/entry-helper/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/spread/:slug" returned an invalid entry at index 0: Dynamic route "/spread/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidSpreadParamsPage",
+                    routePath: "/spread/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/shared-spread/:slug" returned an invalid entry at index 0: Dynamic route "/shared-spread/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidSharedSpreadParamsPage",
+                    routePath: "/shared-spread/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/local-spread/:slug" returned an invalid entry at index 0: Dynamic route "/local-spread/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidLocalSpreadAliasPage",
+                    routePath: "/local-spread/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-invalid-entries",
+                    severity: "error",
+                    message:
+                        'entries() for dynamic SSG route "/entries-ref/:slug" returned an invalid entry at index 0: Dynamic route "/entries-ref/:slug" requires "slug"; these params is missing from entries().',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidReferencedEntriesPage",
+                    routePath: "/entries-ref/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "component-load-missing-fallback",
+                    severity: "warning",
+                    message:
+                        'Component "MissingFallbackLoadOwner" declares load() with @RenderStrategy("client-only") without a fallback. ' +
+                        "Add a fallback to make the component's async placeholder explicit.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/components/BadComponentLoadOwner.tsx",
+                    exportName: "MissingFallbackLoadOwner",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "component-render-strategy-without-load",
+                    severity: "warning",
+                    message:
+                        'Component "StrategyWithoutLoadOwner" declares @RenderStrategy("blocking") but does not declare load(). ' +
+                        "@RenderStrategy(...) only affects Component.load() and has no effect on synchronous components.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/components/BadComponentLoadOwner.tsx",
+                    exportName: "StrategyWithoutLoadOwner",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-missing-load",
+                    severity: "warning",
+                    message:
+                        'Dynamic SSG route "/guides/:slug" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgWithoutLoadPage",
+                    routePath: "/guides/:slug",
+                },
+            ]),
+        );
     } finally {
         await fixture.cleanup();
     }
@@ -302,7 +239,9 @@ Deno.test("cli/mainz: diagnose should report invalid locale tags declared in @Lo
                 code: "invalid-locale-tag",
                 severity: "error",
                 message:
-                    `Could not load page module "${fixture.fixtureRoot.replaceAll("\\", "/")}/src/pages/Home.page.tsx": ` +
+                    `Could not load page module "${
+                        fixture.fixtureRoot.replaceAll("\\", "/")
+                    }/src/pages/Home.page.tsx": ` +
                     '@Locales() received invalid locale "en--US" at index 0. ' +
                     'Invalid locale "en--US". Expected a valid BCP 47 language tag.',
                 file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Home.page.tsx",
@@ -314,7 +253,9 @@ Deno.test("cli/mainz: diagnose should report invalid locale tags declared in @Lo
     }
 });
 
-function sortDiagnostics<T extends { target: string; code: string; exportName: string; routePath?: string }>(
+function sortDiagnostics<
+    T extends { target: string; code: string; exportName: string; routePath?: string },
+>(
     diagnostics: readonly T[],
 ): T[] {
     return [...diagnostics].sort((a, b) => {
@@ -400,7 +341,7 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", 
         const stdout = decoder.decode(result.stdout);
 
         assertEquals(result.code, 1);
-        assertStringIncludes(stdout, '"code": "resource-component-missing-fallback"');
+        assertStringIncludes(stdout, '"code": "component-load-missing-fallback"');
     } finally {
         await fixture.cleanup();
     }
@@ -427,21 +368,20 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
             "diagnose human output failed for diagnostics-routes fixture.",
         );
 
-        assertStringIncludes(stdout, "Diagnostics summary: 14 error(s), 8 warning(s)");
+        assertStringIncludes(stdout, "Diagnostics summary: 12 error(s), 3 warning(s)");
         assertStringIncludes(stdout, "Target: diagnostics-routes");
         assertStringIncludes(stdout, "error dynamic-ssg-missing-entries");
         assertStringIncludes(stdout, "error dynamic-ssg-invalid-entries");
         assertStringIncludes(stdout, "warning dynamic-ssg-missing-load");
-        assertStringIncludes(stdout, "error resource-component-missing-render-strategy");
-        assertStringIncludes(stdout, "error component-resource-missing-render-strategy");
-        assertStringIncludes(stdout, "MissingStrategyPageComponentResourceOwner");
-        assertStringIncludes(stdout, "warning component-resource-blocking-private-resource");
-        assertStringIncludes(stdout, "warning component-resource-blocking-client-resource");
-        assertStringIncludes(stdout, "warning resource-component-blocking-private-resource");
-        assertStringIncludes(stdout, "draft-preview");
-        assertStringIncludes(stdout, "warning component-resource-missing-fallback");
+        assertStringIncludes(stdout, "error component-load-missing-render-strategy");
+        assertStringIncludes(stdout, "warning component-load-missing-fallback");
+        assertStringIncludes(stdout, "warning component-render-strategy-without-load");
+        assertStringIncludes(stdout, "MissingStrategyLoadOwner");
         assertStringIncludes(stdout, "route: /docs/:slug");
-        assertStringIncludes(stdout, 'SSG route "/docs/:slug" must define entries() to expand dynamic params.');
+        assertStringIncludes(
+            stdout,
+            'SSG route "/docs/:slug" must define entries() to expand dynamic params.',
+        );
     } finally {
         await fixture.cleanup();
     }

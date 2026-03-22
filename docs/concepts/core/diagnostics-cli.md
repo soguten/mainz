@@ -34,17 +34,9 @@ Route diagnostics:
 
 Component diagnostics:
 
-- `Component` owners that render `ComponentResource` without `@RenderStrategy(...)`
-- `Component` owners that render `ComponentResource` with `deferred` or `client-only` but no
-  fallback
-- `Component` owners that render `ComponentResource` with `blocking` and a locally declared
-  `private` or `client` resource that will fail if they enter an SSG path
-- `Component` owners that render `ComponentResource` with `blocking` and a locally declared
-  resource that omits `visibility`, because the default is still conservative and therefore
-  effectively private for SSG safety
-- `ResourceComponent` declarations missing `@RenderStrategy(...)`
-- `ResourceComponent` declarations using `deferred` or `client-only` without a fallback
-- `ResourceComponent` declarations using `blocking` with `private` or `client` resources that will break if they enter an SSG path
+- `Component` declarations with `load()` but no `@RenderStrategy(...)`
+- `Component` declarations with `@RenderStrategy(...)` but no `load()`
+- `Component` declarations with `load()` using `deferred` or `client-only` without a fallback
 
 ## Human output
 

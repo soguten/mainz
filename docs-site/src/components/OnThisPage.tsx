@@ -1,10 +1,4 @@
-import {
-    Component,
-    ComponentResource,
-    CustomElement,
-    defineResource,
-    RenderStrategy,
-} from "mainz";
+import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
 
 interface OnThisPageProps {
     slug?: string;
@@ -15,19 +9,6 @@ interface OnThisPageHeading {
     text: string;
     level: 2 | 3;
 }
-
-const onThisPageResource = defineResource<{ slug: string }, void, readonly OnThisPageHeading[]>({
-    name: "docs-on-this-page",
-    visibility: "public",
-    execution: "client",
-    cache: "no-store",
-    key(params) {
-        return ["docs-on-this-page", params.slug];
-    },
-    load() {
-        return collectArticleHeadings();
-    },
-});
 
 @CustomElement("x-mainz-docs-on-this-page")
 @RenderStrategy("deferred", {
@@ -40,21 +21,17 @@ const onThisPageResource = defineResource<{ slug: string }, void, readonly OnThi
         </aside>
     ),
 })
-export class OnThisPage extends Component<OnThisPageProps> {
+export class OnThisPage extends Component<OnThisPageProps, NoState, readonly OnThisPageHeading[]> {
+    override async load(): Promise<readonly OnThisPageHeading[]> {
+        return collectArticleHeadings();
+    }
+
     override render() {
         if (!this.props.slug) {
             return document.createDocumentFragment();
         }
 
-        return (
-            <ComponentResource
-                resource={onThisPageResource}
-                params={{ slug: this.props.slug }}
-                context={undefined}
-            >
-                {(headings: readonly OnThisPageHeading[]) => renderOnThisPagePanel(headings)}
-            </ComponentResource>
-        );
+        return renderOnThisPagePanel(this.data);
     }
 }
 
@@ -70,9 +47,7 @@ function renderOnThisPagePanel(headings: readonly OnThisPageHeading[]) {
                 <nav class="docs-on-this-page-nav" aria-label="On this page">
                     {headings.map((heading) => (
                         <a
-                            class={`docs-on-this-page-link${
-                                heading.level === 3 ? " nested" : ""
-                            }`}
+                            class={`docs-on-this-page-link${heading.level === 3 ? " nested" : ""}`}
                             href={`#${heading.id}`}
                         >
                             {heading.text}

@@ -3,14 +3,14 @@
 Mainz components can preload local state before the first render with `initState()`.
 
 ```tsx title="ToggleCard.tsx"
-import { Component, CustomElement } from "mainz";
+import { Component, CustomElement, type NoProps } from "mainz";
 
 interface ToggleState {
     open: boolean;
 }
 
 @CustomElement("ui-toggle-card")
-export class ToggleCard extends Component<{}, ToggleState> {
+export class ToggleCard extends Component<NoProps, ToggleState> {
     protected override initState(): ToggleState {
         return { open: false };
     }

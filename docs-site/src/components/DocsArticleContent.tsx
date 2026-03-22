@@ -1,10 +1,4 @@
-import {
-    Component,
-    ComponentResource,
-    CustomElement,
-    defineResource,
-    RenderStrategy,
-} from "mainz";
+import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
 import { DocsShell, type DocsShellProps } from "./DocsShell.tsx";
 import { getDocsArticle, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 
@@ -12,47 +6,29 @@ interface DocsArticleContentProps {
     slug?: string;
 }
 
-const docsArticleShellResource = defineResource<
-    { slug?: string },
-    void,
-    DocsShellProps
->({
-    name: "docs-article-shell",
-    visibility: "public",
-    execution: "either",
-    cache: "static",
-    key(params) {
-        return ["docs-article-shell", params.slug ?? null];
-    },
-    load(params) {
-        return buildDocsArticleShellProps(params.slug);
-    },
-});
-
 @CustomElement("x-mainz-docs-article-content")
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<DocsArticleContentProps> {
+export class DocsArticleContent
+    extends Component<DocsArticleContentProps, NoState, DocsShellProps> {
+    override load(): DocsShellProps {
+        return buildDocsArticleShellProps(this.props.slug);
+    }
+
     override render() {
+        const shell = this.data;
+
         return (
-            <ComponentResource
-                resource={docsArticleShellResource}
-                params={{ slug: this.props.slug }}
-                context={undefined}
-            >
-                {(shell: DocsShellProps) => (
-                    <DocsShell
-                        title={shell.title}
-                        summary={shell.summary}
-                        markdown={shell.markdown}
-                        navSections={shell.navSections}
-                        activeSlug={shell.activeSlug}
-                        overviewCards={shell.overviewCards}
-                        previous={shell.previous}
-                        next={shell.next}
-                        statusLabel={shell.statusLabel}
-                    />
-                )}
-            </ComponentResource>
+            <DocsShell
+                title={shell.title}
+                summary={shell.summary}
+                markdown={shell.markdown}
+                navSections={shell.navSections}
+                activeSlug={shell.activeSlug}
+                overviewCards={shell.overviewCards}
+                previous={shell.previous}
+                next={shell.next}
+                statusLabel={shell.statusLabel}
+            />
         );
     }
 }

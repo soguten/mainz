@@ -1103,7 +1103,19 @@ function formatSsgPrerenderCause(error: unknown): string {
         }
     }
 
-    return toErrorMessage(error);
+    const message = toErrorMessage(error);
+    if (
+        message.includes('@RenderStrategy("forbidden-in-ssg")') &&
+        message.includes("cannot be rendered during SSG.")
+    ) {
+        return appendSsgGuidance(message, "Remove it from the SSG path or render this route in a non-SSG mode.");
+    }
+
+    return message;
+}
+
+function appendSsgGuidance(message: string, guidance: string): string {
+    return message.includes(guidance) ? message : `${message} ${guidance}`;
 }
 
 function serializeRouteSnapshot(snapshot: InitialRouteSnapshot): string {

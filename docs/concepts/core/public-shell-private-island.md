@@ -32,7 +32,7 @@ It means:
 ## Example: docs page with authenticated menu
 
 ```tsx title="Docs.page.tsx"
-import { CustomElement, Page, RenderMode, Route, entries } from "mainz";
+import { CustomElement, entries, Page, RenderMode, Route } from "mainz";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
 import { CurrentUserMenu } from "../components/CurrentUserMenu.tsx";
 import { docsArticles } from "../lib/docs.ts";
@@ -41,24 +41,24 @@ import { docsArticles } from "../lib/docs.ts";
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
-  static entries = entries.from(docsArticles, (article) => ({
-    slug: article.slug,
-  }));
+    static entries = entries.from(docsArticles, (article) => ({
+        slug: article.slug,
+    }));
 
-  override render() {
-    const slug = this.props.route?.params?.slug;
+    override render() {
+        const slug = this.props.route?.params?.slug;
 
-    return (
-      <>
-        <header class="docs-topbar">
-          <a href="/">Mainz Docs</a>
-          <CurrentUserMenu />
-        </header>
+        return (
+            <>
+                <header class="docs-topbar">
+                    <a href="/">Mainz Docs</a>
+                    <CurrentUserMenu />
+                </header>
 
-        <DocsArticleContent slug={slug} />
-      </>
-    );
-  }
+                <DocsArticleContent slug={slug} />
+            </>
+        );
+    }
 }
 ```
 
@@ -69,33 +69,19 @@ What changes is only the menu component.
 ## The private island
 
 ```tsx title="CurrentUserMenu.tsx"
-import { Component, ComponentResource, RenderStrategy, defineResource } from "mainz";
-
-const currentUserResource = defineResource({
-  name: "current-user",
-  visibility: "private",
-  execution: "client",
-  cache: "no-store",
-  async load() {
-    return await getCurrentUserFromBrowserSession();
-  },
-});
+import { Component, type NoProps, type NoState, RenderStrategy } from "mainz";
 
 @RenderStrategy("client-only", {
-  fallback: () => <a href="/login">Sign in</a>,
+    fallback: () => <a href="/login">Sign in</a>,
 })
-export class CurrentUserMenu extends Component {
-  override render() {
-    return (
-      <ComponentResource
-        resource={currentUserResource}
-        params={undefined}
-        context={undefined}
-      >
-        {(user) => <button>{user.name}</button>}
-      </ComponentResource>
-    );
-  }
+export class CurrentUserMenu extends Component<NoProps, NoState, CurrentUser | null> {
+    override async load() {
+        return await getCurrentUserFromBrowserSession();
+    }
+
+    override render() {
+        return this.data ? <button>{this.data.name}</button> : <a href="/login">Sign in</a>;
+    }
 }
 ```
 
@@ -120,8 +106,8 @@ So the safe HTML is something like:
 
 ```html
 <header class="docs-topbar">
-  <a href="/">Mainz Docs</a>
-  <a href="/login">Sign in</a>
+    <a href="/">Mainz Docs</a>
+    <a href="/login">Sign in</a>
 </header>
 ```
 
@@ -129,8 +115,8 @@ and not:
 
 ```html
 <header class="docs-topbar">
-  <a href="/">Mainz Docs</a>
-  <button>Alexandre</button>
+    <a href="/">Mainz Docs</a>
+    <button>Alexandre</button>
 </header>
 ```
 
@@ -163,13 +149,11 @@ The goal is not to make everything `client-only`.
 
 The goal is to keep private state out of shared HTML while still letting the page stay SSG.
 
-For the lower-level contract behind `defineResource(...)`, `ComponentResource`, and diagnostics,
-see [Resource Model](./resource-model.md).
-
 ## Mental model
 
 - page decides the public route shell
 - private component becomes an island
 - `client-only` keeps personalization in the browser
+- `Component.load()` keeps the ownership visible on the component itself
 
 That is how Mainz lets a page be static without pretending that private data is static too.

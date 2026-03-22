@@ -69,12 +69,27 @@ Deno.test("build html helpers: formats route-aware prerender warnings", () => {
         renderPath: "/docs/intro",
         locale: "en",
         warning:
-            'ResourceBoundary for resource "related-docs" is using strategy "deferred" during SSG without a fallback. Provide a fallback to avoid empty prerender output.',
+            'Component "RelatedDocs" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
     });
 
     assertEquals(
         message,
-        'SSG prerender warning for route "/docs/:slug" and output "/docs/intro" (locale "en"): ResourceBoundary for resource "related-docs" is using strategy "deferred" during SSG without a fallback. Provide a fallback to avoid empty prerender output.',
+        'SSG prerender warning for route "/docs/:slug" and output "/docs/intro" (locale "en"): Component "RelatedDocs" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+    );
+});
+
+Deno.test("build html helpers: formats ownership-based prerender warnings", () => {
+    const message = formatSsgPrerenderWarning({
+        routePath: "/",
+        renderPath: "/",
+        locale: "en",
+        warning:
+            'Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+    });
+
+    assertEquals(
+        message,
+        'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
     );
 });
 
@@ -129,6 +144,22 @@ Deno.test("build html helpers: formats forbidden-in-ssg strategy errors with SSG
     assertEquals(
         message,
         'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG. Remove it from the SSG path or render this route in a non-SSG mode.',
+    );
+});
+
+Deno.test("build html helpers: formats forbidden-in-ssg component load errors with SSG guidance", () => {
+    const message = formatSsgPrerenderError({
+        routePath: "/docs/:slug",
+        renderPath: "/docs/intro",
+        locale: "en",
+        error: new Error(
+            'Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.',
+        ),
+    });
+
+    assertEquals(
+        message,
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG. Remove it from the SSG path or render this route in a non-SSG mode.',
     );
 });
 

@@ -1,31 +1,16 @@
-import {
-    Component,
-    ComponentResource,
-    CustomElement,
-    RenderStrategy,
-    defineResource,
-} from "mainz";
-
-const livePreviewResource = defineResource({
-    name: "live-preview",
-    visibility: "public",
-    execution: "either",
-    async load() {
-        return { title: "Preview" };
-    },
-});
+import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
 
 @CustomElement("x-forbidden-in-ssg-live-preview")
 @RenderStrategy("forbidden-in-ssg", {
     fallback: () => <p>fallback</p>,
     errorFallback: () => <p>error</p>,
 })
-export class LivePreview extends Component {
+export class LivePreview extends Component<NoProps, NoState, { title: string }> {
+    override async load() {
+        return { title: "Preview" };
+    }
+
     override render() {
-        return (
-            <ComponentResource resource={livePreviewResource} params={undefined} context={undefined}>
-                {(value: { title: string }) => <p>{value.title}</p>}
-            </ComponentResource>
-        );
+        return <p>{this.data.title}</p>;
     }
 }

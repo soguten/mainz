@@ -7,14 +7,9 @@ export interface ComponentSourceDiagnosticsInput {
 
 export interface ComponentDiagnostic {
     code:
-        | "resource-component-missing-render-strategy"
-        | "resource-component-missing-fallback"
-        | "resource-component-blocking-private-resource"
-        | "resource-component-blocking-client-resource"
-        | "component-resource-missing-render-strategy"
-        | "component-resource-missing-fallback"
-        | "component-resource-blocking-private-resource"
-        | "component-resource-blocking-client-resource";
+        | "component-load-missing-render-strategy"
+        | "component-render-strategy-without-load"
+        | "component-load-missing-fallback";
     severity: "error" | "warning";
     message: string;
     file: string;
@@ -27,86 +22,26 @@ export async function collectComponentDiagnostics(
     const diagnostics: ComponentDiagnostic[] = [];
 
     for (const file of files) {
-        const localResources = collectLocalResourcePolicies(file.source);
-        for (const component of collectDeclaredResourceComponentOwners(file.source)) {
-            if (!component.renderStrategy) {
-                diagnostics.push({
-                    code: "resource-component-missing-render-strategy",
-                    severity: "error",
-                    message:
-                        `ResourceComponent "${component.exportName}" must declare @RenderStrategy(...). ` +
-                        "ResourceComponent requires a fixed component-level render strategy.",
-                    file: file.file,
-                    exportName: component.exportName,
-                });
-                continue;
-            }
-
-            if (
-                (component.renderStrategy === "deferred" ||
-                    component.renderStrategy === "client-only") &&
-                !component.hasFallback
-            ) {
-                diagnostics.push({
-                    code: "resource-component-missing-fallback",
-                    severity: "warning",
-                    message:
-                        `ResourceComponent "${component.exportName}" uses @RenderStrategy("${component.renderStrategy}") without a fallback. ` +
-                        "Add a fallback to make the component's async placeholder explicit.",
-                    file: file.file,
-                    exportName: component.exportName,
-                });
-            }
-
-            if (component.renderStrategy !== "blocking" || !component.resourceName) {
-                continue;
-            }
-
-            const resourcePolicy = localResources.get(component.resourceName);
-            if (resourcePolicy?.visibility === "private") {
-                diagnostics.push({
-                    code: "resource-component-blocking-private-resource",
-                    severity: "warning",
-                    message:
-                        `ResourceComponent "${component.exportName}" uses @RenderStrategy("blocking") with private resource "${resourcePolicy.resourceLabel}". ` +
-                        "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                    file: file.file,
-                    exportName: component.exportName,
-                });
-            }
-
-            if (resourcePolicy?.execution === "client") {
-                diagnostics.push({
-                    code: "resource-component-blocking-client-resource",
-                    severity: "warning",
-                    message:
-                        `ResourceComponent "${component.exportName}" uses @RenderStrategy("blocking") with client-only resource "${resourcePolicy.resourceLabel}". ` +
-                        "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                    file: file.file,
-                    exportName: component.exportName,
-                });
-            }
+        for (const component of collectDeclaredSynchronousRenderStrategyOwners(file.source)) {
+            diagnostics.push({
+                code: "component-render-strategy-without-load",
+                severity: "warning",
+                message:
+                    `Component "${component.exportName}" declares @RenderStrategy("${component.renderStrategy}") but does not declare load(). ` +
+                    "@RenderStrategy(...) only affects Component.load() and has no effect on synchronous components.",
+                file: file.file,
+                exportName: component.exportName,
+            });
         }
-    }
 
-    return diagnostics.sort(compareComponentDiagnostics);
-}
-
-export async function collectComponentSourceDiagnostics(
-    files: readonly ComponentSourceDiagnosticsInput[],
-): Promise<readonly ComponentDiagnostic[]> {
-    const diagnostics: ComponentDiagnostic[] = [];
-
-    for (const file of files) {
-        const localResources = collectLocalResourcePolicies(file.source);
-        for (const component of collectDeclaredComponentResourceOwners(file.source)) {
+        for (const component of collectDeclaredComponentLoadOwners(file.source)) {
             if (!component.renderStrategy) {
                 diagnostics.push({
-                    code: "component-resource-missing-render-strategy",
+                    code: "component-load-missing-render-strategy",
                     severity: "error",
                     message:
-                        `Component "${component.exportName}" renders ComponentResource but does not declare @RenderStrategy(...). ` +
-                        "ComponentResource requires a fixed component-level render strategy on its owner.",
+                        `Component "${component.exportName}" declares load() but does not declare @RenderStrategy(...). ` +
+                        "Component.load() requires a fixed component-level render strategy.",
                     file: file.file,
                     exportName: component.exportName,
                 });
@@ -119,41 +54,14 @@ export async function collectComponentSourceDiagnostics(
                 !component.hasFallback
             ) {
                 diagnostics.push({
-                    code: "component-resource-missing-fallback",
+                    code: "component-load-missing-fallback",
                     severity: "warning",
                     message:
-                        `Component "${component.exportName}" renders ComponentResource with @RenderStrategy("${component.renderStrategy}") without a fallback. ` +
+                        `Component "${component.exportName}" declares load() with @RenderStrategy("${component.renderStrategy}") without a fallback. ` +
                         "Add a fallback to make the component's async placeholder explicit.",
                     file: file.file,
                     exportName: component.exportName,
                 });
-            }
-
-            if (component.renderStrategy === "blocking" && component.resourceName) {
-                const resourcePolicy = localResources.get(component.resourceName);
-                if (resourcePolicy?.visibility === "private") {
-                    diagnostics.push({
-                        code: "component-resource-blocking-private-resource",
-                        severity: "warning",
-                        message:
-                            `Component "${component.exportName}" renders ComponentResource with @RenderStrategy("blocking") using private resource "${resourcePolicy.resourceLabel}". ` +
-                            "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                        file: file.file,
-                        exportName: component.exportName,
-                    });
-                }
-
-                if (resourcePolicy?.execution === "client") {
-                    diagnostics.push({
-                        code: "component-resource-blocking-client-resource",
-                        severity: "warning",
-                        message:
-                            `Component "${component.exportName}" renders ComponentResource with @RenderStrategy("blocking") using client-only resource "${resourcePolicy.resourceLabel}". ` +
-                            "This is valid in CSR, but it will fail when the component is used in an SSG path.",
-                        file: file.file,
-                        exportName: component.exportName,
-                    });
-                }
             }
         }
     }
@@ -177,101 +85,66 @@ function compareComponentDiagnostics(a: ComponentDiagnostic, b: ComponentDiagnos
     return a.exportName.localeCompare(b.exportName);
 }
 
-interface DeclaredComponentResourceOwner {
+interface DeclaredComponentLoadOwner {
     exportName: string;
     renderStrategy?: "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
     hasFallback: boolean;
-    resourceName?: string;
 }
 
-interface DeclaredResourceComponentOwner {
+interface DeclaredSynchronousRenderStrategyOwner {
     exportName: string;
-    renderStrategy?: "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
-    hasFallback: boolean;
-    resourceName?: string;
+    renderStrategy: "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
 }
 
 interface ParsedClassInfo {
     node: ts.ClassDeclaration;
     exportName: string;
     extendsName?: string;
-    renderStrategy?: DeclaredResourceComponentOwner["renderStrategy"];
+    renderStrategy?: DeclaredComponentLoadOwner["renderStrategy"];
     hasFallback: boolean;
-    declaresFallbackMethod: boolean;
-    returnedResourceName?: string;
+    declaresComponentLoadMethod: boolean;
+    isAbstract: boolean;
 }
 
-function collectDeclaredResourceComponentOwners(
+function collectDeclaredComponentLoadOwners(
     source: string,
-): readonly DeclaredResourceComponentOwner[] {
+): readonly DeclaredComponentLoadOwner[] {
     const sourceFile = createDiagnosticsSourceFile(source);
     const classes = collectParsedClassInfos(sourceFile);
     const parsedClasses = [...classes.values()];
 
     return parsedClasses
         .filter((candidate) => isExportedClassDeclaration(candidate.node))
-        .filter((candidate) => extendsResourceComponent(candidate, classes))
+        .filter((candidate) => extendsComponent(candidate, classes))
+        .filter((candidate) => !extendsPage(candidate, classes))
+        .filter((candidate) => resolveInheritedComponentLoad(candidate, classes))
         .map((candidate) => ({
             exportName: candidate.exportName,
             renderStrategy: resolveInheritedRenderStrategy(candidate, classes),
-            hasFallback: resolveInheritedFallback(candidate, classes),
-            resourceName: resolveInheritedResourceName(candidate, classes),
+            hasFallback: resolveInheritedDecoratorFallback(candidate, classes),
         }));
 }
 
-function collectDeclaredComponentResourceOwners(
+function collectDeclaredSynchronousRenderStrategyOwners(
     source: string,
-): readonly DeclaredComponentResourceOwner[] {
-    const diagnosticsTargets: DeclaredComponentResourceOwner[] = [];
+): readonly DeclaredSynchronousRenderStrategyOwner[] {
     const sourceFile = createDiagnosticsSourceFile(source);
+    const classes = collectParsedClassInfos(sourceFile);
+    const parsedClasses = [...classes.values()];
 
-    visitSourceNode(sourceFile, (node) => {
-        if (!ts.isClassDeclaration(node) || !isExportedClassDeclaration(node) || !node.name) {
-            return;
-        }
-
-        const componentResourceUsage = findComponentResourceUsage(node);
-        if (!componentResourceUsage.hasComponentResource) {
-            return;
-        }
-
-        const renderStrategyConfig = findRenderStrategyConfig(node);
-
-        diagnosticsTargets.push({
-            exportName: node.name.text,
-            renderStrategy: renderStrategyConfig.renderStrategy,
-            hasFallback: renderStrategyConfig.hasFallback,
-            resourceName: componentResourceUsage.resourceName,
-        });
-    });
-
-    return diagnosticsTargets;
-}
-
-interface LocalResourcePolicy {
-    resourceLabel: string;
-    visibility: "public" | "private";
-    execution: "build" | "client" | "either";
-}
-
-function collectLocalResourcePolicies(source: string): ReadonlyMap<string, LocalResourcePolicy> {
-    const policies = new Map<string, LocalResourcePolicy>();
-    const sourceFile = createDiagnosticsSourceFile(source);
-
-    visitSourceNode(sourceFile, (node) => {
-        if (!ts.isVariableDeclaration(node) || !ts.isIdentifier(node.name)) {
-            return;
-        }
-
-        const resourceDefinition = resolveDefineResourceDefinition(node.name.text, node.initializer);
-        if (!resourceDefinition) {
-            return;
-        }
-
-        policies.set(node.name.text, resourceDefinition);
-    });
-
-    return policies;
+    return parsedClasses
+        .filter((candidate) => isExportedClassDeclaration(candidate.node))
+        .filter((candidate) => !candidate.isAbstract)
+        .filter((candidate) => extendsComponent(candidate, classes))
+        .filter((candidate) => !extendsPage(candidate, classes))
+        .filter((candidate) => !resolveInheritedComponentLoad(candidate, classes))
+        .map((candidate) => ({
+            exportName: candidate.exportName,
+            renderStrategy: resolveInheritedRenderStrategy(candidate, classes),
+        }))
+        .filter((candidate): candidate is DeclaredSynchronousRenderStrategyOwner =>
+            candidate.renderStrategy !== undefined
+        );
 }
 
 function createDiagnosticsSourceFile(source: string): ts.SourceFile {
@@ -299,8 +172,8 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
             extendsName: resolveHeritageClauseName(node),
             renderStrategy: renderStrategyConfig.renderStrategy,
             hasFallback: renderStrategyConfig.hasFallback,
-            declaresFallbackMethod: classDeclaresMethod(node, "renderResourceFallback"),
-            returnedResourceName: findReturnedResourceName(node),
+            declaresComponentLoadMethod: classDeclaresMethod(node, "load"),
+            isAbstract: isAbstractClassDeclaration(node),
         });
     });
 
@@ -308,7 +181,8 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
 }
 
 function isExportedClassDeclaration(node: ts.ClassDeclaration): boolean {
-    return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+        false;
 }
 
 function resolveHeritageClauseName(node: ts.ClassDeclaration): string | undefined {
@@ -329,7 +203,7 @@ function resolveHeritageClauseName(node: ts.ClassDeclaration): string | undefine
 }
 
 function findRenderStrategyConfig(node: ts.ClassDeclaration): {
-    renderStrategy?: DeclaredComponentResourceOwner["renderStrategy"];
+    renderStrategy?: DeclaredComponentLoadOwner["renderStrategy"];
     hasFallback: boolean;
 } {
     for (const decorator of ts.getDecorators(node) ?? []) {
@@ -344,7 +218,7 @@ function findRenderStrategyConfig(node: ts.ClassDeclaration): {
 
         const [strategyArgument, optionsArgument] = decorator.expression.arguments;
         const renderStrategy = ts.isStringLiteral(strategyArgument)
-            ? strategyArgument.text as DeclaredComponentResourceOwner["renderStrategy"]
+            ? strategyArgument.text as DeclaredComponentLoadOwner["renderStrategy"]
             : undefined;
 
         return {
@@ -362,45 +236,42 @@ function findRenderStrategyConfig(node: ts.ClassDeclaration): {
 function classDeclaresMethod(node: ts.ClassDeclaration, methodName: string): boolean {
     return node.members.some((member) =>
         ts.isMethodDeclaration(member) &&
+        !(member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) ??
+            false) &&
         isNamedProperty(member.name, methodName)
     );
 }
 
-function findReturnedResourceName(node: ts.ClassDeclaration): string | undefined {
-    for (const member of node.members) {
-        if (!ts.isMethodDeclaration(member) || !isNamedProperty(member.name, "getResource")) {
-            continue;
-        }
-
-        const body = member.body;
-        if (!body) {
-            return undefined;
-        }
-
-        for (const statement of body.statements) {
-            if (
-                ts.isReturnStatement(statement) &&
-                statement.expression &&
-                ts.isIdentifier(statement.expression)
-            ) {
-                return statement.expression.text;
-            }
-        }
-    }
-
-    return undefined;
+function isAbstractClassDeclaration(node: ts.ClassDeclaration): boolean {
+    return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.AbstractKeyword) ??
+        false;
 }
 
-function extendsResourceComponent(
+function extendsComponent(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return extendsNamedBase(candidate, classes, "Component");
+}
+
+function extendsPage(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return extendsNamedBase(candidate, classes, "Page");
+}
+
+function extendsNamedBase(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+    baseName: string,
 ): boolean {
     let current: ParsedClassInfo | undefined = candidate;
     const visited = new Set<string>();
 
     while (current?.extendsName && !visited.has(current.exportName)) {
         visited.add(current.exportName);
-        if (current.extendsName === "ResourceComponent") {
+        if (current.extendsName === baseName) {
             return true;
         }
 
@@ -413,24 +284,30 @@ function extendsResourceComponent(
 function resolveInheritedRenderStrategy(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
-): DeclaredResourceComponentOwner["renderStrategy"] | undefined {
+): DeclaredComponentLoadOwner["renderStrategy"] | undefined {
     return walkClassHierarchy(candidate, classes, (current) => current.renderStrategy);
 }
 
-function resolveInheritedFallback(
+function resolveInheritedDecoratorFallback(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
 ): boolean {
-    return walkClassHierarchy(candidate, classes, (current) =>
-        current.hasFallback || current.declaresFallbackMethod ? true : undefined
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.hasFallback ? true : undefined,
     ) ?? false;
 }
 
-function resolveInheritedResourceName(
+function resolveInheritedComponentLoad(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
-): string | undefined {
-    return walkClassHierarchy(candidate, classes, (current) => current.returnedResourceName);
+): boolean {
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.declaresComponentLoadMethod ? true : undefined,
+    ) ?? false;
 }
 
 function walkClassHierarchy<T>(
@@ -454,110 +331,6 @@ function walkClassHierarchy<T>(
     return undefined;
 }
 
-function findComponentResourceUsage(node: ts.ClassDeclaration): {
-    hasComponentResource: boolean;
-    resourceName?: string;
-} {
-    let hasComponentResource = false;
-    let resourceName: string | undefined;
-
-    visitSourceNode(node, (candidate) => {
-        const jsxAttributes = resolveComponentResourceAttributes(candidate);
-        if (!jsxAttributes) {
-            return;
-        }
-
-        hasComponentResource = true;
-        resourceName ??= jsxAttributes.resourceName;
-    });
-
-    return {
-        hasComponentResource,
-        resourceName,
-    };
-}
-
-function resolveComponentResourceAttributes(node: ts.Node): {
-    resourceName?: string;
-} | undefined {
-    if (!ts.isJsxOpeningElement(node) && !ts.isJsxSelfClosingElement(node)) {
-        return undefined;
-    }
-
-    const tagName = node.tagName;
-    if (!ts.isIdentifier(tagName) || tagName.text !== "ComponentResource") {
-        return undefined;
-    }
-
-    for (const attributeLike of node.attributes.properties) {
-        if (!ts.isJsxAttribute(attributeLike) || !ts.isIdentifier(attributeLike.name) ||
-            attributeLike.name.text !== "resource") {
-            continue;
-        }
-
-        const initializer = attributeLike.initializer;
-        if (
-            initializer &&
-            ts.isJsxExpression(initializer) &&
-            initializer.expression &&
-            ts.isIdentifier(initializer.expression)
-        ) {
-            return {
-                resourceName: initializer.expression.text,
-            };
-        }
-
-        return {};
-    }
-
-    return {};
-}
-
-function resolveDefineResourceDefinition(
-    variableName: string,
-    initializer: ts.Expression | undefined,
-): LocalResourcePolicy | undefined {
-    if (!initializer || !ts.isCallExpression(initializer)) {
-        return undefined;
-    }
-
-    if (!ts.isIdentifier(initializer.expression) || initializer.expression.text !== "defineResource") {
-        return undefined;
-    }
-
-    const [definitionArgument] = initializer.arguments;
-    if (!definitionArgument || !ts.isObjectLiteralExpression(definitionArgument)) {
-        return undefined;
-    }
-
-    const definedName = readObjectLiteralStringProperty(definitionArgument, "name");
-    const visibility = readObjectLiteralStringProperty(definitionArgument, "visibility") as LocalResourcePolicy["visibility"] ??
-        "private";
-    const execution = readObjectLiteralStringProperty(definitionArgument, "execution") as LocalResourcePolicy["execution"] ??
-        "either";
-
-    return {
-        resourceLabel: definedName ?? variableName,
-        visibility,
-        execution,
-    };
-}
-
-function readObjectLiteralStringProperty(
-    node: ts.ObjectLiteralExpression,
-    propertyName: string,
-): string | undefined {
-    for (const property of node.properties) {
-        if (!ts.isPropertyAssignment(property) || !isNamedProperty(property.name, propertyName)) {
-            continue;
-        }
-
-        return readStringLiteralLike(property.initializer);
-    }
-
-    return undefined;
-}
-
 function objectLiteralHasProperty(node: ts.Expression | undefined, propertyName: string): boolean {
     if (!node || !ts.isObjectLiteralExpression(node)) {
         return false;
@@ -574,10 +347,6 @@ function isNamedProperty(name: ts.PropertyName | undefined, propertyName: string
     return !!name &&
         ((ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) &&
             name.text === propertyName);
-}
-
-function readStringLiteralLike(node: ts.Expression): string | undefined {
-    return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined;
 }
 
 function visitSourceNode(node: ts.Node, visitor: (node: ts.Node) => void): void {
