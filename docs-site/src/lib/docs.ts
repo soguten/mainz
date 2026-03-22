@@ -246,6 +246,14 @@ const docsArticles = docsArticleSources.map((source) => ({
 const docsArticleMap = new Map(
     docsArticles.map((article) => [article.slug, article] as const),
 );
+const docsArticleSourceMap = new Map(
+    docsArticleSources.map((source) => [source.slug, source] as const),
+);
+const docsContentPathToSlugMap = new Map(
+    docsArticleSources.map((source) =>
+        [toDocsContentPathname(source.contentPath), source.slug] as const
+    ),
+);
 
 export { docsArticles };
 
@@ -315,6 +323,37 @@ export function getDocsPager(
     };
 }
 
+export function resolveDocsMarkdownHref(currentSlug: string | undefined, href: string): string {
+    const trimmedHref = href.trim();
+
+    if (!trimmedHref || trimmedHref.startsWith("#") || hasAbsoluteHref(trimmedHref)) {
+        return trimmedHref;
+    }
+
+    if (trimmedHref.startsWith("/")) {
+        return trimmedHref;
+    }
+
+    if (!currentSlug) {
+        return trimmedHref;
+    }
+
+    const currentArticleSource = docsArticleSourceMap.get(currentSlug);
+    if (!currentArticleSource) {
+        return trimmedHref;
+    }
+
+    const currentPathname = toDocsContentPathname(currentArticleSource.contentPath);
+    const resolvedUrl = new URL(trimmedHref, new URL(currentPathname, "https://mainz.local"));
+    const targetSlug = docsContentPathToSlugMap.get(resolvedUrl.pathname);
+
+    if (!targetSlug) {
+        return trimmedHref;
+    }
+
+    return `/${targetSlug}${resolvedUrl.hash}`;
+}
+
 function readMarkdownContent(contentPath: string): string {
     const normalizedKey = contentPath.replace(/\\/g, "/");
     let markdownModules: Record<string, string> | null = null;
@@ -342,4 +381,16 @@ function readMarkdownContent(contentPath: string): string {
     }
 
     throw new Error(`Missing docs markdown content for path "${contentPath}".`);
+}
+
+function toDocsContentPathname(contentPath: string): string {
+    const normalizedPath = contentPath.replace(/\\/g, "/");
+    const withoutRelativePrefix = normalizedPath.replace(/^(\.\.\/)+/, "/");
+    return withoutRelativePrefix.startsWith("/")
+        ? withoutRelativePrefix
+        : `/${withoutRelativePrefix}`;
+}
+
+function hasAbsoluteHref(href: string): boolean {
+    return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//");
 }

@@ -13,11 +13,20 @@ export function readSnapshotLoadCount(): number {
 @CustomElement("x-mainz-navigation-snapshot-page")
 @Route("/docs/:slug")
 export class SnapshotDocsPage extends Page<{ data?: { slug: string; source: string } }> {
+    static override page = {
+        head: {
+            title: "Snapshot",
+        },
+    };
+
     static load = load.byParam("slug", (slug) => {
         snapshotLoadCount += 1;
         return {
             slug,
             source: "load",
+            head: {
+                title: `Snapshot:${slug}`,
+            },
         };
     });
 

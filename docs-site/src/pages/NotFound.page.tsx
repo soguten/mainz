@@ -1,6 +1,19 @@
 import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
-import { DocsShell } from "../components/DocsShell.tsx";
+import { DocsArticle } from "../components/docs-page/DocsArticle.tsx";
+import { DocsPageFrame } from "../components/docs-page/DocsPageFrame.tsx";
+import { DocsSidebar } from "../components/docs-page/DocsSidebar.tsx";
+import { DocsTopbar } from "../components/docs-page/DocsTopbar.tsx";
 import { getDocsNavSections } from "../lib/docs.ts";
+import { parseMarkdown } from "../lib/markdown.ts";
+
+const notFoundNavSections = getDocsNavSections();
+const notFoundBlocks = parseMarkdown(`
+## Get back to a known page
+
+Start from the overview or jump directly to one of the core documentation articles in the left navigation.
+
+This page uses the same shell and theme system as the rest of the docs so the failure mode still feels intentional.
+`);
 
 @CustomElement("x-mainz-docs-not-found-page")
 @Route("/404")
@@ -22,19 +35,17 @@ export class NotFoundPage extends Page {
 
     override render() {
         return (
-            <DocsShell
-                title="That page never made it into the docs"
-                summary="The URL is outside this demo site, so Mainz is rendering the custom notFound page instead of falling back to a generic server response."
-                navSections={getDocsNavSections()}
-                activeSlug={undefined}
-                markdown={`
-## Get back to a known page
-
-Start from the overview or jump directly to one of the core documentation articles in the left navigation.
-
-This page uses the same shell and theme system as the rest of the docs so the failure mode still feels intentional.
-`}
-                statusLabel="Not found"
+            <DocsPageFrame
+                topbar={<DocsTopbar />}
+                sidebar={<DocsSidebar navSections={notFoundNavSections} activeSlug={undefined} />}
+                main={
+                    <DocsArticle
+                        title="That page never made it into the docs"
+                        summary="The URL is outside this demo site, so Mainz is rendering the custom notFound page instead of falling back to a generic server response."
+                        blocks={notFoundBlocks}
+                        statusLabel="Not found"
+                    />
+                }
             />
         );
     }

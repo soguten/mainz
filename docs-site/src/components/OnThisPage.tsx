@@ -22,6 +22,7 @@ interface OnThisPageHeading {
     ),
 })
 export class OnThisPage extends Component<OnThisPageProps, NoState, readonly OnThisPageHeading[]> {
+    
     override async load(): Promise<readonly OnThisPageHeading[]> {
         return collectArticleHeadings();
     }

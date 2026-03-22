@@ -5,8 +5,8 @@ import {
     applyRouteHead,
     formatSsgPrerenderError,
     formatSsgPrerenderWarning,
-    injectRouteSnapshot,
     injectAppHtml,
+    injectRouteSnapshot,
     rewriteAssetPaths,
     setHtmlLang,
 } from "../build.ts";
@@ -35,7 +35,7 @@ Deno.test("build html helpers: injects app html in #app", () => {
 });
 
 Deno.test("build html helpers: injects route snapshot into html", () => {
-    const input = "<html><body><main id=\"app\"></main></body></html>";
+    const input = '<html><body><main id="app"></main></body></html>';
     const output = injectRouteSnapshot(input, {
         pageTagName: "x-page",
         path: "/docs/:slug",
@@ -43,10 +43,12 @@ Deno.test("build html helpers: injects route snapshot into html", () => {
         params: { slug: "intro" },
         locale: "en",
         data: { title: "Intro" },
+        head: { title: "Intro | Docs" },
     });
 
     assertStringIncludes(output, 'id="mainz-route-snapshot"');
     assertStringIncludes(output, '"matchedPath":"/docs/intro"');
+    assertStringIncludes(output, '"head":{"title":"Intro | Docs"}');
 });
 
 Deno.test("build html helpers: formats route-aware prerender errors", () => {
@@ -137,7 +139,8 @@ Deno.test("build html helpers: formats forbidden-in-ssg strategy errors with SSG
         error: new ResourceAccessError({
             code: "forbidden-in-ssg",
             resourceName: "live-preview",
-            message: 'Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.',
+            message:
+                'Resource "live-preview" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.',
         }),
     });
 
@@ -164,18 +167,22 @@ Deno.test("build html helpers: formats forbidden-in-ssg component load errors wi
 });
 
 Deno.test("build html helpers: rejects non-plain route snapshot data", () => {
-    assertThrows(() => {
-        injectRouteSnapshot("<html><body></body></html>", {
-            pageTagName: "x-page",
-            path: "/docs/:slug",
-            matchedPath: "/docs/intro",
-            params: { slug: "intro" },
-            locale: "en",
-            data: {
-                generatedAt: new Date("2026-03-19T12:00:00.000Z"),
-            },
-        });
-    }, Error, "$.data.generatedAt must contain plain objects only.");
+    assertThrows(
+        () => {
+            injectRouteSnapshot("<html><body></body></html>", {
+                pageTagName: "x-page",
+                path: "/docs/:slug",
+                matchedPath: "/docs/intro",
+                params: { slug: "intro" },
+                locale: "en",
+                data: {
+                    generatedAt: new Date("2026-03-19T12:00:00.000Z"),
+                },
+            });
+        },
+        Error,
+        "$.data.generatedAt must contain plain objects only.",
+    );
 });
 
 Deno.test("build html helpers: omits undefined object values inside route snapshot data", () => {
@@ -230,50 +237,62 @@ Deno.test("build html helpers: normalizes undefined array entries inside route s
 });
 
 Deno.test("build html helpers: rejects non-finite numbers inside route snapshot data", () => {
-    assertThrows(() => {
-        injectRouteSnapshot("<html><body></body></html>", {
-            pageTagName: "x-page",
-            path: "/docs/:slug",
-            matchedPath: "/docs/intro",
-            params: { slug: "intro" },
-            locale: "en",
-            data: {
-                score: Number.NaN,
-            },
-        });
-    }, Error, "$.data.score must not contain non-finite numbers.");
+    assertThrows(
+        () => {
+            injectRouteSnapshot("<html><body></body></html>", {
+                pageTagName: "x-page",
+                path: "/docs/:slug",
+                matchedPath: "/docs/intro",
+                params: { slug: "intro" },
+                locale: "en",
+                data: {
+                    score: Number.NaN,
+                },
+            });
+        },
+        Error,
+        "$.data.score must not contain non-finite numbers.",
+    );
 });
 
 Deno.test("build html helpers: rejects maps inside route snapshot data", () => {
-    assertThrows(() => {
-        injectRouteSnapshot("<html><body></body></html>", {
-            pageTagName: "x-page",
-            path: "/docs/:slug",
-            matchedPath: "/docs/intro",
-            params: { slug: "intro" },
-            locale: "en",
-            data: {
-                entries: new Map([["slug", "intro"]]),
-            },
-        });
-    }, Error, "$.data.entries must contain plain objects only.");
+    assertThrows(
+        () => {
+            injectRouteSnapshot("<html><body></body></html>", {
+                pageTagName: "x-page",
+                path: "/docs/:slug",
+                matchedPath: "/docs/intro",
+                params: { slug: "intro" },
+                locale: "en",
+                data: {
+                    entries: new Map([["slug", "intro"]]),
+                },
+            });
+        },
+        Error,
+        "$.data.entries must contain plain objects only.",
+    );
 });
 
 Deno.test("build html helpers: rejects functions inside route snapshot data", () => {
-    assertThrows(() => {
-        injectRouteSnapshot("<html><body></body></html>", {
-            pageTagName: "x-page",
-            path: "/docs/:slug",
-            matchedPath: "/docs/intro",
-            params: { slug: "intro" },
-            locale: "en",
-            data: {
-                resolve() {
-                    return "intro";
+    assertThrows(
+        () => {
+            injectRouteSnapshot("<html><body></body></html>", {
+                pageTagName: "x-page",
+                path: "/docs/:slug",
+                matchedPath: "/docs/intro",
+                params: { slug: "intro" },
+                locale: "en",
+                data: {
+                    resolve() {
+                        return "intro";
+                    },
                 },
-            },
-        });
-    }, Error, "$.data.resolve must contain JSON-serializable plain data only.");
+            });
+        },
+        Error,
+        "$.data.resolve must contain JSON-serializable plain data only.",
+    );
 });
 
 Deno.test("build html helpers: sets lang for rendered locale", () => {
@@ -328,8 +347,14 @@ Deno.test("build html helpers: applies route head metadata to prerendered html",
     });
 
     assertStringIncludes(output, "<title>Docs</title>");
-    assertStringIncludes(output, '<meta name="description" content="Docs page" data-mainz-head-managed="true" />');
-    assertStringIncludes(output, '<link rel="canonical" href="/docs" data-mainz-head-managed="true" />');
+    assertStringIncludes(
+        output,
+        '<meta name="description" content="Docs page" data-mainz-head-managed="true" />',
+    );
+    assertStringIncludes(
+        output,
+        '<link rel="canonical" href="/docs" data-mainz-head-managed="true" />',
+    );
 });
 
 Deno.test("build html helpers: generates canonical and alternate locale links for routes", () => {

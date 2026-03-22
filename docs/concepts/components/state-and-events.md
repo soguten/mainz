@@ -37,6 +37,108 @@ connected.
 That gives you a small, predictable model for interactive UI without introducing extra scheduling
 concepts into every component.
 
+## `initState()` is not a loading placeholder
+
+Use `initState()` when the component already knows its local UI state before the first render.
+
+Good fits:
+
+- panel open or closed
+- filter text typed by the user
+- selected tab
+- sort order
+
+Do not use `initState()` just to represent "data has not loaded yet".
+
+That state already has a better home:
+
+- `load()` owns the async data
+- `fallback` owns the placeholder before the data arrives
+
+In other words:
+
+- `initState()` is for local UI state the component can bootstrap immediately
+- `load()` is for async data that does not exist yet
+- `fallback` is for the visible loading state
+
+If a component only needs async data, prefer `NoState` and keep the model small.
+
+If a component needs async data plus local UI behavior, keep them separate:
+
+```tsx title="FilterableArticleList.tsx"
+import { Component, CustomElement, type NoProps, RenderStrategy } from "mainz";
+
+interface FilterableArticleListState {
+    filter: string;
+    panelOpen: boolean;
+}
+
+interface ArticleSummary {
+    slug: string;
+    title: string;
+}
+
+@CustomElement("docs-filterable-article-list")
+@RenderStrategy("deferred", {
+    fallback: () => <p>Loading articles...</p>,
+})
+export class FilterableArticleList extends Component<
+    NoProps,
+    FilterableArticleListState,
+    readonly ArticleSummary[]
+> {
+    protected override initState(): FilterableArticleListState {
+        return {
+            filter: "",
+            panelOpen: true,
+        };
+    }
+
+    override async load(): Promise<readonly ArticleSummary[]> {
+        return await fetchArticleSummaries();
+    }
+
+    override render() {
+        const visibleArticles = this.data.filter((article) =>
+            article.title.toLowerCase().includes(this.state.filter.toLowerCase())
+        );
+
+        return (
+            <section>
+                <button type="button" onClick={this.togglePanel}>
+                    {this.state.panelOpen ? "Hide filters" : "Show filters"}
+                </button>
+
+                {this.state.panelOpen
+                    ? <input value={this.state.filter} onInput={this.handleFilterInput} />
+                    : null}
+
+                <ul>
+                    {visibleArticles.map((article) => <li>{article.title}</li>)}
+                </ul>
+            </section>
+        );
+    }
+
+    private togglePanel = () => {
+        this.setState({ panelOpen: !this.state.panelOpen });
+    };
+
+    private handleFilterInput = (event: Event) => {
+        const input = event.target as HTMLInputElement;
+        this.setState({ filter: input.value });
+    };
+}
+```
+
+Here:
+
+- `initState()` owns the local filter and panel visibility
+- `load()` owns the async article list
+- `fallback` owns the loading placeholder
+
+For the async loading model itself, see [Data Loading](../core/data-loading.md).
+
 ## DOM events work well inline or imperatively
 
 Most components can attach events inline in JSX, like `onClick={this.toggle}`.

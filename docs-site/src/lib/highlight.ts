@@ -1,30 +1,36 @@
-export function highlightDocsCodeBlocks(root: ParentNode): void {
-    const hljs = window.hljs;
-    if (!hljs) {
-        return;
+export interface DocsHighlightedCode {
+    content: DocumentFragment | string;
+    highlighted: boolean;
+}
+
+export function renderHighlightedDocsCode(
+    rawCode: string,
+    language: string,
+): DocsHighlightedCode {
+    const hljs = typeof window !== "undefined" ? window.hljs : undefined;
+    if (!hljs?.highlight || typeof document === "undefined") {
+        return {
+            content: rawCode,
+            highlighted: false,
+        };
     }
 
-    const blocks = root.querySelectorAll<HTMLElement>("pre code[data-code-language]");
+    const highlightedHtml = hljs.highlight(rawCode, {
+        language,
+        ignoreIllegals: true,
+    }).value;
 
-    for (const block of blocks) {
-        const rawCode = block.dataset.rawCode ?? block.textContent ?? "";
-        if (block.dataset.hljsRaw === rawCode) {
-            continue;
-        }
+    const template = document.createElement("template");
+    template.innerHTML = highlightedHtml;
 
-        const language = block.dataset.codeLanguage ?? "plaintext";
+    return {
+        content: template.content.cloneNode(true) as DocumentFragment,
+        highlighted: true,
+    };
+}
 
-        if (hljs.highlight) {
-            block.innerHTML = hljs.highlight(rawCode, { language, ignoreIllegals: true }).value;
-            block.classList.add("hljs");
-            block.dataset.hljsRaw = rawCode;
-            continue;
-        }
-
-        block.textContent = rawCode;
-        hljs.highlightElement(block);
-        block.dataset.hljsRaw = rawCode;
-    }
+export function isDocsHighlightReady(): boolean {
+    return typeof window !== "undefined" && typeof window.hljs?.highlight === "function";
 }
 
 declare global {

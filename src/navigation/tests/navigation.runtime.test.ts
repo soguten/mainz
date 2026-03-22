@@ -54,7 +54,9 @@ Deno.test("navigation/runtime: should render the current SPA route on startup", 
     await waitFor(() => document.title === "Docs");
 
     const mountedPage = document.querySelector("#app x-mainz-navigation-spa-docs-page");
-    const mountedContent = document.querySelector('#app x-mainz-navigation-spa-docs-page [data-page="docs"]');
+    const mountedContent = document.querySelector(
+        '#app x-mainz-navigation-spa-docs-page [data-page="docs"]',
+    );
     assert(mountedPage);
     assert(mountedContent);
     assertEquals(document.title, "Docs");
@@ -98,7 +100,8 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
     (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/docs/";
     (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__ = ["en", "pt"];
 
-    document.body.innerHTML = `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
+    document.body.innerHTML =
+        `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
     window.history.replaceState(null, "", "/docs/pt/");
 
     const controller = startPagesApp({
@@ -110,7 +113,10 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
 
     assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
     assertEquals(document.documentElement.lang, "pt");
-    assertEquals(document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent, "Home page");
+    assertEquals(
+        document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
+        "Home page",
+    );
 
     controller.cleanup();
 });
@@ -137,7 +143,10 @@ Deno.test("navigation/runtime: should strip locale prefixes and notify locale ch
 
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
-    assertEquals(document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent, "Docs page:intro");
+    assertEquals(
+        document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent,
+        "Docs page:intro",
+    );
 
     controller.cleanup();
 });
@@ -232,7 +241,10 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
 
     await waitFor(() => document.title === "Docs");
 
-    assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), "https://mainz.dev/pt/docs/intro");
+    assertEquals(
+        document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+        "https://mainz.dev/pt/docs/intro",
+    );
     assertEquals(readAlternateHref("en"), "https://mainz.dev/en/docs/intro");
     assertEquals(readAlternateHref("pt"), "https://mainz.dev/pt/docs/intro");
     assertEquals(readAlternateHref("x-default"), "https://mainz.dev/en/docs/intro");
@@ -244,7 +256,10 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
     await waitFor(() => document.title === "Home");
 
     assertEquals(window.location.pathname, "/en/");
-    assertEquals(document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"), "https://mainz.dev/en/");
+    assertEquals(
+        document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+        "https://mainz.dev/en/",
+    );
     assertEquals(readAlternateHref("en"), "https://mainz.dev/en/");
     assertEquals(readAlternateHref("pt"), "https://mainz.dev/pt/");
     assertEquals(readAlternateHref("x-default"), "https://mainz.dev/en/");
@@ -257,7 +272,8 @@ Deno.test("navigation/runtime: should bootstrap document-first pages without app
     const { SpaHomePage } = await loadSpaFixtures();
     const seenContexts: SpaNavigationRenderContext[] = [];
 
-    document.body.innerHTML = `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
+    document.body.innerHTML =
+        `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
 
     const controller = startNavigation({
         mode: "mpa",
@@ -272,7 +288,10 @@ Deno.test("navigation/runtime: should bootstrap document-first pages without app
 
     assertEquals(document.title, "Home");
     assertEquals(seenContexts[0]?.path, "/");
-    assertEquals(document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent, "Home page");
+    assertEquals(
+        document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
+        "Home page",
+    );
 
     controller.cleanup();
 });
@@ -282,7 +301,8 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
     const { SpaHomePage } = await loadSpaFixtures();
     const seenLocales: string[] = [];
 
-    document.body.innerHTML = `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
+    document.body.innerHTML =
+        `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
     window.history.replaceState(null, "", "/pt/");
 
     const controller = startNavigation({
@@ -299,26 +319,33 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
 
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
-    assertEquals(document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent, "Home page");
+    assertEquals(
+        document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
+        "Home page",
+    );
 
     controller.cleanup();
 });
 
 Deno.test("navigation/runtime: should reuse route snapshot for document-first bootstrap without rerunning load", async () => {
     const { startNavigation } = await prepareNavigationTest();
-    const { SnapshotDocsPage, readSnapshotLoadCount, resetSnapshotLoadCount } = await loadSnapshotFixture();
+    const { SnapshotDocsPage, readSnapshotLoadCount, resetSnapshotLoadCount } =
+        await loadSnapshotFixture();
     resetSnapshotLoadCount();
 
     document.body.innerHTML =
         `<main id="app"><${SnapshotDocsPage.getTagName()}></${SnapshotDocsPage.getTagName()}></main>` +
-        `<script id="mainz-route-snapshot" type="application/json">${JSON.stringify({
-            pageTagName: SnapshotDocsPage.getTagName(),
-            path: "/docs/:slug",
-            matchedPath: "/docs/intro",
-            params: { slug: "intro" },
-            locale: undefined,
-            data: { slug: "intro", source: "snapshot" },
-        })}</script>`;
+        `<script id="mainz-route-snapshot" type="application/json">${
+            JSON.stringify({
+                pageTagName: SnapshotDocsPage.getTagName(),
+                path: "/docs/:slug",
+                matchedPath: "/docs/intro",
+                params: { slug: "intro" },
+                locale: undefined,
+                data: { slug: "intro", source: "snapshot" },
+                head: { title: "Snapshot:intro" },
+            })
+        }</script>`;
     window.history.replaceState(null, "", "/docs/intro");
 
     const controller = startNavigation({
@@ -328,15 +355,48 @@ Deno.test("navigation/runtime: should reuse route snapshot for document-first bo
     });
 
     for (let attempt = 0; attempt < 75; attempt += 1) {
-        if (document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent === "snapshot:intro") {
+        if (
+            document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent ===
+                "snapshot:intro"
+        ) {
             break;
         }
 
         await nextTick();
     }
 
-    assertEquals(document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent, "snapshot:intro");
+    assertEquals(
+        document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent,
+        "snapshot:intro",
+    );
     assertEquals(readSnapshotLoadCount(), 0);
+    assertEquals(document.title, "Snapshot:intro");
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should apply dynamic head from Page.load()", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SnapshotDocsPage, resetSnapshotLoadCount } = await loadSnapshotFixture();
+    resetSnapshotLoadCount();
+
+    document.body.innerHTML =
+        `<main id="app"><${SnapshotDocsPage.getTagName()}></${SnapshotDocsPage.getTagName()}></main>`;
+    window.history.replaceState(null, "", "/docs/routing");
+
+    const controller = startNavigation({
+        mode: "mpa",
+        mount: "#app",
+        pages: [SnapshotDocsPage],
+    });
+
+    await waitFor(() => document.title === "Snapshot:routing");
+
+    assertEquals(
+        document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent,
+        "load:routing",
+    );
+    assertEquals(document.title, "Snapshot:routing");
 
     controller.cleanup();
 });
@@ -369,7 +429,10 @@ Deno.test("navigation/runtime: should intercept SPA links and render the matchin
     assertEquals(window.location.pathname, "/docs/intro");
     assert(document.querySelector("#app x-mainz-navigation-spa-docs-page"));
     assertEquals(document.title, "Docs");
-    assertEquals(document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent, "Docs page:intro");
+    assertEquals(
+        document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent,
+        "Docs page:intro",
+    );
 
     controller.cleanup();
 });
@@ -378,7 +441,8 @@ Deno.test("navigation/runtime: should render the SPA notFound page for unknown i
     const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage, SpaNotFoundPage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main><a id="missing-link" href="/missing">Missing</a>';
+    document.body.innerHTML =
+        '<main id="app"></main><a id="missing-link" href="/missing">Missing</a>';
 
     const controller = startNavigation({
         mode: "spa",
@@ -440,7 +504,8 @@ Deno.test("navigation/runtime: should ignore SPA links outside the configured ba
     const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main><a id="external-app-link" href="/docs/intro">Docs</a>';
+    document.body.innerHTML =
+        '<main id="app"></main><a id="external-app-link" href="/docs/intro">Docs</a>';
     window.history.replaceState(null, "", "/app/");
 
     const controller = startNavigation({
@@ -509,7 +574,8 @@ Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across na
     const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage, SpaDocsPage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main><a id="docs-link" href="/docs/cached">Docs</a>';
+    document.body.innerHTML =
+        '<main id="app"></main><a id="docs-link" href="/docs/cached">Docs</a>';
     const docsLink = document.getElementById("docs-link");
 
     let loadCount = 0;
@@ -551,7 +617,10 @@ Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across na
     await waitFor(() => document.querySelector("#app x-mainz-navigation-spa-docs-page") !== null);
 
     assertEquals(loadCount, 1);
-    assertEquals(document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent, "Docs page:cached");
+    assertEquals(
+        document.querySelector("#app x-mainz-navigation-spa-docs-page")?.textContent,
+        "Docs page:cached",
+    );
 
     controller.cleanup();
 });
@@ -562,7 +631,10 @@ Deno.test("navigation/runtime: should expose transition metadata in enhanced-mpa
     const controller = startNavigation({ mode: "enhanced-mpa" });
 
     assertEquals(document.documentElement.dataset.mainzTransitionPhase, undefined);
-    assertEquals(document.documentElement.dataset.mainzViewTransitions, detectViewTransitionSupport());
+    assertEquals(
+        document.documentElement.dataset.mainzViewTransitions,
+        detectViewTransitionSupport(),
+    );
 
     controller.cleanup();
 });
@@ -728,5 +800,6 @@ function overrideNavigatorLocale(locale: string): void {
 }
 
 function readAlternateHref(hreflang: string): string | null {
-    return document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)?.getAttribute("href") ?? null;
+    return document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)
+        ?.getAttribute("href") ?? null;
 }

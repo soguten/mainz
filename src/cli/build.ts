@@ -8,14 +8,18 @@ import {
     isDynamicRoutePath,
     materializeRoutePath,
     NavigationMode,
-    ResolvedSsgRouteEntry,
     RenderMode,
+    ResolvedSsgRouteEntry,
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
     validateRouteEntryParams,
 } from "../routing/index.ts";
-import { MAINZ_HEAD_MANAGED_ATTR, type PageConstructor, type PageHeadDefinition } from "../components/page.ts";
+import {
+    MAINZ_HEAD_MANAGED_ATTR,
+    type PageConstructor,
+    type PageHeadDefinition,
+} from "../components/page.ts";
 import { pathToFileURL } from "node:url";
 import {
     NormalizedMainzConfig,
@@ -48,6 +52,7 @@ interface InitialRouteSnapshot {
     params: Record<string, string>;
     locale?: string;
     data?: unknown;
+    head?: PageHeadDefinition;
 }
 
 export interface ResolvedTargetBuildProfile {
@@ -70,7 +75,10 @@ export interface PublicationMetadata {
 
 const DEFAULT_BUILD_PROFILE_NAME = "production";
 
-export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCliOptions): BuildJob[] {
+export function resolveBuildJobs(
+    config: NormalizedMainzConfig,
+    options: BuildCliOptions,
+): BuildJob[] {
     const targetSelection = options.target?.trim();
     const modeSelection = options.mode?.trim();
 
@@ -80,7 +88,9 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
 
     if (targets.length === 0) {
         throw new Error(
-            `No targets matched "${targetSelection}". Available targets: ${config.targets.map((target) => target.name).join(", ")}`,
+            `No targets matched "${targetSelection}". Available targets: ${
+                config.targets.map((target) => target.name).join(", ")
+            }`,
         );
     }
 
@@ -90,7 +100,9 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
 
     if (modes.length === 0) {
         throw new Error(
-            `No render modes matched "${modeSelection}". Available modes: ${config.renderModes.join(", ")}`,
+            `No render modes matched "${modeSelection}". Available modes: ${
+                config.renderModes.join(", ")
+            }`,
         );
     }
 
@@ -112,7 +124,9 @@ export function resolveBuildJobs(config: NormalizedMainzConfig, options: BuildCl
 
     if (jobs.length === 0 && targetSelection && modeSelection) {
         const selectedTarget = config.targets.find((target) => target.name === targetSelection);
-        if (selectedTarget && !targetSupportsRenderMode(selectedTarget, modeSelection as RenderMode)) {
+        if (
+            selectedTarget && !targetSupportsRenderMode(selectedTarget, modeSelection as RenderMode)
+        ) {
             throw new Error(
                 `Target "${selectedTarget.name}" has no pages/routes and only supports csr app builds.`,
             );
@@ -143,7 +157,9 @@ export async function resolveTargetBuildProfile(
         const availableProfiles = Object.keys(buildConfig.profiles);
         throw new Error(
             availableProfiles.length > 0
-                ? `Target "${target.name}" does not define profile "${profileName}". Available profiles: ${availableProfiles.join(", ")}`
+                ? `Target "${target.name}" does not define profile "${profileName}". Available profiles: ${
+                    availableProfiles.join(", ")
+                }`
                 : `Target "${target.name}" does not define profile "${profileName}" and has no target build profiles.`,
         );
     }
@@ -210,7 +226,11 @@ function hasRoutingInput(target: NormalizedMainzTarget): boolean {
     return Boolean(target.pagesDir);
 }
 
-export async function runBuildJobs(config: NormalizedMainzConfig, jobs: BuildJob[], cwd = Deno.cwd()): Promise<void> {
+export async function runBuildJobs(
+    config: NormalizedMainzConfig,
+    jobs: BuildJob[],
+    cwd = Deno.cwd(),
+): Promise<void> {
     for (const job of jobs) {
         await runSingleBuild(config, job, cwd);
     }
@@ -304,17 +324,21 @@ async function emitSsgArtifacts(
     modeOutDir: string,
     cwd: string,
 ): Promise<void> {
-    const { templateHtml, manifest, outputEntries, routeById, targetI18n } = await resolveStaticRouteBuildContext(
-        config,
-        job,
-        modeOutDir,
-        cwd,
-        "SSG",
-    );
+    const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
+        await resolveStaticRouteBuildContext(
+            config,
+            job,
+            modeOutDir,
+            cwd,
+            "SSG",
+        );
 
     for (const entry of outputEntries) {
         const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
-        const relativeFromOutputDir = relative(dirname(absoluteOutputPath), resolve(cwd, modeOutDir));
+        const relativeFromOutputDir = relative(
+            dirname(absoluteOutputPath),
+            resolve(cwd, modeOutDir),
+        );
         const normalizedRelative = normalizePathSlashes(relativeFromOutputDir || ".");
         let html = rewriteAssetPaths(templateHtml, normalizedRelative);
         if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
@@ -323,19 +347,10 @@ async function emitSsgArtifacts(
 
         const route = routeById.get(entry.routeId);
         if (!route) {
-            throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
+            throw new Error(
+                `Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`,
+            );
         }
-
-        const routeHead = buildRouteHead({
-            path: entry.params ? materializeRoutePath(route.path, entry.params) : route.path,
-            locale: entry.locale,
-            locales: route.locales,
-            head: route.head,
-            localePrefix: targetI18n?.localePrefix,
-            defaultLocale: targetI18n?.defaultLocale,
-            basePath: job.profile.basePath,
-            siteUrl: job.profile.siteUrl,
-        });
 
         let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
         try {
@@ -368,10 +383,22 @@ async function emitSsgArtifacts(
             html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
         } catch (error) {
             throw new Error(
-                `SSG route snapshot for "${entry.renderPath}" (route "${route.path}", locale "${entry.locale}") contains non-public or non-serializable data: ${toErrorMessage(error)}`,
+                `SSG route snapshot for "${entry.renderPath}" (route "${route.path}", locale "${entry.locale}") contains non-public or non-serializable data: ${
+                    toErrorMessage(error)
+                }`,
             );
         }
         html = setHtmlLang(html, entry.locale);
+        const routeHead = buildRouteHead({
+            path: entry.params ? materializeRoutePath(route.path, entry.params) : route.path,
+            locale: entry.locale,
+            locales: route.locales,
+            head: renderedApp.routeSnapshot?.head ?? route.head,
+            localePrefix: targetI18n?.localePrefix,
+            defaultLocale: targetI18n?.defaultLocale,
+            basePath: job.profile.basePath,
+            siteUrl: job.profile.siteUrl,
+        });
         html = applyRouteHead(html, { head: routeHead });
 
         await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
@@ -384,11 +411,15 @@ async function emitSsgArtifacts(
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
     await Deno.writeTextFile(
         hydrationManifestPath,
-        JSON.stringify({
-            target: job.target.name,
-            hydration: "full-page",
-            navigation: resolveEffectiveNavigationMode(job.target, job.profile),
-        }, null, 2),
+        JSON.stringify(
+            {
+                target: job.target.name,
+                hydration: "full-page",
+                navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+            },
+            null,
+            2,
+        ),
     );
 
     const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
@@ -409,17 +440,21 @@ async function emitCsrRouteArtifacts(
     modeOutDir: string,
     cwd: string,
 ): Promise<void> {
-    const { templateHtml, manifest, outputEntries, routeById, targetI18n } = await resolveStaticRouteBuildContext(
-        config,
-        job,
-        modeOutDir,
-        cwd,
-        "CSR document",
-    );
+    const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
+        await resolveStaticRouteBuildContext(
+            config,
+            job,
+            modeOutDir,
+            cwd,
+            "CSR document",
+        );
 
     for (const entry of outputEntries) {
         const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
-        const relativeFromOutputDir = relative(dirname(absoluteOutputPath), resolve(cwd, modeOutDir));
+        const relativeFromOutputDir = relative(
+            dirname(absoluteOutputPath),
+            resolve(cwd, modeOutDir),
+        );
         const normalizedRelative = normalizePathSlashes(relativeFromOutputDir || ".");
         let html = rewriteAssetPaths(templateHtml, normalizedRelative);
         if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
@@ -428,7 +463,9 @@ async function emitCsrRouteArtifacts(
 
         const route = routeById.get(entry.routeId);
         if (!route) {
-            throw new Error(`Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`);
+            throw new Error(
+                `Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`,
+            );
         }
 
         const routeHead = buildRouteHead({
@@ -455,11 +492,15 @@ async function emitCsrRouteArtifacts(
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
     await Deno.writeTextFile(
         hydrationManifestPath,
-        JSON.stringify({
-            target: job.target.name,
-            hydration: "full-page",
-            navigation: resolveEffectiveNavigationMode(job.target, job.profile),
-        }, null, 2),
+        JSON.stringify(
+            {
+                target: job.target.name,
+                hydration: "full-page",
+                navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+            },
+            null,
+            2,
+        ),
     );
 
     const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
@@ -520,7 +561,9 @@ async function resolveSsgRouteEntriesByRouteId(
 
         const pageCtor = await loadRoutePageConstructor(route, cwd);
         if (typeof pageCtor.entries !== "function") {
-            throw new Error(`SSG route "${route.path}" must define static entries() to expand dynamic params.`);
+            throw new Error(
+                `SSG route "${route.path}" must define static entries() to expand dynamic params.`,
+            );
         }
 
         const resolvedEntries: ResolvedSsgRouteEntry[] = [];
@@ -532,7 +575,9 @@ async function resolveSsgRouteEntriesByRouteId(
                     validateRouteEntryParams(route.path, normalizedParams);
                 } catch (error) {
                     throw new Error(
-                        `entries() for route "${route.path}" returned an invalid entry at index ${entryIndex} for locale "${locale}": ${toErrorMessage(error)}`,
+                        `entries() for route "${route.path}" returned an invalid entry at index ${entryIndex} for locale "${locale}": ${
+                            toErrorMessage(error)
+                        }`,
                     );
                 }
 
@@ -554,16 +599,21 @@ async function loadRoutePageConstructor(
     cwd: string,
 ): Promise<PageConstructor> {
     if (!route.file || !route.exportName) {
-        throw new Error(`Route "${route.path}" must include file and export metadata to resolve dynamic entries().`);
+        throw new Error(
+            `Route "${route.path}" must include file and export metadata to resolve dynamic entries().`,
+        );
     }
 
-    const moduleUrl =
-        `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const moduleUrl = `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${
+        Math.random().toString(36).slice(2)
+    }`;
     const moduleExports = await import(moduleUrl) as Record<string, unknown>;
     const exportedValue = moduleExports[route.exportName];
 
     if (typeof exportedValue !== "function") {
-        throw new Error(`Route "${route.path}" export "${route.exportName}" could not be resolved as a Page constructor.`);
+        throw new Error(
+            `Route "${route.path}" export "${route.exportName}" could not be resolved as a Page constructor.`,
+        );
     }
 
     return exportedValue as PageConstructor;
@@ -574,13 +624,17 @@ function normalizeStaticEntryParams(
     routePath: string,
 ): Record<string, string> {
     if (typeof params !== "object" || params === null || Array.isArray(params)) {
-        throw new Error(`entries() for route "${routePath}" must return objects with a params record.`);
+        throw new Error(
+            `entries() for route "${routePath}" must return objects with a params record.`,
+        );
     }
 
     const normalizedParams: Record<string, string> = {};
     for (const [key, value] of Object.entries(params)) {
         if (typeof value !== "string") {
-            throw new Error(`entries() for route "${routePath}" must return string params only. Received "${key}".`);
+            throw new Error(
+                `entries() for route "${routePath}" must return string params only. Received "${key}".`,
+            );
         }
 
         normalizedParams[key] = value;
@@ -611,10 +665,11 @@ async function resolveTargetRouteBuildContext(
     job: BuildJob,
     cwd: string,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const { filesystemPageFiles, discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPages(
-        job.target.pagesDir,
-        cwd,
-    );
+    const { filesystemPageFiles, discoveredPages, discoveryErrors } =
+        await resolveTargetDiscoveredPages(
+            job.target.pagesDir,
+            cwd,
+        );
     if (discoveryErrors?.length) {
         throw new Error(
             discoveryErrors.map((entry) => `${entry.file}: ${entry.message}`).join("\n"),
@@ -627,20 +682,25 @@ async function resolveTargetRouteBuildContext(
             defaultMode: job.profile.overridePageMode ?? job.target.defaultMode ?? job.mode,
         },
         filesystemPageFiles,
-        discoveredPages: applyDiscoveredPageModeOverride(discoveredPages, job.profile.overridePageMode),
+        discoveredPages: applyDiscoveredPageModeOverride(
+            discoveredPages,
+            job.profile.overridePageMode,
+        ),
     });
 }
 
 function applyDiscoveredPageModeOverride(
-    discoveredPages: Array<{
-        file: string;
-        exportName: string;
-        path: string;
-        mode: RenderMode;
-        notFound?: boolean;
-        locales?: readonly string[];
-        head?: PageHeadDefinition;
-    }> | undefined,
+    discoveredPages:
+        | Array<{
+            file: string;
+            exportName: string;
+            path: string;
+            mode: RenderMode;
+            notFound?: boolean;
+            locales?: readonly string[];
+            head?: PageHeadDefinition;
+        }>
+        | undefined,
     overridePageMode: RenderMode | undefined,
 ): typeof discoveredPages {
     if (!discoveredPages || !overridePageMode) {
@@ -667,8 +727,8 @@ function resolveTargetI18nConfig(
     localePrefix?: "auto" | "always";
     fallbackLocale?: string;
 } | undefined {
-    const defaultLocale = target.i18n?.defaultLocale
-        ?? target.locales?.[0];
+    const defaultLocale = target.i18n?.defaultLocale ??
+        target.locales?.[0];
     const localePrefix = target.i18n?.localePrefix;
     const fallbackLocale = target.i18n?.fallbackLocale ?? defaultLocale;
 
@@ -696,7 +756,9 @@ async function loadTargetBuildConfig(
     try {
         module = await import(`${pathToFileURL(buildConfigPath).href}?t=${Date.now()}`);
     } catch (error) {
-        throw new Error(`Could not load target build config at "${buildConfigPath}": ${toErrorMessage(error)}`);
+        throw new Error(
+            `Could not load target build config at "${buildConfigPath}": ${toErrorMessage(error)}`,
+        );
     }
 
     const exported = module.default;
@@ -819,7 +881,9 @@ async function renderSsgAppHtml(args: {
         modeOutDir: args.modeOutDir,
         basePath: args.basePath,
     });
-    const moduleScriptUrl = `${toFileUrl(moduleScriptPath)}?ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const moduleScriptUrl = `${toFileUrl(moduleScriptPath)}?ssg=${Date.now()}-${
+        Math.random().toString(36).slice(2)
+    }`;
     const pageUrl = buildRenderPageUrl(args.renderPath);
     const htmlWithoutScripts = stripScriptTags(args.html);
 
@@ -886,16 +950,18 @@ function resolveCapturedMainzNavigationError(entries: unknown[]): unknown {
 }
 
 function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapshot | undefined {
-    const routeElement = [appContainer, ...Array.from(appContainer.querySelectorAll("*"))].find((element) => {
-        const props = (element as Element & { props?: unknown }).props;
-        if (!props || typeof props !== "object") {
-            return false;
-        }
+    const routeElement = [appContainer, ...Array.from(appContainer.querySelectorAll("*"))].find(
+        (element) => {
+            const props = (element as Element & { props?: unknown }).props;
+            if (!props || typeof props !== "object") {
+                return false;
+            }
 
-        const propsRecord = props as Record<string, unknown>;
-        const route = propsRecord.route;
-        return typeof route === "object" && route !== null;
-    }) as (Element & { props?: Record<string, unknown> }) | undefined;
+            const propsRecord = props as Record<string, unknown>;
+            const route = propsRecord.route;
+            return typeof route === "object" && route !== null;
+        },
+    ) as (Element & { props?: Record<string, unknown> }) | undefined;
 
     if (!routeElement?.props || typeof routeElement.props !== "object") {
         return undefined;
@@ -916,6 +982,7 @@ function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapsho
         params: isStringRecord(params) ? params : {},
         locale: typeof routeRecord.locale === "string" ? routeRecord.locale : undefined,
         data: routeElement.props.data,
+        head: isPageHeadDefinition(routeRecord.head) ? routeRecord.head : undefined,
     };
 }
 
@@ -956,14 +1023,17 @@ function resolveModuleScriptPath(args: {
     const normalizedSrc = args.moduleScriptSrc.trim();
 
     if (/^https?:\/\//i.test(normalizedSrc)) {
-        throw new Error(`External module script is not supported for SSG prerender: ${normalizedSrc}`);
+        throw new Error(
+            `External module script is not supported for SSG prerender: ${normalizedSrc}`,
+        );
     }
 
     if (normalizedSrc.startsWith("/")) {
         const normalizedBasePath = args.basePath === "/" ? "/" : args.basePath.replace(/\/+$/, "/");
-        const srcWithoutBasePath = normalizedBasePath !== "/" && normalizedSrc.startsWith(normalizedBasePath)
-            ? normalizedSrc.slice(normalizedBasePath.length - 1)
-            : normalizedSrc;
+        const srcWithoutBasePath =
+            normalizedBasePath !== "/" && normalizedSrc.startsWith(normalizedBasePath)
+                ? normalizedSrc.slice(normalizedBasePath.length - 1)
+                : normalizedSrc;
         return resolve(args.modeOutDir, `.${srcWithoutBasePath}`);
     }
 
@@ -1028,7 +1098,9 @@ function normalizeFallbackBasePath(basePath: string): string {
 }
 
 function isRootFallbackOutput(outputHtmlPath: string, modeOutDir: string): boolean {
-    const relativeOutputPath = normalizePathSlashes(relative(resolve(modeOutDir), resolve(outputHtmlPath)));
+    const relativeOutputPath = normalizePathSlashes(
+        relative(resolve(modeOutDir), resolve(outputHtmlPath)),
+    );
     return relativeOutputPath === "404.html";
 }
 
@@ -1048,7 +1120,10 @@ export function injectAppHtml(html: string, appHtml: string): string {
     );
 }
 
-export function injectRouteSnapshot(html: string, snapshot: InitialRouteSnapshot | undefined): string {
+export function injectRouteSnapshot(
+    html: string,
+    snapshot: InitialRouteSnapshot | undefined,
+): string {
     if (!snapshot) {
         return html;
     }
@@ -1057,7 +1132,8 @@ export function injectRouteSnapshot(html: string, snapshot: InitialRouteSnapshot
         .replace(/</g, "\\u003c")
         .replace(/\u2028/g, "\\u2028")
         .replace(/\u2029/g, "\\u2029");
-    const scriptTag = `<script id="mainz-route-snapshot" type="application/json">${serializedSnapshot}</script>`;
+    const scriptTag =
+        `<script id="mainz-route-snapshot" type="application/json">${serializedSnapshot}</script>`;
 
     if (html.includes('id="mainz-route-snapshot"')) {
         return html.replace(
@@ -1079,7 +1155,9 @@ export function formatSsgPrerenderError(args: {
     locale: string;
     error: unknown;
 }): string {
-    return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}" (locale "${args.locale}"): ${formatSsgPrerenderCause(args.error)}`;
+    return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}" (locale "${args.locale}"): ${
+        formatSsgPrerenderCause(args.error)
+    }`;
 }
 
 export function formatSsgPrerenderWarning(args: {
@@ -1108,7 +1186,10 @@ function formatSsgPrerenderCause(error: unknown): string {
         message.includes('@RenderStrategy("forbidden-in-ssg")') &&
         message.includes("cannot be rendered during SSG.")
     ) {
-        return appendSsgGuidance(message, "Remove it from the SSG path or render this route in a non-SSG mode.");
+        return appendSsgGuidance(
+            message,
+            "Remove it from the SSG path or render this route in a non-SSG mode.",
+        );
     }
 
     return message;
@@ -1232,10 +1313,10 @@ function buildDefaultLocaleRedirectHtml(
 
     return [
         "<!doctype html>",
-        "<html lang=\"en\">",
+        '<html lang="en">',
         "  <head>",
-        "    <meta charset=\"UTF-8\" />",
-        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />",
+        '    <meta charset="UTF-8" />',
+        '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',
         "    <title>Redirecting...</title>",
         `    <link rel="canonical" href="${canonicalTarget}" />`,
         "    <script>",
@@ -1286,6 +1367,15 @@ function isStringRecord(value: unknown): value is Record<string, string> {
         Object.values(value).every((entry) => typeof entry === "string");
 }
 
+function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    return "title" in candidate || "meta" in candidate || "links" in candidate;
+}
+
 function prependBuildBasePath(pathname: string, basePath: string): string {
     const normalizedBasePath = normalizeFallbackBasePath(basePath);
     if (normalizedBasePath === "/") {
@@ -1296,7 +1386,9 @@ function prependBuildBasePath(pathname: string, basePath: string): string {
         return normalizedBasePath;
     }
 
-    return `${normalizedBasePath.slice(0, -1)}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+    return `${normalizedBasePath.slice(0, -1)}${
+        pathname.startsWith("/") ? pathname : `/${pathname}`
+    }`;
 }
 
 export function applyRouteHead(
@@ -1313,9 +1405,15 @@ export function applyRouteHead(
 
     if (route.head.title) {
         if (/<title>[\s\S]*?<\/title>/i.test(nextHtml)) {
-            nextHtml = nextHtml.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(route.head.title)}</title>`);
+            nextHtml = nextHtml.replace(
+                /<title>[\s\S]*?<\/title>/i,
+                `<title>${escapeHtml(route.head.title)}</title>`,
+            );
         } else {
-            nextHtml = nextHtml.replace("</head>", `  <title>${escapeHtml(route.head.title)}</title>\n</head>`);
+            nextHtml = nextHtml.replace(
+                "</head>",
+                `  <title>${escapeHtml(route.head.title)}</title>\n</head>`,
+            );
         }
     }
 

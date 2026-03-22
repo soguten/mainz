@@ -138,6 +138,30 @@ export class ProductDetails extends Component<{ slug: string }, NoState, Product
 }
 ```
 
+## `load()` is not initial state
+
+`load()` answers a different question from `initState()`.
+
+- `initState()` is for local UI state the component already knows before first render
+- `load()` is for async data that does not exist yet
+- `fallback` is for the placeholder while that data is still pending
+
+So if the only thing you want to represent is "still loading", do not mirror that into component
+state.
+
+Prefer:
+
+- `Component<Props, NoState, Data>` when the component only needs async data
+- `Component<Props, State, Data>` only when the component also owns local UI state such as:
+  - panel open or closed
+  - filter text typed by the user
+  - selected tab
+
+A good smell check is:
+
+- if the value can be known synchronously by the component, it can live in `initState()`
+- if the value must be awaited, it belongs in `load()`
+
 ## `@RenderStrategy(...)` now applies to `Component.load()`
 
 `@RenderStrategy(...)` stays a component concern, but it now describes how `Component.load()`

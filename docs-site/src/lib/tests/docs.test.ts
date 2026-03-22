@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { getDocsNavSections, getDocsPager } from "../docs.ts";
+import { getDocsNavSections, getDocsPager, resolveDocsMarkdownHref } from "../docs.ts";
 import { parseMarkdown } from "../markdown.ts";
 
 Deno.test("docs helpers group navigation into sections and nested groups", () => {
@@ -63,6 +63,22 @@ Deno.test("docs helpers compute previous and next article links", () => {
     assertEquals(getDocsPager(), {
         next: { slug: "quickstart", title: "Quickstart" },
     });
+});
+
+Deno.test("docs helpers resolve markdown links into docs routes", () => {
+    assertEquals(
+        resolveDocsMarkdownHref("data-loading", "./render-mode-and-strategy.md"),
+        "/render-mode-and-strategy",
+    );
+    assertEquals(
+        resolveDocsMarkdownHref("page-model", "../core/render-mode-and-strategy.md#blocking"),
+        "/render-mode-and-strategy#blocking",
+    );
+    assertEquals(
+        resolveDocsMarkdownHref("data-loading", "https://mainz.dev"),
+        "https://mainz.dev",
+    );
+    assertEquals(resolveDocsMarkdownHref("data-loading", "#intro"), "#intro");
 });
 
 Deno.test("markdown parser extracts headings, paragraphs, notes, and code fences", () => {

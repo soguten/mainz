@@ -135,6 +135,7 @@ interface InitialRouteSnapshot {
     params: Record<string, string>;
     locale?: string;
     data?: unknown;
+    head?: PageHeadDefinition;
 }
 
 export function startPagesApp(options: StartPagesAppOptions): NavigationController {
@@ -477,6 +478,7 @@ async function renderSpaRoute(args: {
         matchedPath: currentPath,
         locale,
         locales: args.locales,
+        data,
     });
     const routeContext = {
         page,
@@ -853,18 +855,23 @@ function resolveSpaRouteHead(args: {
     matchedPath: string;
     locale?: string;
     locales?: readonly string[];
+    data?: unknown;
 }): PageHeadDefinition | undefined {
+    const mergedHead = mergePageHeadDefinitions(
+        args.page.page?.head,
+        resolveLoadedPageHead(args.data),
+    );
     const routeLocales = resolveSpaRouteLocales(args.page, args.locales);
     const activeLocale = args.locale ?? routeLocales[0] ?? resolveMainzDefaultLocale();
     if (!activeLocale) {
-        return args.page.page?.head;
+        return mergedHead;
     }
 
     return buildRouteHead({
         path: args.matchedPath,
         locale: activeLocale,
         locales: routeLocales,
-        head: args.page.page?.head,
+        head: mergedHead,
         localePrefix: resolveMainzLocalePrefix(),
         defaultLocale: resolveMainzDefaultLocale() ?? routeLocales[0],
         basePath: resolveMainzBasePath(),
@@ -1502,11 +1509,18 @@ async function resolveMountedRouteContext(
                 matchedPath: context.currentPath,
                 params: context.routeMatch?.params ?? {},
                 data,
-                head: resolveSpaRouteHead({
+                head: resolveSnapshotHead(routeSnapshot, {
+                    mountedElement,
+                    path: context.routeMatch?.route.path ?? context.currentPath,
+                    matchedPath: context.currentPath,
+                    params,
+                    locale: context.locale,
+                }) ?? resolveSpaRouteHead({
                     page: matchedPage,
                     matchedPath: context.currentPath,
                     locale: context.locale,
                     locales: context.locales,
+                    data,
                 }),
                 locale: context.locale,
                 url: context.url,
@@ -1552,11 +1566,18 @@ async function resolveMountedRouteContext(
             matchedPath: context.currentPath,
             params,
             data,
-            head: resolveSpaRouteHead({
+            head: resolveSnapshotHead(routeSnapshot, {
+                mountedElement,
+                path: route.path,
+                matchedPath: context.currentPath,
+                params,
+                locale: context.locale,
+            }) ?? resolveSpaRouteHead({
                 page: route.page,
                 matchedPath: context.currentPath,
                 locale: context.locale,
                 locales: context.locales,
+                data,
             }),
             locale: context.locale,
             url: context.url,
@@ -1628,6 +1649,39 @@ function resolveSnapshotData(
     return snapshot.data;
 }
 
+function resolveSnapshotHead(
+    snapshot: InitialRouteSnapshot | undefined,
+    args: {
+        mountedElement: HTMLElement;
+        path: string;
+        matchedPath: string;
+        params: Record<string, string>;
+        locale?: string;
+    },
+): PageHeadDefinition | undefined {
+    if (!snapshot) {
+        return undefined;
+    }
+
+    if (snapshot.pageTagName !== args.mountedElement.tagName.toLowerCase()) {
+        return undefined;
+    }
+
+    if (snapshot.path !== args.path || snapshot.matchedPath !== args.matchedPath) {
+        return undefined;
+    }
+
+    if ((snapshot.locale ?? undefined) !== (args.locale ?? undefined)) {
+        return undefined;
+    }
+
+    if (!recordsEqual(snapshot.params, args.params)) {
+        return undefined;
+    }
+
+    return snapshot.head;
+}
+
 function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
     if (typeof value !== "object" || value === null) {
         return false;
@@ -1638,7 +1692,8 @@ function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
         typeof candidate.path === "string" &&
         typeof candidate.matchedPath === "string" &&
         isStringRecord(candidate.params) &&
-        (typeof candidate.locale === "string" || typeof candidate.locale === "undefined");
+        (typeof candidate.locale === "string" || typeof candidate.locale === "undefined") &&
+        (typeof candidate.head === "undefined" || isPageHeadDefinition(candidate.head));
 }
 
 function recordsEqual(left: Record<string, string>, right: Record<string, string>): boolean {
@@ -1654,4 +1709,41 @@ function recordsEqual(left: Record<string, string>, right: Record<string, string
 function isStringRecord(value: unknown): value is Record<string, string> {
     return typeof value === "object" && value !== null &&
         Object.values(value).every((entry) => typeof entry === "string");
+}
+
+function resolveLoadedPageHead(data: unknown): PageHeadDefinition | undefined {
+    if (!data || typeof data !== "object") {
+        return undefined;
+    }
+
+    const candidate = data as Record<string, unknown>;
+    return isPageHeadDefinition(candidate.head) ? candidate.head : undefined;
+}
+
+function mergePageHeadDefinitions(
+    base: PageHeadDefinition | undefined,
+    override: PageHeadDefinition | undefined,
+): PageHeadDefinition | undefined {
+    if (!base) {
+        return override;
+    }
+
+    if (!override) {
+        return base;
+    }
+
+    return {
+        title: override.title ?? base.title,
+        meta: override.meta ?? base.meta,
+        links: override.links ?? base.links,
+    };
+}
+
+function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const candidate = value as Record<string, unknown>;
+    return "title" in candidate || "meta" in candidate || "links" in candidate;
 }

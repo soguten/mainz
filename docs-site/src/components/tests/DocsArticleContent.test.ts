@@ -34,3 +34,18 @@ Deno.test("DocsArticleContent keeps the docs shell for unknown slugs", () => {
         view.cleanup();
     }
 });
+
+Deno.test("DocsArticleContent resolves relative markdown links into docs routes", () => {
+    const view = renderMainzComponent(DocsArticleContent, {
+        props: { slug: "page-model" },
+    });
+
+    try {
+        const link = view.container.querySelector(
+            '.docs-inline-link[href="/render-mode-and-strategy"]',
+        );
+        assertEquals(link?.textContent, "Render Mode and Render Strategy");
+    } finally {
+        view.cleanup();
+    }
+});
