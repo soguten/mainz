@@ -253,6 +253,90 @@ Deno.test("cli/mainz: diagnose should report invalid locale tags declared in @Lo
     }
 });
 
+Deno.test("cli/mainz: diagnose should report named authorization policies that are not declared in target config", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-authorization-policies",
+        targetName: "diagnostics-authorization-policies",
+        locales: ["en"],
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-authorization-policies fixture.",
+        );
+
+        assertEquals(JSON.parse(stdout), [
+            {
+                target: "diagnostics-authorization-policies",
+                code: "authorization-policy-not-registered",
+                severity: "error",
+                message:
+                    'Page "OrgPage" references @Authorize({ policy: "org-member" }), ' +
+                    "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
+                exportName: "OrgPage",
+                routePath: "/org",
+            },
+            {
+                target: "diagnostics-authorization-policies",
+                code: "missing-render-mode-decorator",
+                severity: "warning",
+                message:
+                    'Page "OrgPage" should declare @RenderMode("csr") explicitly instead of relying on the implicit default.',
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
+                exportName: "OrgPage",
+                routePath: "/org",
+            },
+        ]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/mainz: diagnose should accept named authorization policies declared in target config", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-authorization-policies",
+        targetName: "diagnostics-authorization-policies",
+        locales: ["en"],
+        authorizationPolicyNames: ["org-member"],
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-authorization-policies fixture.",
+        );
+
+        assertEquals(JSON.parse(stdout), [
+            {
+                target: "diagnostics-authorization-policies",
+                code: "missing-render-mode-decorator",
+                severity: "warning",
+                message:
+                    'Page "OrgPage" should declare @RenderMode("csr") explicitly instead of relying on the implicit default.',
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
+                exportName: "OrgPage",
+                routePath: "/org",
+            },
+        ]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
 function sortDiagnostics<
     T extends { target: string; code: string; exportName: string; routePath?: string },
 >(

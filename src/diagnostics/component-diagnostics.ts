@@ -7,9 +7,12 @@ export interface ComponentSourceDiagnosticsInput {
 
 export interface ComponentDiagnostic {
     code:
+        | "authorization-policy-not-registered"
+        | "component-authorization-ssg-warning"
         | "component-load-missing-render-strategy"
         | "component-render-strategy-without-load"
-        | "component-load-missing-fallback";
+        | "component-load-missing-fallback"
+        | "component-allow-anonymous-not-supported";
     severity: "error" | "warning";
     message: string;
     file: string;
@@ -18,8 +21,14 @@ export interface ComponentDiagnostic {
 
 export async function collectComponentDiagnostics(
     files: readonly ComponentSourceDiagnosticsInput[],
+    options?: {
+        registeredPolicyNames?: readonly string[];
+    },
 ): Promise<readonly ComponentDiagnostic[]> {
     const diagnostics: ComponentDiagnostic[] = [];
+    const registeredPolicies = options?.registeredPolicyNames
+        ? new Set(options.registeredPolicyNames)
+        : undefined;
 
     for (const file of files) {
         for (const component of collectDeclaredSynchronousRenderStrategyOwners(file.source)) {
@@ -32,6 +41,44 @@ export async function collectComponentDiagnostics(
                 file: file.file,
                 exportName: component.exportName,
             });
+        }
+
+        for (const component of collectInvalidAllowAnonymousOwners(file.source)) {
+            diagnostics.push({
+                code: "component-allow-anonymous-not-supported",
+                severity: "error",
+                message:
+                    `Component "${component.exportName}" declares @AllowAnonymous(). ` +
+                    "@AllowAnonymous() is page-only; component authorization is always additive.",
+                file: file.file,
+                exportName: component.exportName,
+            });
+        }
+
+        for (const component of collectProtectedComponentOwners(file.source)) {
+            diagnostics.push({
+                code: "component-authorization-ssg-warning",
+                severity: "warning",
+                message:
+                    `Component "${component.exportName}" declares @Authorize(...). ` +
+                    "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
+                file: file.file,
+                exportName: component.exportName,
+            });
+        }
+
+        if (registeredPolicies) {
+            for (const component of collectMissingAuthorizationPolicyOwners(file.source, registeredPolicies)) {
+                diagnostics.push({
+                    code: "authorization-policy-not-registered",
+                    severity: "error",
+                    message:
+                        `Component "${component.exportName}" references @Authorize({ policy: "${component.policyName}" }), ` +
+                        "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                    file: file.file,
+                    exportName: component.exportName,
+                });
+            }
         }
 
         for (const component of collectDeclaredComponentLoadOwners(file.source)) {
@@ -102,6 +149,9 @@ interface ParsedClassInfo {
     extendsName?: string;
     renderStrategy?: DeclaredComponentLoadOwner["renderStrategy"];
     hasFallback: boolean;
+    hasAuthorize: boolean;
+    authorizationPolicy?: string;
+    hasAllowAnonymous: boolean;
     declaresComponentLoadMethod: boolean;
     isAbstract: boolean;
 }
@@ -147,6 +197,59 @@ function collectDeclaredSynchronousRenderStrategyOwners(
         );
 }
 
+function collectInvalidAllowAnonymousOwners(source: string): readonly Pick<ParsedClassInfo, "exportName">[] {
+    const sourceFile = createDiagnosticsSourceFile(source);
+    const classes = collectParsedClassInfos(sourceFile);
+    const parsedClasses = [...classes.values()];
+
+    return parsedClasses
+        .filter((candidate) => isExportedClassDeclaration(candidate.node))
+        .filter((candidate) => candidate.hasAllowAnonymous)
+        .filter((candidate) => extendsComponent(candidate, classes))
+        .filter((candidate) => !extendsPage(candidate, classes))
+        .map((candidate) => ({
+            exportName: candidate.exportName,
+        }));
+}
+
+function collectProtectedComponentOwners(source: string): readonly Pick<ParsedClassInfo, "exportName">[] {
+    const sourceFile = createDiagnosticsSourceFile(source);
+    const classes = collectParsedClassInfos(sourceFile);
+    const parsedClasses = [...classes.values()];
+
+    return parsedClasses
+        .filter((candidate) => isExportedClassDeclaration(candidate.node))
+        .filter((candidate) => candidate.hasAuthorize)
+        .filter((candidate) => extendsComponent(candidate, classes))
+        .filter((candidate) => !extendsPage(candidate, classes))
+        .map((candidate) => ({
+            exportName: candidate.exportName,
+        }));
+}
+
+function collectMissingAuthorizationPolicyOwners(
+    source: string,
+    registeredPolicies: ReadonlySet<string>,
+): ReadonlyArray<Pick<ParsedClassInfo, "exportName"> & { policyName: string }> {
+    const sourceFile = createDiagnosticsSourceFile(source);
+    const classes = collectParsedClassInfos(sourceFile);
+    const parsedClasses = [...classes.values()];
+
+    return parsedClasses
+        .filter((candidate) => isExportedClassDeclaration(candidate.node))
+        .filter((candidate) => candidate.authorizationPolicy !== undefined)
+        .filter((candidate) => extendsComponent(candidate, classes))
+        .filter((candidate) => !extendsPage(candidate, classes))
+        .filter((candidate) => {
+            const policyName = candidate.authorizationPolicy;
+            return policyName !== undefined && !registeredPolicies.has(policyName);
+        })
+        .map((candidate) => ({
+            exportName: candidate.exportName,
+            policyName: candidate.authorizationPolicy!,
+        }));
+}
+
 function createDiagnosticsSourceFile(source: string): ts.SourceFile {
     return ts.createSourceFile(
         "component-diagnostics.tsx",
@@ -172,6 +275,9 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
             extendsName: resolveHeritageClauseName(node),
             renderStrategy: renderStrategyConfig.renderStrategy,
             hasFallback: renderStrategyConfig.hasFallback,
+            hasAuthorize: hasDecorator(node, "Authorize"),
+            authorizationPolicy: readAuthorizePolicy(node),
+            hasAllowAnonymous: hasDecorator(node, "AllowAnonymous"),
             declaresComponentLoadMethod: classDeclaresMethod(node, "load"),
             isAbstract: isAbstractClassDeclaration(node),
         });
@@ -231,6 +337,58 @@ function findRenderStrategyConfig(node: ts.ClassDeclaration): {
         renderStrategy: undefined,
         hasFallback: false,
     };
+}
+
+function hasDecorator(node: ts.ClassDeclaration, decoratorName: string): boolean {
+    for (const decorator of ts.getDecorators(node) ?? []) {
+        if (ts.isCallExpression(decorator.expression)) {
+            if (
+                ts.isIdentifier(decorator.expression.expression) &&
+                decorator.expression.expression.text === decoratorName
+            ) {
+                return true;
+            }
+
+            continue;
+        }
+
+        if (ts.isIdentifier(decorator.expression) && decorator.expression.text === decoratorName) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function readAuthorizePolicy(node: ts.ClassDeclaration): string | undefined {
+    for (const decorator of ts.getDecorators(node) ?? []) {
+        if (!ts.isCallExpression(decorator.expression)) {
+            continue;
+        }
+
+        const expression = decorator.expression.expression;
+        if (!ts.isIdentifier(expression) || expression.text !== "Authorize") {
+            continue;
+        }
+
+        const [optionsArgument] = decorator.expression.arguments;
+        if (!optionsArgument || !ts.isObjectLiteralExpression(optionsArgument)) {
+            return undefined;
+        }
+
+        for (const property of optionsArgument.properties) {
+            if (
+                ts.isPropertyAssignment(property) &&
+                isNamedProperty(property.name, "policy") &&
+                ts.isStringLiteral(property.initializer)
+            ) {
+                const policyName = property.initializer.text.trim();
+                return policyName || undefined;
+            }
+        }
+    }
+
+    return undefined;
 }
 
 function classDeclaresMethod(node: ts.ClassDeclaration, methodName: string): boolean {

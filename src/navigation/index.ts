@@ -5,12 +5,22 @@ import {
     requirePageRoutePath,
     resolvePageLocales,
 } from "../components/page.ts";
+import type { PageAuthorizationMetadata, Principal } from "../authorization/index.ts";
+import { resolvePageAuthorization } from "../authorization/index.ts";
+import {
+    evaluatePageAuthorization,
+    findMissingAuthorizationPolicies,
+    setAuthorizationRuntimeOptions,
+    resolveCurrentPrincipal,
+    type AuthorizationRuntimeOptions,
+} from "../authorization/runtime.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
 import {
     buildRouteHead,
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
+    toLocalePathSegment,
 } from "../routing/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 
@@ -31,6 +41,7 @@ export interface NavigationLocaleContext {
 export interface SpaPageConstructor extends CustomElementConstructor {
     page?: {
         head?: PageHeadDefinition;
+        authorization?: PageAuthorizationMetadata;
     };
     load?(context: PageLoadContext): unknown | Promise<unknown>;
     getTagName(): string;
@@ -59,6 +70,8 @@ export interface SpaNavigationRenderContext {
     path: string;
     matchedPath: string;
     params: SpaRouteParams;
+    principal: Principal;
+    authorization?: PageAuthorizationMetadata;
     data?: unknown;
     head?: PageHeadDefinition;
     locale?: string;
@@ -71,6 +84,7 @@ export interface SpaNavigationOptions {
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
+    auth?: AuthorizationRuntimeOptions;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -84,6 +98,7 @@ export interface StartNavigationOptions {
     mount?: string | Element;
     pages?: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
+    auth?: AuthorizationRuntimeOptions;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -96,6 +111,7 @@ export interface StartPagesAppOptions {
     mount?: string | Element;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
+    auth?: AuthorizationRuntimeOptions;
 }
 
 export interface NavigationController {
@@ -122,6 +138,7 @@ interface ResolvedPageNavigationOptions {
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
+    auth?: AuthorizationRuntimeOptions;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -145,6 +162,7 @@ export function startPagesApp(options: StartPagesAppOptions): NavigationControll
         mount: options.mount,
         pages: options.pages,
         notFound: options.notFound,
+        auth: options.auth,
         locales: resolvePagesAppLocales(options.pages, options.notFound),
     });
 }
@@ -157,8 +175,13 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
         };
     }
 
+    setAuthorizationRuntimeOptions(options.auth ?? options.spa?.auth);
+
     const normalizedBasePath = normalizeNavigationBasePath(options.basePath);
     const pageOptions = resolvePageNavigationOptions(options);
+    if (pageOptions) {
+        assertRegisteredNavigationPolicies(pageOptions);
+    }
 
     document.documentElement.dataset.mainzNavigation = options.mode;
 
@@ -322,6 +345,7 @@ function startSpaNavigation(
         url: initialUrl,
         navigationType: "initial",
         basePath: normalizedBasePath,
+        auth: pageOptions.auth,
         locales: pageOptions.locales,
         resolvePath: pageOptions.resolvePath,
         onLocaleChange: pageOptions.onLocaleChange,
@@ -381,6 +405,7 @@ function startSpaNavigation(
             navigationType: "push",
             basePath: normalizedBasePath,
             routeMatch,
+            auth: pageOptions.auth,
             locales: pageOptions.locales,
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
@@ -413,6 +438,7 @@ function startSpaNavigation(
             url: effectiveCurrentUrl,
             navigationType: "pop",
             basePath: normalizedBasePath,
+            auth: pageOptions.auth,
             locales: pageOptions.locales,
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
@@ -447,6 +473,7 @@ async function renderSpaRoute(args: {
     navigationType: SpaNavigationRenderContext["navigationType"];
     basePath: string;
     routeMatch?: SpaRouteMatch;
+    auth?: AuthorizationRuntimeOptions;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
@@ -463,14 +490,37 @@ async function renderSpaRoute(args: {
     }
 
     const page = await resolveSpaRoutePage(routeMatch.route);
+    assertRegisteredPagePolicies(page, args.auth);
     ensurePageCustomElement(page);
 
     const pageTagName = page.getTagName();
     const locale = resolveNavigationLocale(args.url, args.basePath, args.locales);
+    const authorization = resolvePageAuthorization(page);
+    const principal = await resolveCurrentPrincipal(args.auth);
+    const accessDecision = await evaluatePageAuthorization({
+        authorization,
+        principal,
+        policies: args.auth?.policies,
+    });
+
+    if (accessDecision.status === "redirect-login") {
+        return await redirectUnauthorizedRouteToLogin({
+            ...args,
+            currentPath,
+            locale,
+        });
+    }
+
+    if (accessDecision.status === "forbidden") {
+        renderForbiddenRoute(args.mount);
+        return true;
+    }
+
     const data = await resolvePageRouteData({
         page,
         params: routeMatch.params,
         locale,
+        principal,
         url: args.url,
     });
     const head = resolveSpaRouteHead({
@@ -485,6 +535,8 @@ async function renderSpaRoute(args: {
         path: routeMatch.route.path,
         matchedPath: currentPath,
         params: routeMatch.params,
+        principal,
+        authorization,
         data,
         head,
         locale,
@@ -900,6 +952,7 @@ async function resolvePageRouteData(args: {
     page: SpaPageConstructor;
     params: SpaRouteParams;
     locale?: string;
+    principal?: Principal;
     url: URL;
 }): Promise<unknown> {
     if (typeof args.page.load !== "function") {
@@ -912,9 +965,115 @@ async function resolvePageRouteData(args: {
         url: args.url,
         renderMode: resolveMainzRenderMode(),
         navigationMode: resolveMainzNavigationMode(),
+        principal: args.principal,
     });
 
     return await args.page.load(context);
+}
+
+async function redirectUnauthorizedRouteToLogin(args: {
+    routes: readonly NormalizedSpaRoute[];
+    mount: HTMLElement;
+    url: URL;
+    navigationType: SpaNavigationRenderContext["navigationType"];
+    basePath: string;
+    currentPath: string;
+    locale?: string;
+    auth?: AuthorizationRuntimeOptions;
+    locales?: readonly string[];
+    resolvePath?: RoutePathResolver;
+    onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
+    onRoute?: ResolvedPageNavigationOptions["onRoute"];
+}): Promise<boolean> {
+    const loginPath = normalizeRoutePath(args.auth?.loginPath ?? "/login");
+    if (!loginPath || loginPath === args.currentPath) {
+        renderForbiddenRoute(args.mount);
+        return true;
+    }
+
+    const redirectUrl = buildAuthorizationRedirectUrl({
+        loginPath,
+        currentUrl: args.url,
+        basePath: args.basePath,
+        locale: args.locale,
+        locales: args.locales,
+    });
+
+    if (args.navigationType === "push") {
+        window.history.pushState({ mainzNavigation: "spa" }, "", redirectUrl);
+    } else {
+        window.history.replaceState({ mainzNavigation: "spa" }, "", redirectUrl);
+    }
+
+    updateSpaScrollPosition(redirectUrl);
+
+    await renderSpaRoute({
+        routes: args.routes,
+        mount: args.mount,
+        url: redirectUrl,
+        navigationType: args.navigationType,
+        basePath: args.basePath,
+        auth: args.auth,
+        locales: args.locales,
+        resolvePath: args.resolvePath,
+        onLocaleChange: args.onLocaleChange,
+        onRoute: args.onRoute,
+    });
+
+    return false;
+}
+
+function buildAuthorizationRedirectUrl(args: {
+    loginPath: string;
+    currentUrl: URL;
+    basePath: string;
+    locale?: string;
+    locales?: readonly string[];
+}): URL {
+    const redirectUrl = new URL(args.currentUrl.toString());
+    redirectUrl.pathname = joinNavigationBasePath(
+        args.basePath,
+        buildLocalizedNavigationPath(args.loginPath, args.locale, args.locales),
+    );
+    redirectUrl.search = "";
+    redirectUrl.hash = "";
+    return redirectUrl;
+}
+
+function buildLocalizedNavigationPath(
+    routePath: string,
+    locale: string | undefined,
+    locales: readonly string[] | undefined,
+): string {
+    const normalizedRoutePath = normalizeRoutePath(routePath) ?? "/";
+    const shouldPrefixLocale = Boolean(
+        locale &&
+            locales?.length &&
+            shouldPrefixLocaleForRoute(locales, resolveMainzLocalePrefix()),
+    );
+
+    if (!shouldPrefixLocale || !locale) {
+        return normalizedRoutePath;
+    }
+
+    const localeSegment = toLocalePathSegment(locale);
+
+    if (normalizedRoutePath === "/") {
+        return `/${localeSegment}/`;
+    }
+
+    return `/${localeSegment}${normalizedRoutePath}`;
+}
+
+function renderForbiddenRoute(mount: HTMLElement): void {
+    const element = document.createElement("section");
+    element.setAttribute("data-mainz-authorization", "forbidden");
+    element.setAttribute("data-mainz-status", "403");
+    element.textContent = "403 Forbidden";
+    mount.replaceChildren(element);
+    applyResolvedPageHeadToDocument({
+        title: "403 Forbidden",
+    });
 }
 
 function updateSpaScrollPosition(url: URL): void {
@@ -1310,6 +1469,7 @@ function resolvePageNavigationOptions(
     const pages = options.pages ?? legacySpaOptions?.pages;
     const notFound = options.notFound ?? legacySpaOptions?.notFound;
     const mount = options.mount ?? legacySpaOptions?.mount;
+    const auth = options.auth ?? legacySpaOptions?.auth;
     const locales = options.locales ?? legacySpaOptions?.locales;
     const resolvePath = options.resolvePath ?? legacySpaOptions?.resolvePath;
     const onLocaleChange = options.onLocaleChange ?? legacySpaOptions?.onLocaleChange;
@@ -1326,11 +1486,68 @@ function resolvePageNavigationOptions(
         pages: pages ?? [],
         notFound,
         mount,
+        auth,
         locales,
         resolvePath,
         onLocaleChange,
         onRoute,
     };
+}
+
+function assertRegisteredNavigationPolicies(options: ResolvedPageNavigationOptions): void {
+    const eagerPages = [
+        ...collectImmediateNavigationPages(options.pages),
+        ...collectImmediateNavigationPages(options.notFound ? [options.notFound] : []),
+    ];
+
+    const missingPolicies = findMissingAuthorizationPolicies({
+        authorizations: eagerPages.map((page) => resolvePageAuthorization(page)),
+        policies: options.auth?.policies,
+    });
+    if (missingPolicies.length === 0) {
+        return;
+    }
+
+    throw new Error(
+        `Configured pages reference unregistered authorization policies: ${
+            missingPolicies.map((policyName) => `"${policyName}"`).join(", ")
+        }. Register them under auth.policies before starting navigation.`,
+    );
+}
+
+function collectImmediateNavigationPages(
+    entries: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[],
+): SpaPageConstructor[] {
+    const pages: SpaPageConstructor[] = [];
+
+    for (const entry of entries) {
+        if (isSpaLazyPageDefinition(entry)) {
+            continue;
+        }
+
+        pages.push(isSpaPageDefinition(entry) ? entry.page : entry);
+    }
+
+    return pages;
+}
+
+function assertRegisteredPagePolicies(
+    page: SpaPageConstructor,
+    auth: AuthorizationRuntimeOptions | undefined,
+): void {
+    const missingPolicies = findMissingAuthorizationPolicies({
+        authorizations: [resolvePageAuthorization(page)],
+        policies: auth?.policies,
+    });
+    if (missingPolicies.length === 0) {
+        return;
+    }
+
+    throw new Error(
+        `Page "${page.name}" references unregistered authorization policies: ${
+            missingPolicies.map((policyName) => `"${policyName}"`).join(", ")
+        }. Register them under auth.policies before rendering protected routes.`,
+    );
 }
 
 function resolvePagesAppLocales(
@@ -1450,11 +1667,16 @@ async function bootstrapDocumentNavigation(
         currentPath,
         basePath,
         locale,
+        auth: options.auth,
         locales: options.locales,
     });
-    if (existingContext) {
+    if (existingContext && typeof existingContext !== "string") {
         applyNavigationLocale(locale, url, basePath, options.onLocaleChange);
         options.onRoute?.(existingContext);
+        return;
+    }
+
+    if (existingContext === "redirected" || existingContext === "forbidden") {
         return;
     }
 
@@ -1464,6 +1686,7 @@ async function bootstrapDocumentNavigation(
         url,
         navigationType: "initial",
         basePath,
+        auth: options.auth,
         locales: options.locales,
         resolvePath: options.resolvePath,
         onLocaleChange: options.onLocaleChange,
@@ -1480,9 +1703,10 @@ async function resolveMountedRouteContext(
         currentPath: string;
         basePath: string;
         locale?: string;
+        auth?: AuthorizationRuntimeOptions;
         locales?: readonly string[];
     },
-): Promise<SpaNavigationRenderContext | null> {
+): Promise<SpaNavigationRenderContext | "redirected" | "forbidden" | null> {
     const routeSnapshot = readInitialRouteSnapshot();
     const matchedPage = context.routeMatch?.route.page;
     if (matchedPage) {
@@ -1491,6 +1715,34 @@ async function resolveMountedRouteContext(
         const mountedElement = mount.querySelector(matchedPage.getTagName());
         if (mountedElement instanceof HTMLElement) {
             const params = context.routeMatch?.params ?? {};
+            const authorization = resolvePageAuthorization(matchedPage);
+            const principal = await resolveCurrentPrincipal(context.auth);
+            const accessDecision = await evaluatePageAuthorization({
+                authorization,
+                principal,
+                policies: context.auth?.policies,
+            });
+
+            if (accessDecision.status === "redirect-login") {
+                await redirectUnauthorizedRouteToLogin({
+                    routes,
+                    mount,
+                    url: context.url,
+                    navigationType: "initial",
+                    basePath: context.basePath,
+                    currentPath: context.currentPath,
+                    locale: context.locale,
+                    auth: context.auth,
+                    locales: context.locales,
+                });
+                return "redirected";
+            }
+
+            if (accessDecision.status === "forbidden") {
+                renderForbiddenRoute(mount);
+                return "forbidden";
+            }
+
             const data = resolveSnapshotData(routeSnapshot, {
                 mountedElement,
                 path: context.routeMatch?.route.path ?? context.currentPath,
@@ -1501,6 +1753,7 @@ async function resolveMountedRouteContext(
                 page: matchedPage,
                 params,
                 locale: context.locale,
+                principal,
                 url: context.url,
             });
             const routeContext = {
@@ -1508,6 +1761,8 @@ async function resolveMountedRouteContext(
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
                 params: context.routeMatch?.params ?? {},
+                principal,
+                authorization,
                 data,
                 head: resolveSnapshotHead(routeSnapshot, {
                     mountedElement,
@@ -1548,6 +1803,34 @@ async function resolveMountedRouteContext(
         ensurePageCustomElement(route.page);
 
         const params = context.routeMatch?.route === route ? context.routeMatch.params : {};
+        const authorization = resolvePageAuthorization(route.page);
+        const principal = await resolveCurrentPrincipal(context.auth);
+        const accessDecision = await evaluatePageAuthorization({
+            authorization,
+            principal,
+            policies: context.auth?.policies,
+        });
+
+        if (accessDecision.status === "redirect-login") {
+            await redirectUnauthorizedRouteToLogin({
+                routes,
+                mount,
+                url: context.url,
+                navigationType: "initial",
+                basePath: context.basePath,
+                currentPath: context.currentPath,
+                locale: context.locale,
+                auth: context.auth,
+                locales: context.locales,
+            });
+            return "redirected";
+        }
+
+        if (accessDecision.status === "forbidden") {
+            renderForbiddenRoute(mount);
+            return "forbidden";
+        }
+
         const data = resolveSnapshotData(routeSnapshot, {
             mountedElement,
             path: route.path,
@@ -1558,6 +1841,7 @@ async function resolveMountedRouteContext(
             page: route.page,
             params,
             locale: context.locale,
+            principal,
             url: context.url,
         });
         const routeContext = {
@@ -1565,6 +1849,8 @@ async function resolveMountedRouteContext(
             path: route.path,
             matchedPath: context.currentPath,
             params,
+            principal,
+            authorization,
             data,
             head: resolveSnapshotHead(routeSnapshot, {
                 mountedElement,

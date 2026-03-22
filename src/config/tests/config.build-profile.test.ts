@@ -53,3 +53,23 @@ Deno.test("config/mainz: should reject invalid defaultNavigation values", () => 
         });
     }, Error, "Unsupported navigation mode");
 });
+
+Deno.test("config/mainz: should normalize authorization policy names per target", () => {
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "site",
+                rootDir: "./site",
+                viteConfig: "./vite.config.site.ts",
+                authorization: {
+                    policyNames: [" org-member ", "", "billing-admin", "org-member"],
+                },
+            },
+        ],
+    });
+
+    assertEquals(config.targets[0]?.authorization?.policyNames, [
+        "billing-admin",
+        "org-member",
+    ]);
+});

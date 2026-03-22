@@ -1,4 +1,12 @@
-import { CustomElement, entries, Page, RenderMode, Route } from "../../components/index.ts";
+import {
+    AllowAnonymous,
+    Authorize,
+    CustomElement,
+    entries,
+    Page,
+    RenderMode,
+    Route,
+} from "../../components/index.ts";
 
 const invalidHelperItems = [{ wrong: "intro" }] as const;
 const invalidAsyncItems = [{ wrong: "guide" }] as const;
@@ -163,6 +171,25 @@ export class DynamicSsgInvalidReferencedEntriesPage extends Page {
 @CustomElement("x-mainz-diagnostics-static-page")
 @Route("/about")
 export class StaticSsgPage extends Page {}
+
+@CustomElement("x-mainz-diagnostics-authorized-ssg-page")
+@Route("/private-docs")
+@RenderMode("ssg")
+@Authorize({ roles: ["member"] })
+export class AuthorizedSsgPage extends Page {}
+
+@CustomElement("x-mainz-diagnostics-policy-page")
+@Route("/org")
+@RenderMode("csr")
+@Authorize({ policy: "org-member" })
+export class PolicyProtectedPage extends Page {}
+
+@CustomElement("x-mainz-diagnostics-anonymous-conflict-page")
+@Route("/signin")
+@RenderMode("csr")
+@AllowAnonymous()
+@Authorize()
+export class AllowAnonymousConflictPage extends Page {}
 
 @CustomElement("x-mainz-diagnostics-not-found-csr-page")
 @Route("/missing")

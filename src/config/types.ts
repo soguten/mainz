@@ -8,6 +8,10 @@ export interface MainzRenderConfig {
     modes?: readonly RenderMode[];
 }
 
+export interface MainzTargetAuthorizationDefinition {
+    policyNames?: readonly string[];
+}
+
 export interface MainzTargetDefinition {
     name: string;
     rootDir: string;
@@ -17,6 +21,7 @@ export interface MainzTargetDefinition {
     outDir?: string;
     defaultMode?: RenderMode;
     defaultNavigation?: NavigationMode;
+    authorization?: MainzTargetAuthorizationDefinition;
     viteConfig: string;
     buildConfig?: string;
 }
@@ -46,6 +51,9 @@ export interface NormalizedMainzTarget extends Omit<MainzTargetDefinition, "defa
     defaultMode?: RenderMode;
     defaultNavigation?: NavigationMode;
     outDir: string;
+    authorization?: {
+        policyNames: string[];
+    };
 }
 
 export interface NormalizedTargetBuildProfile {

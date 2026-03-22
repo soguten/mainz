@@ -8,7 +8,12 @@ Deno.test("public-api/root: should expose the ownership-based surface without le
     assertEquals(typeof mainz.Component, "function");
     assertEquals(typeof mainz.Page, "function");
     assertEquals(typeof mainz.RenderStrategy, "function");
+    assertEquals(typeof mainz.Authorize, "function");
+    assertEquals(typeof mainz.AllowAnonymous, "function");
     assertEquals(typeof mainz.startPagesApp, "function");
+    assertEquals(typeof mainz.isRouteVisible, "function");
+    assertEquals(typeof mainz.filterVisibleRoutes, "function");
+    assertEquals(typeof mainz.findMissingAuthorizationPolicies, "function");
 
     assertEquals("defineResource" in mainz, false);
     assertEquals("readResource" in mainz, false);
@@ -24,6 +29,8 @@ Deno.test("public-api/components: should keep the main components barrel ownersh
     assertEquals(typeof components.Component, "function");
     assertEquals(typeof components.Page, "function");
     assertEquals(typeof components.RenderStrategy, "function");
+    assertEquals(typeof components.Authorize, "function");
+    assertEquals(typeof components.AllowAnonymous, "function");
     assertEquals(typeof components.ensureMainzCustomElementDefined, "function");
 
     assertEquals("ComponentResource" in components, false);

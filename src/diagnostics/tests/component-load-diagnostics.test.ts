@@ -18,6 +18,15 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
 
     assertEquals(diagnostics, [
         {
+            code: "component-allow-anonymous-not-supported",
+            severity: "error",
+            message:
+                'Component "AllowAnonymousComponent" declares @AllowAnonymous(). ' +
+                "@AllowAnonymous() is page-only; component authorization is always additive.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "AllowAnonymousComponent",
+        },
+        {
             code: "component-load-missing-render-strategy",
             severity: "error",
             message:
@@ -25,6 +34,24 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
                 "Component.load() requires a fixed component-level render strategy.",
             file: file.replaceAll("\\", "/"),
             exportName: "MissingStrategyLoadComponent",
+        },
+        {
+            code: "component-authorization-ssg-warning",
+            severity: "warning",
+            message:
+                'Component "AuthorizedComponent" declares @Authorize(...). ' +
+                "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "AuthorizedComponent",
+        },
+        {
+            code: "component-authorization-ssg-warning",
+            severity: "warning",
+            message:
+                'Component "PolicyProtectedComponent" declares @Authorize(...). ' +
+                "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "PolicyProtectedComponent",
         },
         {
             code: "component-load-missing-fallback",
@@ -45,4 +72,38 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
             exportName: "StrategyWithoutLoadComponent",
         },
     ]);
+});
+
+Deno.test("diagnostics/component: should report missing named authorization policies when diagnostics know the target policy names", async () => {
+    const file = resolve(
+        Deno.cwd(),
+        "src/diagnostics/tests/component-load-diagnostics.fixture.tsx",
+    );
+    const diagnostics = await collectComponentDiagnostics(
+        [
+            {
+                file: file.replaceAll("\\", "/"),
+                source: await Deno.readTextFile(file),
+            },
+        ],
+        {
+            registeredPolicyNames: ["billing-admin"],
+        },
+    );
+
+    assertEquals(
+        diagnostics.find((diagnostic) =>
+            diagnostic.code === "authorization-policy-not-registered" &&
+            diagnostic.exportName === "PolicyProtectedComponent"
+        ),
+        {
+            code: "authorization-policy-not-registered",
+            severity: "error",
+            message:
+                'Component "PolicyProtectedComponent" references @Authorize({ policy: "org-member" }), ' +
+                "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "PolicyProtectedComponent",
+        },
+    );
 });

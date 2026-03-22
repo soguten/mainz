@@ -1,3 +1,18 @@
+import {
+    resolveComponentAuthorization,
+} from "../authorization/index.ts";
+import {
+    createAnonymousPrincipal,
+    evaluateAuthorizationRequirement,
+    readAuthorizationRuntimeOptions,
+} from "../authorization/runtime.ts";
+import {
+    getCurrentAuthorizationRenderContext,
+    popAuthorizationRenderContext,
+    pushAuthorizationRenderContext,
+    resolveAuthorizationRenderContextFromProps,
+    type AuthorizationRenderContext,
+} from "../authorization/render-context.ts";
 import { DefaultProps, DefaultState } from "./types.ts";
 import {
     getManagedDOMEvents,
@@ -108,6 +123,8 @@ export abstract class Component<
     private styleInjected = false;
     private renderedNodes: Node[] = [];
     private stateInitialized = false;
+    private authorizationRenderContext?: AuthorizationRenderContext;
+    private suppressUnauthorizedRender = false;
     private componentLoadState: ComponentLoadState<Data> = {
         status: "idle",
     };
@@ -257,7 +274,13 @@ export abstract class Component<
      * Uses a small DOM diff to patch only changed nodes instead of replacing all content.
      */
     private renderDOM() {
-        this.prepareComponentLoad();
+        const authorizationRenderContext = this.resolveAuthorizationRenderContext();
+        this.authorizationRenderContext = authorizationRenderContext;
+        this.suppressUnauthorizedRender = this.shouldSuppressUnauthorizedRender();
+        if (!this.suppressUnauthorizedRender) {
+            this.prepareComponentLoad();
+        }
+        pushAuthorizationRenderContext(authorizationRenderContext);
         pushRenderOwner(this);
 
         try {
@@ -306,10 +329,15 @@ export abstract class Component<
             this.afterRender?.();
         } finally {
             popRenderOwner();
+            popAuthorizationRenderContext();
         }
     }
 
     private resolveRenderedTree(): HTMLElement | DocumentFragment {
+        if (this.suppressUnauthorizedRender) {
+            return document.createDocumentFragment();
+        }
+
         if (!this.hasComponentLoad()) {
             return this.render();
         }
@@ -327,6 +355,38 @@ export abstract class Component<
         }
 
         return this.resolveComponentLoadFallback(this.requireLoadRenderConfig());
+    }
+
+    private shouldSuppressUnauthorizedRender(): boolean {
+        const authorization = resolveComponentAuthorization(this.constructor);
+        if (!authorization) {
+            return false;
+        }
+
+        const environment = resolveComponentLoadEnvironment();
+        if (environment.renderMode === "ssg" && environment.runtime === "build") {
+            throw new Error(
+                `Component "${this.constructor.name}" uses @Authorize(...) and cannot be rendered during SSG. ` +
+                    "Protected component content must not appear in shared prerender output.",
+            );
+        }
+
+        const authorizationContext = this.authorizationRenderContext;
+        const principal = authorizationContext?.principal ?? createAnonymousPrincipal();
+        const authorizationRuntime = readAuthorizationRuntimeOptions();
+        const requirementDecision = evaluateAuthorizationRequirement({
+            principal,
+            requirement: authorization.requirement,
+            policies: authorizationRuntime?.policies,
+        });
+
+        if (requirementDecision instanceof Promise) {
+            throw new Error(
+                `Component "${this.constructor.name}" authorization policies must resolve synchronously during component render.`,
+            );
+        }
+
+        return !requirementDecision;
     }
 
     private prepareComponentLoad(): void {
@@ -436,6 +496,17 @@ export abstract class Component<
 
     private computeComponentLoadKey(): string {
         return stableSerializeForLoadKey(this.props ?? null);
+    }
+
+    private resolveAuthorizationRenderContext(): AuthorizationRenderContext {
+        const fromProps = resolveAuthorizationRenderContextFromProps(this.props);
+        if (fromProps) {
+            return fromProps;
+        }
+
+        return getCurrentAuthorizationRenderContext() ??
+            this.authorizationRenderContext ??
+            {};
     }
 
     private requireLoadRenderConfig(): ComponentRenderConfig {

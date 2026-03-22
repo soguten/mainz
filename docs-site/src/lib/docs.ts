@@ -47,6 +47,7 @@ const docsOrder = [
     "route-metadata",
     "data-loading",
     "navigation-runtime",
+    "authorization",
     "component-model",
     "functional-components",
     "custom-elements",
@@ -150,6 +151,15 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/navigation-runtime.md",
+    },
+    {
+        slug: "authorization",
+        title: "Authorization",
+        summary:
+            "Keep access rules on the page or component that owns them, then let runtime, navigation, and diagnostics consume the same metadata.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/authorization.md",
     },
     {
         slug: "component-model",

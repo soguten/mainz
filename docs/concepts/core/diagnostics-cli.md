@@ -31,12 +31,42 @@ Route diagnostics:
 - invalid `entries()` for dynamic SSG params
 - `notFound` pages that are not `ssg`
 - multiple `notFound` pages in the same routing set
+- pages that reference named authorization policies not declared in
+  `target.authorization.policyNames`
 
 Component diagnostics:
 
 - `Component` declarations with `load()` but no `@RenderStrategy(...)`
 - `Component` declarations with `@RenderStrategy(...)` but no `load()`
 - `Component` declarations with `load()` using `deferred` or `client-only` without a fallback
+- components that reference named authorization policies not declared in
+  `target.authorization.policyNames`
+
+## Declarative policy names for diagnostics
+
+Named authorization policies are registered at runtime through `auth.policies`, but the CLI does
+not execute your app during `mainz diagnose`.
+
+When you use `@Authorize({ policy: "..." })`, declare the allowed policy names in
+`mainz.config.ts` so diagnostics can validate them statically:
+
+```ts title="mainz.config.ts"
+export default {
+    targets: [
+        {
+            name: "site",
+            rootDir: "./site",
+            viteConfig: "./vite.config.ts",
+            authorization: {
+                policyNames: ["org-member", "billing-admin"],
+            },
+        },
+    ],
+};
+```
+
+That declaration powers tooling only. Your real policy implementations still belong in
+`startPagesApp({ auth: { policies } })` or `startNavigation({ auth: { policies } })`.
 
 ## Human output
 

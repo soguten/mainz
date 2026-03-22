@@ -28,6 +28,19 @@ export default defineMainzConfig({
             defaultNavigation: "spa",
         },
         {
+            name: "authorize-site",
+            rootDir: "./examples/authorize-site",
+            viteConfig: "./vite.config.authorize-site.ts",
+            pagesDir: "./examples/authorize-site/src/pages",
+            locales: ["en"],
+            authorization: {
+                policyNames: ["org-member"],
+            },
+            outDir: "dist/examples/authorize-site",
+            defaultMode: "csr",
+            defaultNavigation: "spa",
+        },
+        {
             name: "docs",
             rootDir: "./docs-site",
             viteConfig: "./vite.config.docs-site.ts",

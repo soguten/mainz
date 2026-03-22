@@ -3,6 +3,7 @@ import type {
     PageEntryDefinition,
     PageHeadDefinition,
 } from "../components/page.ts";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
 export type RenderMode = "csr" | "ssg";
 export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
@@ -29,6 +30,7 @@ export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
     mode: RenderMode;
     hasExplicitRenderMode?: boolean;
     locales?: readonly string[];
+    authorization?: PageAuthorizationMetadata;
 }
 
 export interface TargetDefinition {
@@ -56,6 +58,7 @@ export interface RouteManifestEntry {
     notFound?: boolean;
     locales: string[];
     head?: PageHeadDefinition;
+    authorization?: PageAuthorizationMetadata;
 }
 
 export interface TargetRouteManifest {

@@ -22,6 +22,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
         "route-metadata",
         "data-loading",
         "navigation-runtime",
+        "authorization",
     ]);
     assertEquals(sections[1].groups?.[1].title, "Components");
     assertEquals(sections[1].groups?.[1].items.map((item) => item.slug), [
@@ -53,6 +54,11 @@ Deno.test("docs helpers compute previous and next article links", () => {
     assertEquals(getDocsPager("render-owner"), {
         previous: { slug: "state-and-events", title: "State and Events" },
         next: { slug: "page-model", title: "Page Model" },
+    });
+
+    assertEquals(getDocsPager("authorization"), {
+        previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
+        next: { slug: "component-model", title: "Component Model" },
     });
 
     assertEquals(getDocsPager("page-model"), {

@@ -42,8 +42,12 @@ export async function collectCliDiagnostics(
                         hasExplicitRenderMode: page.hasExplicitRenderMode,
                         notFound: page.notFound,
                         locales: page.locales,
+                        authorization: page.authorization,
                     },
                 })),
+                {
+                    registeredPolicyNames: target.authorization?.policyNames ?? [],
+                },
             );
             diagnostics.push(
                 ...targetDiagnostics.map((diagnostic) => ({
@@ -67,7 +71,9 @@ export async function collectCliDiagnostics(
         }
 
         const componentSources = await discoverTargetComponentSources(target, cwd);
-        const componentDiagnostics = await collectComponentDiagnostics(componentSources);
+        const componentDiagnostics = await collectComponentDiagnostics(componentSources, {
+            registeredPolicyNames: target.authorization?.policyNames ?? [],
+        });
         diagnostics.push(
             ...componentDiagnostics.map((diagnostic) => ({
                 ...diagnostic,

@@ -28,6 +28,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
                     links: undefined,
                 },
                 locales: undefined,
+                authorization: undefined,
             },
         },
         {
@@ -40,6 +41,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
                 notFound: undefined,
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
+                authorization: undefined,
             },
         },
     ]);
@@ -62,6 +64,7 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
                 notFound: undefined,
                 locales: undefined,
                 head: undefined,
+                authorization: undefined,
             },
         },
         {
@@ -79,6 +82,53 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
                         { name: "description", content: "Search page" },
                     ],
                     links: undefined,
+                },
+                authorization: undefined,
+            },
+        },
+    ]);
+});
+
+Deno.test("routing/page-discovery: should discover authorization metadata declared on pages", async () => {
+    await setupMainzDom();
+
+    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.authorization.fixture.tsx"));
+    const pages = await discoverPagesFromFile(file);
+
+    assertEquals(pages, [
+        {
+            exportName: "AdminPage",
+            file: file.replaceAll("\\", "/"),
+            page: {
+                path: "/admin",
+                mode: "csr",
+                hasExplicitRenderMode: true,
+                notFound: undefined,
+                locales: undefined,
+                head: undefined,
+                authorization: {
+                    allowAnonymous: undefined,
+                    requirement: {
+                        authenticated: true,
+                        roles: ["admin"],
+                        policy: "org-member",
+                    },
+                },
+            },
+        },
+        {
+            exportName: "SignInPage",
+            file: file.replaceAll("\\", "/"),
+            page: {
+                path: "/signin",
+                mode: "ssg",
+                hasExplicitRenderMode: true,
+                notFound: undefined,
+                locales: undefined,
+                head: undefined,
+                authorization: {
+                    allowAnonymous: true,
+                    requirement: undefined,
                 },
             },
         },
@@ -139,6 +189,7 @@ Deno.test("routing/page-discovery: should discover decorator-only render mode de
                 notFound: undefined,
                 locales: undefined,
                 head: undefined,
+                authorization: undefined,
             },
         },
     ]);

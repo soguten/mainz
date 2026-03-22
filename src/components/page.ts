@@ -1,4 +1,5 @@
 import { Component } from "./component.ts";
+import type { Principal } from "../authorization/index.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
 import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
@@ -52,6 +53,7 @@ export interface PageLoadContext {
     url: URL;
     renderMode: RenderMode;
     navigationMode: NavigationMode;
+    principal?: Principal;
     resources: PageLoadResources;
 }
 
@@ -69,6 +71,7 @@ export interface PageLoadContextInit {
     url: URL;
     renderMode: RenderMode;
     navigationMode: NavigationMode;
+    principal?: Principal;
     runtime?: ResourceRuntime;
 }
 
@@ -191,6 +194,7 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
         url: init.url,
         renderMode: init.renderMode,
         navigationMode: init.navigationMode,
+        principal: init.principal,
         runtime: init.runtime ?? resolveMainzResourceRuntime(),
     } satisfies PageLoadContextInit;
 

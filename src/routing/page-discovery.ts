@@ -2,6 +2,8 @@
 
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
+import { resolvePageAuthorization } from "../authorization/index.ts";
 import {
     isPageConstructor,
     type PageConstructor,
@@ -23,6 +25,7 @@ export interface DiscoveredPage {
         notFound?: boolean;
         locales?: readonly string[];
         head?: PageHeadDefinition;
+        authorization?: PageAuthorizationMetadata;
     };
 }
 
@@ -89,6 +92,7 @@ function normalizePageDefinition(
 ): DiscoveredPage["page"] {
     const page = ctor.page ?? {};
     const locales = resolvePageLocales(ctor);
+    const authorization = resolvePageAuthorization(ctor);
     const path = requirePageRoutePath(
         ctor,
         `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
@@ -100,6 +104,7 @@ function normalizePageDefinition(
         notFound: page.notFound === true ? true : undefined,
         locales: locales ? [...locales] : undefined,
         head: page.head ? cloneHead(page.head) : undefined,
+        authorization: authorization ? cloneAuthorization(authorization) : undefined,
     };
 }
 
@@ -126,6 +131,23 @@ function cloneHead(head: PageHeadDefinition): PageHeadDefinition {
         title: head.title,
         meta: head.meta ? [...head.meta] : undefined,
         links: head.links ? [...head.links] : undefined,
+    };
+}
+
+function cloneAuthorization(
+    authorization: NonNullable<DiscoveredPage["page"]["authorization"]>,
+): NonNullable<DiscoveredPage["page"]["authorization"]> {
+    return {
+        allowAnonymous: authorization.allowAnonymous,
+        requirement: authorization.requirement
+            ? {
+                authenticated: true,
+                roles: authorization.requirement.roles
+                    ? [...authorization.requirement.roles]
+                    : undefined,
+                policy: authorization.requirement.policy,
+            }
+            : undefined,
     };
 }
 

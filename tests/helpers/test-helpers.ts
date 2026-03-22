@@ -135,6 +135,7 @@ export async function createCliFixtureTargetConfig(args: {
     localePrefix?: "auto" | "always";
     defaultMode?: CliTestRenderMode;
     defaultNavigation?: CliTestNavigationMode;
+    authorizationPolicyNames?: readonly string[];
 }): Promise<CliFixtureTargetConfig> {
     const fixtureRoot = resolve(
         cliTestsRepoRoot,
@@ -159,6 +160,7 @@ export async function createCliFixtureTargetConfig(args: {
     const localePrefix = args.localePrefix ?? "auto";
     const defaultMode = args.defaultMode ?? "ssg";
     const defaultNavigation = args.defaultNavigation ?? "enhanced-mpa";
+    const authorizationPolicyNames = args.authorizationPolicyNames;
 
     await Deno.writeTextFile(
         configPath,
@@ -178,6 +180,13 @@ export async function createCliFixtureTargetConfig(args: {
             `        localePrefix: ${JSON.stringify(localePrefix)},`,
             `        fallbackLocale: ${JSON.stringify(defaultLocale)}`,
             "      },",
+            ...(authorizationPolicyNames?.length
+                ? [
+                    "      authorization: {",
+                    `        policyNames: ${JSON.stringify(authorizationPolicyNames)}`,
+                    "      },",
+                ]
+                : []),
             `      defaultMode: ${JSON.stringify(defaultMode)},`,
             `      defaultNavigation: ${JSON.stringify(defaultNavigation)}`,
             "    }",

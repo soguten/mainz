@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import { nextTick, prepareNavigationTest, waitFor } from "../../testing/index.ts";
 import type { SpaNavigationRenderContext } from "../index.ts";
 
@@ -90,6 +90,138 @@ Deno.test("navigation/runtime: should render the SPA notFound page for unknown s
     assertEquals(document.title, "Not Found");
 
     controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should redirect anonymous protected routes to the login page", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SpaLoginPage, SpaProtectedPage, resetProtectedLoadCount, readProtectedLoadCount } =
+        await loadSpaFixtures();
+    resetProtectedLoadCount();
+
+    document.body.innerHTML = '<main id="app"></main>';
+    window.history.replaceState(null, "", "/dashboard");
+
+    const controller = startNavigation({
+        mode: "spa",
+        mount: "#app",
+        pages: [SpaLoginPage, SpaProtectedPage],
+    });
+
+    await waitFor(() => window.location.pathname === "/login" && document.title === "Login");
+
+    assertEquals(window.location.pathname, "/login");
+    assertEquals(
+        document.querySelector("#app x-mainz-navigation-spa-login-page")?.textContent,
+        "Login page",
+    );
+    assertEquals(readProtectedLoadCount(), 0);
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should resolve principal before protected page load and expose it in route context", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SpaLoginPage, SpaProtectedPage, resetProtectedLoadCount, readProtectedLoadCount } =
+        await loadSpaFixtures();
+    const seenContexts: SpaNavigationRenderContext[] = [];
+    resetProtectedLoadCount();
+
+    document.body.innerHTML = '<main id="app"></main>';
+    window.history.replaceState(null, "", "/dashboard");
+
+    const controller = startNavigation({
+        mode: "spa",
+        mount: "#app",
+        pages: [SpaLoginPage, SpaProtectedPage],
+        auth: {
+            async getPrincipal() {
+                return {
+                    authenticated: true,
+                    id: "user-123",
+                    roles: ["member"],
+                    claims: {},
+                };
+            },
+        },
+        onRoute(context) {
+            seenContexts.push(context);
+        },
+    });
+
+    await waitFor(() => document.title === "Dashboard");
+
+    assertEquals(
+        document.querySelector("#app x-mainz-navigation-spa-protected-page")?.textContent,
+        "Dashboard page:user-123",
+    );
+    assertEquals(
+        document.querySelector('#app [data-page="dashboard"]')?.getAttribute("data-user-id"),
+        "user-123",
+    );
+    assertEquals(readProtectedLoadCount(), 1);
+    assertEquals(seenContexts[0]?.principal.id, "user-123");
+    assertEquals(seenContexts[0]?.authorization?.requirement?.authenticated, true);
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should surface a forbidden page when an authenticated principal lacks route access", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SpaAdminPage, SpaLoginPage } = await loadSpaFixtures();
+    const seenContexts: SpaNavigationRenderContext[] = [];
+
+    document.body.innerHTML = '<main id="app"></main>';
+    window.history.replaceState(null, "", "/admin");
+
+    const controller = startNavigation({
+        mode: "spa",
+        mount: "#app",
+        pages: [SpaLoginPage, SpaAdminPage],
+        auth: {
+            async getPrincipal() {
+                return {
+                    authenticated: true,
+                    id: "member-1",
+                    roles: ["member"],
+                    claims: {},
+                };
+            },
+        },
+        onRoute(context) {
+            seenContexts.push(context);
+        },
+    });
+
+    await waitFor(() => document.title === "403 Forbidden");
+
+    assertEquals(window.location.pathname, "/admin");
+    assertEquals(
+        document.querySelector('#app [data-mainz-authorization="forbidden"]')?.textContent,
+        "403 Forbidden",
+    );
+    assertEquals(document.querySelector("#app x-mainz-navigation-spa-admin-page"), null);
+    assertEquals(seenContexts.length, 0);
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should fail fast when configured pages reference missing authorization policies", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { SpaLoginPage, SpaPolicyPage } = await loadSpaFixtures();
+
+    document.body.innerHTML = '<main id="app"></main>';
+    window.history.replaceState(null, "", "/org");
+
+    assertThrows(
+        () =>
+            startNavigation({
+                mode: "spa",
+                mount: "#app",
+                pages: [SpaLoginPage, SpaPolicyPage],
+            }),
+        Error,
+        'Configured pages reference unregistered authorization policies: "org-member".',
+    );
 });
 
 Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inferred locales", async () => {

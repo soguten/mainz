@@ -6,6 +6,8 @@ export {
     resolveComponentRenderStrategy,
 } from "./components/index.ts";
 export {
+    AllowAnonymous,
+    Authorize,
     createPageLoadContext,
     entries,
     isPageConstructor,
@@ -14,15 +16,31 @@ export {
     Page,
     RenderMode,
     Route,
+    resolveComponentAuthorization,
+    resolvePageAuthorization,
 } from "./components/index.ts";
 export { startNavigation, startPagesApp } from "./navigation/index.ts";
+export {
+    createAnonymousPrincipal,
+    evaluateAuthorizationRequirement,
+    filterVisibleRoutes,
+    findMissingAuthorizationPolicies,
+    isRouteVisible,
+} from "./authorization/runtime.ts";
 export type {
+    AuthorizationOptions,
+    AuthorizationPolicy,
+    AuthorizationRequirement,
+    AuthorizationRuntimeOptions,
     ChildrenOnlyProps,
+    ComponentAuthorizationMetadata,
     ComponentRenderConfig,
     DefaultProps,
     DefaultState,
     NoProps,
     NoState,
+    PageAuthorizationMetadata,
+    Principal,
     RenderStrategyOptions,
 } from "./components/index.ts";
 export type {

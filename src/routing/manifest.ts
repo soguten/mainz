@@ -1,4 +1,5 @@
 import { inferFilesystemRoutes } from "./filesystem.ts";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { I18nConfig } from "../i18n/index.ts";
 import type { PageEntryDefinition, PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
 import {
@@ -29,6 +30,7 @@ interface CandidateRoute {
     notFound?: boolean;
     locales: string[];
     head?: PageHeadDefinition;
+    authorization?: PageAuthorizationMetadata;
 }
 
 interface ExpandedRouteLocale {
@@ -43,6 +45,7 @@ interface ExpandedRouteLocale {
     notFound?: boolean;
     locale: string;
     head?: PageHeadDefinition;
+    authorization?: PageAuthorizationMetadata;
 }
 
 interface BuildSsgOutputEntriesOptions {
@@ -439,6 +442,7 @@ function buildDiscoveredPageCandidate(
         notFound: page.notFound === true ? true : undefined,
         locales,
         head: page.head,
+        authorization: page.authorization ? cloneAuthorization(page.authorization) : undefined,
     };
 }
 
@@ -465,6 +469,9 @@ function upsertByLocale(
                 notFound: candidate.notFound === true ? true : undefined,
                 locale,
                 head: candidate.head,
+                authorization: candidate.authorization
+                    ? cloneAuthorization(candidate.authorization)
+                    : undefined,
             });
             continue;
         }
@@ -507,6 +514,9 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
                 notFound: route.notFound === true ? true : undefined,
                 locales: [route.locale],
                 head: route.head ? cloneHead(route.head) : undefined,
+                authorization: route.authorization
+                    ? cloneAuthorization(route.authorization)
+                    : undefined,
             });
             continue;
         }
@@ -968,6 +978,27 @@ function cloneHead(head: PageHeadDefinition | undefined): PageHeadDefinition | u
         title: head.title,
         meta: head.meta ? [...head.meta] : undefined,
         links: head.links ? [...head.links] : undefined,
+    };
+}
+
+function cloneAuthorization(
+    authorization: PageAuthorizationMetadata | undefined,
+): PageAuthorizationMetadata | undefined {
+    if (!authorization) {
+        return authorization;
+    }
+
+    return {
+        allowAnonymous: authorization.allowAnonymous,
+        requirement: authorization.requirement
+            ? {
+                authenticated: true,
+                roles: authorization.requirement.roles
+                    ? [...authorization.requirement.roles]
+                    : undefined,
+                policy: authorization.requirement.policy,
+            }
+            : undefined,
     };
 }
 

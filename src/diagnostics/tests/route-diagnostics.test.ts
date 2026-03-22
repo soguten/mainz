@@ -41,6 +41,16 @@ Deno.test("diagnostics/route: should report dynamic ssg, notFound, and routing-s
             routePath: "/missing",
         },
         {
+            code: "page-authorization-anonymous-conflict",
+            severity: "error",
+            message:
+                'Page "AllowAnonymousConflictPage" combines @AllowAnonymous() with @Authorize(...). ' +
+                "@AllowAnonymous() cannot relax page authorization declared on the same page.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "AllowAnonymousConflictPage",
+            routePath: "/signin",
+        },
+        {
             code: "dynamic-ssg-missing-entries",
             severity: "error",
             message: 'SSG route "/docs/:slug" must define entries() to expand dynamic params.',
@@ -174,7 +184,44 @@ Deno.test("diagnostics/route: should report dynamic ssg, notFound, and routing-s
             exportName: "DynamicSsgWithoutLoadPage",
             routePath: "/guides/:slug",
         },
+        {
+            code: "page-authorization-ssg-warning",
+            severity: "warning",
+            message:
+                'Page "AuthorizedSsgPage" uses @Authorize(...) with @RenderMode("ssg"). ' +
+                "Mainz treats this as declarative route metadata only; protected delivery must be enforced by the host, adapter, gateway, or proxy.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "AuthorizedSsgPage",
+            routePath: "/private-docs",
+        },
     ]));
+});
+
+Deno.test("diagnostics/route: should report missing named authorization policies when diagnostics know the target policy names", async () => {
+    await setupMainzDom();
+
+    const file = resolve(join(Deno.cwd(), "src/diagnostics/tests/route-diagnostics.fixture.tsx"));
+    const pages = await discoverPagesFromFile(file);
+    const diagnostics = await collectRouteDiagnostics(pages, {
+        registeredPolicyNames: ["billing-admin"],
+    });
+
+    assertEquals(
+        diagnostics.find((diagnostic) =>
+            diagnostic.code === "authorization-policy-not-registered" &&
+            diagnostic.exportName === "PolicyProtectedPage"
+        ),
+        {
+            code: "authorization-policy-not-registered",
+            severity: "error",
+            message:
+                'Page "PolicyProtectedPage" references @Authorize({ policy: "org-member" }), ' +
+                "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "PolicyProtectedPage",
+            routePath: "/org",
+        },
+    );
 });
 
 function sortDiagnostics<T extends { code: string; exportName: string; routePath?: string }>(

@@ -186,6 +186,12 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
                 head: {
                     title: "Home",
                 },
+                authorization: {
+                    requirement: {
+                        authenticated: true,
+                        roles: ["member"],
+                    },
+                },
             },
             {
                 file: "./site/pages/docs.page.tsx",
@@ -213,6 +219,14 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
                 meta: undefined,
                 links: undefined,
             },
+            authorization: {
+                allowAnonymous: undefined,
+                requirement: {
+                    authenticated: true,
+                    roles: ["member"],
+                    policy: undefined,
+                },
+            },
         },
         {
             id: "docs",
@@ -225,6 +239,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             notFound: undefined,
             locales: ["pt-BR"],
             head: undefined,
+            authorization: undefined,
         },
     ]);
 });

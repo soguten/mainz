@@ -35,5 +35,6 @@ For related framework docs and examples, see:
 
 - [`docs/getting-started/installation.md`](./docs/getting-started/installation.md)
 - [`docs/concepts/core/routing.md`](./docs/concepts/core/routing.md)
+- [`examples/authorize-site`](./examples/authorize-site)
 - [`docs/concepts/testing/overview.md`](./docs/concepts/testing/overview.md)
 - [`docs/advanced/testing-matrix.md`](./docs/advanced/testing-matrix.md)

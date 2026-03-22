@@ -1,4 +1,6 @@
 import {
+    AllowAnonymous,
+    Authorize,
     Component,
     CustomElement,
     type NoProps,
@@ -52,3 +54,27 @@ abstract class DeferredLoadBase extends Component<NoProps, NoState, { title: str
     fallback: () => <p>loading</p>,
 })
 export class ValidLoadComponent extends DeferredLoadBase {}
+
+@CustomElement("x-mainz-diagnostics-allow-anonymous-component")
+@AllowAnonymous()
+export class AllowAnonymousComponent extends Component {
+    override render(): HTMLElement {
+        return <p>Anonymous content</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-authorized-component")
+@Authorize({ roles: ["admin"] })
+export class AuthorizedComponent extends Component {
+    override render(): HTMLElement {
+        return <p>Protected content</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-policy-component")
+@Authorize({ policy: "org-member" })
+export class PolicyProtectedComponent extends Component {
+    override render(): HTMLElement {
+        return <p>Policy protected content</p>;
+    }
+}

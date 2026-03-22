@@ -1,9 +1,11 @@
 import { isDynamicRoutePath, validateRouteEntryParams } from "../routing/index.ts";
 import { normalizeLocaleTag } from "../i18n/core.ts";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import ts from "npm:typescript";
 
 export type MainzDiagnosticSeverity = "warning" | "error";
 export type MainzDiagnosticCode =
+    | "authorization-policy-not-registered"
     | "missing-render-mode-decorator"
     | "dynamic-ssg-missing-entries"
     | "dynamic-ssg-missing-load"
@@ -11,7 +13,9 @@ export type MainzDiagnosticCode =
     | "invalid-locale-tag"
     | "page-discovery-failed"
     | "not-found-must-use-ssg"
-    | "multiple-not-found-pages";
+    | "multiple-not-found-pages"
+    | "page-authorization-anonymous-conflict"
+    | "page-authorization-ssg-warning";
 
 export interface MainzDiagnostic {
     code: MainzDiagnosticCode;
@@ -31,13 +35,20 @@ export interface RouteDiagnosticsPageInput {
         hasExplicitRenderMode?: boolean;
         notFound?: boolean;
         locales?: readonly string[];
+        authorization?: PageAuthorizationMetadata;
     };
 }
 
 export async function collectRouteDiagnostics(
     pages: readonly RouteDiagnosticsPageInput[],
+    options?: {
+        registeredPolicyNames?: readonly string[];
+    },
 ): Promise<readonly MainzDiagnostic[]> {
     const diagnostics: MainzDiagnostic[] = [];
+    const registeredPolicies = options?.registeredPolicyNames
+        ? new Set(options.registeredPolicyNames)
+        : undefined;
     const notFoundPages = pages.filter((page) => page.page.notFound === true);
     const pageAnalyses = await collectRouteSourceAnalyses(pages);
 
@@ -95,6 +106,53 @@ export async function collectRouteDiagnostics(
             });
         }
 
+        if (hasPageAuthorizationConflict(page.page.authorization)) {
+            diagnostics.push({
+                code: "page-authorization-anonymous-conflict",
+                severity: "error",
+                message:
+                    `Page "${page.exportName}" combines @AllowAnonymous() with @Authorize(...). ` +
+                    "@AllowAnonymous() cannot relax page authorization declared on the same page.",
+                file: page.file,
+                exportName: page.exportName,
+                routePath: page.page.path,
+            });
+        }
+
+        const requiredPolicy = page.page.authorization?.requirement?.policy;
+        if (
+            requiredPolicy &&
+            registeredPolicies &&
+            !registeredPolicies.has(requiredPolicy)
+        ) {
+            diagnostics.push({
+                code: "authorization-policy-not-registered",
+                severity: "error",
+                message:
+                    `Page "${page.exportName}" references @Authorize({ policy: "${requiredPolicy}" }), ` +
+                    "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                file: page.file,
+                exportName: page.exportName,
+                routePath: page.page.path,
+            });
+        }
+
+        if (
+            page.page.mode === "ssg" &&
+            page.page.authorization?.requirement
+        ) {
+            diagnostics.push({
+                code: "page-authorization-ssg-warning",
+                severity: "warning",
+                message:
+                    `Page "${page.exportName}" uses @Authorize(...) with @RenderMode("ssg"). ` +
+                    "Mainz treats this as declarative route metadata only; protected delivery must be enforced by the host, adapter, gateway, or proxy.",
+                file: page.file,
+                exportName: page.exportName,
+                routePath: page.page.path,
+            });
+        }
+
         if (page.page.mode !== "ssg" || !isDynamicRoutePath(page.page.path)) {
             continue;
         }
@@ -132,6 +190,13 @@ export async function collectRouteDiagnostics(
     }
 
     return diagnostics;
+}
+
+function hasPageAuthorizationConflict(
+    authorization: PageAuthorizationMetadata | undefined,
+): boolean {
+    return authorization?.allowAnonymous === true &&
+        authorization.requirement !== undefined;
 }
 
 function collectEntriesDiagnostics(
