@@ -267,7 +267,7 @@ export abstract class Component<
         if (!styles) return;
 
         const add = (css: string) => {
-            const s = document.createElement("style");
+            const s = this.ownerDocument.createElement("style");
             s.textContent = css;
             this.appendChild(s);
         };
@@ -345,7 +345,7 @@ export abstract class Component<
 
     private resolveRenderedTree(): HTMLElement | DocumentFragment {
         if (this.suppressUnauthorizedRender) {
-            return document.createDocumentFragment();
+            return this.ownerDocument.createDocumentFragment();
         }
 
         if (!this.hasComponentLoad()) {
@@ -571,13 +571,19 @@ export abstract class Component<
         if (typeof renderConfig.fallback === "function") {
             const resolvedFallback = renderConfig.fallback();
             if (resolvedFallback !== undefined) {
-                return normalizeComponentRenderValue(resolvedFallback);
+                return normalizeComponentRenderValue(
+                    resolvedFallback,
+                    this.ownerDocument,
+                );
             }
         } else if (renderConfig.fallback !== undefined) {
-            return normalizeComponentRenderValue(renderConfig.fallback);
+            return normalizeComponentRenderValue(
+                renderConfig.fallback,
+                this.ownerDocument,
+            );
         }
 
-        return document.createDocumentFragment();
+        return this.ownerDocument.createDocumentFragment();
     }
 
     private resolveComponentLoadErrorFallback(
@@ -587,14 +593,20 @@ export abstract class Component<
         if (typeof renderConfig.errorFallback === "function") {
             const resolvedErrorFallback = renderConfig.errorFallback(error);
             if (resolvedErrorFallback !== undefined) {
-                return normalizeComponentRenderValue(resolvedErrorFallback);
+                return normalizeComponentRenderValue(
+                    resolvedErrorFallback,
+                    this.ownerDocument,
+                );
             }
 
             return this.resolveComponentLoadFallback(renderConfig);
         }
 
         if (renderConfig.errorFallback !== undefined) {
-            return normalizeComponentRenderValue(renderConfig.errorFallback);
+            return normalizeComponentRenderValue(
+                renderConfig.errorFallback,
+                this.ownerDocument,
+            );
         }
 
         return this.resolveComponentLoadFallback(renderConfig);
@@ -606,9 +618,7 @@ export abstract class Component<
             return next;
         }
 
-        if (
-            current.nodeType === Node.TEXT_NODE && next.nodeType === Node.TEXT_NODE
-        ) {
+        if (current.nodeType === 3 && next.nodeType === 3) {
             if (current.textContent !== next.textContent) {
                 current.textContent = next.textContent;
             }
@@ -623,7 +633,10 @@ export abstract class Component<
             return current;
         }
 
-        if (current instanceof HTMLElement && next instanceof HTMLElement) {
+        if (
+            isHtmlElementLike(current, this.ownerDocument) &&
+            isHtmlElementLike(next, this.ownerDocument)
+        ) {
             this.syncAttributes(current, next);
             this.syncManagedDOMEvents(current, next);
             this.patchChildren(current, next);
@@ -726,7 +739,7 @@ export abstract class Component<
     }
 
     private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
-        if (rendered instanceof DocumentFragment) {
+        if (isDocumentFragmentLike(rendered, this.ownerDocument)) {
             return Array.from(rendered.childNodes);
         }
 
@@ -780,8 +793,15 @@ export abstract class Component<
     }
 
     private syncProperties(current: HTMLElement, next: HTMLElement) {
+        const ownerWindow = this.ownerDocument.defaultView;
+        const inputCtor = ownerWindow?.HTMLInputElement;
+        const textAreaCtor = ownerWindow?.HTMLTextAreaElement;
+        const selectCtor = ownerWindow?.HTMLSelectElement;
+
         if (
-            current instanceof HTMLInputElement && next instanceof HTMLInputElement
+            inputCtor &&
+            current instanceof inputCtor &&
+            next instanceof inputCtor
         ) {
             if (current.value !== next.value) {
                 current.value = next.value;
@@ -795,8 +815,9 @@ export abstract class Component<
         }
 
         if (
-            current instanceof HTMLTextAreaElement &&
-            next instanceof HTMLTextAreaElement
+            textAreaCtor &&
+            current instanceof textAreaCtor &&
+            next instanceof textAreaCtor
         ) {
             if (current.value !== next.value) {
                 current.value = next.value;
@@ -805,7 +826,9 @@ export abstract class Component<
         }
 
         if (
-            current instanceof HTMLSelectElement && next instanceof HTMLSelectElement
+            selectCtor &&
+            current instanceof selectCtor &&
+            next instanceof selectCtor
         ) {
             if (current.value !== next.value) {
                 current.value = next.value;
@@ -885,7 +908,7 @@ export abstract class Component<
         for (const entry of this.eventListeners) {
             const { target } = entry;
 
-            if (!(target instanceof Node)) {
+            if (!isNodeLike(target, this.ownerDocument)) {
                 stillTracked.push(entry);
                 continue;
             }
@@ -902,7 +925,7 @@ export abstract class Component<
     }
 
     private getNodeKey(node: Node): string | null {
-        if (!(node instanceof Element)) return null;
+        if (!isElementLike(node, this.ownerDocument)) return null;
 
         return node.getAttribute("key") ??
             node.getAttribute("data-key") ??
@@ -910,14 +933,19 @@ export abstract class Component<
     }
 
     private buildNodeLookupKey(node: Node, key: string): string {
-        const elementTag = node instanceof Element ? elementTagName(node) : "node";
+        const elementTag = isElementLike(node, this.ownerDocument)
+            ? elementTagName(node)
+            : "node";
         return `${node.nodeType}:${elementTag}:${key}`;
     }
 
     private isSameNodeType(current: Node, next: Node) {
         if (current.nodeType !== next.nodeType) return false;
 
-        if (current instanceof HTMLElement && next instanceof HTMLElement) {
+        if (
+            isHtmlElementLike(current, this.ownerDocument) &&
+            isHtmlElementLike(next, this.ownerDocument)
+        ) {
             return current.tagName === next.tagName;
         }
 
@@ -1161,7 +1189,7 @@ function stableSerializeForLoadKey(
         return JSON.stringify(value.toISOString());
     }
 
-    if (typeof Node !== "undefined" && value instanceof Node) {
+    if (isNodeLike(value)) {
         return JSON.stringify(`[node:${value.nodeType}]`);
     }
 
@@ -1187,27 +1215,30 @@ function stableSerializeForLoadKey(
     return `{${entries.join(",")}}`;
 }
 
-function normalizeComponentRenderValue(value: unknown): HTMLElement | DocumentFragment {
-    if (value instanceof DocumentFragment) {
+function normalizeComponentRenderValue(
+    value: unknown,
+    ownerDocument = resolveOwnerDocument(value),
+): HTMLElement | DocumentFragment {
+    if (ownerDocument && isDocumentFragmentLike(value, ownerDocument)) {
         return value;
     }
 
-    if (value instanceof HTMLElement) {
+    if (ownerDocument && isHtmlElementLike(value, ownerDocument)) {
         return value;
     }
 
-    if (value instanceof Node) {
-        const fragment = document.createDocumentFragment();
+    if (ownerDocument && isNodeLike(value, ownerDocument)) {
+        const fragment = ownerDocument.createDocumentFragment();
         fragment.appendChild(value);
         return fragment;
     }
 
     if (value == null || value === false) {
-        return document.createDocumentFragment();
+        return ownerDocument.createDocumentFragment();
     }
 
-    const textNode = document.createTextNode(String(value));
-    const fragment = document.createDocumentFragment();
+    const textNode = ownerDocument.createTextNode(String(value));
+    const fragment = ownerDocument.createDocumentFragment();
     fragment.appendChild(textNode);
     return fragment;
 }
@@ -1230,9 +1261,49 @@ function resolveComponentName(componentCtor: object): string {
 }
 
 function elementTagName(element: Element): string {
-    if (element instanceof HTMLElement) {
+    if (isHtmlElementLike(element, element.ownerDocument)) {
         return element.tagName;
     }
 
     return element.localName;
+}
+
+function resolveOwnerDocument(value: unknown): Document {
+    const fromOwner = (value as { ownerDocument?: Document | null } | null | undefined)
+        ?.ownerDocument;
+    if (fromOwner) {
+        return fromOwner;
+    }
+
+    if (typeof document !== "undefined") {
+        return document;
+    }
+
+    throw new Error("Mainz component rendering requires an owner document.");
+}
+
+function isNodeLike(value: unknown, ownerDocument?: Document): value is Node {
+    const nodeCtor = ownerDocument?.defaultView?.Node;
+    return !!nodeCtor && value instanceof nodeCtor;
+}
+
+function isElementLike(value: unknown, ownerDocument?: Document): value is Element {
+    const elementCtor = ownerDocument?.defaultView?.Element;
+    return !!elementCtor && value instanceof elementCtor;
+}
+
+function isHtmlElementLike(
+    value: unknown,
+    ownerDocument?: Document,
+): value is HTMLElement {
+    const htmlElementCtor = ownerDocument?.defaultView?.HTMLElement;
+    return !!htmlElementCtor && value instanceof htmlElementCtor;
+}
+
+function isDocumentFragmentLike(
+    value: unknown,
+    ownerDocument?: Document,
+): value is DocumentFragment {
+    const fragmentCtor = ownerDocument?.defaultView?.DocumentFragment;
+    return !!fragmentCtor && value instanceof fragmentCtor;
 }
