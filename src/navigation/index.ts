@@ -725,7 +725,7 @@ async function renderSpaRoute(args: {
         throwIfNavigationAborted(sequence);
 
         const existingElement = args.mount.querySelector(pageTagName);
-        if (args.navigationType === "initial" && existingElement instanceof HTMLElement) {
+        if (args.navigationType === "initial" && isHtmlElement(existingElement)) {
             applySpaRouteContext(existingElement, routeContext);
             applyResolvedPageHeadToDocument(head);
             finalizeNavigationReady({
@@ -1002,13 +1002,13 @@ function matchRoutePath(routePath: string, currentPath: string): Record<string, 
 }
 
 function resolveSpaMount(mount?: string | Element): HTMLElement {
-    if (mount instanceof HTMLElement) {
+    if (isHtmlElement(mount)) {
         return mount;
     }
 
     const selector = typeof mount === "string" ? mount : "#app";
     const resolved = document.querySelector(selector);
-    if (!(resolved instanceof HTMLElement)) {
+    if (!isHtmlElement(resolved)) {
         throw new Error(`SPA navigation could not find the mount element "${selector}".`);
     }
 
@@ -1071,6 +1071,22 @@ function readSpaElementProps(element: HTMLElement): Record<string, unknown> {
     }
 
     return {};
+}
+
+function isHtmlElement(value: unknown): value is HTMLElement {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const ownerDocument = value instanceof Node ? value.ownerDocument : document;
+    const ownerWindow = ownerDocument?.defaultView;
+    const ownerHTMLElement = ownerWindow?.HTMLElement;
+
+    if (ownerHTMLElement) {
+        return value instanceof ownerHTMLElement;
+    }
+
+    return value instanceof Element;
 }
 
 function applyResolvedPageHeadToDocument(headDefinition: PageHeadDefinition | undefined): void {
@@ -2228,7 +2244,7 @@ async function resolveMountedRouteContext(
         ensurePageCustomElement(matchedPage);
 
         const mountedElement = mount.querySelector(matchedPage.getTagName());
-        if (mountedElement instanceof HTMLElement) {
+        if (isHtmlElement(mountedElement)) {
             const params = context.routeMatch?.params ?? {};
             const authorization = resolvePageAuthorization(matchedPage);
             const principal = await resolveCurrentPrincipal(context.auth);
@@ -2315,7 +2331,7 @@ async function resolveMountedRouteContext(
 
         const tagName = route.page.getTagName();
         const mountedElement = mount.querySelector(tagName);
-        if (!(mountedElement instanceof HTMLElement)) {
+        if (!isHtmlElement(mountedElement)) {
             continue;
         }
 
