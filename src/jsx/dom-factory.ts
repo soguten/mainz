@@ -16,6 +16,8 @@ type ManagedEventsElement = HTMLElement & {
 
 // deno-lint-ignore no-explicit-any
 export function h(tag: any, props: Record<string, any> | null, ...children: any[]) {
+    const ownerDocument = resolveCurrentRenderDocument();
+
     let normalizedChildren: any;
     if (children.length === 0) normalizedChildren = undefined;
     else if (children.length === 1) normalizedChildren = children[0];
@@ -25,7 +27,7 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
         if (tag.prototype instanceof Component) {
             const tagName = ensureMainzCustomElementDefined(tag);
 
-            const el = document.createElement(tagName) as HTMLElement;
+            const el = ownerDocument.createElement(tagName) as HTMLElement;
 
             if (props) {
                 applyAttributes(el, props);
@@ -58,8 +60,8 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
                 "linearGradient",
                 "stop",
             ]).has(tag)
-            ? document.createElementNS("http://www.w3.org/2000/svg", tag)
-            : document.createElement(tag);
+            ? ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag)
+            : ownerDocument.createElement(tag);
 
     if (props) {
         applyAttributes(el, props);
@@ -70,13 +72,13 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
 }
 
 export function getManagedDOMEvents(node: Node): ManagedDOMEventDescriptor[] {
-    if (!(node instanceof HTMLElement)) return [];
+    if (!isHtmlElement(node)) return [];
     const element = node as ManagedEventsElement;
     return [...(element[MANAGED_DOM_EVENTS] ?? [])];
 }
 
 export function setManagedDOMEvents(node: Node, events: ManagedDOMEventDescriptor[]): void {
-    if (!(node instanceof HTMLElement)) return;
+    if (!isHtmlElement(node)) return;
     const element = node as ManagedEventsElement;
 
     if (events.length === 0) {
@@ -89,25 +91,33 @@ export function setManagedDOMEvents(node: Node, events: ManagedDOMEventDescripto
 
 // deno-lint-ignore no-explicit-any
 export function Fragment(props: { children?: any[] }) {
-    const frag = document.createDocumentFragment();
+    const frag = resolveCurrentRenderDocument().createDocumentFragment();
     appendChildren(frag, props.children || []);
     return frag;
 }
 
 // deno-lint-ignore no-explicit-any
 function appendChildren(parent: HTMLElement | DocumentFragment, kids: any) {
+    const ownerDocument = parent.ownerDocument ?? resolveCurrentRenderDocument();
     const flattenedChildren = (Array.isArray(kids) ? kids : [kids]).flat(Infinity);
 
     for (const child of flattenedChildren) {
         if (child == null || typeof child === "boolean") continue;
         parent.append(
-            child instanceof Node ? child : document.createTextNode(String(child)),
+            isNodeLike(child, ownerDocument)
+                ? child
+                : ownerDocument.createTextNode(String(child)),
         );
     }
 }
 
 function applyAttributes(el: HTMLElement, props: Record<string, any>) {
     const owner = getCurrentRenderOwner();
+    const ownerWindow = el.ownerDocument.defaultView;
+    const inputCtor = ownerWindow?.HTMLInputElement;
+    const textAreaCtor = ownerWindow?.HTMLTextAreaElement;
+    const selectCtor = ownerWindow?.HTMLSelectElement;
+    const optionCtor = ownerWindow?.HTMLOptionElement;
 
     for (const [key, value] of Object.entries(props)) {
         if (key === "ref" && typeof value === "function") {
@@ -115,19 +125,23 @@ function applyAttributes(el: HTMLElement, props: Record<string, any>) {
         } else if (key === "className") {
             el.setAttribute("class", value);
         } else if (key === "value") {
-            if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+            if (
+                (inputCtor && el instanceof inputCtor) ||
+                (textAreaCtor && el instanceof textAreaCtor) ||
+                (selectCtor && el instanceof selectCtor)
+            ) {
                 el.value = value == null ? "" : String(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
             }
         } else if (key === "checked") {
-            if (el instanceof HTMLInputElement) {
+            if (inputCtor && el instanceof inputCtor) {
                 el.checked = Boolean(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
             }
         } else if (key === "selected") {
-            if (el instanceof HTMLOptionElement) {
+            if (optionCtor && el instanceof optionCtor) {
                 el.selected = Boolean(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
@@ -156,4 +170,37 @@ function applyAttributes(el: HTMLElement, props: Record<string, any>) {
             }
         }
     }
+}
+
+function resolveCurrentRenderDocument(): Document {
+    const owner = getCurrentRenderOwner();
+    const ownerDocument = (owner as { ownerDocument?: Document | null } | undefined)?.ownerDocument;
+    if (ownerDocument) {
+        return ownerDocument;
+    }
+
+    if (typeof document !== "undefined") {
+        return document;
+    }
+
+    throw new Error("Mainz JSX rendering requires an owner document.");
+}
+
+function isHtmlElement(value: unknown): value is HTMLElement {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const ownerDocument = "ownerDocument" in value
+        ? (value as { ownerDocument?: Document | null }).ownerDocument
+        : undefined;
+    const ownerWindow = ownerDocument?.defaultView;
+    const ownerHTMLElement = ownerWindow?.HTMLElement;
+
+    return ownerHTMLElement ? value instanceof ownerHTMLElement : false;
+}
+
+function isNodeLike(value: unknown, ownerDocument: Document): value is Node {
+    const ownerNode = ownerDocument.defaultView?.Node;
+    return !!ownerNode && value instanceof ownerNode;
 }
