@@ -742,7 +742,7 @@ async function renderSpaRoute(args: {
             return true;
         }
 
-        const nextPageElement = document.createElement(pageTagName);
+        const nextPageElement = args.mount.ownerDocument.createElement(pageTagName);
         applySpaRouteContext(nextPageElement, routeContext);
         args.mount.replaceChildren(nextPageElement);
         finalizeNavigationReady({
@@ -1078,7 +1078,9 @@ function isHtmlElement(value: unknown): value is HTMLElement {
         return false;
     }
 
-    const ownerDocument = value instanceof Node ? value.ownerDocument : document;
+    const ownerDocument = "ownerDocument" in value
+        ? (value as { ownerDocument?: Document | null }).ownerDocument
+        : undefined;
     const ownerWindow = ownerDocument?.defaultView;
     const ownerHTMLElement = ownerWindow?.HTMLElement;
 
@@ -1086,7 +1088,12 @@ function isHtmlElement(value: unknown): value is HTMLElement {
         return value instanceof ownerHTMLElement;
     }
 
-    return value instanceof Element;
+    const ownerElement = ownerWindow?.Element;
+    if (ownerElement) {
+        return value instanceof ownerElement;
+    }
+
+    return false;
 }
 
 function applyResolvedPageHeadToDocument(headDefinition: PageHeadDefinition | undefined): void {
