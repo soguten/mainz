@@ -225,7 +225,11 @@ Deno.test("navigation/runtime: should render the SPA notFound page for unknown s
             notFound: SpaNotFoundPage,
         },
     });
-    await waitFor(() => document.title === "Not Found");
+    await waitForNavigationReady({
+        mode: "spa",
+        navigationType: "initial",
+        message: "Expected the SPA notFound startup route to emit navigation ready.",
+    });
 
     assert(document.querySelector("#app x-mainz-navigation-spa-not-found-page"));
     assertEquals(document.title, "Not Found");
@@ -333,7 +337,11 @@ Deno.test("navigation/runtime: should resolve principal before protected page lo
         },
     });
 
-    await waitFor(() => document.title === "Dashboard");
+    await waitForNavigationReady({
+        mode: "spa",
+        navigationType: "initial",
+        message: "Expected the protected startup route to emit navigation ready.",
+    });
 
     assertEquals(
         document.querySelector("#app x-mainz-navigation-spa-protected-page")?.textContent,
@@ -918,7 +926,12 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
         notFound: SpaNotFoundPage,
     });
 
-    await waitFor(() => document.title === "Home" && document.documentElement.lang === "pt");
+    await waitForNavigationReady({
+        mode: "mpa",
+        locale: "pt",
+        navigationType: "initial",
+        message: "Expected the prerendered home page to emit navigation ready for pt.",
+    });
 
     assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
     assertEquals(document.documentElement.lang, "pt");
@@ -948,7 +961,12 @@ Deno.test("navigation/runtime: should strip locale prefixes and notify locale ch
         },
     });
 
-    await waitFor(() => document.title === "Docs");
+    await waitForNavigationReady({
+        mode: "spa",
+        locale: "pt",
+        navigationType: "initial",
+        message: "Expected the localized docs startup route to emit navigation ready.",
+    });
 
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
@@ -975,7 +993,12 @@ Deno.test("navigation/runtime: should redirect the spa root to the preferred loc
         locales: ["en", "pt"],
     });
 
-    await waitFor(() => window.location.pathname === "/pt/" && document.title === "Home");
+    await waitForNavigationReady({
+        mode: "spa",
+        locale: "pt",
+        navigationType: "initial",
+        message: "Expected the root locale redirect to finish navigation for pt.",
+    });
 
     assertEquals(window.location.pathname, "/pt/");
     assertEquals(document.documentElement.lang, "pt");
@@ -998,7 +1021,12 @@ Deno.test("navigation/runtime: should fallback the spa root redirect to the prim
         locales: ["en", "pt"],
     });
 
-    await waitFor(() => window.location.pathname === "/en/" && document.title === "Home");
+    await waitForNavigationReady({
+        mode: "spa",
+        locale: "en",
+        navigationType: "initial",
+        message: "Expected the root locale fallback redirect to finish navigation for en.",
+    });
 
     assertEquals(window.location.pathname, "/en/");
     assertEquals(document.documentElement.lang, "en");
@@ -1023,7 +1051,12 @@ Deno.test("navigation/runtime: should not prefix the spa root for single-locale 
         locales: ["en"],
     });
 
-    await waitFor(() => window.location.pathname === "/" && document.title === "Home");
+    await waitForNavigationReady({
+        mode: "spa",
+        locale: "en",
+        navigationType: "initial",
+        message: "Expected the single-locale root route to emit navigation ready.",
+    });
 
     assertEquals(window.location.pathname, "/");
     assertEquals(document.documentElement.lang, "en");
@@ -1048,7 +1081,12 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
         locales: ["en", "pt"],
     });
 
-    await waitFor(() => document.title === "Docs");
+    await waitForNavigationReady({
+        mode: "spa",
+        locale: "pt",
+        navigationType: "initial",
+        message: "Expected the localized docs route to emit navigation ready before SEO asserts.",
+    });
 
     assertEquals(
         document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
@@ -1060,9 +1098,14 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
 
     const homeLink = document.getElementById("go-home");
     assert(homeLink instanceof HTMLElement);
+    const homeReady = waitForNavigationReady({
+        mode: "spa",
+        locale: "en",
+        navigationType: "push",
+        message: "Expected the generated home link to emit navigation ready after click.",
+    });
     homeLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
-
-    await waitFor(() => document.title === "Home");
+    await homeReady;
 
     assertEquals(window.location.pathname, "/en/");
     assertEquals(
@@ -1093,7 +1136,12 @@ Deno.test("navigation/runtime: should bootstrap document-first pages without app
         },
     });
 
-    await waitFor(() => document.title === "Home" && seenContexts[0]?.path === "/");
+    await waitForNavigationReady({
+        mode: "mpa",
+        navigationType: "initial",
+        message: "Expected the document-first home page to emit navigation ready.",
+    });
+    await waitFor(() => seenContexts[0]?.path === "/");
 
     assertEquals(document.title, "Home");
     assertEquals(seenContexts[0]?.path, "/");
@@ -1124,7 +1172,12 @@ Deno.test("navigation/runtime: should resolve locales for prerendered document-f
         },
     });
 
-    await waitFor(() => document.title === "Home" && document.documentElement.lang === "pt");
+    await waitForNavigationReady({
+        mode: "mpa",
+        locale: "pt",
+        navigationType: "initial",
+        message: "Expected the prerendered localized home page to emit navigation ready.",
+    });
 
     assertEquals(document.documentElement.lang, "pt");
     assertEquals(seenLocales, ["pt"]);
@@ -1163,16 +1216,15 @@ Deno.test("navigation/runtime: should reuse route snapshot for document-first bo
         pages: [SnapshotDocsPage],
     });
 
-    for (let attempt = 0; attempt < 75; attempt += 1) {
-        if (
-            document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent ===
-                "snapshot:intro"
-        ) {
-            break;
-        }
-
-        await nextTick();
-    }
+    await waitForNavigationReady({
+        mode: "mpa",
+        navigationType: "initial",
+        message: "Expected the snapshot bootstrap route to emit navigation ready.",
+    });
+    await waitFor(() =>
+        document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent ===
+            "snapshot:intro"
+    );
 
     assertEquals(
         document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent,
@@ -1199,7 +1251,11 @@ Deno.test("navigation/runtime: should apply dynamic head from Page.load()", asyn
         pages: [SnapshotDocsPage],
     });
 
-    await waitFor(() => document.title === "Snapshot:routing");
+    await waitForNavigationReady({
+        mode: "mpa",
+        navigationType: "initial",
+        message: "Expected the dynamic head route to emit navigation ready.",
+    });
 
     assertEquals(
         document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent,

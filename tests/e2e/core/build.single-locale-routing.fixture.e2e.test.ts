@@ -3,7 +3,7 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../src/ssg/happy-dom.ts";
-import { nextTick, waitFor } from "../../../src/testing/async-testing.ts";
+import { waitFor } from "../../../src/testing/async-testing.ts";
 import {
     buildFixtureForCombination,
     cliTestCombinations,
@@ -12,6 +12,7 @@ import {
     resolveOutputHtmlPath,
     resolveOutputScriptPath,
     resolvePreviewFixture,
+    waitForNextNavigationReady,
 } from "../../helpers/test-helpers.ts";
 
 for (const combination of cliTestCombinations) {
@@ -107,10 +108,23 @@ async function assertHomeLinks(
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: navigation,
+            locale: "en",
+            navigationType: "initial",
+        });
         await import(
             `${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${mode}-${navigation}-home`
         );
-        await waitFor(() => document.title === "Fixture Single Locale");
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === navigation &&
+                document.documentElement.lang === "en" &&
+                readAnchorHref("Overview") === "/" &&
+                readAnchorHref("Guides") === "/quickstart" &&
+                readAnchorHref("Reference") === "/reference",
+        );
 
         assertEquals(document.documentElement.lang, "en");
         assertEquals(readAnchorHref("Overview"), "/");
@@ -160,10 +174,22 @@ async function assertQuickstartRoute(
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: navigation,
+            locale: "en",
+            navigationType: "initial",
+        });
         await import(
             `${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${mode}-${navigation}-quickstart`
         );
-        await waitFor(() => (document.body.textContent ?? "").includes("Why Mainz"));
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === navigation &&
+                document.documentElement.lang === "en" &&
+                (document.body.textContent ?? "").includes("Why Mainz") &&
+                readAnchorHref("Guides") === "/quickstart",
+        );
 
         assertEquals(document.documentElement.lang, "en");
         assertStringIncludes(document.body.textContent ?? "", "Why Mainz");
