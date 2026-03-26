@@ -34,10 +34,13 @@ const GLOBAL_DOM_KEYS = [
 ] as const;
 
 type GlobalDomKey = (typeof GLOBAL_DOM_KEYS)[number];
+let happyDomLock: Promise<void> = Promise.resolve();
+
 export async function withHappyDom<T>(
     fn: (window: Window) => Promise<T> | T,
     options?: { url?: string },
 ): Promise<T> {
+    const releaseLock = await acquireHappyDomLock();
     const window = new Window({
         url: options?.url ?? "https://mainz.local/",
     });
@@ -94,5 +97,16 @@ export async function withHappyDom<T>(
         }
 
         window.close();
+        releaseLock();
     }
+}
+
+async function acquireHappyDomLock(): Promise<() => void> {
+    const previousLock = happyDomLock;
+    let releaseLock!: () => void;
+    happyDomLock = new Promise<void>((resolve) => {
+        releaseLock = resolve;
+    });
+    await previousLock;
+    return releaseLock;
 }

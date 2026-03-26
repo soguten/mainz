@@ -69,9 +69,15 @@ async function assertRootRoute(
             document.write(html);
             document.close();
 
+            const navigationReady = waitForNextNavigationReady({
+                mode: navigation,
+                locale: "en",
+                navigationType: "initial",
+            });
             await import(
                 `${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-${mode}-${navigation}-root`
             );
+            await navigationReady;
             await waitFor(() => window.location.pathname === "/");
         }, { url: "https://mainz.local/" });
 
@@ -136,9 +142,17 @@ async function assertHomeLinks(
                 .find((anchor) => anchor.textContent?.trim() === "Guides");
             assert(guidesLink instanceof HTMLElement);
 
+            const quickstartReady = waitForNextNavigationReady({
+                mode: "spa",
+                path: "/quickstart",
+                matchedPath: "/quickstart",
+                locale: "en",
+                navigationType: "push",
+            });
             guidesLink.dispatchEvent(
                 new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }),
             );
+            await quickstartReady;
             await waitFor(() =>
                 window.location.pathname === "/quickstart" &&
                 (document.body.textContent ?? "").includes("Why Mainz")
