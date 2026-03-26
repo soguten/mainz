@@ -8,14 +8,25 @@ import {
 import type { PageAuthorizationMetadata, Principal } from "../authorization/index.ts";
 import { resolvePageAuthorization } from "../authorization/index.ts";
 import {
+    type AuthorizationRuntimeOptions,
     evaluatePageAuthorization,
     findMissingAuthorizationPolicies,
-    setAuthorizationRuntimeOptions,
     resolveCurrentPrincipal,
-    type AuthorizationRuntimeOptions,
+    setAuthorizationRuntimeOptions,
 } from "../authorization/runtime.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
-import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
+import {
+    MAINZ_NAVIGATION_ABORT_EVENT,
+    MAINZ_LOCALE_CHANGE_EVENT,
+    MAINZ_NAVIGATION_ERROR_EVENT,
+    MAINZ_NAVIGATION_READY_EVENT,
+    MAINZ_NAVIGATION_START_EVENT,
+    type MainzLocaleChangeDetail,
+    type MainzNavigationAbortDetail,
+    type MainzNavigationErrorDetail,
+    type MainzNavigationReadyDetail,
+    type MainzNavigationStartDetail,
+} from "../runtime-events.ts";
 import {
     buildRouteHead,
     resolveLocaleRedirectPath,
@@ -155,6 +166,46 @@ interface InitialRouteSnapshot {
     head?: PageHeadDefinition;
 }
 
+type NavigationSequenceSource = () => number;
+type NavigationLifecycleBaseArgs = Omit<NavigationLifecycleEmissionArgs, "sequence">;
+type NavigationSequenceState = {
+    navigationSequence: number;
+    started: boolean;
+    controller: AbortController;
+    lifecycle?: NavigationLifecycleBaseArgs;
+    terminalState?: "ready" | "error" | "abort";
+};
+type NavigationLifecycleEmissionArgs = {
+    sequence: NavigationSequenceState;
+    mount: HTMLElement;
+    mode: NavigationMode;
+    navigationType: SpaNavigationRenderContext["navigationType"];
+    path: string;
+    matchedPath: string;
+    locale?: string;
+    url: URL;
+    basePath: string;
+};
+
+class NavigationAbortedError extends Error {
+    constructor() {
+        super("Navigation aborted.");
+        this.name = "NavigationAbortedError";
+    }
+}
+
+function isAbortLikeError(error: unknown): boolean {
+    if (error instanceof NavigationAbortedError) {
+        return true;
+    }
+
+    if (typeof DOMException !== "undefined" && error instanceof DOMException) {
+        return error.name === "AbortError";
+    }
+
+    return error instanceof Error && error.name === "AbortError";
+}
+
 export function startPagesApp(options: StartPagesAppOptions): NavigationController {
     return startNavigation({
         mode: resolveMainzNavigationMode(),
@@ -184,13 +235,24 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
     }
 
     document.documentElement.dataset.mainzNavigation = options.mode;
+    const nextNavigationSequence = createNavigationSequenceSource();
 
     if (options.mode === "spa") {
-        return startSpaNavigation(options.mode, normalizedBasePath, pageOptions);
+        return startSpaNavigation(
+            options.mode,
+            normalizedBasePath,
+            nextNavigationSequence,
+            pageOptions,
+        );
     }
 
     if (pageOptions) {
-        void bootstrapDocumentNavigation(pageOptions, normalizedBasePath).catch(
+        void bootstrapDocumentNavigation(
+            options.mode,
+            pageOptions,
+            normalizedBasePath,
+            nextNavigationSequence,
+        ).catch(
             reportSpaNavigationError,
         );
     }
@@ -319,6 +381,7 @@ export function detectViewTransitionSupport(): "native" | "fallback" {
 function startSpaNavigation(
     mode: NavigationMode,
     normalizedBasePath: string,
+    nextNavigationSequence: NavigationSequenceSource,
     pageOptions?: ResolvedPageNavigationOptions,
 ): NavigationController {
     if (!pageOptions?.pages?.length && !pageOptions?.notFound) {
@@ -330,6 +393,7 @@ function startSpaNavigation(
 
     const routes = normalizeSpaRoutes(pageOptions.pages, pageOptions.notFound);
     const mount = resolveSpaMount(pageOptions.mount);
+    let activeSequence: NavigationSequenceState | undefined;
     const initialUrl = resolveSpaLocalizedDocumentUrl(
         new URL(window.location.href),
         normalizedBasePath,
@@ -339,6 +403,8 @@ function startSpaNavigation(
         window.history.replaceState({ mainzNavigation: "spa" }, "", initialUrl);
     }
 
+    const initialSequence = createNavigationSequenceState(nextNavigationSequence);
+    activeSequence = initialSequence;
     void renderSpaRoute({
         routes,
         mount,
@@ -350,6 +416,9 @@ function startSpaNavigation(
         resolvePath: pageOptions.resolvePath,
         onLocaleChange: pageOptions.onLocaleChange,
         onRoute: pageOptions.onRoute,
+        mode,
+        nextNavigationSequence,
+        sequence: initialSequence,
     }).catch(reportSpaNavigationError);
 
     const handleClick = (event: Event) => {
@@ -398,6 +467,25 @@ function startSpaNavigation(
 
         event.preventDefault();
 
+        abortNavigationSequence(activeSequence, {
+            mount,
+            mode,
+            navigationType: "push",
+            path: routeMatch.route.path,
+            matchedPath: targetPath,
+            locale: resolveNavigationLocale(
+                effectiveTargetUrl,
+                normalizedBasePath,
+                pageOptions.locales,
+            ),
+            url: effectiveTargetUrl,
+            basePath: normalizedBasePath,
+            reason: "superseded",
+        });
+
+        const sequence = createNavigationSequenceState(nextNavigationSequence);
+        activeSequence = sequence;
+        let pendingNavigationReady: NavigationLifecycleEmissionArgs | undefined;
         void renderSpaRoute({
             routes,
             mount,
@@ -410,6 +498,12 @@ function startSpaNavigation(
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
             onRoute: pageOptions.onRoute,
+            mode,
+            nextNavigationSequence,
+            sequence,
+            finalizeNavigationReady(readyArgs) {
+                pendingNavigationReady = readyArgs;
+            },
         })
             .then((rendered) => {
                 if (!rendered) {
@@ -418,6 +512,9 @@ function startSpaNavigation(
 
                 window.history.pushState({ mainzNavigation: "spa" }, "", effectiveTargetUrl);
                 updateSpaScrollPosition(effectiveTargetUrl);
+                if (pendingNavigationReady) {
+                    emitNavigationReady(pendingNavigationReady);
+                }
             })
             .catch(reportSpaNavigationError);
     };
@@ -429,6 +526,26 @@ function startSpaNavigation(
             normalizedBasePath,
             pageOptions.locales,
         );
+        const currentPath = resolveRoutePath(
+            effectiveCurrentUrl,
+            normalizedBasePath,
+            pageOptions.resolvePath,
+            pageOptions.locales,
+        ) ?? "/";
+        const routeMatch = findMatchingSpaRoute(routes, currentPath);
+        abortNavigationSequence(activeSequence, {
+            mount,
+            mode,
+            navigationType: "pop",
+            path: routeMatch?.route.path ?? currentPath,
+            matchedPath: currentPath,
+            locale: resolveNavigationLocale(effectiveCurrentUrl, normalizedBasePath, pageOptions.locales),
+            url: effectiveCurrentUrl,
+            basePath: normalizedBasePath,
+            reason: "superseded",
+        });
+        const sequence = createNavigationSequenceState(nextNavigationSequence);
+        activeSequence = sequence;
         if (effectiveCurrentUrl.toString() !== currentUrl.toString()) {
             window.history.replaceState({ mainzNavigation: "spa" }, "", effectiveCurrentUrl);
         }
@@ -443,6 +560,9 @@ function startSpaNavigation(
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
             onRoute: pageOptions.onRoute,
+            mode,
+            nextNavigationSequence,
+            sequence,
         })
             .then((rendered) => {
                 if (!rendered) {
@@ -460,6 +580,17 @@ function startSpaNavigation(
     return {
         mode,
         cleanup() {
+            abortNavigationSequence(activeSequence, {
+                mount,
+                mode,
+                navigationType: "initial",
+                path: window.location.pathname,
+                matchedPath: window.location.pathname,
+                locale: document.documentElement.lang || undefined,
+                url: new URL(window.location.href),
+                basePath: normalizedBasePath,
+                reason: "cleanup",
+            });
             document.removeEventListener("click", handleClick, { capture: true });
             window.removeEventListener("popstate", handlePopState);
         },
@@ -478,6 +609,10 @@ async function renderSpaRoute(args: {
     resolvePath?: RoutePathResolver;
     onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
     onRoute?: ResolvedPageNavigationOptions["onRoute"];
+    mode: NavigationMode;
+    nextNavigationSequence: NavigationSequenceSource;
+    sequence?: NavigationSequenceState;
+    finalizeNavigationReady?: (args: NavigationLifecycleEmissionArgs) => void;
 }): Promise<boolean> {
     const currentPath = resolveRoutePath(args.url, args.basePath, args.resolvePath, args.locales);
     if (!currentPath) {
@@ -489,77 +624,158 @@ async function renderSpaRoute(args: {
         return false;
     }
 
-    const page = await resolveSpaRoutePage(routeMatch.route);
-    assertRegisteredPagePolicies(page, args.auth);
-    ensurePageCustomElement(page);
-
-    const pageTagName = page.getTagName();
     const locale = resolveNavigationLocale(args.url, args.basePath, args.locales);
-    const authorization = resolvePageAuthorization(page);
-    const principal = await resolveCurrentPrincipal(args.auth);
-    const accessDecision = await evaluatePageAuthorization({
-        authorization,
-        principal,
-        policies: args.auth?.policies,
-    });
-
-    if (accessDecision.status === "redirect-login") {
-        return await redirectUnauthorizedRouteToLogin({
-            ...args,
-            currentPath,
-            locale,
-        });
-    }
-
-    if (accessDecision.status === "forbidden") {
-        renderForbiddenRoute(args.mount);
-        return true;
-    }
-
-    const data = await resolvePageRouteData({
-        page,
-        params: routeMatch.params,
-        locale,
-        principal,
-        url: args.url,
-    });
-    const head = resolveSpaRouteHead({
-        page,
-        matchedPath: currentPath,
-        locale,
-        locales: args.locales,
-        data,
-    });
-    const routeContext = {
-        page,
+    const sequence = args.sequence ?? createNavigationSequenceState(args.nextNavigationSequence);
+    emitNavigationStart({
+        sequence,
+        mount: args.mount,
+        mode: args.mode,
+        navigationType: args.navigationType,
         path: routeMatch.route.path,
         matchedPath: currentPath,
-        params: routeMatch.params,
-        principal,
-        authorization,
-        data,
-        head,
         locale,
         url: args.url,
-        navigationType: args.navigationType,
         basePath: args.basePath,
-    } satisfies SpaNavigationRenderContext;
+    });
 
-    applyNavigationLocale(locale, args.url, args.basePath, args.onLocaleChange);
+    let errorPhase: MainzNavigationErrorDetail["phase"] = "route-load";
 
-    args.onRoute?.(routeContext);
+    try {
+        throwIfNavigationAborted(sequence);
+        const page = await resolveSpaRoutePage(routeMatch.route);
+        throwIfNavigationAborted(sequence);
+        assertRegisteredPagePolicies(page, args.auth);
+        ensurePageCustomElement(page);
 
-    const existingElement = args.mount.querySelector(pageTagName);
-    if (args.navigationType === "initial" && existingElement instanceof HTMLElement) {
-        applySpaRouteContext(existingElement, routeContext);
-        applyResolvedPageHeadToDocument(head);
+        const pageTagName = page.getTagName();
+        const authorization = resolvePageAuthorization(page);
+
+        errorPhase = "authorization";
+        const principal = await resolveCurrentPrincipal(args.auth);
+        throwIfNavigationAborted(sequence);
+        const accessDecision = await evaluatePageAuthorization({
+            authorization,
+            principal,
+            policies: args.auth?.policies,
+        });
+
+        if (accessDecision.status === "redirect-login") {
+            return await redirectUnauthorizedRouteToLogin({
+                ...args,
+                currentPath,
+                locale,
+                sequence,
+            });
+        }
+
+        if (accessDecision.status === "forbidden") {
+            applyNavigationLocale(locale, args.url, args.basePath, args.onLocaleChange);
+            renderForbiddenRoute(args.mount);
+            finalizeNavigationReady({
+                sequence,
+                mount: args.mount,
+                mode: args.mode,
+                navigationType: args.navigationType,
+                path: routeMatch.route.path,
+                matchedPath: currentPath,
+                locale,
+                url: args.url,
+                basePath: args.basePath,
+            }, args.finalizeNavigationReady);
+            return true;
+        }
+
+        errorPhase = "route-load";
+        const data = await resolvePageRouteData({
+            page,
+            params: routeMatch.params,
+            locale,
+            principal,
+            url: args.url,
+            signal: sequence.controller.signal,
+        });
+        throwIfNavigationAborted(sequence);
+        const head = resolveSpaRouteHead({
+            page,
+            matchedPath: currentPath,
+            locale,
+            locales: args.locales,
+            data,
+        });
+        const routeContext = {
+            page,
+            path: routeMatch.route.path,
+            matchedPath: currentPath,
+            params: routeMatch.params,
+            principal,
+            authorization,
+            data,
+            head,
+            locale,
+            url: args.url,
+            navigationType: args.navigationType,
+            basePath: args.basePath,
+        } satisfies SpaNavigationRenderContext;
+
+        errorPhase = "page-render";
+        throwIfNavigationAborted(sequence);
+        applyNavigationLocale(locale, args.url, args.basePath, args.onLocaleChange);
+
+        args.onRoute?.(routeContext);
+        throwIfNavigationAborted(sequence);
+
+        const existingElement = args.mount.querySelector(pageTagName);
+        if (args.navigationType === "initial" && existingElement instanceof HTMLElement) {
+            applySpaRouteContext(existingElement, routeContext);
+            applyResolvedPageHeadToDocument(head);
+            finalizeNavigationReady({
+                sequence,
+                mount: args.mount,
+                mode: args.mode,
+                navigationType: args.navigationType,
+                path: routeContext.path,
+                matchedPath: routeContext.matchedPath,
+                locale: routeContext.locale,
+                url: routeContext.url,
+                basePath: routeContext.basePath,
+            }, args.finalizeNavigationReady);
+            return true;
+        }
+
+        const nextPageElement = document.createElement(pageTagName);
+        applySpaRouteContext(nextPageElement, routeContext);
+        args.mount.replaceChildren(nextPageElement);
+        finalizeNavigationReady({
+            sequence,
+            mount: args.mount,
+            mode: args.mode,
+            navigationType: args.navigationType,
+            path: routeContext.path,
+            matchedPath: routeContext.matchedPath,
+            locale: routeContext.locale,
+            url: routeContext.url,
+            basePath: routeContext.basePath,
+        }, args.finalizeNavigationReady);
         return true;
+    } catch (error) {
+        if (isAbortLikeError(error) || sequence.controller.signal.aborted) {
+            return false;
+        }
+        emitNavigationError({
+            sequence,
+            mount: args.mount,
+            mode: args.mode,
+            navigationType: args.navigationType,
+            path: routeMatch.route.path,
+            matchedPath: currentPath,
+            locale,
+            url: args.url,
+            basePath: args.basePath,
+            phase: errorPhase,
+            error,
+        });
+        throw error;
     }
-
-    const nextPageElement = document.createElement(pageTagName);
-    applySpaRouteContext(nextPageElement, routeContext);
-    args.mount.replaceChildren(nextPageElement);
-    return true;
 }
 
 function normalizeSpaRoutes(
@@ -954,9 +1170,14 @@ async function resolvePageRouteData(args: {
     locale?: string;
     principal?: Principal;
     url: URL;
+    signal: AbortSignal;
 }): Promise<unknown> {
     if (typeof args.page.load !== "function") {
         return undefined;
+    }
+
+    if (args.signal.aborted) {
+        throw new NavigationAbortedError();
     }
 
     const context: PageLoadContext = createPageLoadContext({
@@ -965,6 +1186,7 @@ async function resolvePageRouteData(args: {
         url: args.url,
         renderMode: resolveMainzRenderMode(),
         navigationMode: resolveMainzNavigationMode(),
+        signal: args.signal,
         principal: args.principal,
     });
 
@@ -984,10 +1206,25 @@ async function redirectUnauthorizedRouteToLogin(args: {
     resolvePath?: RoutePathResolver;
     onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
     onRoute?: ResolvedPageNavigationOptions["onRoute"];
+    mode: NavigationMode;
+    nextNavigationSequence: NavigationSequenceSource;
+    sequence: NavigationSequenceState;
 }): Promise<boolean> {
     const loginPath = normalizeRoutePath(args.auth?.loginPath ?? "/login");
     if (!loginPath || loginPath === args.currentPath) {
+        applyNavigationLocale(args.locale, args.url, args.basePath, args.onLocaleChange);
         renderForbiddenRoute(args.mount);
+        emitNavigationReady({
+            sequence: args.sequence,
+            mount: args.mount,
+            mode: args.mode,
+            navigationType: args.navigationType,
+            path: args.currentPath,
+            matchedPath: args.currentPath,
+            locale: args.locale,
+            url: args.url,
+            basePath: args.basePath,
+        });
         return true;
     }
 
@@ -1018,6 +1255,9 @@ async function redirectUnauthorizedRouteToLogin(args: {
         resolvePath: args.resolvePath,
         onLocaleChange: args.onLocaleChange,
         onRoute: args.onRoute,
+        mode: args.mode,
+        nextNavigationSequence: args.nextNavigationSequence,
+        sequence: args.sequence,
     });
 
     return false;
@@ -1292,6 +1532,14 @@ function reportSpaNavigationError(error: unknown): void {
     console.error("[mainz] SPA navigation failed.", error);
 }
 
+function toErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    return String(error);
+}
+
 function resolveSpaLocalizedDocumentUrl(
     url: URL,
     basePath: string,
@@ -1376,16 +1624,19 @@ function applyNavigationLocale(
         return;
     }
 
-    document.documentElement.lang = locale;
-    document.dispatchEvent(
-        new CustomEvent<MainzLocaleChangeDetail>(MAINZ_LOCALE_CHANGE_EVENT, {
-            detail: {
-                locale,
-                url: url.toString(),
-                basePath,
-            },
-        }),
-    );
+    if (typeof document !== "undefined") {
+        document.documentElement.lang = locale;
+        document.dispatchEvent(
+            new CustomEvent<MainzLocaleChangeDetail>(MAINZ_LOCALE_CHANGE_EVENT, {
+                detail: {
+                    locale,
+                    url: url.toString(),
+                    basePath,
+                },
+            }),
+        );
+    }
+
     onLocaleChange?.({
         locale,
         url,
@@ -1418,7 +1669,9 @@ function resolveNavigationLocale(
     locales?: readonly string[],
 ): string | undefined {
     if (!locales?.length) {
-        const documentLocale = document.documentElement.lang.trim();
+        const documentLocale = typeof document === "undefined"
+            ? ""
+            : document.documentElement.lang.trim();
         return documentLocale || undefined;
     }
 
@@ -1434,7 +1687,9 @@ function resolveNavigationLocale(
         }
     }
 
-    const documentLocale = document.documentElement.lang.trim();
+    const documentLocale = typeof document === "undefined"
+        ? ""
+        : document.documentElement.lang.trim();
     if (!documentLocale) {
         return locales[0];
     }
@@ -1513,6 +1768,200 @@ function assertRegisteredNavigationPolicies(options: ResolvedPageNavigationOptio
             missingPolicies.map((policyName) => `"${policyName}"`).join(", ")
         }. Register them under auth.policies before starting navigation.`,
     );
+}
+
+function createNavigationSequenceSource(): NavigationSequenceSource {
+    let navigationSequence = 0;
+
+    return () => {
+        navigationSequence += 1;
+        return navigationSequence;
+    };
+}
+
+function createNavigationSequenceState(
+    nextNavigationSequence: NavigationSequenceSource,
+): NavigationSequenceState {
+    return {
+        navigationSequence: nextNavigationSequence(),
+        started: false,
+        controller: new AbortController(),
+    };
+}
+
+function throwIfNavigationAborted(sequence: NavigationSequenceState): void {
+    if (sequence.controller.signal.aborted) {
+        throw new NavigationAbortedError();
+    }
+}
+
+function emitNavigationStart(args: NavigationLifecycleEmissionArgs): MainzNavigationStartDetail | undefined {
+    if (typeof document === "undefined" || args.sequence.started) {
+        return undefined;
+    }
+
+    args.sequence.started = true;
+    args.sequence.lifecycle = {
+        mount: args.mount,
+        mode: args.mode,
+        navigationType: args.navigationType,
+        path: args.path,
+        matchedPath: args.matchedPath,
+        locale: args.locale,
+        url: args.url,
+        basePath: args.basePath,
+    };
+
+    const detail = {
+        mode: args.mode,
+        navigationType: args.navigationType,
+        path: args.path,
+        matchedPath: args.matchedPath,
+        locale: args.locale,
+        url: args.url.toString(),
+        basePath: args.basePath,
+        navigationSequence: args.sequence.navigationSequence,
+    } satisfies MainzNavigationStartDetail;
+
+    args.mount.dispatchEvent(
+        new CustomEvent<MainzNavigationStartDetail>(MAINZ_NAVIGATION_START_EVENT, {
+            detail,
+            bubbles: true,
+        }),
+    );
+
+    return detail;
+}
+
+function emitNavigationReady(args: NavigationLifecycleEmissionArgs): MainzNavigationReadyDetail | undefined {
+    if (typeof document === "undefined") {
+        return undefined;
+    }
+
+    if (args.sequence.terminalState) {
+        return undefined;
+    }
+
+    args.sequence.terminalState = "ready";
+
+    const detail = {
+        mode: args.mode,
+        navigationType: args.navigationType,
+        path: args.path,
+        matchedPath: args.matchedPath,
+        locale: args.locale,
+        url: args.url.toString(),
+        basePath: args.basePath,
+        navigationSequence: args.sequence.navigationSequence,
+    } satisfies MainzNavigationReadyDetail;
+
+    args.mount.dispatchEvent(
+        new CustomEvent<MainzNavigationReadyDetail>(MAINZ_NAVIGATION_READY_EVENT, {
+            detail,
+            bubbles: true,
+        }),
+    );
+
+    return detail;
+}
+
+function finalizeNavigationReady(
+    readyArgs: NavigationLifecycleEmissionArgs,
+    finalize?: (args: NavigationLifecycleEmissionArgs) => void,
+): void {
+    if (finalize) {
+        finalize(readyArgs);
+        return;
+    }
+
+    emitNavigationReady(readyArgs);
+}
+
+function emitNavigationError(args: NavigationLifecycleEmissionArgs & {
+    phase: MainzNavigationErrorDetail["phase"];
+    error: unknown;
+}): MainzNavigationErrorDetail | undefined {
+    if (typeof document === "undefined") {
+        return undefined;
+    }
+
+    if (args.sequence.terminalState) {
+        return undefined;
+    }
+
+    args.sequence.terminalState = "error";
+
+    const detail = {
+        mode: args.mode,
+        navigationType: args.navigationType,
+        path: args.path,
+        matchedPath: args.matchedPath,
+        locale: args.locale,
+        url: args.url.toString(),
+        basePath: args.basePath,
+        navigationSequence: args.sequence.navigationSequence,
+        phase: args.phase,
+        message: toErrorMessage(args.error),
+        error: args.error,
+    } satisfies MainzNavigationErrorDetail;
+
+    args.mount.dispatchEvent(
+        new CustomEvent<MainzNavigationErrorDetail>(MAINZ_NAVIGATION_ERROR_EVENT, {
+            detail,
+            bubbles: true,
+        }),
+    );
+
+    return detail;
+}
+
+function abortNavigationSequence(
+    sequence: NavigationSequenceState | undefined,
+    args: Partial<NavigationLifecycleBaseArgs> & {
+        reason: MainzNavigationAbortDetail["reason"];
+    },
+): MainzNavigationAbortDetail | undefined {
+    if (!sequence || sequence.terminalState) {
+        return undefined;
+    }
+
+    const lifecycle = sequence.lifecycle;
+    const mount = lifecycle?.mount ?? args.mount;
+    const mode = lifecycle?.mode ?? args.mode;
+    const navigationType = lifecycle?.navigationType ?? args.navigationType;
+    const path = lifecycle?.path ?? args.path;
+    const matchedPath = lifecycle?.matchedPath ?? args.matchedPath;
+    const locale = lifecycle?.locale ?? args.locale;
+    const url = lifecycle?.url ?? args.url;
+    const basePath = lifecycle?.basePath ?? args.basePath;
+
+    if (!mount || !mode || !navigationType || !path || !matchedPath || !url || !basePath) {
+        return undefined;
+    }
+
+    sequence.terminalState = "abort";
+    sequence.controller.abort();
+
+    const detail = {
+        mode,
+        navigationType,
+        path,
+        matchedPath,
+        locale,
+        url: url.toString(),
+        basePath,
+        navigationSequence: sequence.navigationSequence,
+        reason: args.reason,
+    } satisfies MainzNavigationAbortDetail;
+
+    mount.dispatchEvent(
+        new CustomEvent<MainzNavigationAbortDetail>(MAINZ_NAVIGATION_ABORT_EVENT, {
+            detail,
+            bubbles: true,
+        }),
+    );
+
+    return detail;
 }
 
 function collectImmediateNavigationPages(
@@ -1646,8 +2095,10 @@ function readMainzTargetLocales(): readonly string[] {
 }
 
 async function bootstrapDocumentNavigation(
+    mode: NavigationMode,
     options: ResolvedPageNavigationOptions,
     basePath: string,
+    nextNavigationSequence: NavigationSequenceSource,
 ): Promise<void> {
     if (!options.pages.length && !options.notFound) {
         return;
@@ -1660,38 +2111,99 @@ async function bootstrapDocumentNavigation(
         "/";
     const routeMatch = findMatchingSpaRoute(routes, currentPath);
     const locale = resolveNavigationLocale(url, basePath, options.locales);
+    const sequence = createNavigationSequenceState(nextNavigationSequence);
 
-    const existingContext = await resolveMountedRouteContext(mount, routes, {
-        routeMatch,
-        url,
-        currentPath,
-        basePath,
-        locale,
-        auth: options.auth,
-        locales: options.locales,
-    });
-    if (existingContext && typeof existingContext !== "string") {
-        applyNavigationLocale(locale, url, basePath, options.onLocaleChange);
-        options.onRoute?.(existingContext);
-        return;
-    }
-
-    if (existingContext === "redirected" || existingContext === "forbidden") {
-        return;
-    }
-
-    await renderSpaRoute({
-        routes,
+    emitNavigationStart({
+        sequence,
         mount,
-        url,
+        mode,
         navigationType: "initial",
+        path: routeMatch?.route.path ?? currentPath,
+        matchedPath: currentPath,
+        locale,
+        url,
         basePath,
-        auth: options.auth,
-        locales: options.locales,
-        resolvePath: options.resolvePath,
-        onLocaleChange: options.onLocaleChange,
-        onRoute: options.onRoute,
     });
+
+    try {
+        const existingContext = await resolveMountedRouteContext(mount, routes, {
+            routeMatch,
+            url,
+            currentPath,
+            basePath,
+            locale,
+            auth: options.auth,
+            locales: options.locales,
+            mode,
+            nextNavigationSequence,
+            sequence,
+        });
+        if (existingContext && typeof existingContext !== "string") {
+            applyNavigationLocale(locale, url, basePath, options.onLocaleChange);
+            options.onRoute?.(existingContext);
+            emitNavigationReady({
+                sequence,
+                mount,
+                mode,
+                navigationType: existingContext.navigationType,
+                path: existingContext.path,
+                matchedPath: existingContext.matchedPath,
+                locale: existingContext.locale,
+                url: existingContext.url,
+                basePath: existingContext.basePath,
+            });
+            return;
+        }
+
+        if (existingContext === "redirected" || existingContext === "forbidden") {
+            if (existingContext === "forbidden") {
+                applyNavigationLocale(locale, url, basePath, options.onLocaleChange);
+                emitNavigationReady({
+                    sequence,
+                    mount,
+                    mode,
+                    navigationType: "initial",
+                    path: routeMatch?.route.path ?? currentPath,
+                    matchedPath: currentPath,
+                    locale,
+                    url,
+                    basePath,
+                });
+            }
+            return;
+        }
+
+        await renderSpaRoute({
+            routes,
+            mount,
+            url,
+            navigationType: "initial",
+            basePath,
+            auth: options.auth,
+            locales: options.locales,
+            resolvePath: options.resolvePath,
+            onLocaleChange: options.onLocaleChange,
+            onRoute: options.onRoute,
+            mode,
+            nextNavigationSequence,
+            sequence,
+        });
+    } catch (error) {
+        emitNavigationError({
+            sequence,
+            mount,
+            mode,
+            navigationType: "initial",
+            path: routeMatch?.route.path ?? currentPath,
+            matchedPath: currentPath,
+            locale,
+            url,
+            basePath,
+            phase: "document-bootstrap",
+            error,
+        });
+        throw error;
+    }
 }
 
 async function resolveMountedRouteContext(
@@ -1705,6 +2217,9 @@ async function resolveMountedRouteContext(
         locale?: string;
         auth?: AuthorizationRuntimeOptions;
         locales?: readonly string[];
+        mode: NavigationMode;
+        nextNavigationSequence: NavigationSequenceSource;
+        sequence: NavigationSequenceState;
     },
 ): Promise<SpaNavigationRenderContext | "redirected" | "forbidden" | null> {
     const routeSnapshot = readInitialRouteSnapshot();
@@ -1734,6 +2249,9 @@ async function resolveMountedRouteContext(
                     locale: context.locale,
                     auth: context.auth,
                     locales: context.locales,
+                    mode: context.mode,
+                    nextNavigationSequence: context.nextNavigationSequence,
+                    sequence: context.sequence,
                 });
                 return "redirected";
             }
@@ -1755,6 +2273,7 @@ async function resolveMountedRouteContext(
                 locale: context.locale,
                 principal,
                 url: context.url,
+                signal: context.sequence.controller.signal,
             });
             const routeContext = {
                 page: matchedPage,
@@ -1822,6 +2341,9 @@ async function resolveMountedRouteContext(
                 locale: context.locale,
                 auth: context.auth,
                 locales: context.locales,
+                mode: context.mode,
+                nextNavigationSequence: context.nextNavigationSequence,
+                sequence: context.sequence,
             });
             return "redirected";
         }
@@ -1843,6 +2365,7 @@ async function resolveMountedRouteContext(
             locale: context.locale,
             principal,
             url: context.url,
+            signal: context.sequence.controller.signal,
         });
         const routeContext = {
             page: route.page,

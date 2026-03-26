@@ -20,7 +20,11 @@ import {
     prepareNavigationTest,
     renderMainzComponent,
     setupMainzDom,
+    waitForNavigationAbort,
     waitFor,
+    waitForNavigationError,
+    waitForNavigationReady,
+    waitForNavigationStart,
 } from "mainz/testing";
 ```
 
@@ -84,6 +88,18 @@ Two small helpers are especially useful in tests:
 
 - `nextTick()` for waiting one render/event turn
 - `waitFor(predicate)` for polling until an async condition becomes true
+- `waitForNavigationStart(...)` for synchronizing on accepted Mainz navigation
+- `waitForNavigationAbort(...)` for synchronizing on canceled Mainz navigation
+- `waitForNavigationError(...)` for synchronizing on failed Mainz navigation
+- `waitForNavigationReady(...)` for synchronizing on completed Mainz navigation
+
+Guideline:
+
+- pending-state test: start with `waitForNavigationStart(...)`
+- canceled/superseded path: prefer `waitForNavigationAbort(...)`
+- failure-path test: prefer `waitForNavigationError(...)` over timeout-based inference
+- single-app page: `waitForNavigationReady()` is usually enough
+- multi-app page: prefer `waitForNavigationReady({ target: appRoot })`
 
 These are intentionally small. Mainz tries to make normal DOM assertions readable instead of hiding
 everything behind a big custom test DSL.

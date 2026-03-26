@@ -13,6 +13,8 @@ import {
     readJsonFile,
     resolveDirectLoadFixture,
     resolveOutputScriptPath,
+    waitForNextNavigationStart,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 export async function runHydrationMatrixCheck(args: {
@@ -58,12 +60,31 @@ export async function runHydrationMatrixCheck(args: {
                 assertEquals(document.querySelector("#app")?.innerHTML, "");
             }
 
+            const navigationStarted = waitForNextNavigationStart({
+                mode: context.navigation,
+                locale: "pt",
+                navigationType: "initial",
+            });
+            const navigationReady = waitForNextNavigationReady({
+                mode: context.navigation,
+                locale: "pt",
+                navigationType: "initial",
+            });
             await import(
                 `${
                     pathToFileURL(scriptPath).href
                 }?e2e=${Date.now()}-${context.mode}-${context.navigation}`
             );
-            await waitFor(() => document.querySelectorAll(`#app ${tutorialTagName}`).length === 1);
+            await navigationStarted;
+            await navigationReady;
+            await waitFor(
+                () =>
+                    document.documentElement.dataset.mainzNavigation === context.navigation &&
+                    document.documentElement.lang === "pt" &&
+                    document.querySelectorAll(`#app ${tutorialTagName}`).length === 1 &&
+                    (document.body.textContent ?? "").includes("Iniciar trilha guiada"),
+                `Expected ${context.mode} + ${context.navigation} hydration to finish in Portuguese.`,
+            );
 
             assertEquals(document.documentElement.dataset.mainzNavigation, context.navigation);
             assertEquals(document.documentElement.lang, "pt");

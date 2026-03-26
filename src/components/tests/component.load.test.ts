@@ -218,3 +218,248 @@ Deno.test("components/component load: should reload when props change and ignore
     assertEquals(screen.getBySelector("[data-role='status']").textContent, "Routing");
     screen.cleanup();
 });
+
+Deno.test("components/component load: should abort the previous deferred load when props change", async () => {
+    const calls: string[] = [];
+    const observedAborts: string[] = [];
+    const requests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+
+    const Harness = fixtures.createAbortAwareReloadHarness({
+        calls,
+        observedAborts,
+        requests,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
+
+    screen.component.props = { slug: "routing" };
+    screen.component.rerender();
+
+    assertEquals(calls, ["intro", "routing"]);
+    assertEquals(observedAborts, ["intro"]);
+
+    requests.get("intro")?.resolve({ title: "Intro" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
+
+    requests.get("routing")?.resolve({ title: "Routing" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "Routing");
+    screen.cleanup();
+});
+
+Deno.test("components/component load: should abort an in-flight deferred load on cleanup", async () => {
+    const request = createDeferred<{ title: string }>();
+    const startedLoads: string[] = [];
+    const observedAborts: string[] = [];
+
+    const Harness = fixtures.createAbortAwareCleanupHarness({
+        startedLoads,
+        observedAborts,
+        request: request.promise,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
+    assertEquals(startedLoads, ["intro"]);
+
+    screen.cleanup();
+    await flushComponentLoadUpdates();
+
+    assertEquals(observedAborts, ["intro"]);
+});
+
+Deno.test("components/component load: should not render the error fallback when an aborted load rejects with AbortError", async () => {
+    const calls: string[] = [];
+    const observedAborts: string[] = [];
+    const requests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+
+    const Harness = fixtures.createAbortRejectingReloadHarness({
+        calls,
+        observedAborts,
+        requests,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
+
+    screen.component.props = { slug: "routing" };
+    screen.component.rerender();
+
+    requests.get("intro")?.reject(new DOMException("stale load", "AbortError"));
+    await flushComponentLoadUpdates();
+
+    assertEquals(calls, ["intro", "routing"]);
+    assertEquals(observedAborts, ["intro"]);
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
+
+    requests.get("routing")?.resolve({ title: "Routing" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "Routing");
+    screen.cleanup();
+});
+
+Deno.test("components/component load: should abort stale work across multiple deferred children when the host props change", async () => {
+    const primaryCalls: string[] = [];
+    const secondaryCalls: string[] = [];
+    const primaryObservedAborts: string[] = [];
+    const secondaryObservedAborts: string[] = [];
+    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+
+    const Harness = fixtures.createMultiPanelAbortHarness({
+        primaryCalls,
+        secondaryCalls,
+        primaryObservedAborts,
+        secondaryObservedAborts,
+        primaryRequests,
+        secondaryRequests,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "loading");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "loading");
+
+    screen.component.props = { slug: "routing" };
+    screen.component.rerender();
+
+    assertEquals(primaryCalls, ["intro", "routing"]);
+    assertEquals(secondaryCalls, ["intro", "routing"]);
+    assertEquals(primaryObservedAborts, ["intro"]);
+    assertEquals(secondaryObservedAborts, ["intro"]);
+
+    primaryRequests.get("intro")?.resolve({ title: "Primary Intro" });
+    secondaryRequests.get("intro")?.resolve({ title: "Secondary Intro" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "loading");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "loading");
+
+    primaryRequests.get("routing")?.resolve({ title: "Primary Routing" });
+    secondaryRequests.get("routing")?.resolve({ title: "Secondary Routing" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "Primary Routing");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "Secondary Routing");
+    screen.cleanup();
+});
+
+Deno.test("components/component load: should keep abort and real error isolated across deferred sibling components", async () => {
+    const primaryCalls: string[] = [];
+    const secondaryCalls: string[] = [];
+    const primaryObservedAborts: string[] = [];
+    const secondaryObservedAborts: string[] = [];
+    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+        ["routing", createDeferred<{ title: string }>()],
+    ]);
+
+    const Harness = fixtures.createMultiPanelAbortAndErrorHarness({
+        primaryCalls,
+        secondaryCalls,
+        primaryObservedAborts,
+        secondaryObservedAborts,
+        primaryRequests,
+        secondaryRequests,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "loading");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "loading");
+
+    screen.component.props = { slug: "routing" };
+    screen.component.rerender();
+
+    primaryRequests.get("intro")?.reject(new DOMException("stale load", "AbortError"));
+    secondaryRequests.get("intro")?.reject(new DOMException("stale load", "AbortError"));
+    await flushComponentLoadUpdates();
+
+    assertEquals(primaryCalls, ["intro", "routing"]);
+    assertEquals(secondaryCalls, ["intro", "routing"]);
+    assertEquals(primaryObservedAborts, ["intro"]);
+    assertEquals(secondaryObservedAborts, ["intro"]);
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "loading");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "loading");
+
+    primaryRequests.get("routing")?.resolve({ title: "Primary Routing" });
+    secondaryRequests.get("routing")?.reject(new Error("Secondary failed"));
+    await flushComponentLoadUpdates();
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "Primary Routing");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "Secondary failed");
+    screen.cleanup();
+});
+
+Deno.test("components/component load: should abort in-flight deferred sibling loads when the host tree is cleaned up", async () => {
+    const primaryCalls: string[] = [];
+    const secondaryCalls: string[] = [];
+    const primaryObservedAborts: string[] = [];
+    const secondaryObservedAborts: string[] = [];
+    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+    ]);
+    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
+        ["intro", createDeferred<{ title: string }>()],
+    ]);
+
+    const Harness = fixtures.createMultiPanelAbortHarness({
+        primaryCalls,
+        secondaryCalls,
+        primaryObservedAborts,
+        secondaryObservedAborts,
+        primaryRequests,
+        secondaryRequests,
+    });
+    const screen = renderMainzComponent(Harness, {
+        props: { slug: "intro" },
+    });
+
+    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "loading");
+    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "loading");
+    assertEquals(primaryCalls, ["intro"]);
+    assertEquals(secondaryCalls, ["intro"]);
+
+    const detachedHost = screen.component;
+    screen.cleanup();
+
+    assertEquals(primaryObservedAborts, ["intro"]);
+    assertEquals(secondaryObservedAborts, ["intro"]);
+
+    primaryRequests.get("intro")?.resolve({ title: "Primary Intro" });
+    secondaryRequests.get("intro")?.resolve({ title: "Secondary Intro" });
+    await flushComponentLoadUpdates();
+
+    assertEquals(detachedHost.isConnected, false);
+    assertEquals(detachedHost.textContent?.includes("Primary Intro") ?? false, false);
+    assertEquals(detachedHost.textContent?.includes("Secondary Intro") ?? false, false);
+});

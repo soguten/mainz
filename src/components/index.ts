@@ -23,7 +23,7 @@ export {
 } from "./page.ts";
 export { ensureMainzCustomElementDefined } from "./registry.ts";
 export type { ChildrenOnlyProps, DefaultProps, DefaultState, NoProps, NoState } from "./types.ts";
-export type { ComponentRenderConfig, RenderStrategyOptions } from "./component.ts";
+export type { ComponentLoadContext, ComponentRenderConfig, RenderStrategyOptions } from "./component.ts";
 export type {
     AuthorizationOptions,
     AuthorizationPolicy,

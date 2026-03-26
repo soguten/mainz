@@ -4,7 +4,6 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
-import { nextTick } from "../../src/testing/async-testing.ts";
 import {
     assertDocumentState,
     buildCoreContractsForCombination,
@@ -15,6 +14,7 @@ import {
     resolveOutputHtmlPath,
     resolveOutputScriptPath,
     resolvePreviewFixture,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 export async function runRoutingMatrixCheck(args: {
@@ -88,6 +88,11 @@ async function assertRoute(args: {
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.context.navigation,
+            locale: args.expectedLocale,
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
@@ -95,7 +100,7 @@ async function assertRoute(args: {
                 encodeURIComponent(args.path)
             }`
         );
-        await nextTick();
+        await navigationReady;
 
         assertDocumentState({
             navigation: args.context.navigation,

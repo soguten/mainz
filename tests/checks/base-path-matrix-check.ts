@@ -13,8 +13,12 @@ import {
     type CliTestRenderMode,
     createCliFixtureTargetConfig,
     extractModuleScriptSrc,
+    readAlternateHref,
+    readCanonicalHref,
     resolveDirectLoadFixture,
     resolveOutputScriptPath,
+    waitForNextNavigationStart,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 const matrixBasePath = "/docs/mainz/";
 const matrixSiteUrl = "https://example.com/docs/mainz";
@@ -78,14 +82,26 @@ async function assertLocalizedHomeRoute(args: {
         document.write(htmlFixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.navigation,
+            locale: "en",
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
             }?e2e=${Date.now()}-${args.mode}-${args.navigation}-home`
         );
-        await waitFor(() =>
-            document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]') !== null &&
-            document.documentElement.lang === "en"
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === args.navigation &&
+                document.documentElement.lang === "en" &&
+                document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]')
+                        ?.getAttribute("href") === `${matrixBasePath}pt/` &&
+                readCanonicalHref() === `${matrixSiteUrl}/en/` &&
+                readAlternateHref("pt") === `${matrixSiteUrl}/pt/`,
+            `Expected ${args.mode} + ${args.navigation} basePath home route to finish bootstrapping.`,
         );
 
         assertDocumentState({
@@ -119,8 +135,17 @@ async function assertLocalizedHomeRoute(args: {
             cancelable: true,
             button: 0,
         });
+        const started = args.navigation === "spa"
+            ? waitForNextNavigationStart({
+                mode: "spa",
+                path: "/",
+                matchedPath: "/",
+                locale: "pt",
+                navigationType: "push",
+            })
+            : undefined;
         const clickResult = localeLink.dispatchEvent(clickEvent);
-        await waitForHomeClick(args.navigation);
+        await waitForHomeClick(args.navigation, started);
 
         if (args.navigation === "spa") {
             assertEquals(clickResult, false);
@@ -181,14 +206,26 @@ async function assertLocalizedNotFoundRoute(args: {
         document.write(htmlFixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.navigation,
+            locale: "pt",
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
             }?e2e=${Date.now()}-${args.mode}-${args.navigation}-404`
         );
-        await waitFor(() =>
-            document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="en"]') !== null &&
-            document.documentElement.lang === "pt"
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === args.navigation &&
+                document.documentElement.lang === "pt" &&
+                document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="en"]')
+                        ?.getAttribute("href") === `${matrixBasePath}en/nao-existe` &&
+                readCanonicalHref() === `${matrixSiteUrl}/pt/nao-existe` &&
+                readAlternateHref("en") === `${matrixSiteUrl}/en/nao-existe`,
+            `Expected ${args.mode} + ${args.navigation} localized 404 route to finish bootstrapping.`,
         );
 
         assertDocumentState({
@@ -254,15 +291,21 @@ async function resolveNotFoundFixture(
     };
 }
 
-async function waitForHomeClick(navigationMode: "spa" | "mpa" | "enhanced-mpa"): Promise<void> {
+async function waitForHomeClick(
+    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+    started?: Promise<unknown>,
+): Promise<void> {
     if (navigationMode === "spa") {
-        await waitFor(
-            () =>
-                window.location.pathname === `${matrixBasePath}pt/` &&
-                document.documentElement.lang === "pt" &&
-                (document.body.textContent ?? "").includes("Inicio da fixture"),
-            `Expected SPA locale switch under basePath to land on ${matrixBasePath}pt/. Received pathname=${window.location.pathname}, lang=${document.documentElement.lang}.`,
-        );
+        await Promise.all([
+            started,
+            waitForNextNavigationReady({
+                mode: "spa",
+                path: "/",
+                matchedPath: "/",
+                locale: "pt",
+                navigationType: "push",
+            }),
+        ]);
         return;
     }
 

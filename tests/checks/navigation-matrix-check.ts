@@ -11,6 +11,8 @@ import {
     parseCliMatrixCheckArgs,
     resolveDirectLoadFixture,
     resolveOutputScriptPath,
+    waitForNextNavigationStart,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 export async function runNavigationMatrixCheck(args: {
@@ -39,11 +41,17 @@ export async function runNavigationMatrixCheck(args: {
             document.write(fixture.html);
             document.close();
 
+            const navigationReady = waitForNextNavigationReady({
+                mode: context.navigation,
+                locale: "en",
+                navigationType: "initial",
+            });
             await import(
                 `${
                     pathToFileURL(scriptPath).href
                 }?e2e=${Date.now()}-${context.mode}-${context.navigation}`
             );
+            await navigationReady;
             await waitFor(() =>
                 document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]') !==
                     null &&
@@ -69,13 +77,22 @@ export async function runNavigationMatrixCheck(args: {
                     "href",
                 ) ??
                     null;
-            const clickEvent = new window.MouseEvent("click", {
-                bubbles: true,
-                cancelable: true,
-                button: 0,
-            });
-            const clickResult = localeLink.dispatchEvent(clickEvent);
-            await waitForPostClick(context.navigation);
+        const clickEvent = new window.MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+        });
+        const started = context.navigation === "spa"
+            ? waitForNextNavigationStart({
+                mode: "spa",
+                path: "/",
+                matchedPath: "/",
+                locale: "pt",
+                navigationType: "push",
+            })
+            : undefined;
+        const clickResult = localeLink.dispatchEvent(clickEvent);
+        await waitForPostClick(context.navigation, started);
 
             if (context.navigation === "spa") {
                 assertEquals(clickResult, false);
@@ -126,15 +143,21 @@ async function resolveHtmlFixture(
     };
 }
 
-async function waitForPostClick(navigationMode: "spa" | "mpa" | "enhanced-mpa"): Promise<void> {
+async function waitForPostClick(
+    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+    started?: Promise<unknown>,
+): Promise<void> {
     if (navigationMode === "spa") {
-        await waitFor(
-            () =>
-                window.location.pathname === "/pt/" &&
-                document.documentElement.lang === "pt" &&
-                (document.body.textContent ?? "").includes("Iniciar trilha guiada"),
-            `Expected SPA locale switch to land on /pt/. Received pathname=${window.location.pathname}, lang=${document.documentElement.lang}, title=${document.title}.`,
-        );
+        await Promise.all([
+            started,
+            waitForNextNavigationReady({
+                mode: "spa",
+                path: "/",
+                matchedPath: "/",
+                locale: "pt",
+                navigationType: "push",
+            }),
+        ]);
         return;
     }
 

@@ -13,6 +13,7 @@ import {
     parseCliMatrixCheckArgs,
     resolveDirectLoadFixture,
     resolveOutputScriptPath,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 export async function runI18nMatrixCheck(args: {
@@ -136,12 +137,17 @@ async function assertLocalizedRoute(args: {
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.context.navigation,
+            locale: args.locale,
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
             }?e2e=${Date.now()}-${args.context.mode}-${args.context.navigation}-${args.locale}`
         );
-        await nextTick();
+        await navigationReady;
 
         assertDocumentState({
             navigation: args.context.navigation,

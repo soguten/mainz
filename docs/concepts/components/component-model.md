@@ -63,9 +63,26 @@ The model is intentionally direct:
 - `state` holds local mutable UI state
 - `render()` returns the current DOM shape
 - `initState()` bootstraps state before the first render
+- `load(context)` can own async component assembly when the component declares `@RenderStrategy(...)`
 
 That keeps component behavior local instead of splitting logic across hooks, templates, and external
 config.
+
+When a component implements `load(context)`, Mainz now passes `context.signal`.
+
+That signal is aborted when:
+
+- the component starts a fresher load because props changed
+- the component disconnects before the current load settles
+
+This keeps component-owned async work cooperative with cancellation and prevents stale results from
+becoming the rendered state later.
+
+That behavior also composes across subtrees:
+
+- sibling deferred components each keep their own load attempt and abort signal
+- a newer parent-driven rerender aborts each stale child load independently
+- one child hitting a real error fallback does not turn an aborted sibling into an error
 
 ## Components compose pages
 

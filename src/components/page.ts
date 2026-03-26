@@ -53,6 +53,7 @@ export interface PageLoadContext {
     url: URL;
     renderMode: RenderMode;
     navigationMode: NavigationMode;
+    signal: AbortSignal;
     principal?: Principal;
     resources: PageLoadResources;
 }
@@ -71,6 +72,7 @@ export interface PageLoadContextInit {
     url: URL;
     renderMode: RenderMode;
     navigationMode: NavigationMode;
+    signal?: AbortSignal;
     principal?: Principal;
     runtime?: ResourceRuntime;
 }
@@ -194,6 +196,7 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
         url: init.url,
         renderMode: init.renderMode,
         navigationMode: init.navigationMode,
+        signal: init.signal ?? new AbortController().signal,
         principal: init.principal,
         runtime: init.runtime ?? resolveMainzResourceRuntime(),
     } satisfies PageLoadContextInit;

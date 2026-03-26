@@ -2,6 +2,42 @@ import type { PageLoadContext } from "../../index.ts";
 import { Authorize, CustomElement, Page, Route } from "../../index.ts";
 
 let protectedLoadCount = 0;
+let abortAwareLoadStartedCount = 0;
+let abortAwareExpensiveCallCount = 0;
+let abortAwareAbortObservedCount = 0;
+let resolveAbortAwareLoadStarted: (() => void) | undefined;
+let abortAwareLoadStartedPromise = Promise.resolve();
+
+function createAbortAwareLoadStartedPromise(): Promise<void> {
+    return new Promise<void>((resolve) => {
+        resolveAbortAwareLoadStarted = resolve;
+    });
+}
+
+abortAwareLoadStartedPromise = createAbortAwareLoadStartedPromise();
+
+export function resetAbortAwareLoadStats(): void {
+    abortAwareLoadStartedCount = 0;
+    abortAwareExpensiveCallCount = 0;
+    abortAwareAbortObservedCount = 0;
+    abortAwareLoadStartedPromise = createAbortAwareLoadStartedPromise();
+}
+
+export function readAbortAwareLoadStartedCount(): number {
+    return abortAwareLoadStartedCount;
+}
+
+export function readAbortAwareExpensiveCallCount(): number {
+    return abortAwareExpensiveCallCount;
+}
+
+export function readAbortAwareAbortObservedCount(): number {
+    return abortAwareAbortObservedCount;
+}
+
+export async function waitForAbortAwareLoadStart(): Promise<void> {
+    await abortAwareLoadStartedPromise;
+}
 
 export function readProtectedLoadCount(): number {
     return protectedLoadCount;
@@ -144,6 +180,62 @@ export class SpaPolicyPage extends Page {
         const element = document.createElement("section");
         element.textContent = "Organization page";
         element.setAttribute("data-page", "org");
+        return element;
+    }
+}
+
+@CustomElement("x-mainz-navigation-spa-broken-page")
+@Route("/broken")
+export class SpaBrokenPage extends Page {
+    static override page = {
+        head: {
+            title: "Broken",
+        },
+    };
+
+    static load(): never {
+        throw new Error("Broken route load.");
+    }
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        element.textContent = "Broken page";
+        element.setAttribute("data-page", "broken");
+        return element;
+    }
+}
+
+@CustomElement("x-mainz-navigation-spa-slow-page")
+@Route("/slow")
+export class SpaSlowPage extends Page {
+    static override page = {
+        head: {
+            title: "Slow",
+        },
+    };
+
+    static async load(context: PageLoadContext) {
+        abortAwareLoadStartedCount += 1;
+        resolveAbortAwareLoadStarted?.();
+        resolveAbortAwareLoadStarted = undefined;
+
+        await new Promise<void>((resolve) => setTimeout(resolve, 40));
+
+        if (context.signal.aborted) {
+            abortAwareAbortObservedCount += 1;
+            throw new DOMException("Aborted", "AbortError");
+        }
+
+        abortAwareExpensiveCallCount += 1;
+        return {
+            status: "slow-finished",
+        };
+    }
+
+    override render(): HTMLElement {
+        const element = document.createElement("section");
+        element.textContent = "Slow page";
+        element.setAttribute("data-page", "slow");
         return element;
     }
 }

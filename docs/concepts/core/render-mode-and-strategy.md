@@ -46,8 +46,10 @@ It answers questions like:
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
 export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
-    override async load() {
-        return await buildDocsArticleModel(this.props.slug);
+    override async load(context) {
+        return await buildDocsArticleModel(this.props.slug, {
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -57,6 +59,16 @@ export class DocsArticleContent extends Component<{ slug?: string }, NoState, Do
 ```
 
 The component decides how its own `load()` participates inside the page.
+Mainz passes `context.signal` to that load so a newer component load attempt or disconnect can abort
+the older one before it applies stale UI.
+
+That also means deferred sibling components can settle independently:
+
+- one child may abort because its load became stale
+- another child may resolve successfully
+- a third child may render its real `errorFallback`
+
+Mainz keeps those outcomes isolated per component load attempt.
 
 When a component has `load()` but no local state, prefer `NoState` in the second generic slot so the
 intent stays visible.
@@ -139,8 +151,10 @@ Use this for public content that belongs in the first HTML response.
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
 export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
-    override async load() {
-        return await buildDocsArticleModel(this.props.slug);
+    override async load(context) {
+        return await buildDocsArticleModel(this.props.slug, {
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -162,8 +176,10 @@ Use this for secondary UI like `On this page`, related content, or non-critical 
     fallback: () => <p>Scanning sections...</p>,
 })
 export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
-    override async load() {
-        return collectArticleHeadings();
+    override async load(context) {
+        return await collectArticleHeadings({
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -190,8 +206,10 @@ export class RecentlyViewedDocs extends Component<
     NoState,
     readonly RecentlyViewedDoc[]
 > {
-    override async load() {
-        return readRecentDocsFromLocalStorage(this.props.currentSlug);
+    override async load(context) {
+        return readRecentDocsFromLocalStorage(this.props.currentSlug, {
+            signal: context.signal,
+        });
     }
 
     override render() {

@@ -43,3 +43,14 @@ That same page can also define `entries()` and `load()` when a dynamic route nee
 
 The framework then expands and bootstraps the route without requiring a separate router file full of
 glue code.
+
+When a page defines `load()`, the context now includes `signal: AbortSignal`.
+
+That signal represents the lifetime of the current managed navigation in the runtime. If Mainz
+supersedes or aborts that navigation, the signal is aborted so the page can stop route-owned async
+work and avoid stale updates.
+
+This is specifically about runtime navigation.
+
+`entries()` still belongs to build/prerender route expansion and is not part of the
+`navigationabort` lifecycle.

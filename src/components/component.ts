@@ -47,6 +47,10 @@ export interface ComponentRenderConfig extends RenderStrategyOptions {
     strategy: RenderStrategy;
 }
 
+export interface ComponentLoadContext {
+    signal: AbortSignal;
+}
+
 interface ComponentLoadState<Data = unknown> {
     status: "idle" | "loading" | "resolved" | "rejected";
     data?: Data;
@@ -129,6 +133,7 @@ export abstract class Component<
         status: "idle",
     };
     private activeLoadRequestId = 0;
+    private activeLoadController?: AbortController;
     private asyncLoadKey?: string;
 
     /**
@@ -155,6 +160,11 @@ export abstract class Component<
      * Removes event listeners and triggers the `onUnmount` lifecycle method, if defined.
      */
     disconnectedCallback() {
+        this.abortActiveComponentLoad();
+        this.componentLoadState = {
+            status: "idle",
+        };
+        this.asyncLoadKey = undefined;
         this.onUnmount?.();
 
         for (const entry of this.eventListeners) {
@@ -199,7 +209,7 @@ export abstract class Component<
         this.renderDOM();
     }
 
-    load?(): Data | Promise<Data>;
+    load?(context: ComponentLoadContext): Data | Promise<Data>;
 
     /** Resolved data returned by `load()` for async components. */
     get data(): Data {
@@ -424,7 +434,11 @@ export abstract class Component<
     }
 
     private startComponentLoad(loadKey: string): void {
+        this.abortActiveComponentLoad();
+
         const requestId = ++this.activeLoadRequestId;
+        const controller = new AbortController();
+        this.activeLoadController = controller;
         this.applyComponentLoadState({
             status: "loading",
             data: undefined,
@@ -433,8 +447,14 @@ export abstract class Component<
 
         let loadResult: Data | Promise<Data>;
         try {
-            loadResult = this.load!();
+            loadResult = this.load!({
+                signal: controller.signal,
+            });
         } catch (error) {
+            if (isAbortLikeError(error) || controller.signal.aborted) {
+                return;
+            }
+
             this.asyncLoadKey = loadKey;
             this.applyComponentLoadState({
                 status: "rejected",
@@ -456,10 +476,13 @@ export abstract class Component<
 
         Promise.resolve(loadResult)
             .then((data) => {
-                if (requestId !== this.activeLoadRequestId) {
+                if (requestId !== this.activeLoadRequestId || controller.signal.aborted) {
                     return;
                 }
 
+                if (this.activeLoadController === controller) {
+                    this.activeLoadController = undefined;
+                }
                 this.asyncLoadKey = loadKey;
                 this.applyComponentLoadState({
                     status: "resolved",
@@ -468,10 +491,17 @@ export abstract class Component<
                 }, true);
             })
             .catch((error) => {
-                if (requestId !== this.activeLoadRequestId) {
+                if (requestId !== this.activeLoadRequestId || controller.signal.aborted) {
                     return;
                 }
 
+                if (isAbortLikeError(error)) {
+                    return;
+                }
+
+                if (this.activeLoadController === controller) {
+                    this.activeLoadController = undefined;
+                }
                 this.asyncLoadKey = loadKey;
                 this.applyComponentLoadState({
                     status: "rejected",
@@ -492,6 +522,16 @@ export abstract class Component<
         }
 
         this.renderDOM();
+    }
+
+    private abortActiveComponentLoad(): void {
+        if (!this.activeLoadController) {
+            return;
+        }
+
+        this.activeLoadController.abort();
+        this.activeLoadController = undefined;
+        this.activeLoadRequestId += 1;
     }
 
     private computeComponentLoadKey(): string {
@@ -1174,6 +1214,14 @@ function normalizeComponentRenderValue(value: unknown): HTMLElement | DocumentFr
 
 function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
     return typeof (value as Promise<T> | undefined)?.then === "function";
+}
+
+function isAbortLikeError(error: unknown): boolean {
+    if (typeof DOMException !== "undefined" && error instanceof DOMException) {
+        return error.name === "AbortError";
+    }
+
+    return error instanceof Error && error.name === "AbortError";
 }
 
 function resolveComponentName(componentCtor: object): string {

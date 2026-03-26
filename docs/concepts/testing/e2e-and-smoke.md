@@ -87,3 +87,12 @@ The repository's internal grouped matrix used to validate Mainz itself is docume
 contributors in:
 
 - [`../../advanced/testing-matrix.md`](../../advanced/testing-matrix.md)
+
+For DOM-based smoke checks that execute the built runtime directly, prefer synchronizing on
+`waitForNavigationReady(...)` from `mainz/testing` or on the bubbled `mainz:navigationready` event
+before asserting title, locale, body, or head behavior. On multi-app pages, prefer scoping the wait
+to the relevant app root.
+
+When a smoke check is validating an expected failure or a pending state rather than successful
+settlement, prefer `waitForNavigationError(...)`, `waitForNavigationAbort(...)`, or
+`waitForNavigationStart(...)` over generic timeout-based inference.

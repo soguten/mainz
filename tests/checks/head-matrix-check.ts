@@ -3,7 +3,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
-import { nextTick } from "../../src/testing/async-testing.ts";
 import {
     assertSeoState,
     buildCoreContractsForCombination,
@@ -12,6 +11,7 @@ import {
     parseCliMatrixCheckArgs,
     resolveDirectLoadFixture,
     resolveOutputScriptPath,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 export async function runHeadMatrixCheck(args: {
@@ -40,12 +40,17 @@ export async function runHeadMatrixCheck(args: {
             document.write(htmlFixture.html);
             document.close();
 
+            const navigationReady = waitForNextNavigationReady({
+                mode: context.navigation,
+                locale: "pt",
+                navigationType: "initial",
+            });
             await import(
                 `${
                     pathToFileURL(scriptPath).href
                 }?e2e=${Date.now()}-${context.mode}-${context.navigation}`
             );
-            await nextTick();
+            await navigationReady;
 
             assertEquals(document.head.querySelectorAll('link[rel="canonical"]').length, 1);
             assertEquals(

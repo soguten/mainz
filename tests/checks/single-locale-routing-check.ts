@@ -12,6 +12,7 @@ import {
     resolveOutputScriptPath,
     resolvePreviewFixture,
     runMainzCliCommand,
+    waitForNextNavigationReady,
 } from "../helpers/test-helpers.ts";
 
 const [mode, navigation] = Deno.args as [("csr" | "ssg")?, ("spa" | "mpa" | "enhanced-mpa")?];
@@ -63,12 +64,24 @@ async function assertRootRoute(args: {
             document.write(html);
             document.close();
 
+            const navigationReady = waitForNextNavigationReady({
+                mode: "spa",
+                locale: "en",
+                navigationType: "initial",
+            });
             await import(
                 `${
                     pathToFileURL(scriptPath).href
                 }?e2e=${Date.now()}-${args.mode}-${args.navigation}-root`
             );
-            await waitFor(() => window.location.pathname === "/");
+            await navigationReady;
+            await waitFor(
+                () =>
+                    document.documentElement.dataset.mainzNavigation === "spa" &&
+                    document.documentElement.lang === "en" &&
+                    window.location.pathname === "/",
+                "Expected the single-locale SPA root route to stay at / after bootstrap.",
+            );
         }, { url: "https://mainz.local/" });
 
         return;
@@ -104,12 +117,26 @@ async function assertHomeLinks(args: {
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.navigation,
+            locale: "en",
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
             }?e2e=${Date.now()}-${args.mode}-${args.navigation}-home`
         );
-        await waitFor(() => document.title === "Mainz Docs");
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === args.navigation &&
+                document.documentElement.lang === "en" &&
+                readAnchorHref("Overview") === "/" &&
+                readAnchorHref("Guides") === "/quickstart" &&
+                readAnchorHref("Reference") === "/data-loading",
+            `Expected ${args.mode} + ${args.navigation} single-locale home links to stay unprefixed.`,
+        );
 
         assertEquals(document.documentElement.lang, "en");
         assertEquals(readAnchorHref("Overview"), "/");
@@ -159,12 +186,26 @@ async function assertDocsRoute(args: {
         document.write(fixture.html);
         document.close();
 
+        const navigationReady = waitForNextNavigationReady({
+            mode: args.navigation,
+            locale: "en",
+            navigationType: "initial",
+        });
         await import(
             `${
                 pathToFileURL(scriptPath).href
             }?e2e=${Date.now()}-${args.mode}-${args.navigation}-quickstart`
         );
-        await waitFor(() => (document.body.textContent ?? "").includes("Why Mainz"));
+        await navigationReady;
+        await waitFor(
+            () =>
+                document.documentElement.dataset.mainzNavigation === args.navigation &&
+                document.documentElement.lang === "en" &&
+                (document.body.textContent ?? "").includes("Why Mainz") &&
+                (document.body.textContent ?? "").includes("Create your first page") &&
+                readAnchorHref("Guides") === "/quickstart",
+            `Expected ${args.mode} + ${args.navigation} docs route to finish bootstrapping at /quickstart.`,
+        );
 
         assertEquals(document.documentElement.lang, "en");
         assertStringIncludes(document.body.textContent ?? "", "Why Mainz");

@@ -67,6 +67,28 @@ export class DocsPage extends Page {
 
 Use `Page.load()` when the route owns the answer.
 
+`Page.load()` now also receives `context.signal`.
+
+That signal belongs to the current managed navigation and should be treated as the web-native
+equivalent of a propagated cancellation token. If a later navigation supersedes the current one, or
+the controller is cleaned up, Mainz aborts that signal so route-owned work can stop early and avoid
+applying stale results.
+
+```ts
+static async load(context: PageLoadContext) {
+    const response = await fetch("/api/docs", {
+        signal: context.signal,
+    });
+
+    return await response.json();
+}
+```
+
+This cancellation contract is runtime navigation-specific.
+
+It does not apply to `entries()`, because `entries()` belongs to build/prerender expansion rather
+than runtime navigation.
+
 ## `Component.load()` is for component-owned async assembly
 
 When the page only needs to declare the route and maybe expand SSG outputs, the component can own
@@ -99,8 +121,10 @@ export class DocsPage extends Page<{ route?: { params?: Record<string, string> }
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
 export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsPageModel> {
-    override async load() {
-        return buildDocsArticlePageModel(this.props.slug);
+    override async load(context) {
+        return await buildDocsArticlePageModel(this.props.slug, {
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -114,6 +138,7 @@ In other words:
 - page owns the route
 - component owns the async assembly
 - `render()` stays synchronous and only consumes already available state
+- `context.signal` lets component-owned load work stop when Mainz supersedes or tears down that load
 
 ## `this.data` is the resolved component value
 
@@ -128,8 +153,10 @@ That means:
 ```tsx
 @RenderStrategy("blocking")
 export class ProductDetails extends Component<{ slug: string }, NoState, Product> {
-    override async load() {
-        return await getProduct(this.props.slug);
+    override async load(context) {
+        return await getProduct(this.props.slug, {
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -137,6 +164,16 @@ export class ProductDetails extends Component<{ slug: string }, NoState, Product
     }
 }
 ```
+
+`Component.load()` now receives `context.signal`.
+
+That signal belongs to the current component load attempt. Mainz aborts it when:
+
+- props change and the component starts a fresher load
+- the component disconnects before the load settles
+
+That lets component-owned work cooperate with cancelation and prevents stale resolutions from being
+treated as current UI.
 
 ## `load()` is not initial state
 
@@ -196,8 +233,10 @@ explicit.
     fallback: () => <p>Scanning sections...</p>,
 })
 export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
-    override async load() {
-        return collectArticleHeadings();
+    override async load(context) {
+        return await collectArticleHeadings({
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -217,8 +256,10 @@ export class RecentlyViewedDocs extends Component<
     NoState,
     readonly RecentlyViewedDoc[]
 > {
-    override async load() {
-        return readRecentDocsFromLocalStorage(this.props.currentSlug);
+    override async load(context) {
+        return readRecentDocsFromLocalStorage(this.props.currentSlug, {
+            signal: context.signal,
+        });
     }
 
     override render() {
@@ -229,6 +270,12 @@ export class RecentlyViewedDocs extends Component<
 
 This keeps SSG HTML shared and deterministic while still letting the browser personalize the page
 after hydration.
+
+In practice, the same cancellation rule applies across component trees:
+
+- a fresher `Component.load()` attempt aborts the older one
+- disconnecting the host tree aborts in-flight component loads underneath it
+- aborted `AbortError` results stay treated as cancellation, not as a real component error state
 
 ## A practical rule
 
@@ -242,6 +289,12 @@ If the route owns it, use `Page.load()`.
 If the component owns it, use `Component.load()`.
 
 If the route only needs concrete SSG params, use `entries()` and stop there.
+
+That distinction matters for cancellation too:
+
+- `entries()` is build/prerender work
+- `Page.load()` can participate in runtime navigation cancellation
+- `Component.load()` already receives a web-native `AbortSignal` for component-owned reloads and cleanup
 
 ## `RenderMode(...)` and `RenderStrategy(...)` are still different layers
 
