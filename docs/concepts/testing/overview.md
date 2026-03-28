@@ -20,8 +20,8 @@ import {
     prepareNavigationTest,
     renderMainzComponent,
     setupMainzDom,
-    waitForNavigationAbort,
     waitFor,
+    waitForNavigationAbort,
     waitForNavigationError,
     waitForNavigationReady,
     waitForNavigationStart,
@@ -43,10 +43,12 @@ Good for:
 - DOM event handling
 - controlled inputs and selects
 - cleanup and isolation
+- registering fake services at startup instead of pushing infrastructure through `props`
 
 See:
 
 - [`component-testing.md`](./component-testing.md)
+- [`http-testing.md`](./http-testing.md)
 
 ## 2. Runtime testing
 

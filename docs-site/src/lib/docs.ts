@@ -48,6 +48,8 @@ const docsOrder = [
     "data-loading",
     "navigation-runtime",
     "authorization",
+    "dependency-injection",
+    "http-testing",
     "component-model",
     "functional-components",
     "custom-elements",
@@ -160,6 +162,24 @@ const docsArticleSources: readonly DocsArticleSource[] = [
         navSection: "Concepts",
         navGroup: "Core",
         contentPath: "../../../docs/concepts/core/authorization.md",
+    },
+    {
+        slug: "dependency-injection",
+        title: "Dependency Injection",
+        summary:
+            "Register infrastructure services at startup, resolve them with inject(Token) on pages or components, and keep route/component ownership explicit.",
+        navSection: "Concepts",
+        navGroup: "Core",
+        contentPath: "../../../docs/concepts/core/dependency-injection.md",
+    },
+    {
+        slug: "http-testing",
+        title: "HTTP Testing",
+        summary:
+            "Use mainz/http/testing to fake fetch, simulate latency, and keep HttpClient-based tests deterministic.",
+        navSection: "Concepts",
+        navGroup: "Testing",
+        contentPath: "../../../docs/concepts/testing/http-testing.md",
     },
     {
         slug: "component-model",

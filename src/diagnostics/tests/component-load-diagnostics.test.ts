@@ -27,15 +27,6 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
             exportName: "AllowAnonymousComponent",
         },
         {
-            code: "component-load-missing-render-strategy",
-            severity: "error",
-            message:
-                'Component "MissingStrategyLoadComponent" declares load() but does not declare @RenderStrategy(...). ' +
-                "Component.load() requires a fixed component-level render strategy.",
-            file: file.replaceAll("\\", "/"),
-            exportName: "MissingStrategyLoadComponent",
-        },
-        {
             code: "component-authorization-ssg-warning",
             severity: "warning",
             message:
@@ -52,6 +43,15 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
                 "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
             file: file.replaceAll("\\", "/"),
             exportName: "PolicyProtectedComponent",
+        },
+        {
+            code: "component-blocking-fallback-misleading",
+            severity: "warning",
+            message:
+                'Component "BlockingFallbackComponent" declares @RenderStrategy("blocking") with a fallback. ' +
+                "Blocking components normally render resolved output instead of visible fallback UI, so this fallback may be misleading.",
+            file: file.replaceAll("\\", "/"),
+            exportName: "BlockingFallbackComponent",
         },
         {
             code: "component-load-missing-fallback",

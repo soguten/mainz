@@ -1,4 +1,4 @@
-import { startPagesApp } from "mainz";
+import { startApp } from "mainz";
 import { authorizeSitePolicies, getAuthorizeSitePrincipal } from "./lib/session.ts";
 import { AccountPage } from "./pages/Account.page.tsx";
 import { BillingPage } from "./pages/Billing.page.tsx";
@@ -7,7 +7,7 @@ import { LoginPage } from "./pages/Login.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { ReportsPage } from "./pages/Reports.page.tsx";
 
-startPagesApp({
+startApp({
     mount: "#app",
     pages: [HomePage, LoginPage, AccountPage, BillingPage, ReportsPage],
     notFound: NotFoundPage,

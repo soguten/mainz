@@ -22,6 +22,22 @@ Deno.test("components/render-strategy: should resolve strategy declared with dec
     assertEquals(resolveComponentRenderStrategy(UserMenu), "client-only");
 });
 
+Deno.test("components/render-strategy: should default Component.load() owners to blocking", () => {
+    class AsyncSection extends Component {
+        override load() {
+            return { title: "Loaded" };
+        }
+
+        override render(): HTMLElement {
+            return document.createElement("div");
+        }
+    }
+
+    const renderConfig = resolveComponentRenderConfig(AsyncSection);
+
+    assertEquals(renderConfig?.strategy, "blocking");
+});
+
 Deno.test("components/render-strategy: should inherit strategy from a decorated base component", () => {
     @RenderStrategy("deferred")
     class DeferredPanel extends Component {

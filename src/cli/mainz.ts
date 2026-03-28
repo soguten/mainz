@@ -17,6 +17,11 @@ import {
     runBuildJobs,
 } from "./build.ts";
 
+type MainzCliOptions = BuildCliOptions & {
+    format?: "json" | "human";
+    failOn?: "never" | "error" | "warning";
+};
+
 if (import.meta.main) {
     await main(Deno.args);
 }
@@ -100,8 +105,8 @@ export async function main(args: string[]): Promise<void> {
     console.log("[mainz] Build completed successfully.");
 }
 
-function parseBuildOptions(args: string[]): BuildCliOptions {
-    const options: BuildCliOptions = {};
+function parseBuildOptions(args: string[]): MainzCliOptions {
+    const options: MainzCliOptions = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -137,7 +142,7 @@ function parseBuildOptions(args: string[]): BuildCliOptions {
         }
 
         if (current === "--format") {
-            options.format = args[index + 1];
+            options.format = args[index + 1] as "json" | "human" | undefined;
             index += 1;
             continue;
         }

@@ -13,6 +13,7 @@ interface CounterState {
 }
 
 export class CounterCard extends Component<NoProps, CounterState> {
+    
     protected override initState(): CounterState {
         return { count: 0 };
     }
@@ -63,10 +64,15 @@ The model is intentionally direct:
 - `state` holds local mutable UI state
 - `render()` returns the current DOM shape
 - `initState()` bootstraps state before the first render
-- `load(context)` can own async component assembly when the component declares `@RenderStrategy(...)`
+- `load(context)` can own async component assembly
+- `Component.load()` defaults to `blocking` unless the component opts into another
+  `@RenderStrategy(...)`
 
 That keeps component behavior local instead of splitting logic across hooks, templates, and external
 config.
+
+If the component needs infrastructure such as an API gateway or HTTP client, resolve that through `mainz/di` with `inject(Token)` rather than putting technical dependencies into `props`. See
+[Dependency Injection](../core/dependency-injection.md).
 
 When a component implements `load(context)`, Mainz now passes `context.signal`.
 

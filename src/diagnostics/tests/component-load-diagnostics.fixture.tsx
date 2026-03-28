@@ -55,6 +55,12 @@ abstract class DeferredLoadBase extends Component<NoProps, NoState, { title: str
 })
 export class ValidLoadComponent extends DeferredLoadBase {}
 
+@CustomElement("x-mainz-diagnostics-blocking-fallback-component")
+@RenderStrategy("blocking", {
+    fallback: () => <p>loading</p>,
+})
+export class BlockingFallbackComponent extends DeferredLoadBase {}
+
 @CustomElement("x-mainz-diagnostics-allow-anonymous-component")
 @AllowAnonymous()
 export class AllowAnonymousComponent extends Component {

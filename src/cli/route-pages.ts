@@ -3,6 +3,7 @@
 import { resolve } from "node:path";
 import { discoverPagesFromFile } from "../routing/server.ts";
 import type { RenderMode } from "../routing/index.ts";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { PageHeadDefinition } from "../components/page.ts";
 
 export interface CliDiscoveredPage {
@@ -14,6 +15,7 @@ export interface CliDiscoveredPage {
     notFound?: boolean;
     locales?: readonly string[];
     head?: PageHeadDefinition;
+    authorization?: PageAuthorizationMetadata;
 }
 
 export interface CliPageDiscoveryError {

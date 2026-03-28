@@ -1,5 +1,7 @@
 import type { PageLoadContext } from "../../index.ts";
-import { Authorize, CustomElement, Page, Route } from "../../index.ts";
+import { Authorize, Component, CustomElement, Page, Route, type NoProps, type NoState } from "../../index.ts";
+import { inject } from "../../di/index.ts";
+import { ensureMainzCustomElementDefined } from "../../components/registry.ts";
 
 let protectedLoadCount = 0;
 let abortAwareLoadStartedCount = 0;
@@ -45,6 +47,14 @@ export function readProtectedLoadCount(): number {
 
 export function resetProtectedLoadCount(): void {
     protectedLoadCount = 0;
+}
+
+export class GreetingService {
+    constructor(private readonly prefix: string) {}
+
+    format(value: string): string {
+        return `${this.prefix}:${value}`;
+    }
 }
 
 @CustomElement("x-mainz-navigation-spa-home-page")
@@ -237,5 +247,45 @@ export class SpaSlowPage extends Page {
         element.textContent = "Slow page";
         element.setAttribute("data-page", "slow");
         return element;
+    }
+}
+
+@CustomElement("x-mainz-navigation-di-message")
+export class InjectedGreetingComponent extends Component<NoProps, NoState> {
+    readonly greetingService = inject(GreetingService);
+
+    override render(): HTMLElement {
+        const element = document.createElement("p");
+        element.setAttribute("data-role", "greeting");
+        element.textContent = this.greetingService.format("component");
+        return element;
+    }
+}
+
+@CustomElement("x-mainz-navigation-spa-di-page")
+@Route("/di/:slug")
+export class SpaDiPage extends Page {
+    static readonly greetingService = inject(GreetingService);
+
+    static async load(context: PageLoadContext) {
+        await Promise.resolve();
+
+        return {
+            message: this.greetingService.format(context.params.slug),
+        };
+    }
+
+    override render(): HTMLElement {
+        const section = document.createElement("section");
+        section.setAttribute("data-page", "di");
+        section.setAttribute("data-message", String(this.props?.data?.message ?? ""));
+
+        ensureMainzCustomElementDefined(
+            InjectedGreetingComponent as unknown as CustomElementConstructor & { getTagName(): string },
+        );
+        const child = document.createElement(InjectedGreetingComponent.getTagName());
+        section.appendChild(child);
+
+        return section;
     }
 }

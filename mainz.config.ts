@@ -41,6 +41,16 @@ export default defineMainzConfig({
             defaultNavigation: "spa",
         },
         {
+            name: "di-http-site",
+            rootDir: "./examples/di-http-site",
+            viteConfig: "./vite.config.di-http-site.ts",
+            pagesDir: "./examples/di-http-site/src/pages",
+            locales: ["en"],
+            outDir: "dist/examples/di-http-site",
+            defaultMode: "csr",
+            defaultNavigation: "spa",
+        },
+        {
             name: "docs",
             rootDir: "./docs-site",
             viteConfig: "./vite.config.docs-site.ts",

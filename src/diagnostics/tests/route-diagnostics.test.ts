@@ -158,15 +158,6 @@ Deno.test("diagnostics/route: should report dynamic ssg, notFound, and routing-s
             routePath: "/entries-ref/:slug",
         },
         {
-            code: "missing-render-mode-decorator",
-            severity: "warning",
-            message:
-                'Page "StaticSsgPage" should declare @RenderMode("csr") explicitly instead of relying on the implicit default.',
-            file: file.replaceAll("\\", "/"),
-            exportName: "StaticSsgPage",
-            routePath: "/about",
-        },
-        {
             code: "dynamic-ssg-invalid-entries",
             severity: "error",
             message:

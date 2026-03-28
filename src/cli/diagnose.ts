@@ -5,8 +5,10 @@ import { resolve } from "node:path";
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import {
     collectComponentDiagnostics,
+    collectDiDiagnostics,
     collectRouteDiagnostics,
     type ComponentSourceDiagnosticsInput,
+    type DiSourceDiagnosticsInput,
     type MainzDiagnosticCode,
     type MainzDiagnostic,
 } from "../diagnostics/index.ts";
@@ -18,9 +20,9 @@ export interface DiagnoseCliOptions {
     failOn?: "never" | "error" | "warning";
 }
 
-export interface CliTargetDiagnostic extends MainzDiagnostic {
+export type CliTargetDiagnostic = MainzDiagnostic & {
     target: string;
-}
+};
 
 export async function collectCliDiagnostics(
     config: NormalizedMainzConfig,
@@ -81,6 +83,19 @@ export async function collectCliDiagnostics(
             })),
         );
 
+        const diSources = await discoverTargetDiSources(target, cwd);
+        const diDiagnostics = await collectDiDiagnostics(diSources, {
+            routePathsByOwner: new Map(
+                (discoveredPages ?? []).map((page) => [`${page.file}::${page.exportName}`, page.path]),
+            ),
+        });
+        diagnostics.push(
+            ...diDiagnostics.map((diagnostic) => ({
+                ...diagnostic,
+                target: target.name,
+            })),
+        );
+
     }
 
     return diagnostics.sort(compareDiagnostics);
@@ -115,7 +130,7 @@ export function formatCliDiagnosticsHuman(
                     `${diagnostic.severity} ${diagnostic.code}`,
                     `  export: ${diagnostic.exportName}`,
                     `  file: ${diagnostic.file}`,
-                    ...(diagnostic.routePath ? [`  route: ${diagnostic.routePath}`] : []),
+                    ...(readDiagnosticRoutePath(diagnostic) ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`] : []),
                     `  ${diagnostic.message}`,
                 ].join("\n")
             ),
@@ -182,7 +197,7 @@ function compareDiagnostics(a: CliTargetDiagnostic, b: CliTargetDiagnostic): num
         return a.exportName.localeCompare(b.exportName);
     }
 
-    return (a.routePath ?? "").localeCompare(b.routePath ?? "");
+    return (readDiagnosticRoutePath(a) ?? "").localeCompare(readDiagnosticRoutePath(b) ?? "");
 }
 
 function groupDiagnosticsByTarget(
@@ -207,6 +222,10 @@ function classifyPageDiscoveryError(message: string): MainzDiagnosticCode {
     return "page-discovery-failed";
 }
 
+function readDiagnosticRoutePath(diagnostic: CliTargetDiagnostic): string | undefined {
+    return "routePath" in diagnostic ? diagnostic.routePath : undefined;
+}
+
 async function discoverTargetComponentSources(
     target: NormalizedMainzTarget,
     cwd: string,
@@ -224,7 +243,43 @@ async function discoverTargetComponentSources(
     return sources;
 }
 
+async function discoverTargetDiSources(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<readonly DiSourceDiagnosticsInput[]> {
+    const files = await collectTargetDiFiles(target, cwd);
+    const sources: DiSourceDiagnosticsInput[] = [];
+
+    for (const file of files) {
+        sources.push({
+            file,
+            source: await Deno.readTextFile(file),
+        });
+    }
+
+    return sources;
+}
+
 async function collectTargetComponentFiles(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<readonly string[]> {
+    const sourceDir = resolve(cwd, target.rootDir, "src");
+    if (!existsSync(sourceDir)) {
+        return [];
+    }
+
+    const files = await collectFilesystemFiles(sourceDir);
+    return files.filter((file) => {
+        if (!/\.(ts|tsx|mts|cts)$/.test(file)) {
+            return false;
+        }
+
+        return !/(\.test\.|\.fixture\.)/.test(file);
+    });
+}
+
+async function collectTargetDiFiles(
     target: NormalizedMainzTarget,
     cwd: string,
 ): Promise<readonly string[]> {

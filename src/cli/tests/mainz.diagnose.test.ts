@@ -44,17 +44,6 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
             sortDiagnostics([
                 {
                     target: "diagnostics-routes",
-                    code: "component-load-missing-render-strategy",
-                    severity: "error",
-                    message:
-                        'Component "MissingStrategyLoadOwner" declares load() but does not declare @RenderStrategy(...). ' +
-                        "Component.load() requires a fixed component-level render strategy.",
-                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
-                        "/src/components/BadComponentLoadOwner.tsx",
-                    exportName: "MissingStrategyLoadOwner",
-                },
-                {
-                    target: "diagnostics-routes",
                     code: "dynamic-ssg-missing-entries",
                     severity: "error",
                     message:
@@ -284,17 +273,72 @@ Deno.test("cli/mainz: diagnose should report named authorization policies that a
                 exportName: "OrgPage",
                 routePath: "/org",
             },
-            {
-                target: "diagnostics-authorization-policies",
-                code: "missing-render-mode-decorator",
-                severity: "warning",
-                message:
-                    'Page "OrgPage" should declare @RenderMode("csr") explicitly instead of relying on the implicit default.',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
-                exportName: "OrgPage",
-                routePath: "/org",
-            },
         ]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/mainz: diagnose should report DI registry problems for the official services shape", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-di",
+        targetName: "diagnostics-di",
+        locales: ["en"],
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-di fixture.",
+        );
+
+        assertEquals(sortDiagnostics(JSON.parse(stdout)), sortDiagnostics([
+            {
+                target: "diagnostics-di",
+                code: "di-factory-dependency-not-registered",
+                severity: "error",
+                message:
+                    'Service "NeedsMissingDependency" depends on "MissingDependency" through get(...), ' +
+                    "but that dependency is not registered in app startup services.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
+                exportName: "NeedsMissingDependency",
+            },
+            {
+                target: "diagnostics-di",
+                    code: "di-token-not-registered",
+                severity: "error",
+                message:
+                    'Class "DiInjectedCard" injects "MissingApi" with mainz/di, ' +
+                    "but that token is not registered in app startup services.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/InjectedCard.tsx",
+                exportName: "DiInjectedCard",
+            },
+            {
+                target: "diagnostics-di",
+                    code: "di-token-not-registered",
+                severity: "error",
+                message:
+                    'Class "DiagnosticsDiPage" injects "MissingApi" with mainz/di, ' +
+                    "but that token is not registered in app startup services.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Home.page.tsx",
+                exportName: "DiagnosticsDiPage",
+                routePath: "/",
+            },
+            {
+                target: "diagnostics-di",
+                code: "di-registration-cycle",
+                severity: "error",
+                message: 'Service registration cycle detected: CycleA -> CycleB -> CycleA.',
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
+                exportName: "CycleA",
+            },
+        ]));
     } finally {
         await fixture.cleanup();
     }
@@ -320,18 +364,7 @@ Deno.test("cli/mainz: diagnose should accept named authorization policies declar
             "diagnose failed for diagnostics-authorization-policies fixture.",
         );
 
-        assertEquals(JSON.parse(stdout), [
-            {
-                target: "diagnostics-authorization-policies",
-                code: "missing-render-mode-decorator",
-                severity: "warning",
-                message:
-                    'Page "OrgPage" should declare @RenderMode("csr") explicitly instead of relying on the implicit default.',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
-                exportName: "OrgPage",
-                routePath: "/org",
-            },
-        ]);
+        assertEquals(JSON.parse(stdout), []);
     } finally {
         await fixture.cleanup();
     }
@@ -452,15 +485,13 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
             "diagnose human output failed for diagnostics-routes fixture.",
         );
 
-        assertStringIncludes(stdout, "Diagnostics summary: 12 error(s), 3 warning(s)");
+        assertStringIncludes(stdout, "Diagnostics summary: 11 error(s), 3 warning(s)");
         assertStringIncludes(stdout, "Target: diagnostics-routes");
         assertStringIncludes(stdout, "error dynamic-ssg-missing-entries");
         assertStringIncludes(stdout, "error dynamic-ssg-invalid-entries");
         assertStringIncludes(stdout, "warning dynamic-ssg-missing-load");
-        assertStringIncludes(stdout, "error component-load-missing-render-strategy");
         assertStringIncludes(stdout, "warning component-load-missing-fallback");
         assertStringIncludes(stdout, "warning component-render-strategy-without-load");
-        assertStringIncludes(stdout, "MissingStrategyLoadOwner");
         assertStringIncludes(stdout, "route: /docs/:slug");
         assertStringIncludes(
             stdout,

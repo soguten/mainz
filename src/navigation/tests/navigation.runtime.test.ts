@@ -11,6 +11,7 @@ import {
     waitForNavigationStart,
 } from "../../testing/index.ts";
 import type { SpaNavigationRenderContext } from "../index.ts";
+import { singleton } from "../../di/index.ts";
 
 let spaFixturesPromise: Promise<typeof import("./navigation.spa.fixture.ts")> | undefined;
 let snapshotFixturePromise: Promise<typeof import("./navigation.snapshot.fixture.ts")> | undefined;
@@ -909,8 +910,8 @@ Deno.test("navigation/runtime: should fail fast when configured pages reference 
     );
 });
 
-Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inferred locales", async () => {
-    const { startPagesApp } = await prepareNavigationTest();
+Deno.test("navigation/runtime: startApp should use runtime defaults and inferred locales", async () => {
+    const { startApp } = await prepareNavigationTest();
     const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
 
     (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
@@ -921,7 +922,7 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
         `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
     window.history.replaceState(null, "", "/docs/pt/");
 
-    const controller = startPagesApp({
+    const controller = startApp({
         pages: [SpaHomePage],
         notFound: SpaNotFoundPage,
     });
@@ -941,6 +942,66 @@ Deno.test("navigation/runtime: startPagesApp should use runtime defaults and inf
     );
 
     controller.cleanup();
+});
+
+Deno.test("navigation/runtime: should isolate DI singletons per app root for page and component injection", async () => {
+    const { startNavigation } = await prepareNavigationTest();
+    const { GreetingService, SpaDiPage } = await loadSpaFixtures();
+
+    document.body.innerHTML = '<main id="left"></main><main id="right"></main>';
+    window.history.replaceState(null, "", "/di/intro");
+
+    const leftReady = waitForNavigationReady({
+        target: document.getElementById("left")!,
+        mode: "spa",
+        path: "/di/:slug",
+        matchedPath: "/di/intro",
+        navigationType: "initial",
+    });
+    const rightReady = waitForNavigationReady({
+        target: document.getElementById("right")!,
+        mode: "spa",
+        path: "/di/:slug",
+        matchedPath: "/di/intro",
+        navigationType: "initial",
+    });
+
+    const leftController = startNavigation({
+        mode: "spa",
+        mount: "#left",
+        pages: [SpaDiPage],
+        services: [
+            singleton(GreetingService, () => new GreetingService("left")),
+        ],
+    });
+    const rightController = startNavigation({
+        mode: "spa",
+        mount: "#right",
+        pages: [SpaDiPage],
+        services: [
+            singleton(GreetingService, () => new GreetingService("right")),
+        ],
+    });
+
+    await leftReady;
+    await rightReady;
+
+    const leftPage = document.querySelector('#left [data-page="di"]');
+    const rightPage = document.querySelector('#right [data-page="di"]');
+    const leftGreeting = document.querySelector('#left [data-role="greeting"]');
+    const rightGreeting = document.querySelector('#right [data-role="greeting"]');
+
+    assert(leftPage);
+    assert(rightPage);
+    assert(leftGreeting);
+    assert(rightGreeting);
+    assertEquals(leftPage.getAttribute("data-message"), "left:intro");
+    assertEquals(rightPage.getAttribute("data-message"), "right:intro");
+    assertEquals(leftGreeting.textContent, "left:component");
+    assertEquals(rightGreeting.textContent, "right:component");
+
+    leftController.cleanup();
+    rightController.cleanup();
 });
 
 Deno.test("navigation/runtime: should strip locale prefixes and notify locale changes", async () => {

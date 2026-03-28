@@ -23,17 +23,22 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
         "data-loading",
         "navigation-runtime",
         "authorization",
+        "dependency-injection",
     ]);
-    assertEquals(sections[1].groups?.[1].title, "Components");
+    assertEquals(sections[1].groups?.[1].title, "Testing");
     assertEquals(sections[1].groups?.[1].items.map((item) => item.slug), [
+        "http-testing",
+    ]);
+    assertEquals(sections[1].groups?.[2].title, "Components");
+    assertEquals(sections[1].groups?.[2].items.map((item) => item.slug), [
         "component-model",
         "functional-components",
         "custom-elements",
         "state-and-events",
         "render-owner",
     ]);
-    assertEquals(sections[1].groups?.[2].title, "Pages");
-    assertEquals(sections[1].groups?.[2].items.map((item) => item.slug), [
+    assertEquals(sections[1].groups?.[3].title, "Pages");
+    assertEquals(sections[1].groups?.[3].items.map((item) => item.slug), [
         "page-model",
         "head-and-seo",
         "not-found",
@@ -58,6 +63,16 @@ Deno.test("docs helpers compute previous and next article links", () => {
 
     assertEquals(getDocsPager("authorization"), {
         previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
+        next: { slug: "dependency-injection", title: "Dependency Injection" },
+    });
+
+    assertEquals(getDocsPager("dependency-injection"), {
+        previous: { slug: "authorization", title: "Authorization" },
+        next: { slug: "http-testing", title: "HTTP Testing" },
+    });
+
+    assertEquals(getDocsPager("http-testing"), {
+        previous: { slug: "dependency-injection", title: "Dependency Injection" },
         next: { slug: "component-model", title: "Component Model" },
     });
 

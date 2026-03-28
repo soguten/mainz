@@ -1,8 +1,8 @@
-import { startPagesApp } from "mainz";
+import { startApp } from "mainz";
 import { FixtureSingleLocaleHomePage } from "./pages/Home.page.tsx";
 import { FixtureSingleLocaleQuickstartPage } from "./pages/Quickstart.page.tsx";
 
-startPagesApp({
+startApp({
     mount: "#app",
     pages: [FixtureSingleLocaleHomePage, FixtureSingleLocaleQuickstartPage],
 });

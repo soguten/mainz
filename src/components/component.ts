@@ -22,6 +22,14 @@ import {
 import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
 import type { RenderStrategy, ResourceRuntime } from "../resources/index.ts";
 import type { RenderMode } from "../routing/index.ts";
+import {
+    attachServiceContainer,
+    getCurrentServiceContainer,
+    popCurrentServiceContainer,
+    pushCurrentServiceContainer,
+    readServiceContainer,
+} from "../di/context.ts";
+import type { ServiceContainer } from "../di/container.ts";
 
 interface TrackedEventListener {
     target: EventTarget;
@@ -128,6 +136,7 @@ export abstract class Component<
     private renderedNodes: Node[] = [];
     private stateInitialized = false;
     private authorizationRenderContext?: AuthorizationRenderContext;
+    private serviceContainer?: ServiceContainer;
     private suppressUnauthorizedRender = false;
     private componentLoadState: ComponentLoadState<Data> = {
         status: "idle",
@@ -152,7 +161,16 @@ export abstract class Component<
         }
 
         this.renderDOM();
-        this.onMount?.();
+        const serviceContainer = this.resolveServiceContainer();
+        this.serviceContainer = serviceContainer;
+        attachServiceContainer(this, serviceContainer);
+        pushCurrentServiceContainer(serviceContainer);
+
+        try {
+            this.onMount?.();
+        } finally {
+            popCurrentServiceContainer();
+        }
     }
 
     /**
@@ -165,7 +183,13 @@ export abstract class Component<
             status: "idle",
         };
         this.asyncLoadKey = undefined;
-        this.onUnmount?.();
+        pushCurrentServiceContainer(this.serviceContainer);
+
+        try {
+            this.onUnmount?.();
+        } finally {
+            popCurrentServiceContainer();
+        }
 
         for (const entry of this.eventListeners) {
             entry.target.removeEventListener(
@@ -285,12 +309,16 @@ export abstract class Component<
      */
     private renderDOM() {
         const authorizationRenderContext = this.resolveAuthorizationRenderContext();
+        const serviceContainer = this.resolveServiceContainer();
         this.authorizationRenderContext = authorizationRenderContext;
+        this.serviceContainer = serviceContainer;
+        attachServiceContainer(this, serviceContainer);
         this.suppressUnauthorizedRender = this.shouldSuppressUnauthorizedRender();
         if (!this.suppressUnauthorizedRender) {
             this.prepareComponentLoad();
         }
         pushAuthorizationRenderContext(authorizationRenderContext);
+        pushCurrentServiceContainer(serviceContainer);
         pushRenderOwner(this);
 
         try {
@@ -339,6 +367,7 @@ export abstract class Component<
             this.afterRender?.();
         } finally {
             popRenderOwner();
+            popCurrentServiceContainer();
             popAuthorizationRenderContext();
         }
     }
@@ -447,6 +476,10 @@ export abstract class Component<
 
         let loadResult: Data | Promise<Data>;
         try {
+            const serviceContainer = this.resolveServiceContainer();
+            this.serviceContainer = serviceContainer;
+            attachServiceContainer(this, serviceContainer);
+            pushCurrentServiceContainer(serviceContainer);
             loadResult = this.load!({
                 signal: controller.signal,
             });
@@ -462,6 +495,8 @@ export abstract class Component<
                 error,
             }, true);
             return;
+        } finally {
+            popCurrentServiceContainer();
         }
 
         if (!isPromiseLike(loadResult)) {
@@ -549,16 +584,28 @@ export abstract class Component<
             {};
     }
 
+    private resolveServiceContainer(): ServiceContainer | undefined {
+        const fromRoute = typeof this.props === "object" && this.props !== null && "route" in this.props
+            ? readServiceContainer(
+                (this.props as Record<string, unknown>).route as object | null | undefined,
+            )
+            : undefined;
+
+        return fromRoute ??
+            this.serviceContainer ??
+            readServiceContainer(this) ??
+            getCurrentServiceContainer();
+    }
+
     private requireLoadRenderConfig(): ComponentRenderConfig {
         const renderConfig = resolveComponentRenderConfig(this.constructor);
         if (renderConfig) {
             return renderConfig;
         }
 
-        throw new Error(
-            `Component "${this.constructor.name}" declares load() but does not declare @RenderStrategy(...). ` +
-                "Component.load() requires a fixed component-level render strategy.",
-        );
+        return {
+            strategy: "blocking",
+        };
     }
 
     private hasComponentLoad(): boolean {
@@ -1090,7 +1137,18 @@ export function resolveComponentRenderConfig(
     componentCtor: object,
 ): ComponentRenderConfig | undefined {
     const componentOwner = componentCtor as { [COMPONENT_RENDER_STRATEGY]?: ComponentRenderConfig };
-    return componentOwner[COMPONENT_RENDER_STRATEGY];
+    if (componentOwner[COMPONENT_RENDER_STRATEGY]) {
+        return componentOwner[COMPONENT_RENDER_STRATEGY];
+    }
+
+    const candidate = componentCtor as { prototype?: { load?: unknown } };
+    if (typeof candidate.prototype?.load === "function") {
+        return {
+            strategy: "blocking",
+        };
+    }
+
+    return undefined;
 }
 
 function warnAboutMissingLoadFallback(

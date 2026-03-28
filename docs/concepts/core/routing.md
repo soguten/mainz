@@ -12,7 +12,7 @@ The page app should not parse URLs, define custom elements, or manually resolve 
 
 The runtime already knows mode, basePath, locales, and hydration strategy from the build context.
 
-> That is why Mainz now prefers `startPagesApp()` over leaking infrastructure details into
+> That is why Mainz now prefers `startApp()` over leaking infrastructure details into
 > application bootstrap.
 
 ## Profiles versus combinations

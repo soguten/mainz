@@ -1,7 +1,7 @@
-import { startPagesApp } from "mainz";
+import { startApp } from "mainz";
 import { FixtureNavigationOverrideHomePage } from "./pages/Home.page.tsx";
 
-startPagesApp({
+startApp({
     mount: "#app",
     pages: [FixtureNavigationOverrideHomePage],
 });

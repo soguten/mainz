@@ -44,7 +44,6 @@ It answers questions like:
 - should it wait for the browser?
 
 ```tsx title="DocsArticleContent.tsx"
-@RenderStrategy("blocking")
 export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
     override async load(context) {
         return await buildDocsArticleModel(this.props.slug, {
@@ -59,8 +58,9 @@ export class DocsArticleContent extends Component<{ slug?: string }, NoState, Do
 ```
 
 The component decides how its own `load()` participates inside the page.
-Mainz passes `context.signal` to that load so a newer component load attempt or disconnect can abort
-the older one before it applies stale UI.
+Mainz passes `context.signal` to that load so a newer component load attempt or disconnect can abort the older one before it applies stale UI.
+
+If a component declares `load()` and no `@RenderStrategy(...)`, Mainz treats it as `blocking` by default.
 
 That also means deferred sibling components can settle independently:
 
@@ -70,8 +70,7 @@ That also means deferred sibling components can settle independently:
 
 Mainz keeps those outcomes isolated per component load attempt.
 
-When a component has `load()` but no local state, prefer `NoState` in the second generic slot so the
-intent stays visible.
+When a component has `load()` but no local state, prefer `NoState` in the second generic slot so the intent stays visible.
 
 ## These are separate choices
 

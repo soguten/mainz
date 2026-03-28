@@ -9,7 +9,7 @@ export interface ComponentDiagnostic {
     code:
         | "authorization-policy-not-registered"
         | "component-authorization-ssg-warning"
-        | "component-load-missing-render-strategy"
+        | "component-blocking-fallback-misleading"
         | "component-render-strategy-without-load"
         | "component-load-missing-fallback"
         | "component-allow-anonymous-not-supported";
@@ -82,19 +82,6 @@ export async function collectComponentDiagnostics(
         }
 
         for (const component of collectDeclaredComponentLoadOwners(file.source)) {
-            if (!component.renderStrategy) {
-                diagnostics.push({
-                    code: "component-load-missing-render-strategy",
-                    severity: "error",
-                    message:
-                        `Component "${component.exportName}" declares load() but does not declare @RenderStrategy(...). ` +
-                        "Component.load() requires a fixed component-level render strategy.",
-                    file: file.file,
-                    exportName: component.exportName,
-                });
-                continue;
-            }
-
             if (
                 (component.renderStrategy === "deferred" ||
                     component.renderStrategy === "client-only") &&
@@ -106,6 +93,18 @@ export async function collectComponentDiagnostics(
                     message:
                         `Component "${component.exportName}" declares load() with @RenderStrategy("${component.renderStrategy}") without a fallback. ` +
                         "Add a fallback to make the component's async placeholder explicit.",
+                    file: file.file,
+                    exportName: component.exportName,
+                });
+            }
+
+            if (component.renderStrategy === "blocking" && component.hasFallback) {
+                diagnostics.push({
+                    code: "component-blocking-fallback-misleading",
+                    severity: "warning",
+                    message:
+                        `Component "${component.exportName}" declares @RenderStrategy("blocking") with a fallback. ` +
+                        "Blocking components normally render resolved output instead of visible fallback UI, so this fallback may be misleading.",
                     file: file.file,
                     exportName: component.exportName,
                 });
@@ -134,7 +133,7 @@ function compareComponentDiagnostics(a: ComponentDiagnostic, b: ComponentDiagnos
 
 interface DeclaredComponentLoadOwner {
     exportName: string;
-    renderStrategy?: "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
+    renderStrategy: "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
     hasFallback: boolean;
 }
 
@@ -170,7 +169,7 @@ function collectDeclaredComponentLoadOwners(
         .filter((candidate) => resolveInheritedComponentLoad(candidate, classes))
         .map((candidate) => ({
             exportName: candidate.exportName,
-            renderStrategy: resolveInheritedRenderStrategy(candidate, classes),
+            renderStrategy: resolveInheritedRenderStrategy(candidate, classes) ?? "blocking",
             hasFallback: resolveInheritedDecoratorFallback(candidate, classes),
         }));
 }

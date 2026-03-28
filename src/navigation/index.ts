@@ -34,6 +34,13 @@ import {
     toLocalePathSegment,
 } from "../routing/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
+import { attachServiceContainer, readServiceContainer } from "../di/context.ts";
+import { withServiceContainer } from "../di/context.ts";
+import {
+    createServiceContainer,
+    type ServiceContainer,
+    type ServiceRegistration,
+} from "../di/container.ts";
 
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
@@ -96,6 +103,7 @@ export interface SpaNavigationOptions {
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
     auth?: AuthorizationRuntimeOptions;
+    services?: readonly ServiceRegistration[];
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -110,6 +118,7 @@ export interface StartNavigationOptions {
     pages?: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     auth?: AuthorizationRuntimeOptions;
+    services?: readonly ServiceRegistration[];
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -118,11 +127,12 @@ export interface StartNavigationOptions {
     spa?: SpaNavigationOptions;
 }
 
-export interface StartPagesAppOptions {
+export interface StartAppOptions {
     mount?: string | Element;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     auth?: AuthorizationRuntimeOptions;
+    services?: readonly ServiceRegistration[];
 }
 
 export interface NavigationController {
@@ -150,6 +160,8 @@ interface ResolvedPageNavigationOptions {
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
     auth?: AuthorizationRuntimeOptions;
+    services?: readonly ServiceRegistration[];
+    serviceContainer?: ServiceContainer;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?(context: NavigationLocaleContext): void;
@@ -206,7 +218,7 @@ function isAbortLikeError(error: unknown): boolean {
     return error instanceof Error && error.name === "AbortError";
 }
 
-export function startPagesApp(options: StartPagesAppOptions): NavigationController {
+export function startApp(options: StartAppOptions): NavigationController {
     return startNavigation({
         mode: resolveMainzNavigationMode(),
         basePath: resolveMainzBasePath(),
@@ -214,6 +226,7 @@ export function startPagesApp(options: StartPagesAppOptions): NavigationControll
         pages: options.pages,
         notFound: options.notFound,
         auth: options.auth,
+        services: options.services,
         locales: resolvePagesAppLocales(options.pages, options.notFound),
     });
 }
@@ -231,6 +244,7 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
     const normalizedBasePath = normalizeNavigationBasePath(options.basePath);
     const pageOptions = resolvePageNavigationOptions(options);
     if (pageOptions) {
+        pageOptions.serviceContainer = createServiceContainer(pageOptions.services);
         assertRegisteredNavigationPolicies(pageOptions);
     }
 
@@ -412,6 +426,7 @@ function startSpaNavigation(
         navigationType: "initial",
         basePath: normalizedBasePath,
         auth: pageOptions.auth,
+        serviceContainer: pageOptions.serviceContainer,
         locales: pageOptions.locales,
         resolvePath: pageOptions.resolvePath,
         onLocaleChange: pageOptions.onLocaleChange,
@@ -494,6 +509,7 @@ function startSpaNavigation(
             basePath: normalizedBasePath,
             routeMatch,
             auth: pageOptions.auth,
+            serviceContainer: pageOptions.serviceContainer,
             locales: pageOptions.locales,
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
@@ -556,6 +572,7 @@ function startSpaNavigation(
             navigationType: "pop",
             basePath: normalizedBasePath,
             auth: pageOptions.auth,
+            serviceContainer: pageOptions.serviceContainer,
             locales: pageOptions.locales,
             resolvePath: pageOptions.resolvePath,
             onLocaleChange: pageOptions.onLocaleChange,
@@ -605,6 +622,7 @@ async function renderSpaRoute(args: {
     basePath: string;
     routeMatch?: SpaRouteMatch;
     auth?: AuthorizationRuntimeOptions;
+    serviceContainer?: ServiceContainer;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
@@ -693,6 +711,7 @@ async function renderSpaRoute(args: {
             principal,
             url: args.url,
             signal: sequence.controller.signal,
+            serviceContainer: args.serviceContainer,
         });
         throwIfNavigationAborted(sequence);
         const head = resolveSpaRouteHead({
@@ -716,6 +735,7 @@ async function renderSpaRoute(args: {
             navigationType: args.navigationType,
             basePath: args.basePath,
         } satisfies SpaNavigationRenderContext;
+        attachServiceContainer(routeContext, args.serviceContainer);
 
         errorPhase = "page-render";
         throwIfNavigationAborted(sequence);
@@ -1050,13 +1070,15 @@ function resolveSpaPageModule(module: SpaPageModule): SpaPageConstructor {
 }
 
 function applySpaRouteContext(element: HTMLElement, context: SpaNavigationRenderContext): void {
+    const serviceContainer = readServiceContainer(context);
     const nextProps = {
         ...readSpaElementProps(element),
-        route: context,
+        route: attachServiceContainer(context, serviceContainer),
         data: context.data,
     };
 
     (element as HTMLElement & { props?: Record<string, unknown> }).props = nextProps;
+    attachServiceContainer(element, serviceContainer);
 
     const rerender = (element as HTMLElement & { rerender?: () => void }).rerender;
     if (typeof rerender === "function") {
@@ -1194,6 +1216,7 @@ async function resolvePageRouteData(args: {
     principal?: Principal;
     url: URL;
     signal: AbortSignal;
+    serviceContainer?: ServiceContainer;
 }): Promise<unknown> {
     if (typeof args.page.load !== "function") {
         return undefined;
@@ -1213,7 +1236,12 @@ async function resolvePageRouteData(args: {
         principal: args.principal,
     });
 
-    return await args.page.load(context);
+    const owner = attachServiceContainer(
+        Object.create(args.page) as object,
+        args.serviceContainer,
+    );
+
+    return await withServiceContainer(args.serviceContainer, () => args.page.load!.call(owner, context));
 }
 
 async function redirectUnauthorizedRouteToLogin(args: {
@@ -1225,6 +1253,7 @@ async function redirectUnauthorizedRouteToLogin(args: {
     currentPath: string;
     locale?: string;
     auth?: AuthorizationRuntimeOptions;
+    serviceContainer?: ServiceContainer;
     locales?: readonly string[];
     resolvePath?: RoutePathResolver;
     onLocaleChange?: ResolvedPageNavigationOptions["onLocaleChange"];
@@ -1274,6 +1303,7 @@ async function redirectUnauthorizedRouteToLogin(args: {
         navigationType: args.navigationType,
         basePath: args.basePath,
         auth: args.auth,
+        serviceContainer: args.serviceContainer,
         locales: args.locales,
         resolvePath: args.resolvePath,
         onLocaleChange: args.onLocaleChange,
@@ -1748,6 +1778,7 @@ function resolvePageNavigationOptions(
     const notFound = options.notFound ?? legacySpaOptions?.notFound;
     const mount = options.mount ?? legacySpaOptions?.mount;
     const auth = options.auth ?? legacySpaOptions?.auth;
+    const services = options.services ?? legacySpaOptions?.services;
     const locales = options.locales ?? legacySpaOptions?.locales;
     const resolvePath = options.resolvePath ?? legacySpaOptions?.resolvePath;
     const onLocaleChange = options.onLocaleChange ?? legacySpaOptions?.onLocaleChange;
@@ -1765,6 +1796,7 @@ function resolvePageNavigationOptions(
         notFound,
         mount,
         auth,
+        services,
         locales,
         resolvePath,
         onLocaleChange,
@@ -2156,6 +2188,7 @@ async function bootstrapDocumentNavigation(
             basePath,
             locale,
             auth: options.auth,
+            serviceContainer: options.serviceContainer,
             locales: options.locales,
             mode,
             nextNavigationSequence,
@@ -2203,6 +2236,7 @@ async function bootstrapDocumentNavigation(
             navigationType: "initial",
             basePath,
             auth: options.auth,
+            serviceContainer: options.serviceContainer,
             locales: options.locales,
             resolvePath: options.resolvePath,
             onLocaleChange: options.onLocaleChange,
@@ -2239,6 +2273,7 @@ async function resolveMountedRouteContext(
         basePath: string;
         locale?: string;
         auth?: AuthorizationRuntimeOptions;
+        serviceContainer?: ServiceContainer;
         locales?: readonly string[];
         mode: NavigationMode;
         nextNavigationSequence: NavigationSequenceSource;
@@ -2271,6 +2306,7 @@ async function resolveMountedRouteContext(
                     currentPath: context.currentPath,
                     locale: context.locale,
                     auth: context.auth,
+                    serviceContainer: context.serviceContainer,
                     locales: context.locales,
                     mode: context.mode,
                     nextNavigationSequence: context.nextNavigationSequence,
@@ -2290,16 +2326,17 @@ async function resolveMountedRouteContext(
                 matchedPath: context.currentPath,
                 params,
                 locale: context.locale,
-            }) ?? await resolvePageRouteData({
-                page: matchedPage,
-                params,
-                locale: context.locale,
-                principal,
-                url: context.url,
-                signal: context.sequence.controller.signal,
-            });
-            const routeContext = {
-                page: matchedPage,
+              }) ?? await resolvePageRouteData({
+                  page: matchedPage,
+                  params,
+                  locale: context.locale,
+                  principal,
+                  url: context.url,
+                  signal: context.sequence.controller.signal,
+                  serviceContainer: context.serviceContainer,
+              });
+              const routeContext = {
+                  page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
                 params: context.routeMatch?.params ?? {},
@@ -2321,11 +2358,12 @@ async function resolveMountedRouteContext(
                 }),
                 locale: context.locale,
                 url: context.url,
-                navigationType: "initial",
-                basePath: context.basePath,
-            } satisfies SpaNavigationRenderContext;
+                  navigationType: "initial",
+                  basePath: context.basePath,
+              } satisfies SpaNavigationRenderContext;
+              attachServiceContainer(routeContext, context.serviceContainer);
 
-            applySpaRouteContext(mountedElement, routeContext);
+              applySpaRouteContext(mountedElement, routeContext);
             applyResolvedPageHeadToDocument(routeContext.head);
             return routeContext;
         }
@@ -2389,6 +2427,7 @@ async function resolveMountedRouteContext(
             principal,
             url: context.url,
             signal: context.sequence.controller.signal,
+            serviceContainer: context.serviceContainer,
         });
         const routeContext = {
             page: route.page,
@@ -2416,6 +2455,7 @@ async function resolveMountedRouteContext(
             navigationType: "initial",
             basePath: context.basePath,
         } satisfies SpaNavigationRenderContext;
+        attachServiceContainer(routeContext, context.serviceContainer);
 
         applySpaRouteContext(mountedElement, routeContext);
         applyResolvedPageHeadToDocument(routeContext.head);

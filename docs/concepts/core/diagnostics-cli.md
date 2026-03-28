@@ -25,7 +25,6 @@ mainz diagnose
 
 Route diagnostics:
 
-- pages that rely on the implicit `csr` default instead of declaring `@RenderMode(...)`
 - dynamic SSG routes missing `entries()`
 - dynamic SSG routes with `entries()` but no `load()`
 - invalid `entries()` for dynamic SSG params
@@ -36,9 +35,9 @@ Route diagnostics:
 
 Component diagnostics:
 
-- `Component` declarations with `load()` but no `@RenderStrategy(...)`
 - `Component` declarations with `@RenderStrategy(...)` but no `load()`
 - `Component` declarations with `load()` using `deferred` or `client-only` without a fallback
+- `Component` declarations using `blocking` together with a fallback, which is usually misleading
 - components that reference named authorization policies not declared in
   `target.authorization.policyNames`
 
@@ -66,7 +65,7 @@ export default {
 ```
 
 That declaration powers tooling only. Your real policy implementations still belong in
-`startPagesApp({ auth: { policies } })` or `startNavigation({ auth: { policies } })`.
+`startApp({ auth: { policies } })` or `startNavigation({ auth: { policies } })`.
 
 ## Human output
 

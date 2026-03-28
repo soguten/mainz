@@ -60,18 +60,18 @@ That page now requires:
 ## Register principal resolution and policies at startup
 
 Runtime authorization lives in the app bootstrap through the `auth` option on
-`startPagesApp(...)` or `startNavigation(...)`.
+`startApp(...)` or `startNavigation(...)`.
 
 ```tsx title="main.tsx"
 import {
     createAnonymousPrincipal,
-    startPagesApp,
+    startApp,
 } from "mainz";
 import { AccountPage } from "./pages/Account.page.tsx";
 import { BillingPage } from "./pages/Billing.page.tsx";
 import { LoginPage } from "./pages/Login.page.tsx";
 
-startPagesApp({
+startApp({
     pages: [AccountPage, BillingPage, LoginPage],
     auth: {
         loginPath: "/login",

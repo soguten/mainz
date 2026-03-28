@@ -1,7 +1,7 @@
-import { startPagesApp } from "mainz";
+import { startApp } from "mainz";
 import { StableNameHomePage } from "./pages/Home.page.tsx";
 
-startPagesApp({
+startApp({
     mount: "#app",
     pages: [StableNameHomePage],
 });

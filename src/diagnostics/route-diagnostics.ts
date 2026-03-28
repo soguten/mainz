@@ -6,7 +6,9 @@ import ts from "npm:typescript";
 export type MainzDiagnosticSeverity = "warning" | "error";
 export type MainzDiagnosticCode =
     | "authorization-policy-not-registered"
-    | "missing-render-mode-decorator"
+    | "di-factory-dependency-not-registered"
+    | "di-token-not-registered"
+    | "di-registration-cycle"
     | "dynamic-ssg-missing-entries"
     | "dynamic-ssg-missing-load"
     | "dynamic-ssg-invalid-entries"
@@ -81,18 +83,6 @@ export async function collectRouteDiagnostics(
                     routePath: page.page.path,
                 });
             }
-        }
-
-        if (page.page.hasExplicitRenderMode !== true) {
-            diagnostics.push({
-                code: "missing-render-mode-decorator",
-                severity: "warning",
-                message:
-                    `Page "${page.exportName}" should declare @RenderMode("${page.page.mode}") explicitly instead of relying on the implicit default.`,
-                file: page.file,
-                exportName: page.exportName,
-                routePath: page.page.path,
-            });
         }
 
         if (page.page.notFound === true && page.page.mode !== "ssg") {

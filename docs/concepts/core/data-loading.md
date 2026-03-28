@@ -97,8 +97,8 @@ the async assembly directly.
 This is now the main user-facing async path in Mainz:
 
 - `Component`
-- `@RenderStrategy(...)`
 - `Component.load()`
+- optional `@RenderStrategy(...)` when the component should not use the default `blocking` behavior
 
 When a loaded component has no local state, use `NoState` in the second generic slot:
 
@@ -119,7 +119,6 @@ export class DocsPage extends Page<{ route?: { params?: Record<string, string> }
 ```
 
 ```tsx title="DocsArticleContent.tsx"
-@RenderStrategy("blocking")
 export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsPageModel> {
     override async load(context) {
         return await buildDocsArticlePageModel(this.props.slug, {
@@ -202,10 +201,12 @@ A good smell check is:
 ## `@RenderStrategy(...)` now applies to `Component.load()`
 
 `@RenderStrategy(...)` stays a component concern, but it now describes how `Component.load()`
-participates in rendering.
+participates in rendering when the component needs behavior other than the default `blocking`
+strategy.
 
 ### `blocking`
 
+- this is the default when a component declares `load()` and does not declare `@RenderStrategy(...)`
 - the component load can participate in the initial render path
 - use this when the component belongs in the first render
 
@@ -225,6 +226,9 @@ participates in rendering.
 
 If a component uses `deferred` or `client-only`, provide a fallback so the placeholder stays
 explicit.
+
+If a component keeps the default `blocking` behavior, adding a fallback is usually misleading
+because blocking owners normally render resolved output instead of visible loading UI.
 
 ## Example: `deferred`
 

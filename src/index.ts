@@ -19,7 +19,7 @@ export {
     resolvePageAuthorization,
     Route,
 } from "./components/index.ts";
-export { startNavigation, startPagesApp } from "./navigation/index.ts";
+export { startApp, startNavigation } from "./navigation/index.ts";
 export {
     MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_LOCALE_CHANGE_EVENT,
@@ -61,8 +61,8 @@ export type {
     SpaPageDefinition,
     SpaPageModule,
     SpaRouteParams,
+    StartAppOptions,
     StartNavigationOptions,
-    StartPagesAppOptions,
 } from "./navigation/index.ts";
 export type {
     PageConstructor,

@@ -10,7 +10,8 @@ Deno.test("public-api/root: should expose the ownership-based surface without le
     assertEquals(typeof mainz.RenderStrategy, "function");
     assertEquals(typeof mainz.Authorize, "function");
     assertEquals(typeof mainz.AllowAnonymous, "function");
-    assertEquals(typeof mainz.startPagesApp, "function");
+    assertEquals(typeof mainz.startApp, "function");
+    assertEquals(typeof mainz.startApp, "function");
     assertEquals(typeof mainz.isRouteVisible, "function");
     assertEquals(typeof mainz.filterVisibleRoutes, "function");
     assertEquals(typeof mainz.findMissingAuthorizationPolicies, "function");
@@ -51,4 +52,30 @@ Deno.test("public-api/testing: should expose lifecycle helpers through mainz/tes
     assertEquals(typeof testing.waitForNavigationStart, "function");
     assertEquals(typeof testing.waitForNavigationError, "function");
     assertEquals(typeof testing.waitForNavigationReady, "function");
+});
+
+Deno.test("public-api/di: should expose the DI surface through mainz/di", async () => {
+    const di = await import("mainz/di");
+
+    assertEquals(typeof di.inject, "function");
+    assertEquals(typeof di.singleton, "function");
+    assertEquals(typeof di.transient, "function");
+    assertEquals(typeof di.createServiceContainer, "function");
+});
+
+Deno.test("public-api/http: should expose the HTTP surface through mainz/http", async () => {
+    const http = await import("mainz/http");
+    const httpTesting = await import("mainz/http/testing");
+
+    assertEquals(typeof http.HttpClient, "function");
+    assertEquals(typeof http.HttpResponseError, "function");
+    assertEquals(typeof httpTesting.createMockFetch, "function");
+    assertEquals(typeof httpTesting.delayWithSignal, "function");
+    assertEquals(typeof httpTesting.jsonResponse, "function");
+    assertEquals(typeof httpTesting.textResponse, "function");
+    assertEquals(typeof httpTesting.httpError, "function");
+    assertEquals(typeof httpTesting.networkError, "function");
+    assertEquals(typeof httpTesting.query, "function");
+    assertEquals(typeof httpTesting.requestJson, "function");
+    assertEquals(typeof httpTesting.sequence, "function");
 });
