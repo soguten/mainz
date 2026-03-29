@@ -4,7 +4,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @Route("/")
 @RenderMode("ssg")
 @Locales("en--US")
-export class FixtureDiagnosticsInvalidLocaleHomePage extends Page {
+export class DiagnosticsInvalidLocaleHomePage extends Page {
     static override page = {
         head: {
             title: "Invalid locale fixture",

@@ -54,7 +54,7 @@ Deno.test("testing helper/isolation: multiple interactive surfaces should coexis
         assertEquals(selectionScreen.getBySelector("p[data-role='selection-summary']").textContent, "1");
         assertEquals(draftScreen.getBySelector("p[data-role='draft-summary']").textContent, "idle");
 
-        draftScreen.input("textarea[data-role='draft-input']", "import { Component } from \"mainz\";");
+        draftScreen.input("textarea[data-role='draft-input']", 'import { Component } from "mainz";');
         draftScreen.click("button[data-role='validate']");
 
         assertEquals(draftScreen.getBySelector("p[data-role='draft-summary']").textContent, "ok");
@@ -64,5 +64,3 @@ Deno.test("testing helper/isolation: multiple interactive surfaces should coexis
         draftScreen.cleanup();
     }
 });
-
-

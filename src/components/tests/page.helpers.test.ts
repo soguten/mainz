@@ -88,7 +88,7 @@ Deno.test("components/page helpers: Locales decorator should keep locale metadat
     assertEquals(resolvePageLocales(LocalizedPage), ["en", "pt-BR"]);
 });
 
-Deno.test("components/page helpers: Locales decorator should normalize and validate locale tags", () => {
+Deno.test("components/page helpers: Locales decorator should normalize and diagnose locale tags", () => {
     @Locales("en_us", "sr_latn_rs")
     class CanonicalizedPage extends Page {
         override render(): HTMLElement {
@@ -113,3 +113,4 @@ Deno.test("components/page helpers: Locales decorator should normalize and valid
         '@Locales() received invalid locale "en--US" at index 0.',
     );
 });
+

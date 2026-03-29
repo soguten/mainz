@@ -6,7 +6,7 @@ import {
     Page,
     RenderMode,
     Route,
-} from "../../components/index.ts";
+} from "../../../components/index.ts";
 
 abstract class DiagnosticsRouteFixturePage extends Page {
     override render() {

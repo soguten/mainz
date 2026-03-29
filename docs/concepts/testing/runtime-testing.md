@@ -1,4 +1,4 @@
-## Runtime tests validate framework behavior directly
+## Runtime tests verify framework behavior directly
 
 Some behavior belongs above one component:
 
@@ -342,3 +342,4 @@ If the contract depends on:
 - preview server behavior
 
 then move up to smoke or E2E tests.
+

@@ -79,7 +79,7 @@ export class DocsArticleContent extends Component<{ slug?: string }, NoState, Do
 Keep only policy and loading logic there:
 
 - a stable name for logs and debugging
-- cache or revalidation intent
+- cache or diagnostics intent
 - environment constraints such as build-only or browser-only execution
 - the loader itself
 
@@ -113,3 +113,4 @@ Mainz now keeps the async model simple:
 - `@RenderMode(...)` and `@RenderStrategy(...)` describe rendering behavior
 
 For the ownership-first loading flow, see [Data Loading](./data-loading.md).
+

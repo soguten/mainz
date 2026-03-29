@@ -139,7 +139,7 @@ const visibleRoutes = await filterVisibleRoutes({
 });
 ```
 
-For one-off checks, use `isRouteVisible(...)`. For startup validation or custom tooling, use
+For one-off checks, use `isRouteVisible(...)`. For startup diagnostics or custom tooling, use
 `findMissingAuthorizationPolicies(...)`.
 
 ## `mainz diagnose` also needs policy names
@@ -166,7 +166,7 @@ export default {
 ```
 
 That declaration is for diagnostics and tooling only. The actual policy functions still belong in
-`auth.policies` at runtime. See [Diagnostics CLI](./diagnostics-cli.md) for the terminal workflow.
+`auth.policies` at runtime. See [diagnostics CLI](./diagnostics-cli.md) for the terminal workflow.
 
 ## SSG must keep private state out of shared HTML
 
@@ -178,3 +178,5 @@ Protected content and shared prerendered HTML do not mix cleanly.
 When the route shell is public but a personalized area is not, prefer the
 [Public Shell, Private Island](./public-shell-private-island.md) pattern instead of prerendering
 protected content.
+
+

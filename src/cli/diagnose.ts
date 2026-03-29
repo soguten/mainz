@@ -1,18 +1,10 @@
 /// <reference lib="deno.ns" />
 
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import {
-    collectComponentDiagnostics,
-    collectDiDiagnostics,
-    collectRouteDiagnostics,
-    type ComponentSourceDiagnosticsInput,
-    type DiSourceDiagnosticsInput,
-    type MainzDiagnosticCode,
+    collectDiagnosticsForTarget,
     type MainzDiagnostic,
 } from "../diagnostics/index.ts";
-import { collectFilesystemFiles, resolveTargetDiscoveredPages } from "./route-pages.ts";
 
 export interface DiagnoseCliOptions {
     target?: string;
@@ -32,70 +24,13 @@ export async function collectCliDiagnostics(
     const diagnostics: CliTargetDiagnostic[] = [];
 
     for (const target of resolveDiagnoseTargets(config, options.target)) {
-        const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
-        if (discoveredPages?.length) {
-            const targetDiagnostics = await collectRouteDiagnostics(
-                discoveredPages.map((page) => ({
-                    file: page.file,
-                    exportName: page.exportName,
-                    page: {
-                        path: page.path,
-                        mode: page.mode,
-                        hasExplicitRenderMode: page.hasExplicitRenderMode,
-                        notFound: page.notFound,
-                        locales: page.locales,
-                        authorization: page.authorization,
-                    },
-                })),
-                {
-                    registeredPolicyNames: target.authorization?.policyNames ?? [],
-                },
-            );
-            diagnostics.push(
-                ...targetDiagnostics.map((diagnostic) => ({
-                    ...diagnostic,
-                    target: target.name,
-                })),
-            );
-        }
-
-        if (discoveryErrors?.length) {
-            diagnostics.push(
-                ...discoveryErrors.map((discoveryError) => ({
-                    target: target.name,
-                    code: classifyPageDiscoveryError(discoveryError.message),
-                    severity: "error" as const,
-                    message: discoveryError.message,
-                    file: discoveryError.file,
-                    exportName: "(page discovery)",
-                })),
-            );
-        }
-
-        const componentSources = await discoverTargetComponentSources(target, cwd);
-        const componentDiagnostics = await collectComponentDiagnostics(componentSources, {
-            registeredPolicyNames: target.authorization?.policyNames ?? [],
-        });
+        const targetDiagnostics = await collectDiagnosticsForTarget(target, cwd);
         diagnostics.push(
-            ...componentDiagnostics.map((diagnostic) => ({
+            ...targetDiagnostics.map((diagnostic) => ({
                 ...diagnostic,
                 target: target.name,
             })),
         );
-
-        const diSources = await discoverTargetDiSources(target, cwd);
-        const diDiagnostics = await collectDiDiagnostics(diSources, {
-            routePathsByOwner: new Map(
-                (discoveredPages ?? []).map((page) => [`${page.file}::${page.exportName}`, page.path]),
-            ),
-        });
-        diagnostics.push(
-            ...diDiagnostics.map((diagnostic) => ({
-                ...diagnostic,
-                target: target.name,
-            })),
-        );
-
     }
 
     return diagnostics.sort(compareDiagnostics);
@@ -111,7 +46,7 @@ export function formatCliDiagnosticsHuman(
     diagnostics: readonly CliTargetDiagnostic[],
 ): string {
     if (diagnostics.length === 0) {
-        return "No diagnostics found.";
+        return "No diagnostics.";
     }
 
     const errors = diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
@@ -214,86 +149,6 @@ function groupDiagnosticsByTarget(
     return grouped;
 }
 
-function classifyPageDiscoveryError(message: string): MainzDiagnosticCode {
-    if (message.includes("@Locales() received invalid locale")) {
-        return "invalid-locale-tag";
-    }
-
-    return "page-discovery-failed";
-}
-
 function readDiagnosticRoutePath(diagnostic: CliTargetDiagnostic): string | undefined {
     return "routePath" in diagnostic ? diagnostic.routePath : undefined;
-}
-
-async function discoverTargetComponentSources(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<readonly ComponentSourceDiagnosticsInput[]> {
-    const files = await collectTargetComponentFiles(target, cwd);
-    const sources: ComponentSourceDiagnosticsInput[] = [];
-
-    for (const file of files) {
-        sources.push({
-            file,
-            source: await Deno.readTextFile(file),
-        });
-    }
-
-    return sources;
-}
-
-async function discoverTargetDiSources(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<readonly DiSourceDiagnosticsInput[]> {
-    const files = await collectTargetDiFiles(target, cwd);
-    const sources: DiSourceDiagnosticsInput[] = [];
-
-    for (const file of files) {
-        sources.push({
-            file,
-            source: await Deno.readTextFile(file),
-        });
-    }
-
-    return sources;
-}
-
-async function collectTargetComponentFiles(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<readonly string[]> {
-    const sourceDir = resolve(cwd, target.rootDir, "src");
-    if (!existsSync(sourceDir)) {
-        return [];
-    }
-
-    const files = await collectFilesystemFiles(sourceDir);
-    return files.filter((file) => {
-        if (!/\.(ts|tsx|mts|cts)$/.test(file)) {
-            return false;
-        }
-
-        return !/(\.test\.|\.fixture\.)/.test(file);
-    });
-}
-
-async function collectTargetDiFiles(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<readonly string[]> {
-    const sourceDir = resolve(cwd, target.rootDir, "src");
-    if (!existsSync(sourceDir)) {
-        return [];
-    }
-
-    const files = await collectFilesystemFiles(sourceDir);
-    return files.filter((file) => {
-        if (!/\.(ts|tsx|mts|cts)$/.test(file)) {
-            return false;
-        }
-
-        return !/(\.test\.|\.fixture\.)/.test(file);
-    });
 }

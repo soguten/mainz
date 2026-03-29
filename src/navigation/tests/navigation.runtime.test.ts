@@ -32,6 +32,23 @@ async function loadSnapshotFixture(): Promise<typeof import("./navigation.snapsh
     return await snapshotFixturePromise;
 }
 
+async function withSuppressedSpaNavigationFailureLogs<T>(run: () => Promise<T>): Promise<T> {
+    const originalConsoleError = console.error;
+    console.error = (...args: Parameters<typeof console.error>) => {
+        if (typeof args[0] === "string" && args[0].startsWith("[mainz] SPA navigation failed.")) {
+            return;
+        }
+
+        originalConsoleError(...args);
+    };
+
+    try {
+        return await run();
+    } finally {
+        console.error = originalConsoleError;
+    }
+}
+
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
     const { startNavigation } = await prepareNavigationTest();
 
@@ -455,51 +472,57 @@ Deno.test("navigation/runtime: should treat forbidden output as start-to-ready f
 });
 
 Deno.test("navigation/runtime: should emit navigation-error when managed route loading fails", async () => {
-    const { startNavigation } = await prepareNavigationTest();
-    const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
+    await withSuppressedSpaNavigationFailureLogs(async () => {
+        const { startNavigation } = await prepareNavigationTest();
+        const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main><a id="broken-link" href="/broken">Broken</a>';
+        document.body.innerHTML =
+            '<main id="app"></main><a id="broken-link" href="/broken">Broken</a>';
 
-    const initialReady = waitForNavigationReady({
-        mode: "spa",
-        matchedPath: "/",
-        navigationSequence: 1,
+        const initialReady = waitForNavigationReady({
+            mode: "spa",
+            matchedPath: "/",
+            navigationSequence: 1,
+        });
+        const controller = startNavigation({
+            mode: "spa",
+            spa: {
+                mount: "#app",
+                pages: [SpaHomePage, SpaBrokenPage],
+            },
+        });
+        await initialReady;
+
+        const started = waitForNavigationStart({
+            target: document.getElementById("app")!,
+            path: "/broken",
+            matchedPath: "/broken",
+            navigationType: "push",
+        });
+        const failed = waitForNavigationError({
+            target: document.getElementById("app")!,
+            path: "/broken",
+            matchedPath: "/broken",
+            navigationType: "push",
+            phase: "route-load",
+        });
+
+        document.getElementById("broken-link")?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+
+        const [startDetail, errorDetail] = await Promise.all([started, failed]);
+
+        assertEquals(errorDetail.navigationSequence, startDetail.navigationSequence);
+        assertEquals(errorDetail.message, "Broken route load.");
+        assertEquals(window.location.pathname, "/");
+        assertEquals(
+            document.querySelector("#app x-mainz-navigation-spa-home-page") !== null,
+            true,
+        );
+
+        controller.cleanup();
     });
-    const controller = startNavigation({
-        mode: "spa",
-        spa: {
-            mount: "#app",
-            pages: [SpaHomePage, SpaBrokenPage],
-        },
-    });
-    await initialReady;
-
-    const started = waitForNavigationStart({
-        target: document.getElementById("app")!,
-        path: "/broken",
-        matchedPath: "/broken",
-        navigationType: "push",
-    });
-    const failed = waitForNavigationError({
-        target: document.getElementById("app")!,
-        path: "/broken",
-        matchedPath: "/broken",
-        navigationType: "push",
-        phase: "route-load",
-    });
-
-    document.getElementById("broken-link")?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-
-    const [startDetail, errorDetail] = await Promise.all([started, failed]);
-
-    assertEquals(errorDetail.navigationSequence, startDetail.navigationSequence);
-    assertEquals(errorDetail.message, "Broken route load.");
-    assertEquals(window.location.pathname, "/");
-    assertEquals(document.querySelector("#app x-mainz-navigation-spa-home-page") !== null, true);
-
-    controller.cleanup();
 });
 
 Deno.test("navigation/runtime: should abort a superseded navigation, propagate the signal, and avoid stale ready", async () => {
@@ -639,166 +662,173 @@ Deno.test("navigation/runtime: should emit navigation-abort on cleanup for an in
 });
 
 Deno.test("navigation/runtime: should normalize authorization failures as navigation-error phase authorization", async () => {
-    const { startNavigation } = await prepareNavigationTest();
-    const { SpaProtectedPage } = await loadSpaFixtures();
+    await withSuppressedSpaNavigationFailureLogs(async () => {
+        const { startNavigation } = await prepareNavigationTest();
+        const { SpaProtectedPage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main>';
-    window.history.replaceState(null, "", "/dashboard");
+        document.body.innerHTML = '<main id="app"></main>';
+        window.history.replaceState(null, "", "/dashboard");
 
-    const appRoot = document.getElementById("app");
-    assert(appRoot instanceof HTMLElement);
+        const appRoot = document.getElementById("app");
+        assert(appRoot instanceof HTMLElement);
 
-    const started = waitForNavigationStart({
-        target: appRoot,
-        path: "/dashboard",
-        matchedPath: "/dashboard",
-        navigationType: "initial",
-    });
-    const failed = waitForNavigationError({
-        target: appRoot,
-        path: "/dashboard",
-        matchedPath: "/dashboard",
-        navigationType: "initial",
-        phase: "authorization",
-    });
+        const started = waitForNavigationStart({
+            target: appRoot,
+            path: "/dashboard",
+            matchedPath: "/dashboard",
+            navigationType: "initial",
+        });
+        const failed = waitForNavigationError({
+            target: appRoot,
+            path: "/dashboard",
+            matchedPath: "/dashboard",
+            navigationType: "initial",
+            phase: "authorization",
+        });
 
-    const controller = startNavigation({
-        mode: "spa",
-        mount: appRoot,
-        pages: [SpaProtectedPage],
-        auth: {
-            async getPrincipal() {
-                throw new Error("Principal lookup failed.");
+        const controller = startNavigation({
+            mode: "spa",
+            mount: appRoot,
+            pages: [SpaProtectedPage],
+            auth: {
+                async getPrincipal() {
+                    throw new Error("Principal lookup failed.");
+                },
             },
-        },
+        });
+
+        const [startDetail, errorDetail] = await Promise.all([started, failed]);
+
+        assertEquals(errorDetail.navigationSequence, startDetail.navigationSequence);
+        assertEquals(errorDetail.phase, "authorization");
+        assertEquals(errorDetail.message, "Principal lookup failed.");
+
+        controller.cleanup();
     });
-
-    const [startDetail, errorDetail] = await Promise.all([started, failed]);
-
-    assertEquals(errorDetail.navigationSequence, startDetail.navigationSequence);
-    assertEquals(errorDetail.phase, "authorization");
-    assertEquals(errorDetail.message, "Principal lookup failed.");
-
-    controller.cleanup();
 });
 
 Deno.test("navigation/runtime: should emit exactly one terminal event for a failed navigation sequence", async () => {
-    const { startNavigation } = await prepareNavigationTest();
-    const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
+    await withSuppressedSpaNavigationFailureLogs(async () => {
+        const { startNavigation } = await prepareNavigationTest();
+        const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
 
-    document.body.innerHTML = '<main id="app"></main><a id="broken-link" href="/broken">Broken</a>';
+        document.body.innerHTML =
+            '<main id="app"></main><a id="broken-link" href="/broken">Broken</a>';
 
-    const initialReady = waitForNavigationReady({
-        mode: "spa",
-        matchedPath: "/",
-        navigationSequence: 1,
+        const initialReady = waitForNavigationReady({
+            mode: "spa",
+            matchedPath: "/",
+            navigationSequence: 1,
+        });
+        const appRoot = document.getElementById("app");
+        assert(appRoot instanceof HTMLElement);
+
+        const terminalEvents: string[] = [];
+        appRoot.addEventListener("mainz:navigationready", () => terminalEvents.push("ready"));
+        appRoot.addEventListener("mainz:navigationerror", () => terminalEvents.push("error"));
+        appRoot.addEventListener("mainz:navigationabort", () => terminalEvents.push("abort"));
+
+        const controller = startNavigation({
+            mode: "spa",
+            spa: {
+                mount: appRoot,
+                pages: [SpaHomePage, SpaBrokenPage],
+            },
+        });
+        await initialReady;
+        terminalEvents.length = 0;
+
+        const failed = waitForNavigationError({
+            target: appRoot,
+            path: "/broken",
+            matchedPath: "/broken",
+            navigationType: "push",
+            phase: "route-load",
+        });
+
+        document.getElementById("broken-link")?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+
+        const errorDetail = await failed;
+        controller.cleanup();
+        await nextTick();
+
+        assertEquals(errorDetail.navigationSequence, 2);
+        assertEquals(terminalEvents, ["error"]);
     });
-    const appRoot = document.getElementById("app");
-    assert(appRoot instanceof HTMLElement);
-
-    const terminalEvents: string[] = [];
-    appRoot.addEventListener("mainz:navigationready", () => terminalEvents.push("ready"));
-    appRoot.addEventListener("mainz:navigationerror", () => terminalEvents.push("error"));
-    appRoot.addEventListener("mainz:navigationabort", () => terminalEvents.push("abort"));
-
-    const controller = startNavigation({
-        mode: "spa",
-        spa: {
-            mount: appRoot,
-            pages: [SpaHomePage, SpaBrokenPage],
-        },
-    });
-    await initialReady;
-    terminalEvents.length = 0;
-
-    const failed = waitForNavigationError({
-        target: appRoot,
-        path: "/broken",
-        matchedPath: "/broken",
-        navigationType: "push",
-        phase: "route-load",
-    });
-
-    document.getElementById("broken-link")?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-
-    const errorDetail = await failed;
-    controller.cleanup();
-    await nextTick();
-
-    assertEquals(errorDetail.navigationSequence, 2);
-    assertEquals(terminalEvents, ["error"]);
 });
 
 Deno.test("navigation/runtime: should keep navigation-error isolated to the app root that failed", async () => {
-    const { startNavigation } = await prepareNavigationTest();
-    const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
+    await withSuppressedSpaNavigationFailureLogs(async () => {
+        const { startNavigation } = await prepareNavigationTest();
+        const { SpaBrokenPage, SpaHomePage } = await loadSpaFixtures();
 
-    document.body.innerHTML = `
+        document.body.innerHTML = `
         <main id="left-app"></main>
         <main id="right-app"></main>
         <a id="broken-link" href="/broken">Broken</a>
     `;
-    window.history.replaceState(null, "", "/");
+        window.history.replaceState(null, "", "/");
 
-    const leftApp = document.getElementById("left-app");
-    const rightApp = document.getElementById("right-app");
-    assert(leftApp instanceof HTMLElement);
-    assert(rightApp instanceof HTMLElement);
+        const leftApp = document.getElementById("left-app");
+        const rightApp = document.getElementById("right-app");
+        assert(leftApp instanceof HTMLElement);
+        assert(rightApp instanceof HTMLElement);
 
-    let rightErrorCount = 0;
-    rightApp.addEventListener("mainz:navigationerror", () => {
-        rightErrorCount += 1;
+        let rightErrorCount = 0;
+        rightApp.addEventListener("mainz:navigationerror", () => {
+            rightErrorCount += 1;
+        });
+
+        const leftReady = waitForNavigationReady({
+            target: leftApp,
+            path: "/",
+            matchedPath: "/",
+            navigationType: "initial",
+        });
+        const rightReady = waitForNavigationReady({
+            target: rightApp,
+            path: "/",
+            matchedPath: "/",
+            navigationType: "initial",
+        });
+
+        const leftController = startNavigation({
+            mode: "spa",
+            mount: leftApp,
+            pages: [SpaHomePage, SpaBrokenPage],
+        });
+        const rightController = startNavigation({
+            mode: "spa",
+            mount: rightApp,
+            pages: [SpaHomePage],
+        });
+
+        await Promise.all([leftReady, rightReady]);
+
+        const failed = waitForNavigationError({
+            target: leftApp,
+            path: "/broken",
+            matchedPath: "/broken",
+            navigationType: "push",
+            phase: "route-load",
+        });
+
+        document.getElementById("broken-link")?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true }),
+        );
+
+        const errorDetail = await failed;
+        await nextTick();
+
+        assertEquals(errorDetail.path, "/broken");
+        assertEquals(rightErrorCount, 0);
+        assertEquals(rightApp.querySelector('[data-page="home"]') !== null, true);
+
+        leftController.cleanup();
+        rightController.cleanup();
     });
-
-    const leftReady = waitForNavigationReady({
-        target: leftApp,
-        path: "/",
-        matchedPath: "/",
-        navigationType: "initial",
-    });
-    const rightReady = waitForNavigationReady({
-        target: rightApp,
-        path: "/",
-        matchedPath: "/",
-        navigationType: "initial",
-    });
-
-    const leftController = startNavigation({
-        mode: "spa",
-        mount: leftApp,
-        pages: [SpaHomePage, SpaBrokenPage],
-    });
-    const rightController = startNavigation({
-        mode: "spa",
-        mount: rightApp,
-        pages: [SpaHomePage],
-    });
-
-    await Promise.all([leftReady, rightReady]);
-
-    const failed = waitForNavigationError({
-        target: leftApp,
-        path: "/broken",
-        matchedPath: "/broken",
-        navigationType: "push",
-        phase: "route-load",
-    });
-
-    document.getElementById("broken-link")?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-
-    const errorDetail = await failed;
-    await nextTick();
-
-    assertEquals(errorDetail.path, "/broken");
-    assertEquals(rightErrorCount, 0);
-    assertEquals(rightApp.querySelector('[data-page="home"]') !== null, true);
-
-    leftController.cleanup();
-    rightController.cleanup();
 });
 
 Deno.test("navigation/runtime: should keep navigation-abort isolated to the app root that was superseded", async () => {

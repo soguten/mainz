@@ -266,8 +266,7 @@ Deno.test("cli/mainz: diagnose should report named authorization policies that a
                 target: "diagnostics-authorization-policies",
                 code: "authorization-policy-not-registered",
                 severity: "error",
-                message:
-                    'Page "OrgPage" references @Authorize({ policy: "org-member" }), ' +
+                message: 'Page "OrgPage" references @Authorize({ policy: "org-member" }), ' +
                     "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
                 file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Org.page.tsx",
                 exportName: "OrgPage",
@@ -298,47 +297,50 @@ Deno.test("cli/mainz: diagnose should report DI registry problems for the offici
             "diagnose failed for diagnostics-di fixture.",
         );
 
-        assertEquals(sortDiagnostics(JSON.parse(stdout)), sortDiagnostics([
-            {
-                target: "diagnostics-di",
-                code: "di-factory-dependency-not-registered",
-                severity: "error",
-                message:
-                    'Service "NeedsMissingDependency" depends on "MissingDependency" through get(...), ' +
-                    "but that dependency is not registered in app startup services.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
-                exportName: "NeedsMissingDependency",
-            },
-            {
-                target: "diagnostics-di",
+        assertEquals(
+            sortDiagnostics(JSON.parse(stdout)),
+            sortDiagnostics([
+                {
+                    target: "diagnostics-di",
+                    code: "di-factory-dependency-not-registered",
+                    severity: "error",
+                    message:
+                        'Service "NeedsMissingDependency" depends on "MissingDependency" through get(...), ' +
+                        "but that dependency is not registered in app startup services.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
+                    exportName: "NeedsMissingDependency",
+                },
+                {
+                    target: "diagnostics-di",
                     code: "di-token-not-registered",
-                severity: "error",
-                message:
-                    'Class "DiInjectedCard" injects "MissingApi" with mainz/di, ' +
-                    "but that token is not registered in app startup services.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/components/InjectedCard.tsx",
-                exportName: "DiInjectedCard",
-            },
-            {
-                target: "diagnostics-di",
+                    severity: "error",
+                    message: 'Class "DiInjectedCard" injects "MissingApi" with mainz/di, ' +
+                        "but that token is not registered in app startup services.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/components/InjectedCard.tsx",
+                    exportName: "DiInjectedCard",
+                },
+                {
+                    target: "diagnostics-di",
                     code: "di-token-not-registered",
-                severity: "error",
-                message:
-                    'Class "DiagnosticsDiPage" injects "MissingApi" with mainz/di, ' +
-                    "but that token is not registered in app startup services.",
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Home.page.tsx",
-                exportName: "DiagnosticsDiPage",
-                routePath: "/",
-            },
-            {
-                target: "diagnostics-di",
-                code: "di-registration-cycle",
-                severity: "error",
-                message: 'Service registration cycle detected: CycleA -> CycleB -> CycleA.',
-                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
-                exportName: "CycleA",
-            },
-        ]));
+                    severity: "error",
+                    message:
+                        'Class "DiagnosticsDiFixturePage" injects "MissingApi" with mainz/di, ' +
+                        "but that token is not registered in app startup services.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/Home.page.tsx",
+                    exportName: "DiagnosticsDiFixturePage",
+                    routePath: "/",
+                },
+                {
+                    target: "diagnostics-di",
+                    code: "di-registration-cycle",
+                    severity: "error",
+                    message: "Service registration cycle detected: CycleA -> CycleB -> CycleA.",
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
+                    exportName: "CycleA",
+                },
+            ]),
+        );
     } finally {
         await fixture.cleanup();
     }

@@ -33,9 +33,10 @@ export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
                 <p>
                     {isPortuguese
                         ? "Pagina minima para validar canonical e hreflang."
-                        : "Minimal page to validate canonical and hreflang."}
+                        : "Minimal page to diagnose canonical and hreflang."}
                 </p>
             </section>
         );
     }
 }
+

@@ -214,3 +214,4 @@ function resolveDiagnoseFailOn(
         `Unsupported diagnose fail mode "${failOn}". Use "never", "error", or "warning".`,
     );
 }
+

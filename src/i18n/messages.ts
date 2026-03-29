@@ -14,7 +14,9 @@ export async function validateMessagesForLocales(
             messages = await loader(normalizedLocale, ns);
         } catch (error) {
             throw new Error(
-                `Failed to load messages for locale "${normalizedLocale}": ${toErrorMessage(error)}`,
+                `Failed to load messages for locale "${normalizedLocale}": ${
+                    toErrorMessage(error)
+                }`,
             );
         }
 

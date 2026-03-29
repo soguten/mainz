@@ -1,6 +1,4 @@
-export {
-    createAppDictionaryI18n,
-} from "./app.ts";
+export { createAppDictionaryI18n } from "./app.ts";
 
 export {
     createDictionaryI18n,
@@ -13,14 +11,6 @@ export {
 
 export { validateMessagesForLocales } from "./messages.ts";
 
-export type {
-    DictionaryI18nAppDetectOptions,
-    DictionaryI18nAppOptions,
-} from "./app.ts";
+export type { DictionaryI18nAppDetectOptions, DictionaryI18nAppOptions } from "./app.ts";
 
-export type {
-    DictionaryI18nOptions,
-    I18nConfig,
-    LocaleTag,
-    MessagesLoader,
-} from "./types.ts";
+export type { DictionaryI18nOptions, I18nConfig, LocaleTag, MessagesLoader } from "./types.ts";

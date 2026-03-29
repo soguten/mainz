@@ -544,3 +544,4 @@ Deno.test("routing/manifest: locale path segment should be lowercase", () => {
     assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
     assertEquals(toLocalePathSegment("EN-us"), "en-us");
 });
+

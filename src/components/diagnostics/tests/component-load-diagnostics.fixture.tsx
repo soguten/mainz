@@ -6,7 +6,7 @@ import {
     type NoProps,
     type NoState,
     RenderStrategy,
-} from "../../index.ts";
+} from "../../../index.ts";
 
 @CustomElement("x-mainz-diagnostics-missing-strategy-load-component")
 export class MissingStrategyLoadComponent extends Component<NoProps, NoState, { title: string }> {

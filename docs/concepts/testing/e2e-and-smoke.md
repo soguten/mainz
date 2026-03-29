@@ -83,8 +83,7 @@ As a framework user, the public part you rely on is:
 - the `mainz/testing` helpers for unit and runtime tests
 - the CLI build inputs that make E2E scenarios explicit
 
-The repository's internal grouped matrix used to validate Mainz itself is documented separately for
-contributors in:
+The repository's internal grouped matrix used to validate Mainz itself is documented separately for contributors in:
 
 - [`../../advanced/testing-matrix.md`](../../advanced/testing-matrix.md)
 

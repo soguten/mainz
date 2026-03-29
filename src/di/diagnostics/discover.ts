@@ -1,21 +1,12 @@
-import ts from "npm:typescript";
-
-export interface DiSourceDiagnosticsInput {
-    file: string;
-    source: string;
-}
-
-export interface DiDiagnostic {
-    code:
-        | "di-token-not-registered"
-        | "di-factory-dependency-not-registered"
-        | "di-registration-cycle";
-    severity: "error";
-    message: string;
-    file: string;
-    exportName: string;
-    routePath?: string;
-}
+import { ts } from "@/compiler/typescript.ts";
+import type {
+    DiDiagnosticsFacts,
+    DiInjectionFact,
+    DiRegistrationCycleFact,
+    DiRegistrationFact,
+    DiSourceDiagnosticsInput,
+    DiTokenReference,
+} from "./facts.ts";
 
 interface DiDiagnosticFileContext {
     file: string;
@@ -31,90 +22,17 @@ interface ImportedBinding {
     sourceFile: string;
 }
 
-interface DiTokenReference {
-    key: string;
-    name: string;
-}
-
-interface DiRegistration {
-    token: DiTokenReference;
-    lifetime: "singleton" | "transient";
-    dependencies: readonly DiTokenReference[];
-    file: string;
-}
-
-interface InjectionUsage {
-    token: DiTokenReference;
-    file: string;
-    exportName: string;
-}
-
-export async function collectDiDiagnostics(
-    files: readonly DiSourceDiagnosticsInput[],
-    options?: {
-        routePathsByOwner?: ReadonlyMap<string, string>;
-    },
-): Promise<readonly DiDiagnostic[]> {
-    const fileContexts = createFileContexts(files);
+export async function discoverDiFacts(
+    sourceInputs: readonly DiSourceDiagnosticsInput[],
+): Promise<DiDiagnosticsFacts> {
+    const fileContexts = createFileContexts(sourceInputs);
     const registrations = collectProjectServiceRegistrations(fileContexts);
-    const injections = collectProjectInjectionUsages(fileContexts);
-    const diagnostics: DiDiagnostic[] = [];
-    const registrationsByToken = new Map(registrations.map((registration) => [registration.token.key, registration]));
-    const routePathsByOwner = options?.routePathsByOwner ?? new Map<string, string>();
-    const seenInjectedDiagnostics = new Set<string>();
-    const seenFactoryDiagnostics = new Set<string>();
-
-    for (const injection of injections) {
-        if (registrationsByToken.has(injection.token.key)) {
-            continue;
-        }
-
-        const diagnosticKey = `${injection.file}::${injection.exportName}::${injection.token.key}`;
-        if (seenInjectedDiagnostics.has(diagnosticKey)) {
-            continue;
-        }
-
-        seenInjectedDiagnostics.add(diagnosticKey);
-        diagnostics.push({
-            code: "di-token-not-registered",
-            severity: "error",
-            message:
-                `Class "${injection.exportName}" injects "${injection.token.name}" with mainz/di, ` +
-                'but that token is not registered in app startup services.',
-            file: injection.file,
-            exportName: injection.exportName,
-            routePath: routePathsByOwner.get(createOwnerKey(injection.file, injection.exportName)),
-        });
-    }
-
-    for (const registration of registrations) {
-        for (const dependency of registration.dependencies) {
-            if (registrationsByToken.has(dependency.key)) {
-                continue;
-            }
-
-            const diagnosticKey = `${registration.file}::${registration.token.key}::${dependency.key}`;
-            if (seenFactoryDiagnostics.has(diagnosticKey)) {
-                continue;
-            }
-
-            seenFactoryDiagnostics.add(diagnosticKey);
-            diagnostics.push({
-                code: "di-factory-dependency-not-registered",
-                severity: "error",
-                message:
-                    `Service "${registration.token.name}" depends on "${dependency.name}" through get(...), ` +
-                    "but that dependency is not registered in app startup services.",
-                file: registration.file,
-                exportName: registration.token.name,
-            });
-        }
-    }
-
-    diagnostics.push(...collectRegistrationCycleDiagnostics(registrations));
-    return diagnostics.sort(compareDiDiagnostics);
+    return {
+        registrations,
+        injections: collectProjectInjectionUsages(fileContexts),
+        cycles: collectRegistrationCycles(registrations),
+    };
 }
-
 function createFileContexts(
     files: readonly DiSourceDiagnosticsInput[],
 ): ReadonlyMap<string, DiDiagnosticFileContext> {
@@ -144,8 +62,8 @@ function createFileContexts(
 
 function collectProjectServiceRegistrations(
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
-): readonly DiRegistration[] {
-    const registrations: DiRegistration[] = [];
+): readonly DiRegistrationFact[] {
+    const registrations: DiRegistrationFact[] = [];
 
     for (const fileContext of fileContexts.values()) {
         visitNode(fileContext.sourceFile, (node) => {
@@ -154,7 +72,7 @@ function collectProjectServiceRegistrations(
             }
 
             const callee = readIdentifierLike(node.expression);
-            if (callee !== "startApp" && callee !== "startApp" && callee !== "startNavigation") {
+            if (callee !== "startApp" && callee !== "startNavigation") {
                 return;
             }
 
@@ -175,7 +93,7 @@ function collectProjectServiceRegistrations(
         });
     }
 
-    const deduped = new Map<string, DiRegistration>();
+    const deduped = new Map<string, DiRegistrationFact>();
     for (const registration of registrations) {
         deduped.set(`${registration.file}::${registration.token.key}`, registration);
     }
@@ -185,8 +103,8 @@ function collectProjectServiceRegistrations(
 
 function collectProjectInjectionUsages(
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
-): readonly InjectionUsage[] {
-    const usages: InjectionUsage[] = [];
+): readonly DiInjectionFact[] {
+    const usages: DiInjectionFact[] = [];
 
     for (const fileContext of fileContexts.values()) {
         visitNode(fileContext.sourceFile, (node) => {
@@ -217,11 +135,11 @@ function resolveServiceRegistrationsFromExpression(
     fileContext: DiDiagnosticFileContext,
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
     visitedReferences: Set<string>,
-): readonly DiRegistration[] {
+): readonly DiRegistrationFact[] {
     const normalizedExpression = unwrapExpression(expression);
 
     if (ts.isArrayLiteralExpression(normalizedExpression)) {
-        const registrations: DiRegistration[] = [];
+        const registrations: DiRegistrationFact[] = [];
         for (const element of normalizedExpression.elements) {
             if (ts.isSpreadElement(element)) {
                 registrations.push(
@@ -255,7 +173,11 @@ function resolveServiceRegistrationsFromExpression(
         }
 
         visitedReferences.add(referenceKey);
-        const resolved = resolveIdentifierExpression(fileContext, fileContexts, normalizedExpression.text);
+        const resolved = resolveIdentifierExpression(
+            fileContext,
+            fileContexts,
+            normalizedExpression.text,
+        );
         if (!resolved) {
             return [];
         }
@@ -268,7 +190,11 @@ function resolveServiceRegistrationsFromExpression(
         );
     }
 
-    const registration = resolveServiceRegistrationCall(normalizedExpression, fileContext, fileContexts);
+    const registration = resolveServiceRegistrationCall(
+        normalizedExpression,
+        fileContext,
+        fileContexts,
+    );
     return registration ? [registration] : [];
 }
 
@@ -276,7 +202,7 @@ function resolveServiceRegistrationCall(
     expression: ts.Expression,
     fileContext: DiDiagnosticFileContext,
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
-): DiRegistration | undefined {
+): DiRegistrationFact | undefined {
     const normalizedExpression = unwrapExpression(expression);
     if (!ts.isCallExpression(normalizedExpression)) {
         return undefined;
@@ -307,7 +233,12 @@ function collectFactoryDependencies(
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
     visitedReferences = new Set<string>(),
 ): readonly DiTokenReference[] {
-    const callable = resolveCallableExpression(expression, fileContext, fileContexts, visitedReferences);
+    const callable = resolveCallableExpression(
+        expression,
+        fileContext,
+        fileContexts,
+        visitedReferences,
+    );
     if (!callable || (!ts.isArrowFunction(callable) && !ts.isFunctionExpression(callable))) {
         return [];
     }
@@ -381,11 +312,13 @@ function readFactoryDependency(
     return undefined;
 }
 
-function collectRegistrationCycleDiagnostics(
-    registrations: readonly DiRegistration[],
-): readonly DiDiagnostic[] {
-    const registrationsByToken = new Map(registrations.map((registration) => [registration.token.key, registration]));
-    const diagnostics: DiDiagnostic[] = [];
+function collectRegistrationCycles(
+    registrations: readonly DiRegistrationFact[],
+): readonly DiRegistrationCycleFact[] {
+    const registrationsByToken = new Map(
+        registrations.map((registration) => [registration.token.key, registration]),
+    );
+    const cycles: DiRegistrationCycleFact[] = [];
     const emittedCycles = new Set<string>();
 
     for (const registration of registrations) {
@@ -400,31 +333,26 @@ function collectRegistrationCycleDiagnostics(
         }
 
         emittedCycles.add(canonicalCycleKey);
-        diagnostics.push({
-            code: "di-registration-cycle",
-            severity: "error",
-            message:
-                `Service registration cycle detected: ${
-                    cycle.map((token) => token.name).join(" -> ")
-                }.`,
+        cycles.push({
+            cycle,
             file: registration.file,
             exportName: registration.token.name,
         });
     }
 
-    return diagnostics;
+    return cycles;
 }
 
 function detectCycleFromToken(
     tokenKey: string,
-    registrationsByToken: ReadonlyMap<string, DiRegistration>,
+    registrationsByToken: ReadonlyMap<string, DiRegistrationFact>,
 ): readonly DiTokenReference[] | undefined {
     return walkRegistrationGraph(tokenKey, registrationsByToken, [], new Set<string>());
 }
 
 function walkRegistrationGraph(
     tokenKey: string,
-    registrationsByToken: ReadonlyMap<string, DiRegistration>,
+    registrationsByToken: ReadonlyMap<string, DiRegistrationFact>,
     stack: readonly DiTokenReference[],
     active: Set<string>,
 ): readonly DiTokenReference[] | undefined {
@@ -436,7 +364,9 @@ function walkRegistrationGraph(
     const currentStack = [...stack, registration.token];
     if (active.has(tokenKey)) {
         const cycleStartIndex = stack.findIndex((entry) => entry.key === tokenKey);
-        return cycleStartIndex >= 0 ? [...stack.slice(cycleStartIndex), registration.token] : currentStack;
+        return cycleStartIndex >= 0
+            ? [...stack.slice(cycleStartIndex), registration.token]
+            : currentStack;
     }
 
     active.add(tokenKey);
@@ -468,7 +398,9 @@ function canonicalizeCycle(cycle: readonly DiTokenReference[]): string {
     }
 
     const rotations = closedCycle.map((_, startIndex) =>
-        [...closedCycle.slice(startIndex), ...closedCycle.slice(0, startIndex)].map((token) => token.key).join("->")
+        [...closedCycle.slice(startIndex), ...closedCycle.slice(0, startIndex)].map((token) =>
+            token.key
+        ).join("->")
     );
     return rotations.sort()[0];
 }
@@ -496,10 +428,6 @@ function extractServicesExpression(node: ts.Expression | undefined): ts.Expressi
 }
 
 function readMemberInjectionToken(node: ts.ClassElement): DiTokenReference | undefined {
-    return readInjectInitializerToken(node);
-}
-
-function readInjectInitializerToken(node: ts.ClassElement): DiTokenReference | undefined {
     if (!ts.isPropertyDeclaration(node) || !node.initializer) {
         return undefined;
     }
@@ -597,10 +525,19 @@ function resolveCallableExpression(
     visitedReferences.add(referenceKey);
     const localFunction = fileContext.functions.get(normalizedExpression.text);
     if (localFunction) {
-        return resolveCallableExpression(localFunction, fileContext, fileContexts, visitedReferences);
+        return resolveCallableExpression(
+            localFunction,
+            fileContext,
+            fileContexts,
+            visitedReferences,
+        );
     }
 
-    const resolved = resolveIdentifierExpression(fileContext, fileContexts, normalizedExpression.text);
+    const resolved = resolveIdentifierExpression(
+        fileContext,
+        fileContexts,
+        normalizedExpression.text,
+    );
     if (!resolved) {
         return undefined;
     }
@@ -613,7 +550,9 @@ function resolveCallableExpression(
     );
 }
 
-function collectTopLevelVariableExpressions(sourceFile: ts.SourceFile): ReadonlyMap<string, ts.Expression> {
+function collectTopLevelVariableExpressions(
+    sourceFile: ts.SourceFile,
+): ReadonlyMap<string, ts.Expression> {
     const variables = new Map<string, ts.Expression>();
 
     for (const statement of sourceFile.statements) {
@@ -633,7 +572,9 @@ function collectTopLevelVariableExpressions(sourceFile: ts.SourceFile): Readonly
     return variables;
 }
 
-function collectTopLevelFunctionExpressions(sourceFile: ts.SourceFile): ReadonlyMap<string, ts.Expression> {
+function collectTopLevelFunctionExpressions(
+    sourceFile: ts.SourceFile,
+): ReadonlyMap<string, ts.Expression> {
     const functions = new Map<string, ts.Expression>();
 
     for (const statement of sourceFile.statements) {
@@ -785,33 +726,15 @@ function normalizePathSegments(path: string): string {
     return hasDrivePrefix ? normalized.join("/") : `/${normalized.join("/")}`;
 }
 
-function compareDiDiagnostics(a: DiDiagnostic, b: DiDiagnostic): number {
-    if (a.code !== b.code) {
-        return a.code.localeCompare(b.code);
-    }
-
-    if (a.file !== b.file) {
-        return a.file.localeCompare(b.file);
-    }
-
-    if (a.exportName !== b.exportName) {
-        return a.exportName.localeCompare(b.exportName);
-    }
-
-    return (a.routePath ?? "").localeCompare(b.routePath ?? "");
-}
-
-function createOwnerKey(file: string, exportName: string): string {
-    return `${file}::${exportName}`;
-}
-
 function isExportedClassDeclaration(node: ts.ClassDeclaration): boolean {
-    return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    return node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+        false;
 }
 
 function hasExportModifier(node: ts.Node): boolean {
     return ts.canHaveModifiers(node) &&
-        (ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false);
+        (ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+            false);
 }
 
 function readIdentifierLike(expression: ts.Expression): string | undefined {

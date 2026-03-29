@@ -4,14 +4,14 @@ import { assertEquals } from "@std/assert";
 import { resolve } from "node:path";
 import { collectComponentDiagnostics } from "../index.ts";
 
-Deno.test("diagnostics/component: should report Component.load strategy and fallback intent", async () => {
+Deno.test("components/diagnostics: collector should report Component.load strategy and fallback intent", async () => {
     const file = resolve(
         Deno.cwd(),
-        "src/diagnostics/tests/component-load-diagnostics.fixture.tsx",
-    );
+        "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx",
+    ).replaceAll("\\", "/");
     const diagnostics = await collectComponentDiagnostics([
         {
-            file: file.replaceAll("\\", "/"),
+            file,
             source: await Deno.readTextFile(file),
         },
     ]);
@@ -20,28 +20,25 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
         {
             code: "component-allow-anonymous-not-supported",
             severity: "error",
-            message:
-                'Component "AllowAnonymousComponent" declares @AllowAnonymous(). ' +
+            message: 'Component "AllowAnonymousComponent" declares @AllowAnonymous(). ' +
                 "@AllowAnonymous() is page-only; component authorization is always additive.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "AllowAnonymousComponent",
         },
         {
             code: "component-authorization-ssg-warning",
             severity: "warning",
-            message:
-                'Component "AuthorizedComponent" declares @Authorize(...). ' +
+            message: 'Component "AuthorizedComponent" declares @Authorize(...). ' +
                 "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "AuthorizedComponent",
         },
         {
             code: "component-authorization-ssg-warning",
             severity: "warning",
-            message:
-                'Component "PolicyProtectedComponent" declares @Authorize(...). ' +
+            message: 'Component "PolicyProtectedComponent" declares @Authorize(...). ' +
                 "Protected components cannot be rendered during SSG because shared prerender output must not include privileged content.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "PolicyProtectedComponent",
         },
         {
@@ -50,7 +47,7 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
             message:
                 'Component "BlockingFallbackComponent" declares @RenderStrategy("blocking") with a fallback. ' +
                 "Blocking components normally render resolved output instead of visible fallback UI, so this fallback may be misleading.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "BlockingFallbackComponent",
         },
         {
@@ -59,7 +56,7 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
             message:
                 'Component "MissingFallbackLoadComponent" declares load() with @RenderStrategy("client-only") without a fallback. ' +
                 "Add a fallback to make the component's async placeholder explicit.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "MissingFallbackLoadComponent",
         },
         {
@@ -68,21 +65,21 @@ Deno.test("diagnostics/component: should report Component.load strategy and fall
             message:
                 'Component "StrategyWithoutLoadComponent" declares @RenderStrategy("blocking") but does not declare load(). ' +
                 "@RenderStrategy(...) only affects Component.load() and has no effect on synchronous components.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "StrategyWithoutLoadComponent",
         },
     ]);
 });
 
-Deno.test("diagnostics/component: should report missing named authorization policies when diagnostics know the target policy names", async () => {
+Deno.test("components/diagnostics: collector should report missing named authorization policies when diagnostics know the target policy names", async () => {
     const file = resolve(
         Deno.cwd(),
-        "src/diagnostics/tests/component-load-diagnostics.fixture.tsx",
-    );
+        "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx",
+    ).replaceAll("\\", "/");
     const diagnostics = await collectComponentDiagnostics(
         [
             {
-                file: file.replaceAll("\\", "/"),
+                file,
                 source: await Deno.readTextFile(file),
             },
         ],
@@ -102,7 +99,7 @@ Deno.test("diagnostics/component: should report missing named authorization poli
             message:
                 'Component "PolicyProtectedComponent" references @Authorize({ policy: "org-member" }), ' +
                 "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
-            file: file.replaceAll("\\", "/"),
+            file,
             exportName: "PolicyProtectedComponent",
         },
     );

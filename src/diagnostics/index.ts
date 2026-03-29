@@ -1,29 +1,32 @@
-export {
-    collectRouteDiagnostics,
-} from "./route-diagnostics.ts";
-export {
-    collectDiDiagnostics,
-} from "./di-diagnostics.ts";
+export { collectRouteDiagnostics } from "../routing/diagnostics/index.ts";
+export { collectDiDiagnostics } from "../di/diagnostics/index.ts";
 
-export type {
-    DiDiagnostic,
-    DiSourceDiagnosticsInput,
-} from "./di-diagnostics.ts";
-export type {
-    MainzDiagnosticCode,
-    MainzDiagnosticSeverity,
-    RouteDiagnosticsPageInput,
-} from "./route-diagnostics.ts";
-export type {
-    ComponentDiagnostic,
-    ComponentSourceDiagnosticsInput,
-} from "./component-diagnostics.ts";
+export type { DiDiagnostic, DiSourceDiagnosticsInput } from "../di/diagnostics/index.ts";
+export type { MainzDiagnosticCode, MainzDiagnosticSeverity, RouteDiagnosticsPageInput } from "../routing/diagnostics/index.ts";
+export type { ComponentDiagnostic, ComponentSourceDiagnosticsInput } from "../components/diagnostics/index.ts";
+export { collectComponentDiagnostics } from "../components/diagnostics/index.ts";
 export {
-    collectComponentDiagnostics,
-} from "./component-diagnostics.ts";
-
-import type { MainzDiagnostic as RouteDiagnostic } from "./route-diagnostics.ts";
-import type { ComponentDiagnostic } from "./component-diagnostics.ts";
-import type { DiDiagnostic } from "./di-diagnostics.ts";
-
-export type MainzDiagnostic = RouteDiagnostic | ComponentDiagnostic | DiDiagnostic;
+    collectDiagnosticsForTarget,
+    collectDiagnosticsFromInput,
+    collectDiagnosticsFromModel,
+    collectTargetDiagnostics,
+    collectTargetModelDiagnostics,
+} from "./collect.ts";
+export type {
+    DiagnosticsContributor,
+    DiagnosticsContributorInput,
+    DiagnosticsSourceInput,
+    DiagnosticsTargetInput,
+} from "./core/target-model.ts";
+export type {
+    DiagnosticsTargetContext,
+    DiagnosticsTargetModel,
+    MainzDiagnostic,
+} from "./core/target-model.ts";
+export { createDiagnosticsTargetModel } from "./core/target-model.ts";
+export {
+    componentDiagnosticsContributor,
+    diagnosticsContributors,
+    diDiagnosticsContributor,
+    routeDiagnosticsContributor,
+} from "./contributors.ts";

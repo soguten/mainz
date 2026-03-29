@@ -57,7 +57,7 @@ Deno.test("i18n/core: should return key when translation is missing", () => {
     assertEquals(i18n.t("common.unknown"), "common.unknown");
 });
 
-Deno.test("i18n/core: should validate message availability for all locales", async () => {
+Deno.test("i18n/core: should diagnose message availability for all locales", async () => {
     await validateMessagesForLocales(["en", "pt-BR"], async (locale) => {
         if (locale === "en") {
             return { common: { title: "Hello" } };

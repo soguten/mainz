@@ -1029,3 +1029,4 @@ function toErrorMessage(error: unknown): string {
 
     return String(error);
 }
+

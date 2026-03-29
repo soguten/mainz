@@ -10,3 +10,4 @@ Practical rules:
 - create a new fixture only when an existing fixture cannot cover the contract cleanly
 - files in `tests/checks` should stay focused by domain
 - files in `tests/helpers` should concentrate shared infrastructure
+

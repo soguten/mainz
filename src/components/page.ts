@@ -1,9 +1,27 @@
 import { Component } from "./component.ts";
 import type { Principal } from "../authorization/index.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
-import type { NavigationMode, RenderMode } from "../routing/types.ts";
+import type { NavigationMode, RenderMode as PageRenderModeValue } from "../routing/types.ts";
 import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
-import { normalizeLocaleTag } from "../i18n/core.ts";
+import {
+    Locales,
+    RenderMode,
+    Route,
+    requirePageRoutePath,
+    resolvePageLocales,
+    resolvePageRenderMode,
+    resolvePageRoutePath,
+} from "./page-metadata.ts";
+
+export {
+    Locales,
+    RenderMode,
+    Route,
+    requirePageRoutePath,
+    resolvePageLocales,
+    resolvePageRenderMode,
+    resolvePageRoutePath,
+} from "./page-metadata.ts";
 
 export interface PageHeadMetaDefinition {
     name?: string;
@@ -51,7 +69,7 @@ export interface PageLoadContext {
     params: PageRouteParams;
     locale?: string;
     url: URL;
-    renderMode: RenderMode;
+    renderMode: PageRenderModeValue;
     navigationMode: NavigationMode;
     signal: AbortSignal;
     principal?: Principal;
@@ -70,7 +88,7 @@ export interface PageLoadContextInit {
     params: PageRouteParams;
     locale?: string;
     url: URL;
-    renderMode: RenderMode;
+    renderMode: PageRenderModeValue;
     navigationMode: NavigationMode;
     signal?: AbortSignal;
     principal?: Principal;
@@ -83,41 +101,6 @@ export interface PageDefinition {
 }
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
-const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
-const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
-const PAGE_LOCALES = Symbol("mainz.page.locales");
-
-export function Route(path: string) {
-    return function <T extends PageConstructor>(
-        value: T,
-        _context?: ClassDecoratorContext<T>,
-    ): void {
-        applyPageRoutePath(value, path);
-    };
-}
-
-export function RenderMode(mode: RenderMode) {
-    return function <T extends PageConstructor>(
-        value: T,
-        _context?: ClassDecoratorContext<T>,
-    ): void {
-        applyPageRenderMode(value, mode);
-    };
-}
-
-export function Locales(...locales: string[]) {
-    return function <T extends PageConstructor>(
-        value: T,
-        context?: ClassDecoratorContext<T>,
-    ): void {
-        if (context) {
-            context.addInitializer(() => applyPageLocales(value, locales));
-            return;
-        }
-
-        applyPageLocales(value, locales);
-    };
-}
 
 export abstract class Page<P = DefaultProps, S = DefaultState> extends Component<P, S> {
     static page?: PageDefinition;
@@ -142,9 +125,6 @@ export interface PageConstructor {
         context: PageEntriesContext,
     ): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
     load?(context: PageLoadContext): unknown | Promise<unknown>;
-    [PAGE_ROUTE_PATH]?: string;
-    [PAGE_RENDER_MODE]?: RenderMode;
-    [PAGE_LOCALES]?: readonly string[];
 }
 
 export const entries = {
@@ -222,31 +202,6 @@ export function isPageConstructor(value: unknown): value is PageConstructor {
     }
 
     return value === Page || value.prototype instanceof Page;
-}
-
-export function resolvePageRoutePath(pageCtor: object): string | undefined {
-    const routeOwner = pageCtor as { [PAGE_ROUTE_PATH]?: string };
-    const path = routeOwner[PAGE_ROUTE_PATH]?.trim();
-    return path ? path : undefined;
-}
-
-export function requirePageRoutePath(pageCtor: object, errorMessage: string): string {
-    const path = resolvePageRoutePath(pageCtor);
-    if (!path) {
-        throw new Error(errorMessage);
-    }
-
-    return path;
-}
-
-export function resolvePageRenderMode(pageCtor: object): RenderMode | undefined {
-    const routeOwner = pageCtor as { [PAGE_RENDER_MODE]?: RenderMode };
-    return routeOwner[PAGE_RENDER_MODE];
-}
-
-export function resolvePageLocales(pageCtor: object): readonly string[] | undefined {
-    const routeOwner = pageCtor as { [PAGE_LOCALES]?: readonly string[] };
-    return routeOwner[PAGE_LOCALES];
 }
 
 export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unknown): void {
@@ -329,26 +284,6 @@ function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
     return "title" in candidate || "meta" in candidate || "links" in candidate;
 }
 
-function applyPageRoutePath(pageCtor: PageConstructor, path: string): void {
-    pageCtor[PAGE_ROUTE_PATH] = path;
-}
-
-function applyPageRenderMode(pageCtor: PageConstructor, mode: RenderMode): void {
-    pageCtor[PAGE_RENDER_MODE] = mode;
-}
-
-function applyPageLocales(pageCtor: PageConstructor, locales: readonly string[]): void {
-    pageCtor[PAGE_LOCALES] = locales.map((locale, index) => {
-        try {
-            return normalizeLocaleTag(locale);
-        } catch (error) {
-            throw new Error(
-                `@Locales() received invalid locale "${locale}" at index ${index}. ${toErrorMessage(error)}`,
-            );
-        }
-    });
-}
-
 function resolveMainzResourceRuntime(): ResourceRuntime {
     if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
         return __MAINZ_RUNTIME_ENV__;
@@ -370,12 +305,4 @@ function normalizePageEntryDefinition(entry: PageEntryLike): PageEntryDefinition
 
 function isPageEntryDefinition(entry: PageEntryLike): entry is PageEntryDefinition {
     return "params" in entry;
-}
-
-function toErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    return String(error);
 }

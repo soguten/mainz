@@ -21,8 +21,8 @@ export {
 } from "./components/index.ts";
 export { startApp, startNavigation } from "./navigation/index.ts";
 export {
-    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_LOCALE_CHANGE_EVENT,
+    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_NAVIGATION_ERROR_EVENT,
     MAINZ_NAVIGATION_READY_EVENT,
     MAINZ_NAVIGATION_START_EVENT,
@@ -40,8 +40,8 @@ export type {
     AuthorizationRequirement,
     AuthorizationRuntimeOptions,
     ChildrenOnlyProps,
-    ComponentLoadContext,
     ComponentAuthorizationMetadata,
+    ComponentLoadContext,
     ComponentRenderConfig,
     DefaultProps,
     DefaultState,
@@ -94,8 +94,8 @@ export type {
     MessagesLoader,
 } from "./i18n/index.ts";
 export type {
-    MainzNavigationAbortDetail,
     MainzLocaleChangeDetail,
+    MainzNavigationAbortDetail,
     MainzNavigationErrorDetail,
     MainzNavigationReadyDetail,
     MainzNavigationStartDetail,

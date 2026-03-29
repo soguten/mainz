@@ -188,3 +188,4 @@ Deno.test("resources: page load context should reject build-only resources in th
     assertEquals(errorCode, "build-in-client");
     assertEquals(resourceName, "docs-index");
 });
+

@@ -1,15 +1,15 @@
-## Diagnostics live in Mainz, not in one editor
+## diagnostics are framework diagnostics, not editor glue
 
-Mainz now ships an environment-agnostic diagnostics core plus a CLI adapter.
+Mainz ships framework-level diagnostics that you can run from the CLI.
 
-That means the rule engine is not tied to:
+That means diagnostics are not tied to:
 
 - Deno lint
 - VS Code
 - ESLint
 - one specific IDE
 
-The current entrypoint is the CLI:
+Use the CLI directly:
 
 ```bash
 deno run -A ./src/cli/mainz.ts diagnose
@@ -21,9 +21,9 @@ or, when Mainz is installed as a command:
 mainz diagnose
 ```
 
-## What `mainz diagnose` checks today
+## What `mainz diagnose` diagnoses today
 
-Route diagnostics:
+Today `mainz diagnose` can report checks such as:
 
 - dynamic SSG routes missing `entries()`
 - dynamic SSG routes with `entries()` but no `load()`
@@ -32,14 +32,13 @@ Route diagnostics:
 - multiple `notFound` pages in the same routing set
 - pages that reference named authorization policies not declared in
   `target.authorization.policyNames`
-
-Component diagnostics:
-
 - `Component` declarations with `@RenderStrategy(...)` but no `load()`
 - `Component` declarations with `load()` using `deferred` or `client-only` without a fallback
 - `Component` declarations using `blocking` together with a fallback, which is usually misleading
 - components that reference named authorization policies not declared in
   `target.authorization.policyNames`
+- DI registrations and injections that refer to missing services
+- service registration cycles
 
 ## Declarative policy names for diagnostics
 
@@ -64,7 +63,7 @@ export default {
 };
 ```
 
-That declaration powers tooling only. Your real policy implementations still belong in
+That declaration powers diagnostics tooling only. Your real policy implementations still belong in
 `startApp({ auth: { policies } })` or `startNavigation({ auth: { policies } })`.
 
 ## Human output
@@ -77,9 +76,9 @@ mainz diagnose --target docs --format human
 
 The human format:
 
-- prints a summary first
-- groups findings by target
-- keeps each finding easy to scan in the terminal
+- prints a diagnostics summary first
+- groups diagnostics by target
+- keeps each diagnostic easy to scan in the terminal
 
 Example:
 
@@ -111,7 +110,7 @@ That keeps the output machine-readable for:
 
 ## CI usage
 
-The same command can fail the process when findings cross a threshold.
+The same command can fail the process when diagnostics cross a threshold.
 
 Fail on errors only:
 
@@ -119,7 +118,7 @@ Fail on errors only:
 mainz diagnose --target docs --format human --fail-on error
 ```
 
-Fail on any diagnostic, including warnings:
+Fail on any diagnostics, including warnings:
 
 ```bash
 mainz diagnose --target docs --format human --fail-on warning
@@ -141,3 +140,5 @@ Mainz intentionally starts with the CLI because it gives you:
 
 If Mainz adds VS Code or LSP integration later, those should reuse the same diagnostics core
 instead of inventing a separate rule model.
+
+

@@ -14,14 +14,45 @@ import {
     type AuthorizationRenderContext,
 } from "../authorization/render-context.ts";
 import { DefaultProps, DefaultState } from "./types.ts";
-import {
-    getManagedDOMEvents,
-    ManagedDOMEventDescriptor,
-    setManagedDOMEvents,
-} from "../jsx/dom-factory.ts";
 import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
-import type { RenderStrategy, ResourceRuntime } from "../resources/index.ts";
-import type { RenderMode } from "../routing/index.ts";
+import {
+    resolveComponentRenderConfig,
+    resolveDecoratedCustomElementTag,
+    type ComponentRenderConfig,
+    type RenderStrategyOptions,
+} from "./component-metadata.ts";
+import {
+    isAbortLikeError,
+    isPromiseLike,
+    resolveComponentLoadEnvironment,
+    stableSerializeForLoadKey,
+    shouldWaitForClientRuntime,
+} from "./component-load.ts";
+import {
+    elementTagName,
+    isDocumentFragmentLike,
+    isElementLike,
+    isHtmlElementLike,
+    isNodeLike,
+    normalizeComponentRenderValue,
+} from "./component-dom.ts";
+import {
+    pruneDetachedEventListeners,
+    syncManagedDOMEvents,
+    type TrackedEventListener,
+    unregisterEventsByTargetAndType,
+    unregisterSpecificEvent,
+} from "./component-events.ts";
+import {
+    buildNodeLookupKey,
+    getNodeKey,
+    isSameNodeType,
+    patchChildNodeList,
+    syncAttributes,
+    syncProperties,
+    toRenderedNodes,
+} from "./component-patching.ts";
+import { warnAboutMissingLoadFallback } from "./component-render-strategy-guardrails.ts";
 import {
     attachServiceContainer,
     getCurrentServiceContainer,
@@ -31,29 +62,15 @@ import {
 } from "../di/context.ts";
 import type { ServiceContainer } from "../di/container.ts";
 
-interface TrackedEventListener {
-    target: EventTarget;
-    type: string;
-    listener: EventListenerOrEventListenerObject;
-    options: boolean;
-}
+export {
+    CustomElement,
+    RenderStrategy,
+    resolveComponentRenderConfig,
+    resolveComponentRenderStrategy,
+} from "./component-metadata.ts";
+export type { ComponentRenderConfig, RenderStrategyOptions } from "./component-metadata.ts";
 
 const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
-const COMPONENT_CUSTOM_ELEMENT_TAG = Symbol(
-    "mainz.component.custom-element-tag",
-);
-const COMPONENT_RENDER_STRATEGY = Symbol(
-    "mainz.component.render-strategy",
-);
-
-export interface RenderStrategyOptions {
-    fallback?: unknown | (() => unknown);
-    errorFallback?: unknown | ((error: unknown) => unknown);
-}
-
-export interface ComponentRenderConfig extends RenderStrategyOptions {
-    strategy: RenderStrategy;
-}
 
 export interface ComponentLoadContext {
     signal: AbortSignal;
@@ -63,41 +80,6 @@ interface ComponentLoadState<Data = unknown> {
     status: "idle" | "loading" | "resolved" | "rejected";
     data?: Data;
     error?: unknown;
-}
-
-type MainzComponentConstructor =
-    & (abstract new (...args: unknown[]) => Component<any, any>)
-    & {
-        name: string;
-        [COMPONENT_CUSTOM_ELEMENT_TAG]?: string;
-        [COMPONENT_RENDER_STRATEGY]?: ComponentRenderConfig;
-    };
-
-const warnedMissingLoadFallbackComponents = new WeakSet<object>();
-
-export function CustomElement(tagName: string) {
-    return function <T extends MainzComponentConstructor>(
-        value: T,
-        _context?: ClassDecoratorContext<T>,
-    ): void {
-        applyDecoratedCustomElementTag(value, tagName);
-    };
-}
-
-export function RenderStrategy(
-    strategy: RenderStrategy,
-    options: RenderStrategyOptions = {},
-) {
-    return function <T extends MainzComponentConstructor>(
-        value: T,
-        _context?: ClassDecoratorContext<T>,
-    ): void {
-        applyDecoratedRenderStrategy(value, {
-            strategy,
-            fallback: options.fallback,
-            errorFallback: options.errorFallback,
-        });
-    };
 }
 
 /**
@@ -570,7 +552,10 @@ export abstract class Component<
     }
 
     private computeComponentLoadKey(): string {
-        return stableSerializeForLoadKey(this.props ?? null);
+        return stableSerializeForLoadKey(
+            this.props ?? null,
+            (value): value is Node => isNodeLike(value, this.ownerDocument),
+        );
     }
 
     private resolveAuthorizationRenderContext(): AuthorizationRenderContext {
@@ -706,222 +691,52 @@ export abstract class Component<
         currentChildren: Node[],
         nextChildren: Node[],
     ): Node[] {
-        const managedStartIndex = this.findManagedChildStartIndex(
+        return patchChildNodeList({
             parent,
             currentChildren,
-        );
-        const keyedCurrent = new Map<string, Node>();
-        const unkeyedCurrent: Node[] = [];
-
-        for (const child of currentChildren) {
-            const key = this.getNodeKey(child);
-            if (key == null) {
-                unkeyedCurrent.push(child);
-                continue;
-            }
-
-            keyedCurrent.set(this.buildNodeLookupKey(child, key), child);
-        }
-
-        const usedCurrent = new Set<Node>();
-        const orderedChildren: Node[] = [];
-
-        for (const nextChild of nextChildren) {
-            const reusableChild = this.findReusableChild(
-                nextChild,
-                keyedCurrent,
-                unkeyedCurrent,
-                usedCurrent,
-            );
-
-            if (reusableChild) {
-                usedCurrent.add(reusableChild);
-                orderedChildren.push(this.patchNode(reusableChild, nextChild));
-                continue;
-            }
-
-            orderedChildren.push(nextChild);
-        }
-
-        for (let index = 0; index < orderedChildren.length; index += 1) {
-            const expectedNode = orderedChildren[index];
-            const currentNodeAtIndex = parent.childNodes[managedStartIndex + index];
-
-            if (currentNodeAtIndex !== expectedNode) {
-                parent.insertBefore(expectedNode, currentNodeAtIndex ?? null);
-            }
-        }
-
-        const orderedChildrenSet = new Set(orderedChildren);
-        for (const currentChild of currentChildren) {
-            if (
-                !orderedChildrenSet.has(currentChild) &&
-                currentChild.parentNode === parent
-            ) {
-                parent.removeChild(currentChild);
-            }
-        }
-
-        return orderedChildren;
-    }
-
-    private findManagedChildStartIndex(
-        parent: HTMLElement,
-        currentChildren: Node[],
-    ): number {
-        for (const currentChild of currentChildren) {
-            if (currentChild.parentNode !== parent) {
-                continue;
-            }
-
-            const childIndex = Array.from(parent.childNodes).findIndex((node) =>
-                node === currentChild
-            );
-            if (childIndex >= 0) {
-                return childIndex;
-            }
-        }
-
-        return parent.childNodes.length;
+            nextChildren,
+            getNodeKey: (node) => this.getNodeKey(node),
+            buildNodeLookupKey: (node, key) => this.buildNodeLookupKey(node, key),
+            patchNode: (current, next) => this.patchNode(current, next),
+        });
     }
 
     private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
-        if (isDocumentFragmentLike(rendered, this.ownerDocument)) {
-            return Array.from(rendered.childNodes);
-        }
-
-        return [rendered];
-    }
-
-    private findReusableChild(
-        nextChild: Node,
-        keyedCurrent: Map<string, Node>,
-        unkeyedCurrent: Node[],
-        usedCurrent: Set<Node>,
-    ): Node | undefined {
-        const key = this.getNodeKey(nextChild);
-        if (key != null) {
-            const candidate = keyedCurrent.get(
-                this.buildNodeLookupKey(nextChild, key),
-            );
-            if (
-                candidate && !usedCurrent.has(candidate) &&
-                this.isSameNodeType(candidate, nextChild)
-            ) {
-                return candidate;
-            }
-
-            return undefined;
-        }
-
-        for (const candidate of unkeyedCurrent) {
-            if (usedCurrent.has(candidate)) continue;
-            if (!this.isSameNodeType(candidate, nextChild)) continue;
-            return candidate;
-        }
-
-        return undefined;
+        return toRenderedNodes(rendered, this.ownerDocument);
     }
 
     private syncAttributes(current: HTMLElement, next: HTMLElement) {
-        for (const attr of Array.from(current.attributes)) {
-            if (!next.hasAttribute(attr.name)) {
-                current.removeAttribute(attr.name);
-            }
-        }
-
-        for (const attr of Array.from(next.attributes)) {
-            if (current.getAttribute(attr.name) !== attr.value) {
-                current.setAttribute(attr.name, attr.value);
-            }
-        }
-
+        syncAttributes(current, next);
         this.syncProperties(current, next);
     }
 
     private syncProperties(current: HTMLElement, next: HTMLElement) {
-        const ownerWindow = this.ownerDocument.defaultView;
-        const inputCtor = ownerWindow?.HTMLInputElement;
-        const textAreaCtor = ownerWindow?.HTMLTextAreaElement;
-        const selectCtor = ownerWindow?.HTMLSelectElement;
-
-        if (
-            inputCtor &&
-            current instanceof inputCtor &&
-            next instanceof inputCtor
-        ) {
-            if (current.value !== next.value) {
-                current.value = next.value;
-            }
-
-            if (current.checked !== next.checked) {
-                current.checked = next.checked;
-            }
-
-            return;
-        }
-
-        if (
-            textAreaCtor &&
-            current instanceof textAreaCtor &&
-            next instanceof textAreaCtor
-        ) {
-            if (current.value !== next.value) {
-                current.value = next.value;
-            }
-            return;
-        }
-
-        if (
-            selectCtor &&
-            current instanceof selectCtor &&
-            next instanceof selectCtor
-        ) {
-            if (current.value !== next.value) {
-                current.value = next.value;
-            }
-            return;
-        }
-
-        if (current.tagName === "OPTION" && next.tagName === "OPTION") {
-            const currentOption = current as HTMLOptionElement;
-            const nextOption = next as HTMLOptionElement;
-            if (currentOption.selected !== nextOption.selected) {
-                currentOption.selected = nextOption.selected;
-            }
-        }
+        syncProperties(current, next, this.ownerDocument);
     }
 
     private syncManagedDOMEvents(current: HTMLElement, next: HTMLElement) {
-        const currentEvents = getManagedDOMEvents(current);
-        const nextEvents = getManagedDOMEvents(next);
-
-        for (const event of currentEvents) {
-            this.unregisterSpecificEvent(current, event);
-        }
-
-        for (const event of nextEvents) {
-            this.unregisterSpecificEvent(next, event);
-            this.registerEvent(current, event.type, event.listener, event.options);
-        }
-
-        setManagedDOMEvents(current, nextEvents);
-        setManagedDOMEvents(next, []);
+        syncManagedDOMEvents({
+            current,
+            next,
+            registerEvent: (target, type, listener, options) =>
+                this.registerEvent(target, type, listener, options),
+            unregisterSpecificEvent: (target, event) =>
+                this.unregisterSpecificEvent(target, event),
+        });
     }
 
     private unregisterSpecificEvent(
         target: EventTarget,
-        event: ManagedDOMEventDescriptor,
+        event: {
+            type: string;
+            listener: EventListenerOrEventListenerObject;
+            options?: boolean;
+        },
     ) {
-        const normalizedOptions = event.options === true;
-        target.removeEventListener(event.type, event.listener, normalizedOptions);
-        this.eventListeners = this.eventListeners.filter((entry) => {
-            return !(
-                entry.target === target &&
-                entry.type === event.type &&
-                entry.listener === event.listener &&
-                entry.options === normalizedOptions
-            );
+        this.eventListeners = unregisterSpecificEvent({
+            target,
+            event,
+            eventListeners: this.eventListeners,
         });
     }
 
@@ -930,73 +745,32 @@ export abstract class Component<
         type: string,
         options: boolean,
     ) {
-        const staleEntries = this.eventListeners.filter((entry) => {
-            return entry.target === target && entry.type === type &&
-                entry.options === options;
-        });
-
-        for (const staleEntry of staleEntries) {
-            staleEntry.target.removeEventListener(
-                staleEntry.type,
-                staleEntry.listener,
-                staleEntry.options,
-            );
-        }
-
-        this.eventListeners = this.eventListeners.filter((entry) => {
-            return !(entry.target === target && entry.type === type &&
-                entry.options === options);
+        this.eventListeners = unregisterEventsByTargetAndType({
+            target,
+            type,
+            options,
+            eventListeners: this.eventListeners,
         });
     }
 
     private pruneDetachedEventListeners() {
-        const stillTracked: TrackedEventListener[] = [];
-
-        for (const entry of this.eventListeners) {
-            const { target } = entry;
-
-            if (!isNodeLike(target, this.ownerDocument)) {
-                stillTracked.push(entry);
-                continue;
-            }
-
-            if (target === this || this.contains(target)) {
-                stillTracked.push(entry);
-                continue;
-            }
-
-            target.removeEventListener(entry.type, entry.listener, entry.options);
-        }
-
-        this.eventListeners = stillTracked;
+        this.eventListeners = pruneDetachedEventListeners({
+            host: this,
+            ownerDocument: this.ownerDocument,
+            eventListeners: this.eventListeners,
+        });
     }
 
     private getNodeKey(node: Node): string | null {
-        if (!isElementLike(node, this.ownerDocument)) return null;
-
-        return node.getAttribute("key") ??
-            node.getAttribute("data-key") ??
-            node.getAttribute("data-id");
+        return getNodeKey(node, this.ownerDocument);
     }
 
     private buildNodeLookupKey(node: Node, key: string): string {
-        const elementTag = isElementLike(node, this.ownerDocument)
-            ? elementTagName(node)
-            : "node";
-        return `${node.nodeType}:${elementTag}:${key}`;
+        return buildNodeLookupKey(node, key, this.ownerDocument);
     }
 
     private isSameNodeType(current: Node, next: Node) {
-        if (current.nodeType !== next.nodeType) return false;
-
-        if (
-            isHtmlElementLike(current, this.ownerDocument) &&
-            isHtmlElementLike(next, this.ownerDocument)
-        ) {
-            return current.tagName === next.tagName;
-        }
-
-        return true;
+        return isSameNodeType(current, next, this.ownerDocument);
     }
 
     /**
@@ -1104,264 +878,4 @@ export abstract class Component<
         );
         return undefined;
     }
-}
-
-function applyDecoratedCustomElementTag(
-    ctor: MainzComponentConstructor,
-    tagName: string,
-): void {
-    ctor[COMPONENT_CUSTOM_ELEMENT_TAG] = tagName;
-}
-
-function applyDecoratedRenderStrategy(
-    ctor: MainzComponentConstructor,
-    config: ComponentRenderConfig,
-): void {
-    ctor[COMPONENT_RENDER_STRATEGY] = config;
-}
-
-function resolveDecoratedCustomElementTag(
-    ctor: MainzComponentConstructor,
-): string | undefined {
-    const tagName = ctor[COMPONENT_CUSTOM_ELEMENT_TAG]?.trim();
-    return tagName ? tagName : undefined;
-}
-
-export function resolveComponentRenderStrategy(
-    componentCtor: object,
-): RenderStrategy | undefined {
-    return resolveComponentRenderConfig(componentCtor)?.strategy;
-}
-
-export function resolveComponentRenderConfig(
-    componentCtor: object,
-): ComponentRenderConfig | undefined {
-    const componentOwner = componentCtor as { [COMPONENT_RENDER_STRATEGY]?: ComponentRenderConfig };
-    if (componentOwner[COMPONENT_RENDER_STRATEGY]) {
-        return componentOwner[COMPONENT_RENDER_STRATEGY];
-    }
-
-    const candidate = componentCtor as { prototype?: { load?: unknown } };
-    if (typeof candidate.prototype?.load === "function") {
-        return {
-            strategy: "blocking",
-        };
-    }
-
-    return undefined;
-}
-
-function warnAboutMissingLoadFallback(
-    componentCtor: object,
-    renderConfig: ComponentRenderConfig,
-): void {
-    if (renderConfig.strategy !== "deferred" && renderConfig.strategy !== "client-only") {
-        return;
-    }
-
-    if (
-        renderConfig.fallback !== undefined ||
-        warnedMissingLoadFallbackComponents.has(componentCtor)
-    ) {
-        return;
-    }
-
-    const componentName = resolveComponentName(componentCtor);
-    console.warn(
-        `Component "${componentName}" uses @RenderStrategy("${renderConfig.strategy}") without a fallback. ` +
-            "Add a fallback to make the component's async placeholder explicit.",
-    );
-    warnedMissingLoadFallbackComponents.add(componentCtor);
-}
-
-function resolveComponentLoadEnvironment(): {
-    renderMode: RenderMode;
-    runtime: ResourceRuntime;
-} {
-    return {
-        renderMode: resolveMainzRenderMode(),
-        runtime: resolveMainzRuntime(),
-    };
-}
-
-function shouldWaitForClientRuntime(
-    strategy: RenderStrategy,
-    environment: { renderMode: RenderMode; runtime: ResourceRuntime },
-): boolean {
-    return environment.renderMode === "ssg" &&
-        environment.runtime === "build" &&
-        (strategy === "deferred" || strategy === "client-only");
-}
-
-function resolveMainzRenderMode(): RenderMode {
-    if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
-        return __MAINZ_RENDER_MODE__;
-    }
-
-    const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
-    return fromGlobal === "ssg" ? "ssg" : "csr";
-}
-
-function resolveMainzRuntime(): ResourceRuntime {
-    if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
-        return __MAINZ_RUNTIME_ENV__;
-    }
-
-    const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
-    return fromGlobal === "build" ? "build" : "client";
-}
-
-function stableSerializeForLoadKey(
-    value: unknown,
-    seen = new WeakSet<object>(),
-): string {
-    if (value === null) {
-        return "null";
-    }
-
-    if (value === undefined) {
-        return '"[undefined]"';
-    }
-
-    if (typeof value === "string") {
-        return JSON.stringify(value);
-    }
-
-    if (typeof value === "number" || typeof value === "boolean") {
-        return String(value);
-    }
-
-    if (typeof value === "bigint") {
-        return `"${value.toString()}n"`;
-    }
-
-    if (typeof value === "symbol") {
-        return JSON.stringify(value.toString());
-    }
-
-    if (typeof value === "function") {
-        return JSON.stringify("[function]");
-    }
-
-    if (value instanceof Date) {
-        return JSON.stringify(value.toISOString());
-    }
-
-    if (isNodeLike(value)) {
-        return JSON.stringify(`[node:${value.nodeType}]`);
-    }
-
-    if (Array.isArray(value)) {
-        return `[${value.map((entry) => stableSerializeForLoadKey(entry, seen)).join(",")}]`;
-    }
-
-    if (typeof value !== "object") {
-        return JSON.stringify(String(value));
-    }
-
-    if (seen.has(value)) {
-        return JSON.stringify("[circular]");
-    }
-
-    seen.add(value);
-    const entries = Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, entryValue]) =>
-            `${JSON.stringify(key)}:${stableSerializeForLoadKey(entryValue, seen)}`
-        );
-    seen.delete(value);
-    return `{${entries.join(",")}}`;
-}
-
-function normalizeComponentRenderValue(
-    value: unknown,
-    ownerDocument = resolveOwnerDocument(value),
-): HTMLElement | DocumentFragment {
-    if (ownerDocument && isDocumentFragmentLike(value, ownerDocument)) {
-        return value;
-    }
-
-    if (ownerDocument && isHtmlElementLike(value, ownerDocument)) {
-        return value;
-    }
-
-    if (ownerDocument && isNodeLike(value, ownerDocument)) {
-        const fragment = ownerDocument.createDocumentFragment();
-        fragment.appendChild(value);
-        return fragment;
-    }
-
-    if (value == null || value === false) {
-        return ownerDocument.createDocumentFragment();
-    }
-
-    const textNode = ownerDocument.createTextNode(String(value));
-    const fragment = ownerDocument.createDocumentFragment();
-    fragment.appendChild(textNode);
-    return fragment;
-}
-
-function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
-    return typeof (value as Promise<T> | undefined)?.then === "function";
-}
-
-function isAbortLikeError(error: unknown): boolean {
-    if (typeof DOMException !== "undefined" && error instanceof DOMException) {
-        return error.name === "AbortError";
-    }
-
-    return error instanceof Error && error.name === "AbortError";
-}
-
-function resolveComponentName(componentCtor: object): string {
-    const candidate = componentCtor as { name?: string };
-    return candidate.name || "AnonymousComponent";
-}
-
-function elementTagName(element: Element): string {
-    if (isHtmlElementLike(element, element.ownerDocument)) {
-        return element.tagName;
-    }
-
-    return element.localName;
-}
-
-function resolveOwnerDocument(value: unknown): Document {
-    const fromOwner = (value as { ownerDocument?: Document | null } | null | undefined)
-        ?.ownerDocument;
-    if (fromOwner) {
-        return fromOwner;
-    }
-
-    if (typeof document !== "undefined") {
-        return document;
-    }
-
-    throw new Error("Mainz component rendering requires an owner document.");
-}
-
-function isNodeLike(value: unknown, ownerDocument?: Document): value is Node {
-    const nodeCtor = ownerDocument?.defaultView?.Node;
-    return !!nodeCtor && value instanceof nodeCtor;
-}
-
-function isElementLike(value: unknown, ownerDocument?: Document): value is Element {
-    const elementCtor = ownerDocument?.defaultView?.Element;
-    return !!elementCtor && value instanceof elementCtor;
-}
-
-function isHtmlElementLike(
-    value: unknown,
-    ownerDocument?: Document,
-): value is HTMLElement {
-    const htmlElementCtor = ownerDocument?.defaultView?.HTMLElement;
-    return !!htmlElementCtor && value instanceof htmlElementCtor;
-}
-
-function isDocumentFragmentLike(
-    value: unknown,
-    ownerDocument?: Document,
-): value is DocumentFragment {
-    const fragmentCtor = ownerDocument?.defaultView?.DocumentFragment;
-    return !!fragmentCtor && value instanceof fragmentCtor;
 }

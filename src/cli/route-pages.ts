@@ -5,6 +5,7 @@ import { discoverPagesFromFile } from "../routing/server.ts";
 import type { RenderMode } from "../routing/index.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { PageHeadDefinition } from "../components/page.ts";
+import { invalidLocalePageDiscoveryErrorKind, pageDiscoveryFailedErrorKind, type PageDiscoveryError, type PageDiscoveryErrorKind } from "../routing/page-discovery-errors.ts";
 
 export interface CliDiscoveredPage {
     file: string;
@@ -18,10 +19,7 @@ export interface CliDiscoveredPage {
     authorization?: PageAuthorizationMetadata;
 }
 
-export interface CliPageDiscoveryError {
-    file: string;
-    message: string;
-}
+export type CliPageDiscoveryError = PageDiscoveryError;
 
 export async function resolveTargetDiscoveredPages(
     pagesDir: string | undefined,
@@ -29,7 +27,7 @@ export async function resolveTargetDiscoveredPages(
 ): Promise<{
     filesystemPageFiles: string[] | undefined;
     discoveredPages: CliDiscoveredPage[] | undefined;
-    discoveryErrors: CliPageDiscoveryError[] | undefined;
+    discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
 }> {
     const filesystemPageFiles = pagesDir
         ? await collectFilesystemPageFiles(resolve(cwd, pagesDir))
@@ -46,9 +44,11 @@ export async function resolveTargetDiscoveredPages(
                 ...entry.page,
             })));
         } catch (error) {
+            const message = toErrorMessage(error);
             discoveryErrors.push({
+                kind: classifyPageDiscoveryError(message),
                 file: normalizePathSlashes(filePath),
-                message: toErrorMessage(error),
+                message,
             });
         }
     }
@@ -97,6 +97,14 @@ async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
 
 function normalizePathSlashes(path: string): string {
     return path.replaceAll("\\", "/");
+}
+
+function classifyPageDiscoveryError(message: string): PageDiscoveryErrorKind {
+    if (message.includes("@Locales() received invalid locale")) {
+        return invalidLocalePageDiscoveryErrorKind;
+    }
+
+    return pageDiscoveryFailedErrorKind;
 }
 
 function toErrorMessage(error: unknown): string {

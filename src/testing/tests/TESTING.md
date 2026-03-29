@@ -2,7 +2,7 @@
 
 This folder contains tests for the `mainz/testing` harness itself.
 
-The goal is to validate helper behavior (`renderMainzComponent`, selector helpers, event helpers, cleanup semantics), not component runtime features already covered in `src/components/tests`.
+The goal is to diagnose helper behavior (`renderMainzComponent`, selector helpers, event helpers, cleanup semantics), not component runtime features already covered in `src/components/tests`.
 
 ## Test Groups
 
@@ -99,3 +99,4 @@ Use these files as the canonical starter when creating a new suite:
 
 - `_template.test.ts`
 - `_template.fixture.tsx`
+

@@ -7,7 +7,7 @@ class MissingApi {
 
 @Route("/")
 @RenderMode("csr")
-export class DiagnosticsDiPage extends Page {
+export class DiagnosticsDiFixturePage extends Page {
     static readonly api = inject(MissingApi);
 
     render() {
