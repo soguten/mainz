@@ -2,6 +2,7 @@
 
 Small first-party Mainz app that demonstrates:
 
+- official routed app composition through `defineApp(...)`
 - page authorization with `@Authorize()`
 - role-based authorization with `@Authorize({ roles: [...] })`
 - policy-based authorization with `@Authorize({ policy: "..." })`
@@ -99,7 +100,7 @@ Example value:
 ## Key Files
 
 - `src/main.tsx`
-  - registers `auth.getPrincipal`, `auth.policies`, and `loginPath`
+  - defines the routed app and registers `auth.getPrincipal`, `auth.policies`, and `loginPath`
 - `src/lib/session.ts`
   - session presets, `localStorage` handling, and principal resolution
 - `src/lib/navigation.ts`

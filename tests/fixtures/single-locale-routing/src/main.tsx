@@ -1,8 +1,11 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { FixtureSingleLocaleHomePage } from "./pages/Home.page.tsx";
 import { FixtureSingleLocaleQuickstartPage } from "./pages/Quickstart.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [FixtureSingleLocaleHomePage, FixtureSingleLocaleQuickstartPage],
+});
+
+startApp(app, {
+    mount: "#app",
 });

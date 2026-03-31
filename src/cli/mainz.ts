@@ -68,14 +68,18 @@ export async function main(args: string[]): Promise<void> {
     if (command === "diagnose") {
         const diagnostics = await collectCliDiagnostics(normalizedConfig, options, Deno.cwd());
         const format = resolveDiagnoseFormat(options.format);
-        console.log(format === "human" ? formatCliDiagnosticsHuman(diagnostics) : formatCliDiagnosticsJson(diagnostics));
+        console.log(
+            format === "human"
+                ? formatCliDiagnosticsHuman(diagnostics)
+                : formatCliDiagnosticsJson(diagnostics),
+        );
         if (shouldFailCliDiagnostics(diagnostics, resolveDiagnoseFailOn(options.failOn))) {
             Deno.exit(1);
         }
         return;
     }
 
-    const jobs = resolveBuildJobs(normalizedConfig, options);
+    const jobs = await resolveBuildJobs(normalizedConfig, options);
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
     const resolvedProfileByTarget = new Map<
         string,
@@ -214,4 +218,3 @@ function resolveDiagnoseFailOn(
         `Unsupported diagnose fail mode "${failOn}". Use "never", "error", or "warning".`,
     );
 }
-

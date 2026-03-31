@@ -2,10 +2,20 @@
 
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { invalidLocalePageDiscoveryErrorKind, pageDiscoveryFailedErrorKind, type PageDiscoveryErrorKind } from "../routing/page-discovery-errors.ts";
-import { invalidLocaleTagDiagnosticCode, pageDiscoveryFailedDiagnosticCode } from "../routing/diagnostics/index.ts";
+import {
+    invalidLocalePageDiscoveryErrorKind,
+    type PageDiscoveryErrorKind,
+    pageDiscoveryFailedErrorKind,
+} from "../routing/page-discovery-errors.ts";
+import {
+    invalidLocaleTagDiagnosticCode,
+    pageDiscoveryFailedDiagnosticCode,
+} from "../routing/diagnostics/index.ts";
 import type { NormalizedMainzTarget } from "../config/index.ts";
-import { collectFilesystemFiles, resolveTargetDiscoveredPages } from "../cli/route-pages.ts";
+import {
+    collectFilesystemFiles,
+    resolveTargetDiscoveredPagesForTarget,
+} from "../cli/route-pages.ts";
 import { diagnosticsContributors } from "./contributors.ts";
 import {
     createDiagnosticsTargetModel,
@@ -16,11 +26,16 @@ import {
     type MainzDiagnostic,
 } from "./core/target-model.ts";
 
-export async function collectDiagnosticsFromInput(input: DiagnosticsTargetInput): Promise<readonly MainzDiagnostic[]> {
+export async function collectDiagnosticsFromInput(
+    input: DiagnosticsTargetInput,
+): Promise<readonly MainzDiagnostic[]> {
     return await collectDiagnosticsFromModel(createDiagnosticsTargetModel(input));
 }
 
-export async function collectDiagnosticsFromModel(model: DiagnosticsTargetModel, contributors: readonly DiagnosticsContributor[] = diagnosticsContributors): Promise<readonly MainzDiagnostic[]> {
+export async function collectDiagnosticsFromModel(
+    model: DiagnosticsTargetModel,
+    contributors: readonly DiagnosticsContributor[] = diagnosticsContributors,
+): Promise<readonly MainzDiagnostic[]> {
     const diagnostics = await Promise.all(
         contributors.map((contributor) => contributor.collect(model)),
     );
@@ -28,9 +43,12 @@ export async function collectDiagnosticsFromModel(model: DiagnosticsTargetModel,
     return diagnostics.flat().sort(compareMainzDiagnostics);
 }
 
-export async function collectDiagnosticsForTarget(target: NormalizedMainzTarget, cwd = Deno.cwd()): Promise<readonly MainzDiagnostic[]> {
-    const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPages(
-        target.pagesDir,
+export async function collectDiagnosticsForTarget(
+    target: NormalizedMainzTarget,
+    cwd = Deno.cwd(),
+): Promise<readonly MainzDiagnostic[]> {
+    const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
+        target,
         cwd,
     );
     const pages = (discoveredPages ?? []).map((page) => ({
@@ -108,7 +126,10 @@ function readDiagnosticRoutePath(diagnostic: MainzDiagnostic): string | undefine
     return "routePath" in diagnostic ? diagnostic.routePath : undefined;
 }
 
-async function discoverTargetSourceInputs(target: NormalizedMainzTarget, cwd: string): Promise<readonly DiagnosticsSourceInput[]> {
+async function discoverTargetSourceInputs(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<readonly DiagnosticsSourceInput[]> {
     const files = await collectTargetSourceFiles(target, cwd);
     const sources: DiagnosticsSourceInput[] = [];
 
@@ -122,7 +143,10 @@ async function discoverTargetSourceInputs(target: NormalizedMainzTarget, cwd: st
     return sources;
 }
 
-async function collectTargetSourceFiles(target: NormalizedMainzTarget, cwd: string): Promise<readonly string[]> {
+async function collectTargetSourceFiles(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<readonly string[]> {
     const sourceDir = resolve(cwd, target.rootDir, "src");
     if (!existsSync(sourceDir)) {
         return [];

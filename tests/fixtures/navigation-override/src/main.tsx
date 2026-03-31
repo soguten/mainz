@@ -1,7 +1,10 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { FixtureNavigationOverrideHomePage } from "./pages/Home.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [FixtureNavigationOverrideHomePage],
+});
+
+startApp(app, {
+    mount: "#app",
 });

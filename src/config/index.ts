@@ -5,10 +5,10 @@ import {
     LoadedMainzConfig,
     MainzConfig,
     MainzTargetDefinition,
-    NormalizedTargetBuildDefinition,
-    NormalizedTargetBuildProfile,
     NormalizedMainzConfig,
     NormalizedMainzTarget,
+    NormalizedTargetBuildDefinition,
+    NormalizedTargetBuildProfile,
     TargetBuildDefinition,
 } from "./types.ts";
 
@@ -65,10 +65,14 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     };
 }
 
-export function normalizeTargetBuildConfig(input: TargetBuildDefinition | undefined): NormalizedTargetBuildDefinition {
+export function normalizeTargetBuildConfig(
+    input: TargetBuildDefinition | undefined,
+): NormalizedTargetBuildDefinition {
     const profiles = input?.profiles ?? {};
     const normalizedProfiles = Object.fromEntries(
-        Object.entries(profiles).map(([name, profile]) => [name, normalizeTargetBuildProfile(profile)]),
+        Object.entries(profiles).map((
+            [name, profile],
+        ) => [name, normalizeTargetBuildProfile(profile)]),
     );
 
     return {
@@ -93,8 +97,11 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
 
     return {
         ...target,
+        appFile: target.appFile?.trim() || undefined,
         defaultMode: target.defaultMode,
-        defaultNavigation: target.defaultNavigation ? normalizeNavigationMode(target.defaultNavigation) : undefined,
+        defaultNavigation: target.defaultNavigation
+            ? normalizeNavigationMode(target.defaultNavigation)
+            : undefined,
         authorization: normalizeTargetAuthorization(target.authorization),
         outDir,
     };
@@ -125,7 +132,9 @@ function normalizeTargetBuildProfile(profile: {
     return {
         basePath: normalizeBasePath(profile.basePath),
         overridePageMode: profile.overridePageMode,
-        overrideNavigation: profile.overrideNavigation ? normalizeNavigationMode(profile.overrideNavigation) : undefined,
+        overrideNavigation: profile.overrideNavigation
+            ? normalizeNavigationMode(profile.overrideNavigation)
+            : undefined,
         siteUrl: normalizeSiteUrl(profile.siteUrl),
     };
 }
@@ -164,7 +173,9 @@ function dedupeRenderModes(modes: RenderMode[]): RenderMode[] {
 function normalizeNavigationMode(mode: NavigationMode): NavigationMode {
     const allowed = new Set<NavigationMode>(["spa", "mpa", "enhanced-mpa"]);
     if (!allowed.has(mode)) {
-        throw new Error(`Unsupported navigation mode "${mode}". Use "spa", "mpa", or "enhanced-mpa".`);
+        throw new Error(
+            `Unsupported navigation mode "${mode}". Use "spa", "mpa", or "enhanced-mpa".`,
+        );
     }
 
     return mode;
@@ -219,9 +230,9 @@ export type {
     LoadedMainzConfig,
     MainzConfig,
     MainzTargetDefinition,
-    NormalizedTargetBuildDefinition,
-    NormalizedTargetBuildProfile,
     NormalizedMainzConfig,
     NormalizedMainzTarget,
+    NormalizedTargetBuildDefinition,
+    NormalizedTargetBuildProfile,
     TargetBuildDefinition,
 };

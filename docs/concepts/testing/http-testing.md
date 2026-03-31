@@ -67,7 +67,7 @@ That keeps fakes explicit while removing repetitive pathname parsing.
 Pass the fake transport into `HttpClient` at startup or in a test setup.
 
 ```ts title="main.ts"
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { singleton } from "mainz/di";
 import { HttpClient } from "mainz/http";
 import { createMockFetch, jsonResponse } from "mainz/http/testing";
@@ -78,7 +78,7 @@ const mockFetch = createMockFetch((routes) => {
     });
 });
 
-startApp({
+const app = defineApp({
     pages: [HomePage],
     services: [
         singleton(HttpClient, () =>
@@ -88,6 +88,8 @@ startApp({
             })),
     ],
 });
+
+startApp(app);
 ```
 
 That means apps using the Mainz HTTP client get an official way to:

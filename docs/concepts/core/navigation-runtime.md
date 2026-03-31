@@ -14,6 +14,8 @@ It keeps browser-native navigation semantics, then layers in practical upgrades 
 
 Because navigation mode comes from build context, the app bootstrap should not need to parse URLs or decide runtime strategy manually.
 
+For app definition, bootstrap, and the split between static and runtime consumers, see [App Definition](./app-definition.md).
+
 ## Runtime lifecycle signals
 
 Mainz now exposes a small navigation lifecycle vocabulary for managed runtime navigation:

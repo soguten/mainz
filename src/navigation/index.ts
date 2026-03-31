@@ -16,8 +16,8 @@ import {
 } from "../authorization/runtime.ts";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import {
-    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_LOCALE_CHANGE_EVENT,
+    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_NAVIGATION_ERROR_EVENT,
     MAINZ_NAVIGATION_READY_EVENT,
     MAINZ_NAVIGATION_START_EVENT,
@@ -46,6 +46,8 @@ const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
+const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol("mainz.appDefinitionKind");
+const ROUTED_APP_CAPTURE_STACK: Array<(app: RoutedAppDefinition) => void> = [];
 
 export type SpaRouteParams = Readonly<Record<string, string>>;
 export type RoutePathResolver = (context: { url: URL; basePath: string }) => string | null;
@@ -127,12 +129,33 @@ export interface StartNavigationOptions {
     spa?: SpaNavigationOptions;
 }
 
-export interface StartAppOptions {
-    mount?: string | Element;
+export interface RoutedAppDefinition {
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
-    auth?: AuthorizationRuntimeOptions;
     services?: readonly ServiceRegistration[];
+}
+
+type RootComponentConstructor = CustomElementConstructor & {
+    getTagName(): string;
+    name: string;
+};
+
+export interface RootAppDefinition {
+    root: RootComponentConstructor;
+    services?: readonly ServiceRegistration[];
+}
+
+export interface DefinedRoutedApp extends RoutedAppDefinition {
+    readonly [MAINZ_APP_DEFINITION_KIND]: "routed";
+}
+
+export interface DefinedRootApp extends RootAppDefinition {
+    readonly [MAINZ_APP_DEFINITION_KIND]: "root";
+}
+
+export interface StartDefinedAppOptions {
+    mount?: string | Element;
+    auth?: AuthorizationRuntimeOptions;
 }
 
 export interface NavigationController {
@@ -218,17 +241,232 @@ function isAbortLikeError(error: unknown): boolean {
     return error instanceof Error && error.name === "AbortError";
 }
 
-export function startApp(options: StartAppOptions): NavigationController {
+export function defineApp(app: RoutedAppDefinition): DefinedRoutedApp;
+export function defineApp(app: RootAppDefinition): DefinedRootApp;
+export function defineApp(
+    app: RoutedAppDefinition | RootAppDefinition,
+): DefinedRoutedApp | DefinedRootApp {
+    if (isRoutedAppDefinitionShape(app)) {
+        const definedApp = brandDefinedApp(app, "routed") as DefinedRoutedApp;
+        captureDefinedRoutedApp(definedApp);
+        return definedApp;
+    }
+
+    if (isRootAppDefinitionShape(app)) {
+        return brandDefinedApp(app, "root") as DefinedRootApp;
+    }
+
+    return app as DefinedRoutedApp | DefinedRootApp;
+}
+
+export async function captureDefinedRoutedAppDuring<Value>(
+    action: () => Value | Promise<Value>,
+): Promise<{ value: Value; app?: RoutedAppDefinition }> {
+    let capturedApp: RoutedAppDefinition | undefined;
+    ROUTED_APP_CAPTURE_STACK.push((app) => {
+        capturedApp ??= app;
+    });
+
+    try {
+        const value = await action();
+        return {
+            value,
+            app: capturedApp,
+        };
+    } finally {
+        ROUTED_APP_CAPTURE_STACK.pop();
+    }
+}
+
+export function resolveRoutedAppDefinitionFromModuleExports(
+    moduleExports: Record<string, unknown>,
+): RoutedAppDefinition | undefined {
+    const candidates = [
+        moduleExports.default,
+        moduleExports.app,
+        ...Object.values(moduleExports),
+    ];
+
+    return candidates.find(isDefinedRoutedApp);
+}
+
+export function startApp(
+    app: DefinedRoutedApp,
+    options?: StartDefinedAppOptions,
+): NavigationController;
+export function startApp(
+    app: DefinedRootApp,
+    options?: StartDefinedAppOptions,
+): NavigationController;
+export function startApp(
+    root: RootComponentConstructor,
+    options?: StartDefinedAppOptions,
+): NavigationController;
+export function startApp(
+    appOrRoot: DefinedRoutedApp | DefinedRootApp | RootComponentConstructor,
+    options?: StartDefinedAppOptions,
+): NavigationController {
+    if (isRootComponentConstructor(appOrRoot)) {
+        return startRootApp({
+            root: appOrRoot,
+        }, options);
+    }
+
+    if (isDefinedRootApp(appOrRoot)) {
+        return startRootApp(appOrRoot, options);
+    }
+
+    if (!isDefinedRoutedApp(appOrRoot)) {
+        throw new TypeError(
+            "startApp(...) for routed apps expects an app created with defineApp(...).",
+        );
+    }
+
+    captureDefinedRoutedApp(appOrRoot);
+
     return startNavigation({
         mode: resolveMainzNavigationMode(),
         basePath: resolveMainzBasePath(),
-        mount: options.mount,
-        pages: options.pages,
-        notFound: options.notFound,
-        auth: options.auth,
-        services: options.services,
-        locales: resolvePagesAppLocales(options.pages, options.notFound),
+        mount: options?.mount,
+        pages: appOrRoot.pages,
+        notFound: appOrRoot.notFound,
+        auth: options?.auth,
+        services: appOrRoot.services,
+        locales: resolvePagesAppLocales(appOrRoot.pages, appOrRoot.notFound),
     });
+}
+
+function startRootApp(
+    app: RootAppDefinition,
+    options?: StartDefinedAppOptions,
+): NavigationController {
+    const mode = resolveMainzNavigationMode();
+    if (typeof document === "undefined" || typeof window === "undefined") {
+        return {
+            mode,
+            cleanup() {},
+        };
+    }
+
+    setAuthorizationRuntimeOptions(options?.auth);
+    document.documentElement.dataset.mainzNavigation = mode;
+
+    const mount = resolveSpaMount(options?.mount);
+    const serviceContainer = app.services?.length
+        ? createServiceContainer(app.services)
+        : undefined;
+
+    ensureMainzCustomElementDefined(app.root);
+    const rootElement = document.createElement(app.root.getTagName());
+    attachServiceContainer(rootElement, serviceContainer);
+
+    withServiceContainer(serviceContainer, () => {
+        mount.replaceChildren(rootElement);
+    });
+
+    return {
+        mode,
+        cleanup() {
+            if (rootElement.parentNode === mount) {
+                mount.removeChild(rootElement);
+                return;
+            }
+
+            rootElement.remove();
+        },
+    };
+}
+
+function captureDefinedRoutedApp(app: RoutedAppDefinition): void {
+    ROUTED_APP_CAPTURE_STACK.at(-1)?.(app);
+}
+
+function isRoutedAppDefinitionShape(value: unknown): value is RoutedAppDefinition {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (!Array.isArray(record.pages) || !record.pages.every(isRoutedPageEntry)) {
+        return false;
+    }
+
+    if (
+        "notFound" in record && record.notFound !== undefined && !isRoutedPageEntry(record.notFound)
+    ) {
+        return false;
+    }
+
+    return !("services" in record) || record.services === undefined ||
+        Array.isArray(record.services);
+}
+
+function isRootAppDefinitionShape(value: unknown): value is RootAppDefinition {
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const record = value as Record<string, unknown>;
+    if (!isRootComponentConstructor(record.root)) {
+        return false;
+    }
+
+    return !("services" in record) || record.services === undefined ||
+        Array.isArray(record.services);
+}
+
+function isRootComponentConstructor(value: unknown): value is RootComponentConstructor {
+    return typeof value === "function" &&
+        typeof (value as RootComponentConstructor).getTagName === "function";
+}
+
+function isRoutedPageEntry(value: unknown): boolean {
+    if (typeof value === "function") {
+        return true;
+    }
+
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    return "page" in value || "load" in value;
+}
+
+function isDefinedRoutedApp(value: unknown): value is DefinedRoutedApp {
+    return isRoutedAppDefinitionShape(value) &&
+        readAppDefinitionKind(value) === "routed";
+}
+
+function isDefinedRootApp(value: unknown): value is DefinedRootApp {
+    return isRootAppDefinitionShape(value) &&
+        readAppDefinitionKind(value) === "root";
+}
+
+function readAppDefinitionKind(value: unknown): "routed" | "root" | undefined {
+    if (typeof value !== "object" || value === null) {
+        return undefined;
+    }
+
+    return (value as Record<PropertyKey, unknown>)[MAINZ_APP_DEFINITION_KIND] as
+        | "routed"
+        | "root"
+        | undefined;
+}
+
+function brandDefinedApp<TApp extends RoutedAppDefinition | RootAppDefinition>(
+    app: TApp,
+    kind: "routed" | "root",
+): TApp {
+    if (readAppDefinitionKind(app) !== kind) {
+        Object.defineProperty(app, MAINZ_APP_DEFINITION_KIND, {
+            value: kind,
+            configurable: false,
+            enumerable: false,
+            writable: false,
+        });
+    }
+
+    return app;
 }
 
 export function startNavigation(options: StartNavigationOptions): NavigationController {
@@ -555,7 +793,11 @@ function startSpaNavigation(
             navigationType: "pop",
             path: routeMatch?.route.path ?? currentPath,
             matchedPath: currentPath,
-            locale: resolveNavigationLocale(effectiveCurrentUrl, normalizedBasePath, pageOptions.locales),
+            locale: resolveNavigationLocale(
+                effectiveCurrentUrl,
+                normalizedBasePath,
+                pageOptions.locales,
+            ),
             url: effectiveCurrentUrl,
             basePath: normalizedBasePath,
             reason: "superseded",
@@ -1241,7 +1483,10 @@ async function resolvePageRouteData(args: {
         args.serviceContainer,
     );
 
-    return await withServiceContainer(args.serviceContainer, () => args.page.load!.call(owner, context));
+    return await withServiceContainer(
+        args.serviceContainer,
+        () => args.page.load!.call(owner, context),
+    );
 }
 
 async function redirectUnauthorizedRouteToLogin(args: {
@@ -1850,7 +2095,9 @@ function throwIfNavigationAborted(sequence: NavigationSequenceState): void {
     }
 }
 
-function emitNavigationStart(args: NavigationLifecycleEmissionArgs): MainzNavigationStartDetail | undefined {
+function emitNavigationStart(
+    args: NavigationLifecycleEmissionArgs,
+): MainzNavigationStartDetail | undefined {
     if (typeof document === "undefined" || args.sequence.started) {
         return undefined;
     }
@@ -1888,7 +2135,9 @@ function emitNavigationStart(args: NavigationLifecycleEmissionArgs): MainzNaviga
     return detail;
 }
 
-function emitNavigationReady(args: NavigationLifecycleEmissionArgs): MainzNavigationReadyDetail | undefined {
+function emitNavigationReady(
+    args: NavigationLifecycleEmissionArgs,
+): MainzNavigationReadyDetail | undefined {
     if (typeof document === "undefined") {
         return undefined;
     }
@@ -1932,10 +2181,12 @@ function finalizeNavigationReady(
     emitNavigationReady(readyArgs);
 }
 
-function emitNavigationError(args: NavigationLifecycleEmissionArgs & {
-    phase: MainzNavigationErrorDetail["phase"];
-    error: unknown;
-}): MainzNavigationErrorDetail | undefined {
+function emitNavigationError(
+    args: NavigationLifecycleEmissionArgs & {
+        phase: MainzNavigationErrorDetail["phase"];
+        error: unknown;
+    },
+): MainzNavigationErrorDetail | undefined {
     if (typeof document === "undefined") {
         return undefined;
     }
@@ -2326,17 +2577,17 @@ async function resolveMountedRouteContext(
                 matchedPath: context.currentPath,
                 params,
                 locale: context.locale,
-              }) ?? await resolvePageRouteData({
-                  page: matchedPage,
-                  params,
-                  locale: context.locale,
-                  principal,
-                  url: context.url,
-                  signal: context.sequence.controller.signal,
-                  serviceContainer: context.serviceContainer,
-              });
-              const routeContext = {
-                  page: matchedPage,
+            }) ?? await resolvePageRouteData({
+                page: matchedPage,
+                params,
+                locale: context.locale,
+                principal,
+                url: context.url,
+                signal: context.sequence.controller.signal,
+                serviceContainer: context.serviceContainer,
+            });
+            const routeContext = {
+                page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
                 params: context.routeMatch?.params ?? {},
@@ -2358,12 +2609,12 @@ async function resolveMountedRouteContext(
                 }),
                 locale: context.locale,
                 url: context.url,
-                  navigationType: "initial",
-                  basePath: context.basePath,
-              } satisfies SpaNavigationRenderContext;
-              attachServiceContainer(routeContext, context.serviceContainer);
+                navigationType: "initial",
+                basePath: context.basePath,
+            } satisfies SpaNavigationRenderContext;
+            attachServiceContainer(routeContext, context.serviceContainer);
 
-              applySpaRouteContext(mountedElement, routeContext);
+            applySpaRouteContext(mountedElement, routeContext);
             applyResolvedPageHeadToDocument(routeContext.head);
             return routeContext;
         }

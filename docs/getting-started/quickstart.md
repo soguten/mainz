@@ -34,15 +34,19 @@ If you want an explicit stable tag instead of the generated class-based one, add
 
 ## Bootstrap the app
 
-The app entry stays tiny. You only declare the page set and the notFound page.
+The app entry stays tiny. Define the routed app once, then start it.
 
 ```tsx title="main.tsx"
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
-startApp({
+const app = defineApp({
     pages: [HomePage],
     notFound: NotFoundPage,
 });
+
+startApp(app);
 ```
+
+For the deeper split between app definition, static consumers such as build/diagnostics, and runtime startup, see [App Definition](../concepts/core/app-definition.md).

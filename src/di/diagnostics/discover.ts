@@ -13,13 +13,20 @@ interface DiDiagnosticFileContext {
     sourceFile: ts.SourceFile;
     variables: ReadonlyMap<string, ts.Expression>;
     functions: ReadonlyMap<string, ts.Expression>;
+    classes: ReadonlyMap<string, ts.ClassDeclaration>;
     imports: ReadonlyMap<string, ImportedBinding>;
     exportedBindings: ReadonlyMap<string, ts.Expression>;
+    exportedClasses: ReadonlyMap<string, ts.ClassDeclaration>;
 }
 
 interface ImportedBinding {
     importedName: string;
     sourceFile: string;
+}
+
+interface ResolvedDiExpression {
+    expression: ts.Expression;
+    fileContext: DiDiagnosticFileContext;
 }
 
 export async function discoverDiFacts(
@@ -52,8 +59,10 @@ function createFileContexts(
             sourceFile,
             variables: collectTopLevelVariableExpressions(sourceFile),
             functions: collectTopLevelFunctionExpressions(sourceFile),
+            classes: collectTopLevelClassDeclarations(sourceFile),
             imports: collectImports(sourceFile, file.file),
             exportedBindings: collectExportedBindings(sourceFile),
+            exportedClasses: collectExportedClasses(sourceFile),
         });
     }
 
@@ -76,16 +85,31 @@ function collectProjectServiceRegistrations(
                 return;
             }
 
-            const [optionsArgument] = node.arguments;
-            const servicesExpression = extractServicesExpression(optionsArgument);
-            if (!servicesExpression) {
+            const servicesResolution = callee === "startApp"
+                ? extractServicesExpressionFromAppDefinition(
+                    node.arguments[0],
+                    fileContext,
+                    fileContexts,
+                    new Set<string>(),
+                    false,
+                )
+                : (() => {
+                    const servicesExpression = extractServicesExpression(node.arguments[0]);
+                    return servicesExpression
+                        ? {
+                            expression: servicesExpression,
+                            fileContext,
+                        }
+                        : undefined;
+                })();
+            if (!servicesResolution) {
                 return;
             }
 
             registrations.push(
                 ...resolveServiceRegistrationsFromExpression(
-                    servicesExpression,
-                    fileContext,
+                    servicesResolution.expression,
+                    servicesResolution.fileContext,
                     fileContexts,
                     new Set<string>(),
                 ),
@@ -213,18 +237,49 @@ function resolveServiceRegistrationCall(
         return undefined;
     }
 
-    const [tokenExpression, factoryExpression] = normalizedExpression.arguments;
+    const [tokenExpression, implementationOrFactoryExpression] = normalizedExpression.arguments;
     const token = readTokenReference(tokenExpression);
-    if (!token || !factoryExpression) {
+    if (!token) {
         return undefined;
     }
 
     return {
         token,
         lifetime: callee,
-        dependencies: collectFactoryDependencies(factoryExpression, fileContext, fileContexts),
+        dependencies: collectRegistrationDependencies(
+            tokenExpression,
+            implementationOrFactoryExpression,
+            fileContext,
+            fileContexts,
+        ),
         file: fileContext.file,
     };
+}
+
+function collectRegistrationDependencies(
+    tokenExpression: ts.Expression | undefined,
+    implementationOrFactoryExpression: ts.Expression | undefined,
+    fileContext: DiDiagnosticFileContext,
+    fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
+): readonly DiTokenReference[] {
+    if (!implementationOrFactoryExpression) {
+        return collectClassDependencies(tokenExpression, fileContext, fileContexts);
+    }
+
+    const classDependencies = collectClassDependencies(
+        implementationOrFactoryExpression,
+        fileContext,
+        fileContexts,
+    );
+    if (classDependencies.length > 0) {
+        return classDependencies;
+    }
+
+    return collectFactoryDependencies(
+        implementationOrFactoryExpression,
+        fileContext,
+        fileContexts,
+    );
 }
 
 function collectFactoryDependencies(
@@ -282,6 +337,41 @@ function collectFactoryDependencies(
         seenDependencies.add(dependency.key);
         dependencies.push(dependency);
     });
+
+    return dependencies;
+}
+
+function collectClassDependencies(
+    expression: ts.Expression | undefined,
+    fileContext: DiDiagnosticFileContext,
+    fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
+    visitedReferences = new Set<string>(),
+): readonly DiTokenReference[] {
+    if (!expression) {
+        return [];
+    }
+
+    const classDeclaration = resolveClassDeclaration(
+        expression,
+        fileContext,
+        fileContexts,
+        visitedReferences,
+    );
+    if (!classDeclaration) {
+        return [];
+    }
+
+    const dependencies: DiTokenReference[] = [];
+    const seenDependencies = new Set<string>();
+    for (const member of classDeclaration.members) {
+        const dependency = readMemberInjectionToken(member);
+        if (!dependency || seenDependencies.has(dependency.key)) {
+            continue;
+        }
+
+        seenDependencies.add(dependency.key);
+        dependencies.push(dependency);
+    }
 
     return dependencies;
 }
@@ -427,6 +517,69 @@ function extractServicesExpression(node: ts.Expression | undefined): ts.Expressi
     return undefined;
 }
 
+function extractServicesExpressionFromAppDefinition(
+    node: ts.Expression | undefined,
+    fileContext: DiDiagnosticFileContext,
+    fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
+    visitedReferences: Set<string>,
+    allowObjectLiteral: boolean,
+): ResolvedDiExpression | undefined {
+    const normalizedNode = node ? unwrapExpression(node) : undefined;
+    if (!normalizedNode) {
+        return undefined;
+    }
+
+    if (allowObjectLiteral) {
+        const directServices = extractServicesExpression(normalizedNode);
+        if (directServices) {
+            return {
+                expression: directServices,
+                fileContext,
+            };
+        }
+    }
+
+    if (
+        ts.isCallExpression(normalizedNode) &&
+        readIdentifierLike(normalizedNode.expression) === "defineApp"
+    ) {
+        return extractServicesExpressionFromAppDefinition(
+            normalizedNode.arguments[0],
+            fileContext,
+            fileContexts,
+            visitedReferences,
+            true,
+        );
+    }
+
+    if (!ts.isIdentifier(normalizedNode)) {
+        return undefined;
+    }
+
+    const referenceKey = `${fileContext.file}::app::${normalizedNode.text}`;
+    if (visitedReferences.has(referenceKey)) {
+        return undefined;
+    }
+
+    visitedReferences.add(referenceKey);
+    const resolved = resolveIdentifierExpression(
+        fileContext,
+        fileContexts,
+        normalizedNode.text,
+    );
+    if (!resolved) {
+        return undefined;
+    }
+
+    return extractServicesExpressionFromAppDefinition(
+        resolved.expression,
+        resolved.fileContext,
+        fileContexts,
+        visitedReferences,
+        allowObjectLiteral,
+    );
+}
+
 function readMemberInjectionToken(node: ts.ClassElement): DiTokenReference | undefined {
     if (!ts.isPropertyDeclaration(node) || !node.initializer) {
         return undefined;
@@ -472,7 +625,7 @@ function resolveIdentifierExpression(
     fileContext: DiDiagnosticFileContext,
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
     identifierName: string,
-): { expression: ts.Expression; fileContext: DiDiagnosticFileContext } | undefined {
+): ResolvedDiExpression | undefined {
     const localVariable = fileContext.variables.get(identifierName);
     if (localVariable) {
         return {
@@ -550,6 +703,71 @@ function resolveCallableExpression(
     );
 }
 
+function resolveClassDeclaration(
+    expression: ts.Expression,
+    fileContext: DiDiagnosticFileContext,
+    fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
+    visitedReferences: Set<string>,
+): ts.ClassDeclaration | ts.ClassExpression | undefined {
+    const normalizedExpression = unwrapExpression(expression);
+    if (ts.isClassExpression(normalizedExpression)) {
+        return normalizedExpression;
+    }
+
+    if (!ts.isIdentifier(normalizedExpression)) {
+        return undefined;
+    }
+
+    const referenceKey = `${fileContext.file}::class::${normalizedExpression.text}`;
+    if (visitedReferences.has(referenceKey)) {
+        return undefined;
+    }
+
+    visitedReferences.add(referenceKey);
+
+    const localClass = fileContext.classes.get(normalizedExpression.text);
+    if (localClass) {
+        return localClass;
+    }
+
+    const localVariable = fileContext.variables.get(normalizedExpression.text);
+    if (localVariable) {
+        return resolveClassDeclaration(
+            localVariable,
+            fileContext,
+            fileContexts,
+            visitedReferences,
+        );
+    }
+
+    const importedBinding = fileContext.imports.get(normalizedExpression.text);
+    if (!importedBinding) {
+        return undefined;
+    }
+
+    const importedContext = fileContexts.get(importedBinding.sourceFile);
+    if (!importedContext) {
+        return undefined;
+    }
+
+    const exportedClass = importedContext.exportedClasses.get(importedBinding.importedName);
+    if (exportedClass) {
+        return exportedClass;
+    }
+
+    const exportedExpression = importedContext.exportedBindings.get(importedBinding.importedName);
+    if (!exportedExpression) {
+        return undefined;
+    }
+
+    return resolveClassDeclaration(
+        exportedExpression,
+        importedContext,
+        fileContexts,
+        visitedReferences,
+    );
+}
+
 function collectTopLevelVariableExpressions(
     sourceFile: ts.SourceFile,
 ): ReadonlyMap<string, ts.Expression> {
@@ -613,6 +831,22 @@ function collectTopLevelFunctionExpressions(
     return functions;
 }
 
+function collectTopLevelClassDeclarations(
+    sourceFile: ts.SourceFile,
+): ReadonlyMap<string, ts.ClassDeclaration> {
+    const classes = new Map<string, ts.ClassDeclaration>();
+
+    for (const statement of sourceFile.statements) {
+        if (!ts.isClassDeclaration(statement) || !statement.name) {
+            continue;
+        }
+
+        classes.set(statement.name.text, statement);
+    }
+
+    return classes;
+}
+
 function collectImports(
     sourceFile: ts.SourceFile,
     file: string,
@@ -674,10 +908,38 @@ function collectExportedBindings(sourceFile: ts.SourceFile): ReadonlyMap<string,
 
                 bindings.set(declaration.name.text, declaration.initializer);
             }
+
+            continue;
+        }
+
+        if (ts.isExportAssignment(statement) && !statement.isExportEquals) {
+            bindings.set("default", statement.expression);
         }
     }
 
     return bindings;
+}
+
+function collectExportedClasses(
+    sourceFile: ts.SourceFile,
+): ReadonlyMap<string, ts.ClassDeclaration> {
+    const classes = new Map<string, ts.ClassDeclaration>();
+
+    for (const statement of sourceFile.statements) {
+        if (!ts.isClassDeclaration(statement) || !hasExportModifier(statement)) {
+            continue;
+        }
+
+        if (statement.name) {
+            classes.set(statement.name.text, statement);
+        }
+
+        if (hasDefaultModifier(statement)) {
+            classes.set("default", statement);
+        }
+    }
+
+    return classes;
 }
 
 function resolveImportPath(file: string, importPath: string): string | undefined {
@@ -734,6 +996,14 @@ function isExportedClassDeclaration(node: ts.ClassDeclaration): boolean {
 function hasExportModifier(node: ts.Node): boolean {
     return ts.canHaveModifiers(node) &&
         (ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+            false);
+}
+
+function hasDefaultModifier(node: ts.Node): boolean {
+    return ts.canHaveModifiers(node) &&
+        (ts.getModifiers(node)?.some((modifier) =>
+            modifier.kind === ts.SyntaxKind.DefaultKeyword
+        ) ??
             false);
 }
 

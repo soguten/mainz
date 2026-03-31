@@ -1,13 +1,13 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_LOCALE_CHANGE_EVENT,
+    MAINZ_NAVIGATION_ABORT_EVENT,
     MAINZ_NAVIGATION_ERROR_EVENT,
     MAINZ_NAVIGATION_READY_EVENT,
     MAINZ_NAVIGATION_START_EVENT,
-    type MainzNavigationAbortDetail,
     type MainzLocaleChangeDetail,
+    type MainzNavigationAbortDetail,
     type MainzNavigationErrorDetail,
     type MainzNavigationReadyDetail,
     type MainzNavigationStartDetail,
@@ -143,6 +143,8 @@ export async function buildFixtureForCombination(args: {
 export async function createCliFixtureTargetConfig(args: {
     fixtureName: string;
     targetName?: string;
+    appFile?: string;
+    omitPagesDir?: boolean;
     locales?: readonly string[];
     defaultLocale?: string;
     localePrefix?: "auto" | "always";
@@ -164,9 +166,13 @@ export async function createCliFixtureTargetConfig(args: {
     const configPath = resolve(tempRoot, "mainz.fixture.config.ts");
     const outputDir = resolve(tempRoot, "dist", targetName);
     const pagesDir = resolve(fixtureRoot, "src", "pages");
+    const requestedAppFile = args.appFile
+        ? resolve(fixtureRoot, args.appFile)
+        : resolve(fixtureRoot, "src", "main.tsx");
     const viteConfig = resolve(fixtureRoot, "vite.config.ts");
     const buildConfigPath = resolve(fixtureRoot, "mainz.build.ts");
     const hasBuildConfig = await fileExists(buildConfigPath);
+    const includeAppFile = args.appFile !== undefined || await fileExists(requestedAppFile);
 
     const locales = args.locales ?? ["en", "pt"];
     const defaultLocale = args.defaultLocale ?? locales[0];
@@ -184,7 +190,8 @@ export async function createCliFixtureTargetConfig(args: {
             `      name: ${JSON.stringify(targetName)},`,
             `      rootDir: ${JSON.stringify(fixtureRoot)},`,
             `      viteConfig: ${JSON.stringify(viteConfig)},`,
-            `      pagesDir: ${JSON.stringify(pagesDir)},`,
+            ...(args.omitPagesDir ? [] : [`      pagesDir: ${JSON.stringify(pagesDir)},`]),
+            ...(includeAppFile ? [`      appFile: ${JSON.stringify(requestedAppFile)},`] : []),
             ...(hasBuildConfig ? [`      buildConfig: ${JSON.stringify(buildConfigPath)},`] : []),
             `      outDir: ${JSON.stringify(outputDir)},`,
             `      locales: ${JSON.stringify(locales)},`,

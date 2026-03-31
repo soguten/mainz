@@ -19,7 +19,7 @@ export {
     resolvePageAuthorization,
     Route,
 } from "./components/index.ts";
-export { startApp, startNavigation } from "./navigation/index.ts";
+export { defineApp, startApp, startNavigation } from "./navigation/index.ts";
 export {
     MAINZ_LOCALE_CHANGE_EVENT,
     MAINZ_NAVIGATION_ABORT_EVENT,
@@ -52,7 +52,11 @@ export type {
     RenderStrategyOptions,
 } from "./components/index.ts";
 export type {
+    DefinedRootApp,
+    DefinedRoutedApp,
     NavigationLocaleContext,
+    RootAppDefinition,
+    RoutedAppDefinition,
     RoutePathResolver,
     SpaLazyPageDefinition,
     SpaNavigationOptions,
@@ -61,7 +65,7 @@ export type {
     SpaPageDefinition,
     SpaPageModule,
     SpaRouteParams,
-    StartAppOptions,
+    StartDefinedAppOptions,
     StartNavigationOptions,
 } from "./navigation/index.ts";
 export type {

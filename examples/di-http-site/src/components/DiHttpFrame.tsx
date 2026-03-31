@@ -28,7 +28,7 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
                         </span>
                         <span className="di-http-chip">
                             {backendMode === "mock"
-                                ? "Service swapped at startup"
+                                ? "Alternate mock app definition"
                                 : "StoriesApi -> HttpClient -> fetch"}
                         </span>
                     </div>

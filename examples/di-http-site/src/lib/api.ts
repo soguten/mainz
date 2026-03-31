@@ -1,3 +1,4 @@
+import { inject } from "mainz/di";
 import { HttpClient } from "mainz/http";
 import { createMockFetch, delayWithSignal, httpError, jsonResponse } from "mainz/http/testing";
 import {
@@ -16,10 +17,8 @@ export abstract class StoriesApi {
 }
 
 export class HttpStoriesApi extends StoriesApi {
-
-    constructor(private readonly http: HttpClient) {
-        super();
-    }
+    
+    private readonly http = inject(HttpClient);
 
     override async listFeatured(options?: { signal?: AbortSignal }): Promise<readonly StorySummary[]> {
         return await this.http.get("/stories/featured", {
@@ -41,7 +40,6 @@ export class HttpStoriesApi extends StoriesApi {
 }
 
 export class MockStoriesApi extends StoriesApi {
-
     override async listFeatured(options?: { signal?: AbortSignal }): Promise<readonly StorySummary[]> {
         return await delayWithSignal(
             listFeaturedStories().map((story) => ({
@@ -82,6 +80,17 @@ export class MockStoriesApi extends StoriesApi {
             50,
         );
     }
+}
+
+export function createDiHttpExampleHttpClient(): HttpClient {
+    return new HttpClient({
+        baseUrl: "https://di-http.mainz.example",
+        headers: {
+            "x-mainz-example": "di-http-site",
+        },
+        timeoutMs: 2500,
+        fetch: createDiHttpExampleFetch({ latencyMs: 320 }),
+    });
 }
 
 export function createDiHttpExampleFetch(args: { latencyMs?: number } = {}): typeof fetch {

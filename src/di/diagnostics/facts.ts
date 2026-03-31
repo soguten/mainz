@@ -1,4 +1,4 @@
-import { diFactoryDependencyNotRegisteredRuleCode } from "./rules/di-factory-dependency-not-registered.rule.ts";
+import { diServiceDependencyNotRegisteredRuleCode } from "./rules/di-service-dependency-not-registered.rule.ts";
 import { diRegistrationCycleRuleCode } from "./rules/di-registration-cycle.rule.ts";
 import { diTokenNotRegisteredRuleCode } from "./rules/di-token-not-registered.rule.ts";
 
@@ -42,7 +42,7 @@ export interface DiDiagnosticsContext {
 }
 
 export type DiDiagnosticCode =
-    | typeof diFactoryDependencyNotRegisteredRuleCode
+    | typeof diServiceDependencyNotRegisteredRuleCode
     | typeof diRegistrationCycleRuleCode
     | typeof diTokenNotRegisteredRuleCode;
 

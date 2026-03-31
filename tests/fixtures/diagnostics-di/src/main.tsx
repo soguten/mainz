@@ -1,5 +1,5 @@
 import { singleton } from "mainz/di";
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { DiagnosticsDiFixturePage } from "./pages/Home.page.tsx";
 
 class MissingDependency {
@@ -23,18 +23,19 @@ class CycleB {
     }
 }
 
-const services = [
-    singleton(RegisteredDependency, () => new RegisteredDependency()),
-    singleton(
-        NeedsMissingDependency,
-        ({ get }) => new NeedsMissingDependency(get(MissingDependency)),
-    ),
-    singleton(CycleA, ({ get }) => new CycleA(get(CycleB))),
-    singleton(CycleB, ({ get }) => new CycleB(get(CycleA))),
-];
-
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [DiagnosticsDiFixturePage],
-    services,
+    services: [
+        singleton(RegisteredDependency),
+        singleton(
+            NeedsMissingDependency,
+            ({ get }) => new NeedsMissingDependency(get(MissingDependency)),
+        ),
+        singleton(CycleA, ({ get }) => new CycleA(get(CycleB))),
+        singleton(CycleB, ({ get }) => new CycleB(get(CycleA))),
+    ],
+});
+
+startApp(app, {
+    mount: "#app",
 });

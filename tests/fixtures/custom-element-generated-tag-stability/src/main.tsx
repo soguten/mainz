@@ -1,7 +1,10 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { StableNameHomePage } from "./pages/Home.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [StableNameHomePage],
+});
+
+startApp(app, {
+    mount: "#app",
 });

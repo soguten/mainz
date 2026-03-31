@@ -11,7 +11,8 @@ import {
     waitForNavigationStart,
 } from "../../testing/index.ts";
 import type { SpaNavigationRenderContext } from "../index.ts";
-import { singleton } from "../../di/index.ts";
+import { inject, singleton } from "../../di/index.ts";
+import { ensureMainzCustomElementDefined } from "../../components/registry.ts";
 
 let spaFixturesPromise: Promise<typeof import("./navigation.spa.fixture.ts")> | undefined;
 let snapshotFixturePromise: Promise<typeof import("./navigation.snapshot.fixture.ts")> | undefined;
@@ -940,8 +941,28 @@ Deno.test("navigation/runtime: should fail fast when configured pages reference 
     );
 });
 
-Deno.test("navigation/runtime: startApp should use runtime defaults and inferred locales", async () => {
-    const { startApp } = await prepareNavigationTest();
+Deno.test(
+    "navigation/runtime: startApp should require defineApp(...) for routed apps",
+    async () => {
+        const { startApp } = await prepareNavigationTest();
+        const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
+
+        assertThrows(
+            () =>
+                startApp(
+                    {
+                        pages: [SpaHomePage],
+                        notFound: SpaNotFoundPage,
+                    } as unknown as Parameters<typeof startApp>[0],
+                ),
+            TypeError,
+            "startApp(...) for routed apps expects an app created with defineApp(...).",
+        );
+    },
+);
+
+Deno.test("navigation/runtime: startApp should accept defineApp(...) composition roots", async () => {
+    const { defineApp, startApp } = await prepareNavigationTest();
     const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
 
     (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
@@ -952,16 +973,17 @@ Deno.test("navigation/runtime: startApp should use runtime defaults and inferred
         `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
     window.history.replaceState(null, "", "/docs/pt/");
 
-    const controller = startApp({
+    const app = defineApp({
         pages: [SpaHomePage],
         notFound: SpaNotFoundPage,
     });
+    const controller = startApp(app);
 
     await waitForNavigationReady({
         mode: "mpa",
         locale: "pt",
         navigationType: "initial",
-        message: "Expected the prerendered home page to emit navigation ready for pt.",
+        message: "Expected defineApp(...) startup to emit navigation ready for pt.",
     });
 
     assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
@@ -969,6 +991,100 @@ Deno.test("navigation/runtime: startApp should use runtime defaults and inferred
     assertEquals(
         document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
         "Home page",
+    );
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: startApp should accept a root component shorthand", async () => {
+    const { startApp } = await prepareNavigationTest();
+    const { Component, CustomElement } = await import("../../components/index.ts");
+
+    @CustomElement("x-mainz-root-shorthand-app")
+    class RootShorthandApp extends Component {
+        override render(): HTMLElement {
+            const element = document.createElement("section");
+            element.setAttribute("data-root-app", "shorthand");
+            element.textContent = "Root shorthand app";
+            return element;
+        }
+    }
+
+    document.body.innerHTML = '<main id="app"></main>';
+
+    const controller = startApp(RootShorthandApp, {
+        mount: "#app",
+    });
+
+    assertEquals(
+        document.querySelector('#app [data-root-app="shorthand"]')?.textContent,
+        "Root shorthand app",
+    );
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: startApp should accept defineApp({ root, services }) composition roots", async () => {
+    const { defineApp, startApp } = await prepareNavigationTest();
+    const { Component, CustomElement } = await import("../../components/index.ts");
+
+    class RootGreetingService {
+        constructor(readonly prefix: string) {
+        }
+
+        format(value: string): string {
+            return `${this.prefix}:${value}`;
+        }
+    }
+
+    @CustomElement("x-mainz-root-services-child")
+    class RootServicesChild extends Component {
+        readonly greeting = inject(RootGreetingService);
+
+        override render(): HTMLElement {
+            const element = document.createElement("p");
+            element.setAttribute("data-root-child", "true");
+            element.textContent = this.greeting.format("child");
+            return element;
+        }
+    }
+
+    @CustomElement("x-mainz-root-services-app")
+    class RootServicesApp extends Component {
+        readonly greeting = inject(RootGreetingService);
+
+        override render(): HTMLElement {
+            ensureMainzCustomElementDefined(
+                RootServicesChild as unknown as CustomElementConstructor & { getTagName(): string },
+            );
+
+            const section = document.createElement("section");
+            section.setAttribute("data-root-app", "services");
+            section.textContent = this.greeting.format("root");
+            section.appendChild(document.createElement(RootServicesChild.getTagName()));
+            return section;
+        }
+    }
+
+    document.body.innerHTML = '<main id="app"></main>';
+
+    const app = defineApp({
+        root: RootServicesApp,
+        services: [
+            singleton(RootGreetingService, () => new RootGreetingService("root-app")),
+        ],
+    });
+    const controller = startApp(app, {
+        mount: "#app",
+    });
+
+    assertEquals(
+        document.querySelector('#app [data-root-app="services"]')?.textContent,
+        "root-app:rootroot-app:child",
+    );
+    assertEquals(
+        document.querySelector('#app [data-root-child="true"]')?.textContent,
+        "root-app:child",
     );
 
     controller.cleanup();

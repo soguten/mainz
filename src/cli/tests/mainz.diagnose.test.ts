@@ -302,10 +302,10 @@ Deno.test("cli/mainz: diagnose should report DI registry problems for the offici
             sortDiagnostics([
                 {
                     target: "diagnostics-di",
-                    code: "di-factory-dependency-not-registered",
+                    code: "di-service-dependency-not-registered",
                     severity: "error",
                     message:
-                        'Service "NeedsMissingDependency" depends on "MissingDependency" through get(...), ' +
+                        'Service "NeedsMissingDependency" depends on "MissingDependency" in its registered service graph, ' +
                         "but that dependency is not registered in app startup services.",
                     file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/main.tsx",
                     exportName: "NeedsMissingDependency",
@@ -341,6 +341,54 @@ Deno.test("cli/mainz: diagnose should report DI registry problems for the offici
                 },
             ]),
         );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/mainz: diagnose should resolve DI services from an imported default app definition", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-di-imported-app",
+        targetName: "diagnostics-di-imported-app",
+        locales: ["en"],
+        omitPagesDir: true,
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-di-imported-app fixture.",
+        );
+
+        assertEquals(JSON.parse(stdout), [
+            {
+                target: "diagnostics-di-imported-app",
+                code: "di-service-dependency-not-registered",
+                severity: "error",
+                message:
+                    'Service "NeedsMissingDependency" depends on "MissingDependency" in its registered service graph, ' +
+                    "but that dependency is not registered in app startup services.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/app.ts",
+                exportName: "NeedsMissingDependency",
+            },
+            {
+                target: "diagnostics-di-imported-app",
+                code: "di-token-not-registered",
+                severity: "error",
+                message:
+                    'Class "NeedsMissingDependency" injects "MissingDependency" with mainz/di, ' +
+                    "but that token is not registered in app startup services.",
+                file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                    "/src/services/NeedsMissingDependency.ts",
+                exportName: "NeedsMissingDependency",
+            },
+        ]);
     } finally {
         await fixture.cleanup();
     }

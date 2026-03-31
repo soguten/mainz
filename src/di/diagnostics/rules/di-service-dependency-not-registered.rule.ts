@@ -1,15 +1,15 @@
 import type { DiagnosticsRule } from "../../../diagnostics/core/pipeline.ts";
 import type { DiDiagnostic, DiDiagnosticsContext, DiRegistrationFact } from "../facts.ts";
 
-export const diFactoryDependencyNotRegisteredRuleCode =
-    "di-factory-dependency-not-registered" as const;
+export const diServiceDependencyNotRegisteredRuleCode =
+    "di-service-dependency-not-registered" as const;
 
-export const diFactoryDependencyNotRegisteredRule: DiagnosticsRule<
+export const diServiceDependencyNotRegisteredRule: DiagnosticsRule<
     DiRegistrationFact,
     { registrationsByToken: ReadonlyMap<string, DiRegistrationFact> } & DiDiagnosticsContext,
     DiDiagnostic
 > = {
-    code: diFactoryDependencyNotRegisteredRuleCode,
+    code: diServiceDependencyNotRegisteredRuleCode,
     run(registration, context) {
         const diagnostics: DiDiagnostic[] = [];
 
@@ -19,10 +19,10 @@ export const diFactoryDependencyNotRegisteredRule: DiagnosticsRule<
             }
 
             diagnostics.push({
-                code: diFactoryDependencyNotRegisteredRuleCode,
+                code: diServiceDependencyNotRegisteredRuleCode,
                 severity: "error",
                 message:
-                    `Service "${registration.token.name}" depends on "${dependency.name}" through get(...), ` +
+                    `Service "${registration.token.name}" depends on "${dependency.name}" in its registered service graph, ` +
                     "but that dependency is not registered in app startup services.",
                 file: registration.file,
                 exportName: registration.token.name,

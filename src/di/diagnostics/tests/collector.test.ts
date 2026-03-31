@@ -4,7 +4,7 @@ import { assertEquals } from "@std/assert";
 import { resolve } from "node:path";
 import { collectDiDiagnostics } from "../index.ts";
 
-Deno.test("di/diagnostics: collector should report missing service tokens, missing factory dependencies, and cycles", async () => {
+Deno.test("di/diagnostics: collector should report missing service tokens, missing registered service dependencies, and cycles", async () => {
     const file = resolve(
         Deno.cwd(),
         "src/di/diagnostics/tests/di-diagnostics.fixture.tsx",
@@ -26,10 +26,10 @@ Deno.test("di/diagnostics: collector should report missing service tokens, missi
         sortDiagnostics(normalizeDiagnostics(diagnostics)),
         sortDiagnostics([
             {
-                code: "di-factory-dependency-not-registered",
+                code: "di-service-dependency-not-registered",
                 severity: "error",
                 message:
-                    'Service "NeedsMissingDependency" depends on "MissingDependency" through get(...), ' +
+                    'Service "NeedsMissingDependency" depends on "MissingDependency" in its registered service graph, ' +
                     "but that dependency is not registered in app startup services.",
                 file,
                 exportName: "NeedsMissingDependency",

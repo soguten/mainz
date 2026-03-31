@@ -27,9 +27,16 @@ import {
     normalizeTargetBuildConfig,
     type TargetBuildDefinition,
 } from "../config/index.ts";
+import { withServiceContainer } from "../di/context.ts";
+import { createServiceContainer, type ServiceContainer } from "../di/container.ts";
 import { ResourceAccessError } from "../resources/index.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
-import { resolveTargetDiscoveredPages } from "./route-pages.ts";
+import { resolveTargetAppFile, resolveTargetDiscoveredPagesForTarget } from "./route-pages.ts";
+import {
+    captureDefinedRoutedAppDuring,
+    resolveRoutedAppDefinitionFromModuleExports,
+    type RoutedAppDefinition,
+} from "../navigation/index.ts";
 
 export interface BuildCliOptions {
     target?: string;
@@ -75,10 +82,11 @@ export interface PublicationMetadata {
 
 const DEFAULT_BUILD_PROFILE_NAME = "production";
 
-export function resolveBuildJobs(
+export async function resolveBuildJobs(
     config: NormalizedMainzConfig,
     options: BuildCliOptions,
-): BuildJob[] {
+    cwd = Deno.cwd(),
+): Promise<BuildJob[]> {
     const targetSelection = options.target?.trim();
     const modeSelection = options.mode?.trim();
 
@@ -114,7 +122,7 @@ export function resolveBuildJobs(
 
     for (const target of targets) {
         for (const mode of modes) {
-            if (!targetSupportsRenderMode(target, mode)) {
+            if (!await targetSupportsRenderMode(target, mode, cwd)) {
                 continue;
             }
 
@@ -125,7 +133,8 @@ export function resolveBuildJobs(
     if (jobs.length === 0 && targetSelection && modeSelection) {
         const selectedTarget = config.targets.find((target) => target.name === targetSelection);
         if (
-            selectedTarget && !targetSupportsRenderMode(selectedTarget, modeSelection as RenderMode)
+            selectedTarget &&
+            !await targetSupportsRenderMode(selectedTarget, modeSelection as RenderMode, cwd)
         ) {
             throw new Error(
                 `Target "${selectedTarget.name}" has no pages/routes and only supports csr app builds.`,
@@ -185,8 +194,8 @@ export async function resolvePublicationMetadata(
     );
     const renderMode = overrides?.mode
         ? resolveExplicitRenderMode(overrides.mode)
-        : resolvePublicationRenderMode(target, profile);
-    const navigationMode = resolveEffectiveNavigationMode(target, profile);
+        : await resolvePublicationRenderMode(target, profile, cwd);
+    const navigationMode = await resolveEffectiveNavigationMode(target, profile, cwd);
 
     return {
         target: target.name,
@@ -214,16 +223,42 @@ export function applyBuildCliOverrides(
     };
 }
 
-function targetSupportsRenderMode(target: NormalizedMainzTarget, mode: RenderMode): boolean {
+async function targetSupportsRenderMode(
+    target: NormalizedMainzTarget,
+    mode: RenderMode,
+    cwd: string,
+): Promise<boolean> {
     if (mode === "csr") {
         return true;
     }
 
-    return hasRoutingInput(target);
+    return await hasRoutingInput(target, cwd);
 }
 
-function hasRoutingInput(target: NormalizedMainzTarget): boolean {
-    return Boolean(target.pagesDir);
+async function hasRoutingInput(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<boolean> {
+    if (target.pagesDir) {
+        return true;
+    }
+
+    if (target.appFile?.trim()) {
+        const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd);
+        if (discovery.discoveryErrors?.length) {
+            return true;
+        }
+
+        return Boolean(discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length);
+    }
+
+    const appFile = resolveTargetAppFile(target, cwd);
+    if (!appFile) {
+        return false;
+    }
+
+    const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd);
+    return Boolean(discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length);
 }
 
 export async function runBuildJobs(
@@ -243,7 +278,7 @@ export async function runSingleBuild(
 ): Promise<void> {
     const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));
     const viteConfigPath = normalizePathSlashes(resolve(cwd, job.target.viteConfig));
-    const navigationMode = resolveEffectiveNavigationMode(job.target, job.profile);
+    const navigationMode = await resolveEffectiveNavigationMode(job.target, job.profile, cwd);
     const targetI18n = resolveTargetI18nConfig(job.target);
 
     await runViteBuild({
@@ -415,7 +450,7 @@ async function emitSsgArtifacts(
             {
                 target: job.target.name,
                 hydration: "full-page",
-                navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+                navigation: await resolveEffectiveNavigationMode(job.target, job.profile, cwd),
             },
             null,
             2,
@@ -496,7 +531,7 @@ async function emitCsrRouteArtifacts(
             {
                 target: job.target.name,
                 hydration: "full-page",
-                navigation: resolveEffectiveNavigationMode(job.target, job.profile),
+                navigation: await resolveEffectiveNavigationMode(job.target, job.profile, cwd),
             },
             null,
             2,
@@ -531,7 +566,12 @@ async function resolveStaticRouteBuildContext(
     const templateHtml = await readBuildTemplateHtml(modeOutDir, cwd, job.target.name, buildLabel);
     const manifest = await resolveTargetRouteBuildContext(config, job, cwd);
     const targetI18n = resolveTargetI18nConfig(job.target);
-    const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(manifest, cwd);
+    const buildServiceContainer = await resolveTargetBuildServiceContainer(job.target, cwd);
+    const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(
+        manifest,
+        cwd,
+        buildServiceContainer,
+    );
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
         localePrefix: targetI18n?.localePrefix,
         defaultLocale: targetI18n?.defaultLocale,
@@ -551,6 +591,7 @@ async function resolveStaticRouteBuildContext(
 async function resolveSsgRouteEntriesByRouteId(
     manifest: ReturnType<typeof buildTargetRouteManifest>,
     cwd: string,
+    buildServiceContainer?: ServiceContainer,
 ): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
     const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
 
@@ -568,7 +609,10 @@ async function resolveSsgRouteEntriesByRouteId(
 
         const resolvedEntries: ResolvedSsgRouteEntry[] = [];
         for (const locale of route.locales) {
-            const localizedEntries = await pageCtor.entries({ locale });
+            const localizedEntries = await withServiceContainer(
+                buildServiceContainer,
+                () => pageCtor.entries!({ locale }),
+            );
             for (const [entryIndex, entry] of localizedEntries.entries()) {
                 const normalizedParams = normalizeStaticEntryParams(entry.params, route.path);
                 try {
@@ -592,6 +636,43 @@ async function resolveSsgRouteEntriesByRouteId(
     }
 
     return routeEntriesByRouteId;
+}
+
+async function resolveTargetBuildServiceContainer(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<ServiceContainer | undefined> {
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd);
+    return appDefinition?.services?.length
+        ? createServiceContainer(appDefinition.services)
+        : undefined;
+}
+
+async function loadTargetBuildRoutedAppDefinition(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<RoutedAppDefinition | undefined> {
+    const appFile = resolveTargetAppFile(target, cwd);
+    if (!appFile) {
+        return undefined;
+    }
+
+    const resolvedAppFile = normalizePathSlashes(resolve(cwd, appFile));
+    const moduleUrl = `${pathToFileURL(resolvedAppFile).href}?build-app=${Date.now()}-${
+        Math.random().toString(36).slice(2)
+    }`;
+
+    try {
+        const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
+            return await import(moduleUrl) as Record<string, unknown>;
+        });
+
+        return resolveRoutedAppDefinitionFromModuleExports(moduleExports) ?? app;
+    } catch (error) {
+        throw new Error(
+            `Could not load app definition from "${resolvedAppFile}": ${toErrorMessage(error)}`,
+        );
+    }
 }
 
 async function loadRoutePageConstructor(
@@ -666,8 +747,8 @@ async function resolveTargetRouteBuildContext(
     cwd: string,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
     const { filesystemPageFiles, discoveredPages, discoveryErrors } =
-        await resolveTargetDiscoveredPages(
-            job.target.pagesDir,
+        await resolveTargetDiscoveredPagesForTarget(
+            job.target,
             cwd,
         );
     if (discoveryErrors?.length) {
@@ -786,10 +867,11 @@ async function resolveTargetBuildConfigPath(
     }
 }
 
-function resolvePublicationRenderMode(
+async function resolvePublicationRenderMode(
     target: NormalizedMainzTarget,
     profile: ResolvedTargetBuildProfile,
-): RenderMode {
+    cwd: string,
+): Promise<RenderMode> {
     if (profile.overridePageMode) {
         return profile.overridePageMode;
     }
@@ -798,7 +880,7 @@ function resolvePublicationRenderMode(
         return target.defaultMode;
     }
 
-    return hasRoutingInput(target) ? "ssg" : "csr";
+    return await hasRoutingInput(target, cwd) ? "ssg" : "csr";
 }
 
 function resolveExplicitRenderMode(mode: string): RenderMode {
@@ -810,10 +892,11 @@ function resolveExplicitRenderMode(mode: string): RenderMode {
     throw new Error(`Invalid render mode "${mode}". Expected one of: csr, ssg.`);
 }
 
-function resolveEffectiveNavigationMode(
+async function resolveEffectiveNavigationMode(
     target: NormalizedMainzTarget,
     profile: ResolvedTargetBuildProfile,
-): NavigationMode {
+    cwd: string,
+): Promise<NavigationMode> {
     if (profile.overrideNavigation) {
         return profile.overrideNavigation;
     }
@@ -822,7 +905,7 @@ function resolveEffectiveNavigationMode(
         return target.defaultNavigation;
     }
 
-    return hasRoutingInput(target) ? "enhanced-mpa" : "spa";
+    return await hasRoutingInput(target, cwd) ? "enhanced-mpa" : "spa";
 }
 
 function resolveExplicitNavigationMode(mode: string | undefined): NavigationMode | undefined {
@@ -1472,4 +1555,3 @@ function toErrorMessage(error: unknown): string {
 
     return String(error);
 }
-

@@ -8,7 +8,7 @@ import type {
     DiRegistrationFact,
     DiSourceDiagnosticsInput,
 } from "./facts.ts";
-import { diFactoryDependencyNotRegisteredRule } from "./rules/di-factory-dependency-not-registered.rule.ts";
+import { diServiceDependencyNotRegisteredRule } from "./rules/di-service-dependency-not-registered.rule.ts";
 import { diRegistrationCycleRule } from "./rules/di-registration-cycle.rule.ts";
 import { diTokenNotRegisteredRule } from "./rules/di-token-not-registered.rule.ts";
 
@@ -24,7 +24,11 @@ export type {
     DiTokenReference,
 } from "./facts.ts";
 export { discoverDiFacts } from "./discover.ts";
-export { diFactoryDependencyNotRegisteredRule, diRegistrationCycleRule, diTokenNotRegisteredRule };
+export {
+    diServiceDependencyNotRegisteredRule,
+    diRegistrationCycleRule,
+    diTokenNotRegisteredRule,
+};
 
 type DiDiagnosticsRuntimeContext = {
     registrationsByToken: ReadonlyMap<string, DiRegistrationFact>;
@@ -73,7 +77,7 @@ function analyzeDiDiagnostics(
         ...runDiagnosticsRules(facts.injections, [diTokenNotRegisteredRule], context),
         ...runDiagnosticsRules(
             facts.registrations,
-            [diFactoryDependencyNotRegisteredRule],
+            [diServiceDependencyNotRegisteredRule],
             context,
         ),
         ...runDiagnosticsRules(facts.cycles, [diRegistrationCycleRule], context),

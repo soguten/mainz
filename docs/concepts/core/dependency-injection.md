@@ -22,17 +22,16 @@ Mainz keeps those contracts explicit:
 
 ## Register services at startup
 
-Service registration belongs at app startup through `startApp(...)` or `startNavigation(...)`.
+Service registration belongs at app startup through the official app definition. Routed apps should prefer `defineApp(...)`; `startNavigation(...)` remains the lower-level escape hatch when you need to wire navigation directly.
 
 ```ts title="main.ts"
-import { startApp } from "mainz";
-import { singleton } from "mainz/di";
+import { defineApp, startApp } from "mainz";
+import { inject, singleton } from "mainz/di";
 import { HttpClient } from "mainz/http";
 import { ArticlePage } from "./pages/Article.page.tsx";
 
 class ArticlesApi {
-    
-    constructor(private readonly http: HttpClient) {}
+    private readonly http = inject(HttpClient);
 
     async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
         return await this.http.get(`/articles/${slug}`, {
@@ -41,7 +40,7 @@ class ArticlesApi {
     }
 }
 
-startApp({
+const app = defineApp({
     pages: [ArticlePage],
     services: [
         singleton(HttpClient, () =>
@@ -52,9 +51,11 @@ startApp({
                     delayMs: 150,
                 },
             })),
-        singleton(ArticlesApi, ({ get }) => new ArticlesApi(get(HttpClient))),
+        singleton(ArticlesApi),
     ],
 });
+
+startApp(app);
 ```
 
 `singleton(...)` is scoped per started app root.
@@ -104,6 +105,8 @@ The split stays clean:
 - the resolved service handles infrastructure access
 - `signal` still flows explicitly through the async boundary
 
+That same app definition now also drives build-time DI for official expansion hooks like `entries()`, so route expansion and runtime owners resolve against the same registered service set.
+
 ## `mainz/http` is intentionally small
 
 `mainz/http` provides a compact client for common app work:
@@ -119,11 +122,11 @@ The split stays clean:
 - small conservative retry behavior
 
 ```ts title="ArticlesApi.ts"
+import { inject } from "mainz/di";
 import { HttpClient } from "mainz/http";
 
 export class ArticlesApi {
-
-    constructor(private readonly http: HttpClient) {}
+    private readonly http = inject(HttpClient);
 
     async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
         return await this.http.get(`/articles/${slug}`, {

@@ -1,9 +1,12 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { CoreContractsHomePage } from "./pages/Home.page.tsx";
 import { CoreContractsNotFoundPage } from "./pages/NotFound.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [CoreContractsHomePage],
     notFound: CoreContractsNotFoundPage,
+});
+
+startApp(app, {
+    mount: "#app",
 });

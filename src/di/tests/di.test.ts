@@ -51,6 +51,56 @@ Deno.test("di/container: transient should create a new instance per resolution",
     assertEquals(first === second, false);
 });
 
+Deno.test("di/container: singleton should support class-backed registrations", () => {
+    class ConfigService {
+        readonly baseUrl = "https://example.test";
+    }
+
+    class HttpClient {
+        readonly config = inject(ConfigService);
+        readonly baseUrl = this.config.baseUrl;
+    }
+
+    abstract class StoriesApi {
+        abstract getBaseUrl(): string;
+    }
+
+    class HttpStoriesApi extends StoriesApi {
+        readonly client = inject(HttpClient);
+
+        override getBaseUrl(): string {
+            return this.client.baseUrl;
+        }
+    }
+
+    const container = createServiceContainer([
+        singleton(ConfigService),
+        singleton(HttpClient),
+        singleton(StoriesApi, HttpStoriesApi),
+    ]);
+
+    const storiesApi = container.get(StoriesApi);
+
+    assertEquals(storiesApi instanceof HttpStoriesApi, true);
+    assertEquals(storiesApi.getBaseUrl(), "https://example.test");
+});
+
+Deno.test("di/container: transient should support class-backed registrations", () => {
+    class RandomService {
+        readonly value = Math.random();
+    }
+
+    const container = createServiceContainer([
+        transient(RandomService),
+    ]);
+
+    const first = container.get(RandomService);
+    const second = container.get(RandomService);
+
+    assertEquals(first === second, false);
+    assertEquals(first.value === second.value, false);
+});
+
 Deno.test("di/container: should reject duplicate service registrations", () => {
     assertThrows(
         () =>
@@ -100,11 +150,14 @@ Deno.test("di/inject: should support inject(Token) for page and component owners
     }
 
     const container = createServiceContainer([
-        singleton(ExampleService, () => new ExampleService()),
+        singleton(ExampleService),
     ]);
 
     const pageOwner = attachServiceContainer(ExamplePage, container) as typeof ExamplePage;
-    const componentOwner = attachServiceContainer(new ExampleComponent(), container) as ExampleComponent;
+    const componentOwner = attachServiceContainer(
+        new ExampleComponent(),
+        container,
+    ) as ExampleComponent;
 
     assertEquals(pageOwner.api.message, "hello");
     assertEquals(componentOwner.api.message, "hello");

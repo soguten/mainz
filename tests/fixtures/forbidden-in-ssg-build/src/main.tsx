@@ -1,7 +1,10 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { ForbiddenInSsgHomePage } from "./pages/Home.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [ForbiddenInSsgHomePage],
+});
+
+startApp(app, {
+    mount: "#app",
 });

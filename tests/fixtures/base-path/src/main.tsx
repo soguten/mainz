@@ -1,9 +1,12 @@
-import { startApp } from "mainz";
+import { defineApp, startApp } from "mainz";
 import { FixtureBasePathHomePage } from "./pages/Home.page.tsx";
 import { FixtureBasePathNotFoundPage } from "./pages/NotFound.page.tsx";
 
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [FixtureBasePathHomePage],
     notFound: FixtureBasePathNotFoundPage,
+});
+
+startApp(app, {
+    mount: "#app",
 });

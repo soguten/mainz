@@ -1,4 +1,4 @@
-import { Component, Page, RenderMode, startApp } from "mainz";
+import { Component, defineApp, Page, RenderMode, startApp } from "mainz";
 import { inject, singleton } from "mainz/di";
 
 class MissingApi {
@@ -10,19 +10,23 @@ class MissingDependency {
 class RegisteredDependency {
 }
 
+abstract class UsesRegisteredDependencyApi {
+}
+
+class UsesRegisteredDependencyService extends UsesRegisteredDependencyApi {
+    readonly dependency = inject(RegisteredDependency);
+}
+
 class NeedsMissingDependency {
-    constructor(_dependency: MissingDependency) {
-    }
+    readonly dependency = inject(MissingDependency);
 }
 
 class CycleA {
-    constructor(_dependency: CycleB) {
-    }
+    readonly dependency = inject(CycleB);
 }
 
 class CycleB {
-    constructor(_dependency: CycleA) {
-    }
+    readonly dependency = inject(CycleA);
 }
 
 abstract class DiagnosticsFixtureComponent extends Component {
@@ -46,18 +50,17 @@ export class DiagnosticsDiFixturePage extends DiagnosticsFixturePage {
     static readonly api = inject(MissingApi);
 }
 
-const services = [
-    singleton(RegisteredDependency, () => new RegisteredDependency()),
-    singleton(
-        NeedsMissingDependency,
-        ({ get }) => new NeedsMissingDependency(get(MissingDependency)),
-    ),
-    singleton(CycleA, ({ get }) => new CycleA(get(CycleB))),
-    singleton(CycleB, ({ get }) => new CycleB(get(CycleA))),
-];
-
-startApp({
-    mount: "#app",
+const app = defineApp({
     pages: [DiagnosticsDiFixturePage],
-    services,
+    services: [
+        singleton(RegisteredDependency),
+        singleton(UsesRegisteredDependencyApi, UsesRegisteredDependencyService),
+        singleton(NeedsMissingDependency),
+        singleton(CycleA),
+        singleton(CycleB),
+    ],
+});
+
+startApp(app, {
+    mount: "#app",
 });

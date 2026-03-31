@@ -2,22 +2,22 @@
 
 A Mainz app works best when the directory structure reflects the product structure.
 
-Pages live under the target, build config lives with the target, and docs content can stay separate from the app that renders it.
+Pages should live with the target that owns them, and the target build config should stay close to
+that app.
 
-```tsx title="Suggested layout"
-site/
-  src/
-docs/
-  getting-started/
-  concepts/
-  advanced/
-docs-site/
-  src/
-    pages/
-    components/
-    lib/
-  mainz.build.ts
+```txt title="Suggested routed app structure"
+src/
+  main.tsx
+  app.ts
+  pages/
+  components/
+  lib/
+mainz.build.ts
 ```
+
+When a target uses routing or shared DI composition, treat `src/app.ts` as the readable
+composition root and keep `src/main.tsx` small. For simple root-only apps, that extra `app.ts`
+layer is optional.
 
 ## Avoid hiding routing in helpers
 

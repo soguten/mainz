@@ -25,8 +25,8 @@ Deno.test("di/diagnostics: contributor should preserve current DI diagnostics be
     assertEquals(
         diagnostics.map((diagnostics) => diagnostics.code),
         [
-            "di-factory-dependency-not-registered",
             "di-registration-cycle",
+            "di-service-dependency-not-registered",
             "di-token-not-registered",
             "di-token-not-registered",
         ],

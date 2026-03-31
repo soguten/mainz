@@ -1,19 +1,17 @@
-import {
-    getCurrentServiceContainer,
-    readServiceContainer,
-} from "./context.ts";
+import { getCurrentServiceContainer, readServiceContainer } from "./context.ts";
 import {
     createServiceContainer,
     describeToken,
     DuplicateServiceError,
     MissingServiceError,
-    ServiceCycleError,
-    singleton,
-    transient,
     type ServiceContainer,
+    ServiceCycleError,
     type ServiceFactoryContext,
+    type ServiceImplementation,
     type ServiceRegistration,
     type ServiceToken,
+    singleton,
+    transient,
 } from "./container.ts";
 
 export {
@@ -28,6 +26,7 @@ export {
 export type {
     ServiceContainer,
     ServiceFactoryContext,
+    ServiceImplementation,
     ServiceRegistration,
     ServiceToken,
 };
@@ -93,13 +92,13 @@ export function inject<T>(token: ServiceToken<T>): T {
     return reference as T;
 }
 
-
 function resolveInjectedReferenceService<T>(
     reference: object,
     token: ServiceToken<T>,
 ): T {
     const owner = injectedReferenceOwners.get(reference);
-    const container = (owner ? readServiceContainer(owner) : undefined) ?? getCurrentServiceContainer();
+    const container = (owner ? readServiceContainer(owner) : undefined) ??
+        getCurrentServiceContainer();
     if (!container) {
         throw new Error(
             `Injected service "${describeToken(token)}" is not available. ` +
