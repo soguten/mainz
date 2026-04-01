@@ -3,6 +3,12 @@ import type { Principal } from "../authorization/index.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
 import type { NavigationMode, RenderMode as PageRenderModeValue } from "../routing/types.ts";
 import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
+import type {
+    PageRouteParams,
+    RouteContext,
+    RouteProfileContext,
+} from "./route-context.ts";
+import { isRouteContext } from "./route-context.ts";
 import {
     Locales,
     RenderMode,
@@ -22,6 +28,7 @@ export {
     resolvePageRenderMode,
     resolvePageRoutePath,
 } from "./page-metadata.ts";
+export type { PageRouteParams, RouteContext, RouteProfileContext } from "./route-context.ts";
 
 export interface PageHeadMetaDefinition {
     name?: string;
@@ -41,21 +48,15 @@ export interface PageHeadDefinition {
     links?: readonly PageHeadLinkDefinition[];
 }
 
-export type PageRouteParams = Readonly<Record<string, string>>;
-
 export interface PageEntriesContext {
     locale?: string;
+    profile?: RouteProfileContext;
 }
 
 export interface PageEntryDefinition {
     params: PageRouteParams;
 }
 
-type PageEntryLike = PageEntryDefinition | PageRouteParams;
-type PageEntriesMapper<Item> = (item: Item, context: PageEntriesContext) => PageEntryLike;
-type PageEntriesLoader<Item> = (
-    context: PageEntriesContext,
-) => readonly Item[] | Promise<readonly Item[]>;
 type PageLoadByParamResolver<Value> = (
     value: string,
     context: PageLoadContext,
@@ -66,6 +67,8 @@ type PageLoadByParamsResolver<Names extends readonly string[], Value> = (
 ) => Value | Promise<Value>;
 
 export interface PageLoadContext {
+    path: string;
+    matchedPath: string;
     params: PageRouteParams;
     locale?: string;
     url: URL;
@@ -73,8 +76,12 @@ export interface PageLoadContext {
     navigationMode: NavigationMode;
     signal: AbortSignal;
     principal?: Principal;
+    profile?: RouteProfileContext;
+    route: RouteContext;
     resources: PageLoadResources;
 }
+
+export type PageHeadContext = PageLoadContext;
 
 export interface PageLoadResources {
     read<Params, Context, Value>(
@@ -85,6 +92,8 @@ export interface PageLoadResources {
 }
 
 export interface PageLoadContextInit {
+    path?: string;
+    matchedPath?: string;
     params: PageRouteParams;
     locale?: string;
     url: URL;
@@ -92,61 +101,84 @@ export interface PageLoadContextInit {
     navigationMode: NavigationMode;
     signal?: AbortSignal;
     principal?: Principal;
+    profile?: RouteProfileContext;
     runtime?: ResourceRuntime;
-}
-
-export interface PageDefinition {
-    notFound?: boolean;
-    head?: PageHeadDefinition;
 }
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 
-export abstract class Page<P = DefaultProps, S = DefaultState> extends Component<P, S> {
-    static page?: PageDefinition;
+export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> extends Component<
+    P,
+    S,
+    D,
+    PageLoadContext
+> {
+    private pageData?: D;
+
+    override get data(): D {
+        const propsRecord = typeof this.props === "object" && this.props !== null
+            ? this.props as Record<string, unknown>
+            : undefined;
+
+        return (this.pageData ?? propsRecord?.data) as D;
+    }
+
+    override set data(value: D) {
+        this.pageData = value;
+    }
+
+    head(_context?: PageHeadContext): PageHeadDefinition | undefined {
+        return undefined;
+    }
 
     override connectedCallback() {
+        if (this.shouldDeferInitialPageRender()) {
+            return;
+        }
+
         super.connectedCallback();
-        applyPageHeadToDocument(this.constructor as PageConstructor, this.props);
+        applyPageHeadToDocument(this, this.props);
     }
 
     override afterRender(): void {
-        applyPageHeadToDocument(this.constructor as PageConstructor, this.props);
+        applyPageHeadToDocument(this, this.props);
         super.afterRender?.();
+    }
+
+    protected override participatesInComponentLoad(): boolean {
+        return false;
+    }
+
+    private hasResolvedRouteContext(): boolean {
+        if (typeof this.props !== "object" || this.props === null) {
+            return false;
+        }
+
+        return isRouteContext((this.props as Record<string, unknown>).route);
+    }
+
+    private shouldDeferInitialPageRender(): boolean {
+        if (this.hasResolvedRouteContext()) {
+            return false;
+        }
+
+        if (this.childNodes.length > 0) {
+            return true;
+        }
+
+        const routePath = resolvePageRoutePath(this.constructor as PageConstructor);
+        return typeof routePath === "string" && /[:*]/.test(routePath);
     }
 }
 
 export interface PageConstructor {
-    new (...args: unknown[]): Page<any, any>;
-    readonly prototype: Page<any, any>;
+    new (...args: unknown[]): Page<any, any, any>;
+    readonly prototype: Page<any, any, any>;
     readonly name: string;
-    page?: PageDefinition;
     entries?(
         context: PageEntriesContext,
     ): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
-    load?(context: PageLoadContext): unknown | Promise<unknown>;
 }
-
-export const entries = {
-    from<Item>(
-        items: readonly Item[],
-        mapper: PageEntriesMapper<Item>,
-    ): (context: PageEntriesContext) => readonly PageEntryDefinition[] {
-        return (context) =>
-            items.map((item) => normalizePageEntryDefinition(mapper(item, context)));
-    },
-    fromAsync<Item>(
-        loader: PageEntriesLoader<Item>,
-        mapper?: PageEntriesMapper<Item>,
-    ): (context: PageEntriesContext) => Promise<readonly PageEntryDefinition[]> {
-        return async (context) => {
-            const items = await loader(context);
-            return items.map((item) =>
-                normalizePageEntryDefinition(mapper ? mapper(item, context) : item as PageEntryLike)
-            );
-        };
-    },
-};
 
 export const load = {
     byParam<Value>(
@@ -170,7 +202,11 @@ export const load = {
 };
 
 export function createPageLoadContext(init: PageLoadContextInit): PageLoadContext {
+    const routePath = init.path ?? init.url.pathname;
+    const matchedPath = init.matchedPath ?? routePath;
     const baseContext = {
+        path: routePath,
+        matchedPath,
         params: init.params,
         locale: init.locale,
         url: init.url,
@@ -178,11 +214,25 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
         navigationMode: init.navigationMode,
         signal: init.signal ?? new AbortController().signal,
         principal: init.principal,
+        profile: init.profile,
         runtime: init.runtime ?? resolveMainzResourceRuntime(),
     } satisfies PageLoadContextInit;
 
+    const route: RouteContext = {
+        path: routePath,
+        matchedPath,
+        params: init.params,
+        locale: init.locale,
+        url: init.url,
+        renderMode: init.renderMode,
+        navigationMode: init.navigationMode,
+        principal: init.principal,
+        profile: init.profile,
+    };
+
     return {
         ...baseContext,
+        route,
         resources: {
             read(resource, params, context) {
                 return readResource(resource, params, context, {
@@ -204,7 +254,7 @@ export function isPageConstructor(value: unknown): value is PageConstructor {
     return value === Page || value.prototype instanceof Page;
 }
 
-export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unknown): void {
+export function applyPageHeadToDocument(page: Page<any, any, any>, props?: unknown): void {
     if (typeof document === "undefined") {
         return;
     }
@@ -216,7 +266,7 @@ export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unkno
 
     head.querySelectorAll(`[${MAINZ_HEAD_MANAGED_ATTR}]`).forEach((node) => node.remove());
 
-    const headDefinition = resolvePageHeadDefinition(pageCtor, props);
+    const headDefinition = resolvePageHeadDefinition(page, props);
     if (!headDefinition) {
         return;
     }
@@ -251,7 +301,7 @@ export function applyPageHeadToDocument(pageCtor: PageConstructor, props?: unkno
 }
 
 function resolvePageHeadDefinition(
-    pageCtor: PageConstructor,
+    page: Page<any, any, any>,
     props?: unknown,
 ): PageHeadDefinition | undefined {
     const propsRecord = typeof props === "object" && props !== null
@@ -261,18 +311,60 @@ function resolvePageHeadDefinition(
     const routeRecord = typeof routeValue === "object" && routeValue !== null
         ? routeValue as Record<string, unknown>
         : undefined;
-    const routeHead = routeRecord?.head;
-
-    if (isPageHeadDefinition(routeHead)) {
-        return routeHead;
-    }
-
     const directHead = propsRecord?.head;
-    if (isPageHeadDefinition(directHead)) {
-        return directHead;
+    const routeHead = routeRecord?.head;
+    const instanceHead = page.head(resolvePageHeadContext(page, routeRecord));
+    const mergedRouteHead = mergePageHeadDefinitions(
+        instanceHead,
+        isPageHeadDefinition(routeHead) ? routeHead : undefined,
+    );
+
+    return mergePageHeadDefinitions(
+        mergedRouteHead,
+        isPageHeadDefinition(directHead) ? directHead : undefined,
+    );
+}
+
+function resolvePageHeadContext(
+    page: Page<any, any, any>,
+    routeRecord: Record<string, unknown> | undefined,
+): PageHeadContext {
+    let routeContext: RouteContext | undefined = isRouteContext(routeRecord) ? routeRecord : undefined;
+    if (!routeContext) {
+        try {
+            routeContext = page.route;
+        } catch {
+            routeContext = undefined;
+        }
     }
 
-    return pageCtor.page?.head;
+    if (routeContext) {
+        return createPageLoadContext({
+            path: routeContext.path,
+            matchedPath: routeContext.matchedPath,
+            params: routeContext.params,
+            locale: routeContext.locale,
+            url: routeContext.url,
+            renderMode: routeContext.renderMode,
+            navigationMode: routeContext.navigationMode,
+            principal: routeContext.principal,
+            profile: routeContext.profile,
+        });
+    }
+
+    const fallbackUrl = typeof window !== "undefined"
+        ? new URL(window.location.href)
+        : new URL("https://mainz.local/");
+
+    return createPageLoadContext({
+        path: fallbackUrl.pathname,
+        matchedPath: fallbackUrl.pathname,
+        params: {},
+        locale: document.documentElement.lang || undefined,
+        url: fallbackUrl,
+        renderMode: "csr",
+        navigationMode: "spa",
+    });
 }
 
 function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
@@ -284,6 +376,119 @@ function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
     return "title" in candidate || "meta" in candidate || "links" in candidate;
 }
 
+export function mergePageHeadDefinitions(
+    base: PageHeadDefinition | undefined,
+    override: PageHeadDefinition | undefined,
+): PageHeadDefinition | undefined {
+    if (!base) {
+        return override;
+    }
+
+    if (!override) {
+        return base;
+    }
+
+    return {
+        title: override.title ?? base.title,
+        meta: mergePageHeadMetaDefinitions(base.meta, override.meta),
+        links: mergePageHeadLinkDefinitions(base.links, override.links),
+    };
+}
+
+function mergePageHeadMetaDefinitions(
+    base: readonly PageHeadMetaDefinition[] | undefined,
+    override: readonly PageHeadMetaDefinition[] | undefined,
+): readonly PageHeadMetaDefinition[] | undefined {
+    if (!base) {
+        return override;
+    }
+
+    if (!override) {
+        return base;
+    }
+
+    const merged = [...base];
+
+    for (const item of override) {
+        const key = getPageHeadMetaKey(item);
+        if (!key) {
+            merged.push(item);
+            continue;
+        }
+
+        const existingIndex = merged.findIndex((candidate) => getPageHeadMetaKey(candidate) === key);
+        if (existingIndex >= 0) {
+            merged[existingIndex] = item;
+            continue;
+        }
+
+        merged.push(item);
+    }
+
+    return merged;
+}
+
+function mergePageHeadLinkDefinitions(
+    base: readonly PageHeadLinkDefinition[] | undefined,
+    override: readonly PageHeadLinkDefinition[] | undefined,
+): readonly PageHeadLinkDefinition[] | undefined {
+    if (!base) {
+        return override;
+    }
+
+    if (!override) {
+        return base;
+    }
+
+    const merged = [...base];
+
+    for (const item of override) {
+        const key = getPageHeadLinkKey(item);
+        if (!key) {
+            merged.push(item);
+            continue;
+        }
+
+        const existingIndex = merged.findIndex((candidate) => getPageHeadLinkKey(candidate) === key);
+        if (existingIndex >= 0) {
+            merged[existingIndex] = item;
+            continue;
+        }
+
+        merged.push(item);
+    }
+
+    return merged;
+}
+
+function getPageHeadMetaKey(item: PageHeadMetaDefinition): string | undefined {
+    if (item.name) {
+        return `name:${item.name}`;
+    }
+
+    if (item.property) {
+        return `property:${item.property}`;
+    }
+
+    return undefined;
+}
+
+function getPageHeadLinkKey(item: PageHeadLinkDefinition): string | undefined {
+    if (item.rel === "canonical") {
+        return "rel:canonical";
+    }
+
+    if (item.rel === "alternate" && item.hreflang) {
+        return `rel:alternate:${item.hreflang}`;
+    }
+
+    if (item.rel && item.href) {
+        return `rel:${item.rel}:href:${item.href}`;
+    }
+
+    return undefined;
+}
+
 function resolveMainzResourceRuntime(): ResourceRuntime {
     if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
         return __MAINZ_RUNTIME_ENV__;
@@ -291,18 +496,4 @@ function resolveMainzResourceRuntime(): ResourceRuntime {
 
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     return fromGlobal === "build" ? "build" : "client";
-}
-
-function normalizePageEntryDefinition(entry: PageEntryLike): PageEntryDefinition {
-    if (isPageEntryDefinition(entry)) {
-        return entry;
-    }
-
-    return {
-        params: entry,
-    };
-}
-
-function isPageEntryDefinition(entry: PageEntryLike): entry is PageEntryDefinition {
-    return "params" in entry;
 }

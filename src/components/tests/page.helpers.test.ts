@@ -1,35 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { createPageLoadContext, entries, load, Locales, Page } from "../index.ts";
+import { createPageLoadContext, load, Locales, Page } from "../index.ts";
 import { resolvePageLocales } from "../page.ts";
-
-Deno.test("components/page helpers: entries.from should wrap mapped params into entry definitions", () => {
-    const resolveEntries = entries.from(
-        [{ slug: "intro" }, { slug: "routing" }] as const,
-        (item) => ({ slug: item.slug }),
-    );
-
-    assertEquals(resolveEntries({ locale: "en" }), [
-        { params: { slug: "intro" } },
-        { params: { slug: "routing" } },
-    ]);
-});
-
-Deno.test("components/page helpers: entries.fromAsync should support async item loading and explicit entries", async () => {
-    const resolveEntries = entries.fromAsync(
-        async (context) => [{ slug: `${context.locale}-intro` }],
-        (item) => ({
-            params: {
-                slug: item.slug,
-            },
-        }),
-    );
-
-    assertEquals(await resolveEntries({ locale: "en" }), [
-        { params: { slug: "en-intro" } },
-    ]);
-});
 
 Deno.test("components/page helpers: load.byParam should resolve a single route param", async () => {
     const context = createPageLoadContext({
@@ -66,24 +39,22 @@ Deno.test("components/page helpers: load.byParams should resolve a param subset 
     assertEquals(await resolveLoad(context), "pt-br:intro:enhanced-mpa");
 });
 
-Deno.test("components/page helpers: Locales decorator should keep locale metadata outside static page", () => {
+Deno.test("components/page helpers: Locales decorator should keep locale metadata outside head()", () => {
     @Locales("en", "pt-BR")
     class LocalizedPage extends Page {
-        static override page = {
-            head: {
+        override head() {
+            return {
                 title: "Localized",
-            },
-        };
+            };
+        }
 
         override render(): HTMLElement {
             return document.createElement("main");
         }
     }
 
-    assertEquals(LocalizedPage.page, {
-        head: {
-            title: "Localized",
-        },
+    assertEquals(new LocalizedPage().head(), {
+        title: "Localized",
     });
     assertEquals(resolvePageLocales(LocalizedPage), ["en", "pt-BR"]);
 });

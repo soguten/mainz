@@ -1,18 +1,12 @@
 import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 
-type FixtureRouteProps = {
-    route?: {
-        locale?: string;
-    };
-};
-
 @CustomElement("x-mainz-fixture-head-seo-page")
 @Route("/")
 @RenderMode("ssg")
 @Locales("en", "pt")
-export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
-    static override page = {
-        head: {
+export class FixtureHeadSeoHomePage extends Page {
+    override head() {
+        return {
             title: "Fixture Head SEO",
             meta: [
                 {
@@ -20,11 +14,11 @@ export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
                     content: "Minimal SEO fixture for canonical and hreflang validation.",
                 },
             ],
-        },
-    };
+        };
+    }
 
     override render() {
-        const locale = this.props.route?.locale ?? "en";
+        const locale = this.route.locale ?? "en";
         const isPortuguese = locale === "pt";
 
         return (
@@ -39,4 +33,3 @@ export class FixtureHeadSeoHomePage extends Page<FixtureRouteProps> {
         );
     }
 }
-

@@ -5,7 +5,7 @@ const docsCodeBlockResetTimeoutIds = new WeakMap<DocsCodeBlock, number>();
 
 interface DocsCodeBlockProps {
     label: string;
-    language: string;
+    language?: string;
     content: string;
 }
 
@@ -40,19 +40,20 @@ export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockSt
     override render() {
         const language = normalizeCodeLanguage(this.props.language);
         const highlightedCode = renderHighlightedDocsCode(this.props.content, language);
+        const label = this.props.label?.trim() ? this.props.label : language || "code";
 
         return (
             <div class="docs-code">
                 <div class="docs-code-header">
                     <div class="docs-code-header-copy">
-                        <span class="docs-code-label">{this.props.label}</span>
-                        <span class="docs-code-language">{this.props.language}</span>
+                        <span class="docs-code-label">{label}</span>
+                        <span class="docs-code-language">{this.props.language ?? ""}</span>
                     </div>
 
                     <button
                         type="button"
                         class="docs-copy-button"
-                        aria-label={`Copy ${this.props.label}`}
+                        aria-label={`Copy ${label}`}
                         onClick={() => void this.copyCode()}
                     >
                         {this.state.copied ? "Copied" : "Copy"}
@@ -99,8 +100,8 @@ export class DocsCodeBlock extends Component<DocsCodeBlockProps, DocsCodeBlockSt
     };
 }
 
-function normalizeCodeLanguage(language: string): string {
-    const normalized = language.trim().toLowerCase();
+function normalizeCodeLanguage(language?: string): string {
+    const normalized = (language ?? "").trim().toLowerCase();
     if (normalized === "tsx") {
         return "typescript";
     }

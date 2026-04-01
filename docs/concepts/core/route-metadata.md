@@ -22,13 +22,15 @@ Mainz currently supports a few route patterns that keep intent obvious in the cl
 - `"/docs/*"` for a catch-all tail
 - `"/docs/[...parts]"` for a named catch-all tail
 
-Those params flow into `entries()`, `load()`, and runtime navigation.
+Those params flow into `entries()`, `load()`, runtime navigation, and `this.route`.
 
 ```tsx title="Docs.page.tsx"
-static load = load.byParam("slug", (slug) => fetchDoc(slug));
+override load() {
+  return fetchDoc(this.route.params.slug);
+}
 
 override render() {
-  return <article>{this.props.data?.title}</article>;
+  return <article>{this.data.title}</article>;
 }
 ```
 

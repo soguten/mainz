@@ -9,6 +9,7 @@ import {
     type PageConstructor,
     type PageHeadDefinition,
     requirePageRoutePath,
+    resolvePageRoutePath,
     resolvePageLocales,
     resolvePageRenderMode,
 } from "../components/page.ts";
@@ -22,11 +23,16 @@ export interface DiscoveredPage {
         path: string;
         mode: RenderMode;
         hasExplicitRenderMode?: boolean;
-        notFound?: boolean;
+        declaredRoutePath?: string;
         locales?: readonly string[];
         head?: PageHeadDefinition;
         authorization?: PageAuthorizationMetadata;
     };
+}
+
+interface DiscoverPageOptions {
+    allowMissingRoute?: boolean;
+    fallbackPath?: string;
 }
 
 export async function discoverPagesFromFiles(
@@ -57,6 +63,25 @@ export async function discoverPagesFromFiles(
 }
 
 export async function discoverPagesFromFile(filePath: string): Promise<DiscoveredPage[]> {
+    return await discoverPagesFromFileWithOptions(filePath);
+}
+
+export async function discoverPageExportFromFile(
+    filePath: string,
+    exportName: string,
+    options: DiscoverPageOptions = {},
+): Promise<DiscoveredPage | undefined> {
+    const pages = await discoverPagesFromFileWithOptions(filePath, {
+        ...options,
+        exportNames: [exportName],
+    });
+    return pages.find((page) => page.exportName === exportName);
+}
+
+async function discoverPagesFromFileWithOptions(
+    filePath: string,
+    options: DiscoverPageOptions & { exportNames?: readonly string[] } = {},
+): Promise<DiscoveredPage[]> {
     const normalizedFilePath = normalizePath(resolve(filePath));
     const moduleUrl = `${pathToFileURL(normalizedFilePath).href}?page-discovery=${Date.now()}-${
         Math.random().toString(36).slice(2)
@@ -72,13 +97,14 @@ export async function discoverPagesFromFile(filePath: string): Promise<Discovere
     }
 
     const pages = Object.entries(moduleExports)
+        .filter(([exportName]) => !options.exportNames || options.exportNames.includes(exportName))
         .filter(([, exportedValue]) => isPageConstructor(exportedValue))
         .map(([exportName, exportedValue]) => {
             const ctor = exportedValue as PageConstructor;
             return {
                 exportName,
                 file: normalizedFilePath,
-                page: normalizePageDefinition(ctor, normalizedFilePath, exportName),
+                page: normalizePageDefinition(ctor, normalizedFilePath, exportName, options),
             };
         });
 
@@ -89,21 +115,29 @@ function normalizePageDefinition(
     ctor: PageConstructor,
     filePath: string,
     exportName: string,
+    options: DiscoverPageOptions = {},
 ): DiscoveredPage["page"] {
-    const page = ctor.page ?? {};
     const locales = resolvePageLocales(ctor);
     const authorization = resolvePageAuthorization(ctor);
-    const path = requirePageRoutePath(
+    const declaredRoutePath = resolvePageRoutePath(ctor);
+    const path = declaredRoutePath ?? options.fallbackPath ?? requirePageRoutePath(
         ctor,
         `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
     );
 
+    if (!declaredRoutePath && !options.allowMissingRoute) {
+        requirePageRoutePath(
+            ctor,
+            `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
+        );
+    }
+
     return {
         path,
-        ...resolveDiscoveryMode(ctor, page as Record<string, unknown>, filePath, exportName),
-        notFound: page.notFound === true ? true : undefined,
+        ...resolveDiscoveryMode(ctor, {}, filePath, exportName),
+        declaredRoutePath,
         locales: locales ? [...locales] : undefined,
-        head: page.head ? cloneHead(page.head) : undefined,
+        head: undefined,
         authorization: authorization ? cloneAuthorization(authorization) : undefined,
     };
 }
@@ -124,14 +158,6 @@ function resolveDiscoveryMode(
 
 function normalizeMode(mode: RenderMode | undefined): RenderMode {
     return mode ?? "csr";
-}
-
-function cloneHead(head: PageHeadDefinition): PageHeadDefinition {
-    return {
-        title: head.title,
-        meta: head.meta ? [...head.meta] : undefined,
-        links: head.links ? [...head.links] : undefined,
-    };
 }
 
 function cloneAuthorization(

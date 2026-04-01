@@ -58,28 +58,6 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
                     code: "dynamic-ssg-invalid-entries",
                     severity: "error",
                     message:
-                        'entries() for dynamic SSG route "/tips/:slug" returned an invalid entry at index 0: Dynamic route "/tips/:slug" requires "slug"; these params is missing from entries().',
-                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
-                        "/src/pages/Diagnostics.page.tsx",
-                    exportName: "DynamicSsgInvalidEntriesHelperPage",
-                    routePath: "/tips/:slug",
-                },
-                {
-                    target: "diagnostics-routes",
-                    code: "dynamic-ssg-invalid-entries",
-                    severity: "error",
-                    message:
-                        'entries() for dynamic SSG route "/async/:slug" returned an invalid entry at index 0: Dynamic route "/async/:slug" requires "slug"; these params is missing from entries().',
-                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
-                        "/src/pages/Diagnostics.page.tsx",
-                    exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
-                    routePath: "/async/:slug",
-                },
-                {
-                    target: "diagnostics-routes",
-                    code: "dynamic-ssg-invalid-entries",
-                    severity: "error",
-                    message:
                         'entries() for dynamic SSG route "/shared/:slug" returned an invalid entry at index 0: Dynamic route "/shared/:slug" requires "slug"; these params is missing from entries().',
                     file: fixture.fixtureRoot.replaceAll("\\", "/") +
                         "/src/pages/Diagnostics.page.tsx",
@@ -107,17 +85,6 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
                         "/src/pages/Diagnostics.page.tsx",
                     exportName: "DynamicSsgInvalidNestedParamsHelperPage",
                     routePath: "/nested/:slug",
-                },
-                {
-                    target: "diagnostics-routes",
-                    code: "dynamic-ssg-invalid-entries",
-                    severity: "error",
-                    message:
-                        'entries() for dynamic SSG route "/entry-helper/:slug" returned an invalid entry at index 0: Dynamic route "/entry-helper/:slug" requires "slug"; these params is missing from entries().',
-                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
-                        "/src/pages/Diagnostics.page.tsx",
-                    exportName: "DynamicSsgInvalidEntryHelperPage",
-                    routePath: "/entry-helper/:slug",
                 },
                 {
                     target: "diagnostics-routes",
@@ -165,6 +132,39 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
                 },
                 {
                     target: "diagnostics-routes",
+                    code: "dynamic-ssg-missing-load",
+                    severity: "warning",
+                    message:
+                        'Dynamic SSG route "/async/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
+                    routePath: "/async/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-missing-load",
+                    severity: "warning",
+                    message:
+                        'Dynamic SSG route "/tips/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntriesHelperPage",
+                    routePath: "/tips/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "dynamic-ssg-missing-load",
+                    severity: "warning",
+                    message:
+                        'Dynamic SSG route "/entry-helper/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "DynamicSsgInvalidEntryHelperPage",
+                    routePath: "/entry-helper/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
                     code: "component-load-missing-fallback",
                     severity: "warning",
                     message:
@@ -190,11 +190,33 @@ Deno.test("cli/mainz: diagnose should print route diagnostics for a fixture targ
                     code: "dynamic-ssg-missing-load",
                     severity: "warning",
                     message:
-                        'Dynamic SSG route "/guides/:slug" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                        'Dynamic SSG route "/guides/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
                     file: fixture.fixtureRoot.replaceAll("\\", "/") +
                         "/src/pages/Diagnostics.page.tsx",
                     exportName: "DynamicSsgWithoutLoadPage",
                     routePath: "/guides/:slug",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "page-static-load-unsupported",
+                    severity: "error",
+                    message:
+                        'Page "MixedLoadPage" declares static load(), which is no longer supported. Move that logic into the page instance load() lifecycle.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "MixedLoadPage",
+                    routePath: "/mixed",
+                },
+                {
+                    target: "diagnostics-routes",
+                    code: "page-static-load-unsupported",
+                    severity: "error",
+                    message:
+                        'Page "LegacyStaticLoadPage" declares static load(), which is no longer supported. Move that logic into the page instance load() lifecycle.',
+                    file: fixture.fixtureRoot.replaceAll("\\", "/") +
+                        "/src/pages/Diagnostics.page.tsx",
+                    exportName: "LegacyStaticLoadPage",
+                    routePath: "/legacy",
                 },
             ]),
         );
@@ -273,6 +295,41 @@ Deno.test("cli/mainz: diagnose should report named authorization policies that a
                 routePath: "/org",
             },
         ]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/mainz: diagnose should report app-level notFound pages that still define @Route(...)", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "diagnostics-not-found-route",
+        targetName: "diagnostics-not-found-route",
+        locales: ["en"],
+        omitPagesDir: true,
+    });
+
+    try {
+        const { stdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose failed for diagnostics-not-found-route fixture.",
+        );
+
+        assertEquals(JSON.parse(stdout), [{
+            target: "diagnostics-not-found-route",
+            code: "not-found-must-not-define-route",
+            severity: "error",
+            message:
+                'notFound page "InvalidNotFoundPage" must not define @Route(...). Register it only through defineApp({ notFound }).',
+            file: fixture.fixtureRoot.replaceAll("\\", "/") + "/src/pages/NotFound.page.tsx",
+            exportName: "InvalidNotFoundPage",
+            routePath: "/404",
+        }]);
     } finally {
         await fixture.cleanup();
     }
@@ -535,11 +592,12 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
             "diagnose human output failed for diagnostics-routes fixture.",
         );
 
-        assertStringIncludes(stdout, "Diagnostics summary: 11 error(s), 3 warning(s)");
+        assertStringIncludes(stdout, "Diagnostics summary: 10 error(s), 6 warning(s)");
         assertStringIncludes(stdout, "Target: diagnostics-routes");
         assertStringIncludes(stdout, "error dynamic-ssg-missing-entries");
         assertStringIncludes(stdout, "error dynamic-ssg-invalid-entries");
         assertStringIncludes(stdout, "warning dynamic-ssg-missing-load");
+        assertStringIncludes(stdout, "error page-static-load-unsupported");
         assertStringIncludes(stdout, "warning component-load-missing-fallback");
         assertStringIncludes(stdout, "warning component-render-strategy-without-load");
         assertStringIncludes(stdout, "route: /docs/:slug");

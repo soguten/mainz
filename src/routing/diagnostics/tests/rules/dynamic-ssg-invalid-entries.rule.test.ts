@@ -16,7 +16,8 @@ Deno.test("routing/diagnostics/rules: dynamic SSG invalid entries should report 
         {
             staticMembers: {
                 hasEntriesMember: true,
-                hasLoadMember: false,
+                hasStaticLoadMember: false,
+                hasInstanceLoadMember: false,
             },
             entriesFact: {
                 hasEntriesMember: true,

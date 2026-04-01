@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { ts } from "@/compiler/typescript.ts";
-import { discoverPagesFromFile } from "../routing/server.ts";
+import { discoverPageExportFromFile, discoverPagesFromFile } from "../routing/server.ts";
 import type { RenderMode } from "../routing/index.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { PageHeadDefinition } from "../components/page.ts";
@@ -22,6 +22,7 @@ export interface CliDiscoveredPage {
     mode: RenderMode;
     hasExplicitRenderMode?: boolean;
     notFound?: boolean;
+    declaredRoutePath?: string;
     locales?: readonly string[];
     head?: PageHeadDefinition;
     authorization?: PageAuthorizationMetadata;
@@ -226,9 +227,15 @@ async function resolveTargetDiscoveredPagesFromAppFile(
         pageFiles.add(importedBinding.sourceFile);
 
         try {
-            const pageEntries = await discoverPagesFromFile(importedBinding.sourceFile);
-            const discoveredPage = pageEntries.find((entry) =>
-                entry.exportName === importedBinding.importedName
+            const discoveredPage = await discoverPageExportFromFile(
+                importedBinding.sourceFile,
+                importedBinding.importedName,
+                reference.notFound
+                    ? {
+                        allowMissingRoute: true,
+                        fallbackPath: "/404",
+                    }
+                    : {},
             );
 
             if (!discoveredPage) {
@@ -242,7 +249,7 @@ async function resolveTargetDiscoveredPagesFromAppFile(
                 exportName: discoveredPage.exportName,
                 ...discoveredPage.page,
                 path: reference.pathOverride ?? discoveredPage.page.path,
-                notFound: reference.notFound ? true : discoveredPage.page.notFound,
+                notFound: reference.notFound ? true : undefined,
             });
         } catch (error) {
             const message = toErrorMessage(error);

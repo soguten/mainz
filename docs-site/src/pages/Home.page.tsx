@@ -30,8 +30,9 @@ Open **Quickstart** for the minimal page model, **Routing Modes** for the render
 @RenderMode("ssg")
 @Locales("en")
 export class HomePage extends Page {
-    static override page = {
-        head: {
+    
+    override head() {
+        return {
             title: "Mainz Docs",
             meta: [
                 {
@@ -40,8 +41,8 @@ export class HomePage extends Page {
                         "Documentation-style demo for Mainz with page-first routing, dynamic docs routes, and theme support.",
                 },
             ],
-        },
-    };
+        };
+    }
 
     override render() {
         return (

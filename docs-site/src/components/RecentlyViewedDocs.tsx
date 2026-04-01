@@ -1,9 +1,5 @@
-import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
+import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
 import { buildDocsHref } from "../lib/links.ts";
-
-interface RecentlyViewedDocsProps {
-    currentSlug?: string;
-}
 
 interface RecentlyViewedDoc {
     slug: string;
@@ -24,13 +20,10 @@ const MAX_RECENT_DOCS = 4;
         </section>
     ),
 })
-export class RecentlyViewedDocs extends Component<
-    RecentlyViewedDocsProps,
-    NoState,
-    readonly RecentlyViewedDoc[]
-> {
+export class RecentlyViewedDocs extends Component<NoProps, NoState, readonly RecentlyViewedDoc[]> {
+    
     override async load(): Promise<readonly RecentlyViewedDoc[]> {
-        return readRecentlyViewedDocs(this.props.currentSlug);
+        return readRecentlyViewedDocs(this.route.params.slug);
     }
 
     override render() {

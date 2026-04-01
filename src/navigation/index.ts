@@ -1,7 +1,10 @@
 import {
     createPageLoadContext,
     type PageHeadDefinition,
+    type PageHeadContext,
     type PageLoadContext,
+    type RouteContext,
+    type RouteProfileContext,
     requirePageRoutePath,
     resolvePageLocales,
 } from "../components/page.ts";
@@ -63,7 +66,6 @@ export interface SpaPageConstructor extends CustomElementConstructor {
         head?: PageHeadDefinition;
         authorization?: PageAuthorizationMetadata;
     };
-    load?(context: PageLoadContext): unknown | Promise<unknown>;
     getTagName(): string;
     name: string;
 }
@@ -200,6 +202,14 @@ interface InitialRouteSnapshot {
     data?: unknown;
     head?: PageHeadDefinition;
 }
+
+type RoutedPageElement = HTMLElement & {
+    props?: Record<string, unknown>;
+    rerender?: () => void;
+    load?(context: PageLoadContext): unknown | Promise<unknown>;
+    head(context?: PageHeadContext): PageHeadDefinition | undefined;
+    data?: unknown;
+};
 
 type NavigationSequenceSource = () => number;
 type NavigationLifecycleBaseArgs = Omit<NavigationLifecycleEmissionArgs, "sequence">;
@@ -945,23 +955,39 @@ async function renderSpaRoute(args: {
             return true;
         }
 
+        const existingElement = args.mount.querySelector(pageTagName);
+        const pageElement = args.navigationType === "initial" && isHtmlElement(existingElement)
+            ? existingElement as RoutedPageElement
+            : args.mount.ownerDocument.createElement(pageTagName) as RoutedPageElement;
+
         errorPhase = "route-load";
         const data = await resolvePageRouteData({
             page,
+            pageElement,
+            path: routeMatch.route.path,
+            matchedPath: currentPath,
             params: routeMatch.params,
             locale,
             principal,
             url: args.url,
             signal: sequence.controller.signal,
+            basePath: args.basePath,
+            navigationMode: args.mode,
             serviceContainer: args.serviceContainer,
         });
         throwIfNavigationAborted(sequence);
         const head = resolveSpaRouteHead({
             page,
+            pageElement,
+            path: routeMatch.route.path,
             matchedPath: currentPath,
             locale,
             locales: args.locales,
             data,
+            principal,
+            url: args.url,
+            basePath: args.basePath,
+            navigationMode: args.mode,
         });
         const routeContext = {
             page,
@@ -986,7 +1012,6 @@ async function renderSpaRoute(args: {
         args.onRoute?.(routeContext);
         throwIfNavigationAborted(sequence);
 
-        const existingElement = args.mount.querySelector(pageTagName);
         if (args.navigationType === "initial" && isHtmlElement(existingElement)) {
             applySpaRouteContext(existingElement, routeContext);
             applyResolvedPageHeadToDocument(head);
@@ -1004,7 +1029,7 @@ async function renderSpaRoute(args: {
             return true;
         }
 
-        const nextPageElement = args.mount.ownerDocument.createElement(pageTagName);
+        const nextPageElement = pageElement;
         applySpaRouteContext(nextPageElement, routeContext);
         args.mount.replaceChildren(nextPageElement);
         finalizeNavigationReady({
@@ -1313,13 +1338,26 @@ function resolveSpaPageModule(module: SpaPageModule): SpaPageConstructor {
 
 function applySpaRouteContext(element: HTMLElement, context: SpaNavigationRenderContext): void {
     const serviceContainer = readServiceContainer(context);
-    const nextProps = {
-        ...readSpaElementProps(element),
-        route: attachServiceContainer(context, serviceContainer),
-        data: context.data,
-    };
+    const routeContext = attachServiceContainer(createRouteContext({
+        path: context.path,
+        matchedPath: context.matchedPath,
+        params: context.params,
+        locale: context.locale,
+        url: context.url,
+        renderMode: resolveMainzRenderMode(),
+        navigationMode: resolveMainzNavigationMode(),
+        principal: context.principal,
+        profile: createRouteProfileContext(context.basePath),
+    }), serviceContainer);
 
-    (element as HTMLElement & { props?: Record<string, unknown> }).props = nextProps;
+    const pageElement = element as RoutedPageElement;
+    pageElement.data = context.data;
+    pageElement.props = {
+        ...readSpaElementProps(element),
+        route: routeContext,
+        data: context.data,
+        head: context.head,
+    };
     attachServiceContainer(element, serviceContainer);
 
     const rerender = (element as HTMLElement & { rerender?: () => void }).rerender;
@@ -1407,15 +1445,43 @@ function applyResolvedPageHeadToDocument(headDefinition: PageHeadDefinition | un
 
 function resolveSpaRouteHead(args: {
     page: SpaPageConstructor;
+    pageElement: RoutedPageElement;
+    path: string;
     matchedPath: string;
     locale?: string;
     locales?: readonly string[];
     data?: unknown;
+    principal?: Principal;
+    url: URL;
+    basePath: string;
+    navigationMode: NavigationMode;
 }): PageHeadDefinition | undefined {
-    const mergedHead = mergePageHeadDefinitions(
-        args.page.page?.head,
-        resolveLoadedPageHead(args.data),
-    );
+    const routeContext = createRouteContext({
+        path: args.path,
+        matchedPath: args.matchedPath,
+        params: resolveRouteParamsFromPageElement(args.pageElement),
+        locale: args.locale,
+        url: args.url,
+        renderMode: resolveMainzRenderMode(),
+        navigationMode: args.navigationMode,
+        principal: args.principal,
+        profile: createRouteProfileContext(args.basePath),
+    });
+    const headContext = createPageLoadContext({
+        path: args.path,
+        matchedPath: args.matchedPath,
+        params: routeContext.params,
+        locale: args.locale,
+        url: args.url,
+        renderMode: routeContext.renderMode,
+        navigationMode: args.navigationMode,
+        principal: args.principal,
+        profile: routeContext.profile,
+    });
+    const instanceHead = typeof args.pageElement.head === "function"
+        ? args.pageElement.head.call(args.pageElement, headContext)
+        : undefined;
+    const mergedHead = instanceHead;
     const routeLocales = resolveSpaRouteLocales(args.page, args.locales);
     const activeLocale = args.locale ?? routeLocales[0] ?? resolveMainzDefaultLocale();
     if (!activeLocale) {
@@ -1453,14 +1519,47 @@ function resolveSpaRouteLocales(
 
 async function resolvePageRouteData(args: {
     page: SpaPageConstructor;
+    pageElement: RoutedPageElement;
+    path: string;
+    matchedPath: string;
     params: SpaRouteParams;
     locale?: string;
     principal?: Principal;
     url: URL;
     signal: AbortSignal;
+    basePath: string;
+    navigationMode: NavigationMode;
     serviceContainer?: ServiceContainer;
 }): Promise<unknown> {
-    if (typeof args.page.load !== "function") {
+    const routeProfile = createRouteProfileContext(args.basePath);
+    const routeContext = createRouteContext({
+        path: args.path,
+        matchedPath: args.matchedPath,
+        params: args.params,
+        locale: args.locale,
+        url: args.url,
+        renderMode: resolveMainzRenderMode(),
+        navigationMode: args.navigationMode,
+        principal: args.principal,
+        profile: routeProfile,
+    });
+    applyPageLifecycleProps(args.pageElement, {
+        route: routeContext,
+        data: args.pageElement.data,
+        head: readResolvedPageHeadFromProps(args.pageElement.props),
+    });
+    attachServiceContainer(args.pageElement, args.serviceContainer);
+
+    const hasInstanceLoad = typeof args.pageElement.load === "function";
+    const hasStaticLoad = typeof Reflect.get(args.page as object, "load") === "function";
+
+    if (hasStaticLoad) {
+        throw new Error(
+            `Page "${args.page.name}" declares static load(), which is no longer supported. Move that logic into the page instance load() lifecycle.`,
+        );
+    }
+
+    if (!hasInstanceLoad) {
         return undefined;
     }
 
@@ -1469,24 +1568,103 @@ async function resolvePageRouteData(args: {
     }
 
     const context: PageLoadContext = createPageLoadContext({
+        path: args.path,
+        matchedPath: args.matchedPath,
         params: args.params,
         locale: args.locale,
         url: args.url,
         renderMode: resolveMainzRenderMode(),
-        navigationMode: resolveMainzNavigationMode(),
+        navigationMode: args.navigationMode,
         signal: args.signal,
         principal: args.principal,
+        profile: routeProfile,
     });
 
-    const owner = attachServiceContainer(
-        Object.create(args.page) as object,
-        args.serviceContainer,
-    );
+    if (hasInstanceLoad) {
+        const result = await withServiceContainer(
+            args.serviceContainer,
+            () => args.pageElement.load!.call(args.pageElement, context),
+        );
+        args.pageElement.data = result;
+        applyPageLifecycleProps(args.pageElement, {
+            route: routeContext,
+            data: result,
+            head: readResolvedPageHeadFromProps(args.pageElement.props),
+        });
+        return result;
+    }
+}
 
-    return await withServiceContainer(
-        args.serviceContainer,
-        () => args.page.load!.call(owner, context),
-    );
+function createRouteContext(args: {
+    path: string;
+    matchedPath: string;
+    params: SpaRouteParams;
+    locale?: string;
+    url: URL;
+    renderMode: "csr" | "ssg";
+    navigationMode: NavigationMode;
+    principal?: Principal;
+    profile?: RouteProfileContext;
+}): RouteContext {
+    return {
+        path: args.path,
+        matchedPath: args.matchedPath,
+        params: args.params,
+        locale: args.locale,
+        url: args.url,
+        renderMode: args.renderMode,
+        navigationMode: args.navigationMode,
+        principal: args.principal,
+        profile: args.profile,
+    };
+}
+
+function createRouteProfileContext(basePath: string): RouteProfileContext {
+    return {
+        basePath,
+        siteUrl: resolveMainzSiteUrl(),
+    };
+}
+
+function applyPageLifecycleProps(
+    element: RoutedPageElement,
+    args: {
+        route: RouteContext;
+        data?: unknown;
+        head?: PageHeadDefinition;
+    },
+): void {
+    const nextProps = {
+        ...(element.props ?? {}),
+        route: args.route,
+        data: args.data,
+        head: args.head,
+    };
+
+    element.props = nextProps;
+}
+
+function readResolvedPageHeadFromProps(props: unknown): PageHeadDefinition | undefined {
+    if (typeof props !== "object" || props === null) {
+        return undefined;
+    }
+
+    const propsRecord = props as Record<string, unknown>;
+    return isPageHeadDefinition(propsRecord.head) ? propsRecord.head : undefined;
+}
+
+function resolveRouteParamsFromPageElement(element: RoutedPageElement): SpaRouteParams {
+    if (typeof element.props !== "object" || element.props === null) {
+        return {};
+    }
+
+    const route = (element.props as Record<string, unknown>).route;
+    if (typeof route !== "object" || route === null) {
+        return {};
+    }
+
+    const params = (route as Record<string, unknown>).params;
+    return isStringRecord(params) ? params : {};
 }
 
 async function redirectUnauthorizedRouteToLogin(args: {
@@ -2571,21 +2749,48 @@ async function resolveMountedRouteContext(
                 return "forbidden";
             }
 
-            const data = resolveSnapshotData(routeSnapshot, {
+            const matchedSnapshot = resolveMatchingSnapshot(routeSnapshot, {
                 mountedElement,
                 path: context.routeMatch?.route.path ?? context.currentPath,
                 matchedPath: context.currentPath,
                 params,
                 locale: context.locale,
-            }) ?? await resolvePageRouteData({
-                page: matchedPage,
-                params,
-                locale: context.locale,
-                principal,
-                url: context.url,
-                signal: context.sequence.controller.signal,
-                serviceContainer: context.serviceContainer,
             });
+            if (matchedSnapshot) {
+                const snapshotRouteContext = attachServiceContainer(createRouteContext({
+                    path: context.routeMatch?.route.path ?? context.currentPath,
+                    matchedPath: context.currentPath,
+                    params,
+                    locale: context.locale,
+                    url: context.url,
+                    renderMode: resolveMainzRenderMode(),
+                    navigationMode: context.mode,
+                    principal,
+                    profile: createRouteProfileContext(context.basePath),
+                }), context.serviceContainer);
+                (mountedElement as RoutedPageElement).data = matchedSnapshot.data;
+                applyPageLifecycleProps(mountedElement as RoutedPageElement, {
+                    route: snapshotRouteContext,
+                    data: matchedSnapshot.data,
+                    head: matchedSnapshot.head,
+                });
+            }
+            const data = matchedSnapshot
+                ? matchedSnapshot.data
+                : await resolvePageRouteData({
+                    page: matchedPage,
+                    pageElement: mountedElement as RoutedPageElement,
+                    path: context.routeMatch?.route.path ?? context.currentPath,
+                    matchedPath: context.currentPath,
+                    params,
+                    locale: context.locale,
+                    principal,
+                    url: context.url,
+                    signal: context.sequence.controller.signal,
+                    basePath: context.basePath,
+                    navigationMode: context.mode,
+                    serviceContainer: context.serviceContainer,
+                });
             const routeContext = {
                 page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
@@ -2594,18 +2799,18 @@ async function resolveMountedRouteContext(
                 principal,
                 authorization,
                 data,
-                head: resolveSnapshotHead(routeSnapshot, {
-                    mountedElement,
-                    path: context.routeMatch?.route.path ?? context.currentPath,
-                    matchedPath: context.currentPath,
-                    params,
-                    locale: context.locale,
-                }) ?? resolveSpaRouteHead({
+                head: matchedSnapshot?.head ?? resolveSpaRouteHead({
                     page: matchedPage,
+                    pageElement: mountedElement as RoutedPageElement,
+                    path: context.routeMatch?.route.path ?? context.currentPath,
                     matchedPath: context.currentPath,
                     locale: context.locale,
                     locales: context.locales,
                     data,
+                    principal,
+                    url: context.url,
+                    basePath: context.basePath,
+                    navigationMode: context.mode,
                 }),
                 locale: context.locale,
                 url: context.url,
@@ -2665,21 +2870,48 @@ async function resolveMountedRouteContext(
             return "forbidden";
         }
 
-        const data = resolveSnapshotData(routeSnapshot, {
+        const matchedSnapshot = resolveMatchingSnapshot(routeSnapshot, {
             mountedElement,
             path: route.path,
             matchedPath: context.currentPath,
             params,
             locale: context.locale,
-        }) ?? await resolvePageRouteData({
-            page: route.page,
-            params,
-            locale: context.locale,
-            principal,
-            url: context.url,
-            signal: context.sequence.controller.signal,
-            serviceContainer: context.serviceContainer,
         });
+        if (matchedSnapshot) {
+            const snapshotRouteContext = attachServiceContainer(createRouteContext({
+                path: route.path,
+                matchedPath: context.currentPath,
+                params,
+                locale: context.locale,
+                url: context.url,
+                renderMode: resolveMainzRenderMode(),
+                navigationMode: context.mode,
+                principal,
+                profile: createRouteProfileContext(context.basePath),
+            }), context.serviceContainer);
+            (mountedElement as RoutedPageElement).data = matchedSnapshot.data;
+            applyPageLifecycleProps(mountedElement as RoutedPageElement, {
+                route: snapshotRouteContext,
+                data: matchedSnapshot.data,
+                head: matchedSnapshot.head,
+            });
+        }
+        const data = matchedSnapshot
+            ? matchedSnapshot.data
+            : await resolvePageRouteData({
+                page: route.page,
+                pageElement: mountedElement as RoutedPageElement,
+                path: route.path,
+                matchedPath: context.currentPath,
+                params,
+                locale: context.locale,
+                principal,
+                url: context.url,
+                signal: context.sequence.controller.signal,
+                basePath: context.basePath,
+                navigationMode: context.mode,
+                serviceContainer: context.serviceContainer,
+            });
         const routeContext = {
             page: route.page,
             path: route.path,
@@ -2688,18 +2920,18 @@ async function resolveMountedRouteContext(
             principal,
             authorization,
             data,
-            head: resolveSnapshotHead(routeSnapshot, {
-                mountedElement,
-                path: route.path,
-                matchedPath: context.currentPath,
-                params,
-                locale: context.locale,
-            }) ?? resolveSpaRouteHead({
+            head: matchedSnapshot?.head ?? resolveSpaRouteHead({
                 page: route.page,
+                pageElement: mountedElement as RoutedPageElement,
+                path: route.path,
                 matchedPath: context.currentPath,
                 locale: context.locale,
                 locales: context.locales,
                 data,
+                principal,
+                url: context.url,
+                basePath: context.basePath,
+                navigationMode: context.mode,
             }),
             locale: context.locale,
             url: context.url,
@@ -2739,7 +2971,7 @@ function readInitialRouteSnapshot(): InitialRouteSnapshot | undefined {
     }
 }
 
-function resolveSnapshotData(
+function resolveMatchingSnapshot(
     snapshot: InitialRouteSnapshot | undefined,
     args: {
         mountedElement: HTMLElement;
@@ -2748,7 +2980,7 @@ function resolveSnapshotData(
         params: Record<string, string>;
         locale?: string;
     },
-): unknown | undefined {
+): InitialRouteSnapshot | undefined {
     if (!snapshot) {
         return undefined;
     }
@@ -2769,40 +3001,7 @@ function resolveSnapshotData(
         return undefined;
     }
 
-    return snapshot.data;
-}
-
-function resolveSnapshotHead(
-    snapshot: InitialRouteSnapshot | undefined,
-    args: {
-        mountedElement: HTMLElement;
-        path: string;
-        matchedPath: string;
-        params: Record<string, string>;
-        locale?: string;
-    },
-): PageHeadDefinition | undefined {
-    if (!snapshot) {
-        return undefined;
-    }
-
-    if (snapshot.pageTagName !== args.mountedElement.tagName.toLowerCase()) {
-        return undefined;
-    }
-
-    if (snapshot.path !== args.path || snapshot.matchedPath !== args.matchedPath) {
-        return undefined;
-    }
-
-    if ((snapshot.locale ?? undefined) !== (args.locale ?? undefined)) {
-        return undefined;
-    }
-
-    if (!recordsEqual(snapshot.params, args.params)) {
-        return undefined;
-    }
-
-    return snapshot.head;
+    return snapshot;
 }
 
 function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
@@ -2832,34 +3031,6 @@ function recordsEqual(left: Record<string, string>, right: Record<string, string
 function isStringRecord(value: unknown): value is Record<string, string> {
     return typeof value === "object" && value !== null &&
         Object.values(value).every((entry) => typeof entry === "string");
-}
-
-function resolveLoadedPageHead(data: unknown): PageHeadDefinition | undefined {
-    if (!data || typeof data !== "object") {
-        return undefined;
-    }
-
-    const candidate = data as Record<string, unknown>;
-    return isPageHeadDefinition(candidate.head) ? candidate.head : undefined;
-}
-
-function mergePageHeadDefinitions(
-    base: PageHeadDefinition | undefined,
-    override: PageHeadDefinition | undefined,
-): PageHeadDefinition | undefined {
-    if (!base) {
-        return override;
-    }
-
-    if (!override) {
-        return base;
-    }
-
-    return {
-        title: override.title ?? base.title,
-        meta: override.meta ?? base.meta,
-        links: override.links ?? base.links,
-    };
 }
 
 function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {

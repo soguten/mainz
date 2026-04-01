@@ -16,7 +16,8 @@ Deno.test("routing/diagnostics/rules: dynamic SSG missing load should warn when 
         {
             staticMembers: {
                 hasEntriesMember: true,
-                hasLoadMember: false,
+                hasStaticLoadMember: false,
+                hasInstanceLoadMember: false,
             },
             entriesFact: {
                 hasEntriesMember: true,
@@ -36,7 +37,7 @@ Deno.test("routing/diagnostics/rules: dynamic SSG missing load should warn when 
         code: "dynamic-ssg-missing-load",
         severity: "warning",
         message:
-            'Dynamic SSG route "/docs/:slug" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+            'Dynamic SSG route "/docs/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
         file: "/repo/src/pages/Docs.page.tsx",
         exportName: "DocsPage",
         routePath: "/docs/:slug",

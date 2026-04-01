@@ -19,32 +19,6 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
         diagnostics,
         sortDiagnostics([
             {
-                code: "multiple-not-found-pages",
-                severity: "error",
-                message:
-                    'Only one notFound page may be declared per routing set. "InvalidNotFoundCsrPage" conflicts with other notFound pages.',
-                file: file.replaceAll("\\", "/"),
-                exportName: "InvalidNotFoundCsrPage",
-                routePath: "/missing",
-            },
-            {
-                code: "multiple-not-found-pages",
-                severity: "error",
-                message:
-                    'Only one notFound page may be declared per routing set. "FirstNotFoundPage" conflicts with other notFound pages.',
-                file: file.replaceAll("\\", "/"),
-                exportName: "FirstNotFoundPage",
-                routePath: "/404",
-            },
-            {
-                code: "not-found-must-use-ssg",
-                severity: "error",
-                message: 'notFound page "InvalidNotFoundCsrPage" must use @RenderMode("ssg").',
-                file: file.replaceAll("\\", "/"),
-                exportName: "InvalidNotFoundCsrPage",
-                routePath: "/missing",
-            },
-            {
                 code: "page-authorization-anonymous-conflict",
                 severity: "error",
                 message:
@@ -75,24 +49,6 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
                 message:
-                    'entries() for dynamic SSG route "/tips/:slug" returned an invalid entry at index 0: Dynamic route "/tips/:slug" requires "slug"; these params is missing from entries().',
-                file: file.replaceAll("\\", "/"),
-                exportName: "DynamicSsgInvalidEntriesHelperPage",
-                routePath: "/tips/:slug",
-            },
-            {
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/async/:slug" returned an invalid entry at index 0: Dynamic route "/async/:slug" requires "slug"; these params is missing from entries().',
-                file: file.replaceAll("\\", "/"),
-                exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
-                routePath: "/async/:slug",
-            },
-            {
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
                     'entries() for dynamic SSG route "/shared/:slug" returned an invalid entry at index 0: Dynamic route "/shared/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
                 exportName: "DynamicSsgInvalidSharedParamsPage",
@@ -115,15 +71,6 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
                 file: file.replaceAll("\\", "/"),
                 exportName: "DynamicSsgInvalidNestedParamsHelperPage",
                 routePath: "/nested/:slug",
-            },
-            {
-                code: "dynamic-ssg-invalid-entries",
-                severity: "error",
-                message:
-                    'entries() for dynamic SSG route "/entry-helper/:slug" returned an invalid entry at index 0: Dynamic route "/entry-helper/:slug" requires "slug"; these params is missing from entries().',
-                file: file.replaceAll("\\", "/"),
-                exportName: "DynamicSsgInvalidEntryHelperPage",
-                routePath: "/entry-helper/:slug",
             },
             {
                 code: "dynamic-ssg-invalid-entries",
@@ -174,10 +121,46 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
                 code: "dynamic-ssg-missing-load",
                 severity: "warning",
                 message:
-                    'Dynamic SSG route "/guides/:slug" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                    'Dynamic SSG route "/async/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                file: file.replaceAll("\\", "/"),
+                exportName: "DynamicSsgInvalidEntriesFromAsyncHelperPage",
+                routePath: "/async/:slug",
+            },
+            {
+                code: "dynamic-ssg-missing-load",
+                severity: "warning",
+                message:
+                    'Dynamic SSG route "/tips/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                file: file.replaceAll("\\", "/"),
+                exportName: "DynamicSsgInvalidEntriesHelperPage",
+                routePath: "/tips/:slug",
+            },
+            {
+                code: "dynamic-ssg-missing-load",
+                severity: "warning",
+                message:
+                    'Dynamic SSG route "/entry-helper/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
+                file: file.replaceAll("\\", "/"),
+                exportName: "DynamicSsgInvalidEntryHelperPage",
+                routePath: "/entry-helper/:slug",
+            },
+            {
+                code: "dynamic-ssg-missing-load",
+                severity: "warning",
+                message:
+                    'Dynamic SSG route "/guides/:slug" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.',
                 file: file.replaceAll("\\", "/"),
                 exportName: "DynamicSsgWithoutLoadPage",
                 routePath: "/guides/:slug",
+            },
+            {
+                code: "page-static-load-unsupported",
+                severity: "error",
+                message:
+                    'Page "MixedLoadPage" declares static load(), which is no longer supported. Move that logic into the page instance load() lifecycle.',
+                file: file.replaceAll("\\", "/"),
+                exportName: "MixedLoadPage",
+                routePath: "/mixed",
             },
             {
                 code: "page-authorization-ssg-warning",
@@ -187,6 +170,15 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
                 file: file.replaceAll("\\", "/"),
                 exportName: "AuthorizedSsgPage",
                 routePath: "/private-docs",
+            },
+            {
+                code: "page-static-load-unsupported",
+                severity: "error",
+                message:
+                    'Page "LegacyStaticLoadPage" declares static load(), which is no longer supported. Move that logic into the page instance load() lifecycle.',
+                file: file.replaceAll("\\", "/"),
+                exportName: "LegacyStaticLoadPage",
+                routePath: "/legacy",
             },
         ]),
     );

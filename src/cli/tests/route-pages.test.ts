@@ -173,3 +173,60 @@ Deno.test("cli/route-pages: should discover routed pages when main.tsx imports a
         await fixture.cleanup();
     }
 });
+
+Deno.test("cli/route-pages: should discover app-level notFound pages without requiring @Route(...)", async () => {
+    const fixture = await createCliFixtureTargetConfig({
+        fixtureName: "base-path",
+        targetName: "base-path-app-file",
+        locales: ["en", "pt"],
+        omitPagesDir: true,
+    });
+
+    try {
+        const target = normalizeMainzConfig({
+            targets: [{
+                name: fixture.targetName,
+                rootDir: fixture.fixtureRoot,
+                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+                locales: ["en", "pt"],
+                outDir: fixture.outputDir,
+                defaultMode: "csr",
+                defaultNavigation: "spa",
+            }],
+            render: {
+                modes: ["csr"],
+            },
+        }).targets[0];
+
+        const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
+            target,
+        );
+
+        assertEquals(discoveryErrors, undefined);
+        assertEquals(
+            discoveredPages?.map((page) => ({
+                exportName: page.exportName,
+                path: page.path,
+                notFound: page.notFound,
+                declaredRoutePath: page.declaredRoutePath,
+            })),
+            [
+                {
+                    exportName: "FixtureBasePathHomePage",
+                    path: "/",
+                    notFound: undefined,
+                    declaredRoutePath: "/",
+                },
+                {
+                    exportName: "FixtureBasePathNotFoundPage",
+                    path: "/404",
+                    notFound: true,
+                    declaredRoutePath: undefined,
+                },
+            ],
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});

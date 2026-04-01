@@ -46,16 +46,18 @@ Then consume it from the owner that actually controls rendering:
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {
-    static entries = entries.from(docs, (doc) => ({
-        slug: doc.slug,
-    }));
+    static entries() {
+        return docs.map((doc) => ({
+            params: { slug: doc.slug },
+        }));
+    }
 
-    static load = load.byParam("slug", async (slug) => {
-        const article = await docsArticleData.load(slug);
+    override async load() {
+        const article = await docsArticleData.load(this.route.params.slug);
         return {
             head: buildDocsHead(article),
         };
-    });
+    }
 }
 ```
 
@@ -63,9 +65,9 @@ Or from a component owner:
 
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
+export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel> {
     override async load() {
-        return await docsArticleData.load(this.props.slug ?? "");
+        return await docsArticleData.load(this.route.params.slug);
     }
 
     override render() {
@@ -113,4 +115,3 @@ Mainz now keeps the async model simple:
 - `@RenderMode(...)` and `@RenderStrategy(...)` describe rendering behavior
 
 For the ownership-first loading flow, see [Data Loading](./data-loading.md).
-

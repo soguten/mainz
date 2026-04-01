@@ -2,6 +2,7 @@ import type { DiagnosticsTargetModel } from "../../diagnostics/core/target-model
 import type { MainzDiagnostic, RouteDiagnosticsPageInput } from "./facts.ts";
 import { collectRoutePageFacts } from "./discover.ts";
 import { collectDynamicSsgDiagnostics } from "./rules/dynamic-ssg.rule.ts";
+import { collectPageLoadLifecycleDiagnostics } from "./rules/page-load-lifecycle.rule.ts";
 import { collectPageMetadataDiagnostics } from "./rules/page-metadata.rule.ts";
 
 export type {
@@ -77,6 +78,12 @@ function analyzeRouteDiagnostics(
     ];
 
     for (const page of facts.pages) {
+        diagnostics.push(
+            ...collectPageLoadLifecycleDiagnostics(
+                page,
+                facts.pageFactsByPage.get(`${page.file}::${page.exportName}`),
+            ),
+        );
         diagnostics.push(
             ...collectDynamicSsgDiagnostics(
                 page,

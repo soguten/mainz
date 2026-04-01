@@ -15,11 +15,11 @@ import { Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Hello Mainz",
-        },
-    };
+        };
+    }
 
     override render() {
         return <section>Hello from Mainz</section>;
@@ -27,7 +27,8 @@ export class HomePage extends Page {
 }
 ```
 
-`@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the route envelope, and `@Locales(...)` declares locale-specific routing close to the page. `static page` is then free to stay focused on richer metadata like `head` and `notFound`.
+`@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the route envelope, and `@Locales(...)` declares locale-specific routing close to the page. The page instance then owns
+`load()`, `head()`, and `render()` for each concrete route.
 
 If you want an explicit stable tag instead of the generated class-based one, add
 `@CustomElement(...)`. Locale values should be valid BCP 47 tags such as `en`, `pt-BR`, or `sr-Latn-RS`.

@@ -1,13 +1,11 @@
-export type FixtureRouteProps = {
-    route?: {
-        locale?: string;
-        url?: URL;
-        basePath?: string;
-    };
+export type FixtureRouteContext = {
+    locale?: string;
+    url?: URL;
+    basePath?: string;
 };
 
 export function buildLocaleHref(args: {
-    route: FixtureRouteProps["route"];
+    route?: FixtureRouteContext;
     nextLocale: "en" | "pt";
 }): string {
     const basePath = normalizeBasePath(args.route?.basePath ?? __MAINZ_BASE_PATH__);

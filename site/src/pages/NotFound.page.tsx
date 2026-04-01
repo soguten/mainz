@@ -1,18 +1,16 @@
-import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode } from "mainz";
 import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
 
 @CustomElement("x-mainz-not-found-page")
-@Route("/404")
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class NotFoundPage extends Page {
     static override styles = pageStyles;
 
-    static override page = {
-        notFound: true,
-        head: {
+    override head() {
+        return {
             title: "404 | Mainz",
             meta: [
                 {
@@ -21,11 +19,11 @@ export class NotFoundPage extends Page {
                         "Mainz page not found experience for static and enhanced MPA navigation.",
                 },
             ],
-        },
-    };
+        };
+    }
 
     override render() {
-        const locale = getLocale();
+        const locale = this.resolveLocale();
         const isPortuguese = locale === "pt";
         const homeHref = buildSiteLocaleHref(locale, {
             pathname: "/",
@@ -73,5 +71,13 @@ export class NotFoundPage extends Page {
                 </section>
             </div>
         );
+    }
+
+    private resolveLocale(): "en" | "pt" {
+        try {
+            return (this.route.locale ?? getLocale()) as "en" | "pt";
+        } catch {
+            return getLocale();
+        }
     }
 }

@@ -16,7 +16,8 @@ Deno.test("routing/diagnostics/rules: dynamic SSG should require entries before 
         {
             staticMembers: {
                 hasEntriesMember: false,
-                hasLoadMember: false,
+                hasStaticLoadMember: false,
+                hasInstanceLoadMember: false,
             },
             entriesFact: {
                 hasEntriesMember: false,

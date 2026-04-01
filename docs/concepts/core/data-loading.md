@@ -3,7 +3,8 @@
 Mainz now treats async loading as an ownership question.
 
 - `entries()` belongs to the page because route expansion is a page concern
-- `Page.load()` belongs to the page when the route itself owns the data
+- `Page.load()` belongs to the page instance when the page owns the data
+- `Page.head()` belongs to the page instance when the document head depends on resolved page data
 - `Component.load()` belongs to the component when the component owns the async assembly
 
 That keeps the mental model aligned with the class tree you already see in the app.
@@ -34,38 +35,48 @@ export class DocsPage extends Page {
 
 It does not share data with `Page.load()` or `Component.load()`.
 
-## `Page.load()` is for route-owned data
+## `Page.load()` is instance-owned page data loading
 
-Use `Page.load()` when the page itself owns the data contract.
+Use `Page.load()` when the page instance owns the data contract.
 
 Typical examples:
 
 - head metadata
 - route-level entity identity
 - route data the page must know before it can define its output
+- aggregate page payloads later distributed to child components
 
 ```tsx title="Docs.page.tsx"
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {
-    static entries = entries.from(docs, (doc) => ({
-        slug: doc.slug,
-    }));
+    static entries() {
+        return docs.map((doc) => ({
+            params: { slug: doc.slug },
+        }));
+    }
 
-    static load = load.byParam("slug", async (slug) => {
+    override async load() {
+        const article = await fetchDocHead(this.route.params.slug);
         return {
-            head: await fetchDocHead(slug),
+            article,
         };
-    });
+    }
+
+    override head() {
+        return {
+            title: this.data.article.title,
+        };
+    }
 
     override render() {
-        const slug = this.props.route?.params?.slug;
-        return <DocsArticleContent slug={slug} />;
+        return <DocsArticleContent />;
     }
 }
 ```
 
-Use `Page.load()` when the route owns the answer.
+Use `Page.load()` when the page owns the answer. `head()` and `render()` both run on that same
+page instance, so they can consume `this.data` directly.
 
 `Page.load()` now also receives `context.signal`.
 
@@ -75,7 +86,7 @@ the controller is cleaned up, Mainz aborts that signal so route-owned work can s
 applying stale results.
 
 ```ts
-static async load(context: PageLoadContext) {
+override async load(context: PageLoadContext) {
     const response = await fetch("/api/docs", {
         signal: context.signal,
     });
@@ -107,21 +118,23 @@ When a loaded component has no local state, use `NoState` in the second generic 
 ```tsx title="Docs.page.tsx"
 @Route("/docs/:slug")
 @RenderMode("ssg")
-export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
-    static entries = entries.from(docs, (doc) => ({
-        slug: doc.slug,
-    }));
+export class DocsPage extends Page {
+    static entries() {
+        return docs.map((doc) => ({
+            params: { slug: doc.slug },
+        }));
+    }
 
     override render() {
-        return <DocsArticleContent slug={this.props.route?.params?.slug} />;
+        return <DocsArticleContent />;
     }
 }
 ```
 
 ```tsx title="DocsArticleContent.tsx"
-export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsPageModel> {
+export class DocsArticleContent extends Component<{}, NoState, DocsPageModel> {
     override async load(context) {
-        return await buildDocsArticlePageModel(this.props.slug, {
+        return await buildDocsArticlePageModel(this.route.params.slug, {
             signal: context.signal,
         });
     }

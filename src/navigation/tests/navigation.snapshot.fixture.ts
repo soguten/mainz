@@ -1,4 +1,4 @@
-import { CustomElement, load, Page, Route } from "../../index.ts";
+import { CustomElement, type PageHeadDefinition, Page, Route } from "../../index.ts";
 
 let snapshotLoadCount = 0;
 
@@ -12,27 +12,38 @@ export function readSnapshotLoadCount(): number {
 
 @CustomElement("x-mainz-navigation-snapshot-page")
 @Route("/docs/:slug")
-export class SnapshotDocsPage extends Page<{ data?: { slug: string; source: string } }> {
-    static override page = {
-        head: {
-            title: "Snapshot",
-        },
-    };
+export class SnapshotDocsPage extends Page<{}, {}, { slug: string; source: string }> {
+    override head(): PageHeadDefinition {
+        const parent = super.head();
 
-    static load = load.byParam("slug", (slug) => {
+        return {
+            ...parent,
+            title: "Snapshot",
+            meta: [
+                ...(parent?.meta ?? []),
+                { name: "description", content: `Snapshot description:${this.data.slug}` },
+                { property: "og:type", content: "article" },
+            ],
+            links: [
+                ...(parent?.links ?? []),
+                { rel: "preconnect", href: "https://cdn.mainz.dev" },
+                { rel: "canonical", href: `/docs/${this.data.slug}` },
+            ],
+        };
+    }
+
+    override load() {
         snapshotLoadCount += 1;
+        const slug = this.route.params.slug ?? "";
         return {
             slug,
             source: "load",
-            head: {
-                title: `Snapshot:${slug}`,
-            },
         };
-    });
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
-        element.textContent = `${this.props.data?.source ?? "missing"}:${this.props.data?.slug ?? ""}`;
+        element.textContent = `${this.data?.source ?? "missing"}:${this.data?.slug ?? ""}`;
         return element;
     }
 }

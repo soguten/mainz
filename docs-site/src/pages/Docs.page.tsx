@@ -1,4 +1,13 @@
-import { CustomElement, entries, load, Locales, Page, RenderMode, Route } from "mainz";
+import {
+    CustomElement,
+    type PageHeadDefinition,
+    Locales,
+    NoProps,
+    NoState,
+    Page,
+    RenderMode,
+    Route,
+} from "mainz";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
 import { docsArticles, getDocsArticle } from "../lib/docs.ts";
 
@@ -19,31 +28,24 @@ interface DocsPageData {
 @Route("/:slug")
 @RenderMode("ssg")
 @Locales("en")
-export class DocsPage extends Page<{
-    data?: DocsPageData;
-    route?: { params?: Record<string, string> };
-}> {
-    static override page = {
-        head: {
-            title: "Mainz Docs",
-            meta: [
-                {
-                    name: "description",
-                    content: "Documentation article from the Mainz Docs demo.",
-                },
-            ],
-        },
-    };
+export class DocsPage extends Page<NoProps, NoState, DocsPageData> {
+    
+    static entries() {
+        return docsArticles.map((article) => ({
+            params: { slug: article.slug },
+        }));
+    }
 
-    static entries = entries.from(docsArticles, (article) => ({
-        slug: article.slug,
-    }));
+    override load(): DocsPageData {
+        return buildDocsPageData(this.route.params.slug);
+    }
 
-    static load = load.byParam("slug", (slug): DocsPageData => buildDocsPageData(slug));
+    override head(): PageHeadDefinition {
+        return this.data.head;
+    }
 
     override render() {
-        const slug = this.props.data?.slug ?? this.props.route?.params?.slug;
-        return <DocsArticleContent slug={slug} />;
+        return <DocsArticleContent />;
     }
 }
 

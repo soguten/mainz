@@ -117,3 +117,20 @@ Deno.test("DocsCodeBlock rerenders highlighted markup after window load", async 
         view.cleanup();
     }
 });
+
+Deno.test("DocsCodeBlock normalizes missing language fences to plaintext", () => {
+    const view = renderMainzComponent(DocsCodeBlock, {
+        props: {
+            label: "",
+            content: 'console.log("hello");',
+        },
+    });
+
+    try {
+        assertEquals(view.getBySelector("code").getAttribute("data-code-language"), "plaintext");
+        assertEquals(view.getBySelector(".docs-code-label").textContent, "plaintext");
+        assertEquals(view.getBySelector(".docs-code-language").textContent, "");
+    } finally {
+        view.cleanup();
+    }
+});

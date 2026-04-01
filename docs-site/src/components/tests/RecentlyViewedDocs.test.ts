@@ -5,15 +5,18 @@ import { renderMainzComponent, setupMainzDom } from "../../../../src/testing/mai
 
 await setupMainzDom();
 
-const { RecentlyViewedDocs, recordRecentlyViewedDoc } = await import("../RecentlyViewedDocs.tsx") as typeof import("../RecentlyViewedDocs.tsx");
+const fixtures = await import("./RecentlyViewedDocs.fixture.tsx") as typeof import(
+    "./RecentlyViewedDocs.fixture.tsx"
+);
+const { recordRecentlyViewedDoc } = await import("../RecentlyViewedDocs.tsx") as typeof import("../RecentlyViewedDocs.tsx");
 
 const STORAGE_KEY = "mainz-docs-recent-pages";
 
 Deno.test("RecentlyViewedDocs renders the client-only fallback before hydration resolves", () => {
     localStorage.removeItem(STORAGE_KEY);
 
-    const view = renderMainzComponent(RecentlyViewedDocs, {
-        props: { currentSlug: "routing" },
+    const view = renderMainzComponent(fixtures.RecentlyViewedDocsRouteHost, {
+        props: { route: fixtures.createDocsRoute("routing") },
     });
 
     try {
@@ -32,8 +35,8 @@ Deno.test("RecentlyViewedDocs resolves recent docs from local storage after hydr
     recordRecentlyViewedDoc({ slug: "routing", title: "Routing Modes" });
     recordRecentlyViewedDoc({ slug: "page-model", title: "Page Model" });
 
-    const view = renderMainzComponent(RecentlyViewedDocs, {
-        props: { currentSlug: "routing" },
+    const view = renderMainzComponent(fixtures.RecentlyViewedDocsRouteHost, {
+        props: { route: fixtures.createDocsRoute("routing") },
     });
 
     try {
@@ -50,4 +53,3 @@ Deno.test("RecentlyViewedDocs resolves recent docs from local storage after hydr
         localStorage.removeItem(STORAGE_KEY);
     }
 });
-

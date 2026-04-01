@@ -59,6 +59,7 @@ export async function collectDiagnosticsForTarget(
             mode: page.mode,
             hasExplicitRenderMode: page.hasExplicitRenderMode,
             notFound: page.notFound,
+            declaredRoutePath: page.declaredRoutePath,
             locales: page.locales,
             authorization: page.authorization,
         },

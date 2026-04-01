@@ -22,7 +22,8 @@ export async function collectRoutePageFacts(
         const pageFacts = filePageFacts.get(page.exportName) ?? {
             staticMembers: {
                 hasEntriesMember: false,
-                hasLoadMember: false,
+                hasStaticLoadMember: false,
+                hasInstanceLoadMember: false,
             },
             entriesFact: {
                 hasEntriesMember: false,
@@ -57,7 +58,8 @@ function parseRoutePageFacts(source: string): ReadonlyMap<string, RoutePageFacts
 
         const staticMembers = {
             hasEntriesMember: classHasStaticMember(node, "entries"),
-            hasLoadMember: classHasStaticMember(node, "load"),
+            hasStaticLoadMember: classHasStaticMember(node, "load"),
+            hasInstanceLoadMember: classHasInstanceMember(node, "load"),
         };
         const entriesFact = {
             hasEntriesMember: staticMembers.hasEntriesMember,
@@ -81,6 +83,19 @@ function isExportedClassDeclaration(node: ts.ClassDeclaration): boolean {
 function classHasStaticMember(node: ts.ClassDeclaration, memberName: string): boolean {
     return node.members.some((member) => {
         if (!hasStaticModifier(member)) {
+            return false;
+        }
+
+        return (
+            (ts.isMethodDeclaration(member) || ts.isPropertyDeclaration(member)) &&
+            isNamedProperty(member.name, memberName)
+        );
+    });
+}
+
+function classHasInstanceMember(node: ts.ClassDeclaration, memberName: string): boolean {
+    return node.members.some((member) => {
+        if (hasStaticModifier(member)) {
             return false;
         }
 

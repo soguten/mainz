@@ -1,4 +1,5 @@
 export {
+    discoverPageExportFromFile,
     discoverPagesFromFile,
     discoverPagesFromFiles,
 } from "./page-discovery.ts";

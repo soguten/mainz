@@ -1,7 +1,19 @@
-import { Component } from "mainz";
+import { type RouteContext, Page } from "mainz";
 import { OnThisPage } from "../OnThisPage.tsx";
 
-export class OnThisPageHarness extends Component {
+export function createDocsRoute(slug: string): RouteContext {
+    return {
+        path: "/:slug",
+        matchedPath: `/${slug}`,
+        params: { slug },
+        locale: "en",
+        url: new URL(`https://docs.mainz.dev/${slug}`),
+        renderMode: "ssg",
+        navigationMode: "spa",
+    };
+}
+
+export class OnThisPageHarness extends Page<{ route: RouteContext }> {
     override render() {
         return (
             <>
@@ -9,7 +21,7 @@ export class OnThisPageHarness extends Component {
                     <h2 id="overview" class="docs-section-heading">Overview</h2>
                     <h3 id="details" class="docs-subheading">Details</h3>
                 </div>
-                <OnThisPage slug="quickstart" />
+                <OnThisPage />
             </>
         );
     }

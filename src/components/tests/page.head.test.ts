@@ -82,3 +82,44 @@ Deno.test("components/page head: should remove previously managed tags when a he
     firstScreen.cleanup();
     secondScreen.cleanup();
 });
+
+Deno.test("components/page head: should merge inherited head with props head without dropping unrelated metadata", () => {
+    const screen = renderMainzComponent(fixtures.MergedHeadFixturePage, {
+        props: {
+            head: {
+                meta: [
+                    { name: "description", content: "Override description" },
+                ],
+                links: [
+                    { rel: "canonical", href: "/override" },
+                ],
+            },
+        },
+    });
+
+    try {
+        assertEquals(document.title, "Merged Fixture Title");
+        assertEquals(
+            document.head.querySelector('meta[data-mainz-head-managed="true"][name="description"]')?.getAttribute(
+                "content",
+            ),
+            "Override description",
+        );
+        assertEquals(
+            document.head.querySelector('meta[data-mainz-head-managed="true"][property="og:type"]')?.getAttribute(
+                "content",
+            ),
+            "website",
+        );
+        assertEquals(
+            document.head.querySelector('link[data-mainz-head-managed="true"][rel="canonical"]')?.getAttribute("href"),
+            "/override",
+        );
+        assertEquals(
+            document.head.querySelector('link[data-mainz-head-managed="true"][rel="preconnect"]')?.getAttribute("href"),
+            "https://cdn.example.com",
+        );
+    } finally {
+        screen.cleanup();
+    }
+});

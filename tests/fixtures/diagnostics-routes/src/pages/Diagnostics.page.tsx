@@ -1,4 +1,4 @@
-import { CustomElement, entries, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Page, type PageLoadContext, RenderMode, Route } from "mainz";
 
 abstract class DiagnosticsRouteFixturePage extends Page {
     override render() {
@@ -21,9 +21,9 @@ const invalidEntryFromSharedParams = () => ({
     params: invalidSharedParams,
 });
 const invalidReferencedEntries = () =>
-    entries.from([{ slug: "post" }], () => ({
+    [{
         params: invalidSharedParams,
-    }));
+    }];
 const invalidAsyncLoader = async () => invalidAsyncItems;
 const invalidAsyncMapper = (item: (typeof invalidAsyncItems)[number]) => {
     const alias = item.wrong;
@@ -42,97 +42,142 @@ export class DynamicSsgWithoutEntriesPage extends DiagnosticsRouteFixturePage {}
 @Route("/guides/:slug")
 @RenderMode("ssg")
 export class DynamicSsgWithoutLoadPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "intro" }], (item) => ({
-        slug: item.slug,
-    }));
+    static entries() {
+        return [{ params: { slug: "intro" } }];
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-cli-legacy-static-load-page")
+@Route("/legacy")
+export class LegacyStaticLoadPage extends DiagnosticsRouteFixturePage {
+    static load(_context: PageLoadContext) {
+        return {
+            title: "legacy",
+        };
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-cli-mixed-load-page")
+@Route("/mixed")
+export class MixedLoadPage extends DiagnosticsRouteFixturePage {
+    static load(_context: PageLoadContext) {
+        return {
+            title: "legacy",
+        };
+    }
+
+    override load() {
+        return {
+            title: "instance",
+        };
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-helper-page")
 @Route("/tips/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidEntriesHelperPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from(invalidHelperItems, (item) => {
-        const alias = item.wrong;
-        const slug = `${alias}-draft`;
-        return {
-            wrong: slug,
-        };
-    });
+    static entries() {
+        return invalidHelperItems.map((item) => {
+            const alias = item.wrong;
+            const slug = `${alias}-draft`;
+            return {
+                params: {
+                    wrong: slug,
+                },
+            };
+        });
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-async-helper-page")
 @Route("/async/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidEntriesFromAsyncHelperPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.fromAsync(invalidAsyncLoader, invalidAsyncMapper);
+    static async entries() {
+        const items = await invalidAsyncLoader();
+        return items.map((item) => invalidAsyncMapper(item));
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-shared-params-page")
 @Route("/shared/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidSharedParamsPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "ignored" }], () => ({
-        params: invalidSharedParams,
-    }));
+    static entries() {
+        return [{
+            params: invalidSharedParams,
+        }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-params-helper-page")
 @Route("/helper/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidParamsHelperPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], (item) => ({
-        params: invalidHelperParams(item.slug),
-    }));
+    static entries() {
+        return [{
+            params: invalidHelperParams("post"),
+        }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-nested-params-helper-page")
 @Route("/nested/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidNestedParamsHelperPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], (item) => ({
-        params: wrapInvalidParams(item.slug),
-    }));
+    static entries() {
+        return [{
+            params: wrapInvalidParams("post"),
+        }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-entry-helper-page")
 @Route("/entry-helper/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidEntryHelperPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], () => invalidEntryFromSharedParams());
+    static entries() {
+        return [invalidEntryFromSharedParams()];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-spread-params-page")
 @Route("/spread/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidSpreadParamsPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], (item) => ({
-        params: {
-            ...invalidSharedParams,
-            category: item.slug,
-        },
-    }));
+    static entries() {
+        return [{
+            params: {
+                ...invalidSharedParams,
+                category: "post",
+            },
+        }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-shared-spread-params-page")
 @Route("/shared-spread/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidSharedSpreadParamsPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], () => ({
-        params: invalidMergedSharedParams,
-    }));
+    static entries() {
+        return [{
+            params: invalidMergedSharedParams,
+        }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-local-spread-alias-page")
 @Route("/local-spread/:slug")
 @RenderMode("ssg")
 export class DynamicSsgInvalidLocalSpreadAliasPage extends DiagnosticsRouteFixturePage {
-    static entries = entries.from([{ slug: "post" }], (item) => {
+    static entries() {
         const params = {
             ...invalidSharedParams,
-            category: item.slug,
+            category: "post",
         };
-        return { params };
-    });
+        return [{ params }];
+    }
 }
 
 @CustomElement("x-mainz-diagnostics-cli-invalid-referenced-entries-page")

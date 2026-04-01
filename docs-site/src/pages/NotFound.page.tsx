@@ -1,4 +1,4 @@
-import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
+import { CustomElement, Locales, Page, RenderMode } from "mainz";
 import { DocsArticle } from "../components/docs-page/DocsArticle.tsx";
 import { DocsPageFrame } from "../components/docs-page/DocsPageFrame.tsx";
 import { DocsSidebar } from "../components/docs-page/DocsSidebar.tsx";
@@ -16,13 +16,11 @@ This page uses the same shell and theme system as the rest of the docs so the fa
 `);
 
 @CustomElement("x-mainz-docs-not-found-page")
-@Route("/404")
 @RenderMode("ssg")
 @Locales("en")
 export class NotFoundPage extends Page {
-    static override page = {
-        notFound: true,
-        head: {
+    override head() {
+        return {
             title: "404 | Mainz Docs",
             meta: [
                 {
@@ -30,8 +28,8 @@ export class NotFoundPage extends Page {
                     content: "The requested page was not found in the Mainz Docs demo.",
                 },
             ],
-        },
-    };
+        };
+    }
 
     override render() {
         return (

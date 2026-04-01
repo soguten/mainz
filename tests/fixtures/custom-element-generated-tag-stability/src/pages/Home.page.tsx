@@ -5,11 +5,11 @@ import { StableNamePanel } from "../components/StableNamePanel.tsx";
 @RenderMode("ssg")
 @Locales("en")
 export class StableNameHomePage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Generated Tag Stability",
-        },
-    };
+        };
+    }
 
     override render() {
         return (

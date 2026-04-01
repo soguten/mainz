@@ -1,8 +1,4 @@
-import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
-
-interface OnThisPageProps {
-    slug?: string;
-}
+import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
 
 interface OnThisPageHeading {
     id: string;
@@ -21,14 +17,14 @@ interface OnThisPageHeading {
         </aside>
     ),
 })
-export class OnThisPage extends Component<OnThisPageProps, NoState, readonly OnThisPageHeading[]> {
+export class OnThisPage extends Component<NoProps, NoState, readonly OnThisPageHeading[]> {
     
     override async load(): Promise<readonly OnThisPageHeading[]> {
         return collectArticleHeadings();
     }
 
     override render() {
-        if (!this.props.slug) {
+        if (!this.route.params.slug) {
             return document.createDocumentFragment();
         }
 

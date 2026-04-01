@@ -1,8 +1,4 @@
-import type {
-    PageDefinition,
-    PageEntryDefinition,
-    PageHeadDefinition,
-} from "../components/page.ts";
+import type { PageEntryDefinition, PageHeadDefinition } from "../components/page.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
 export type RenderMode = "csr" | "ssg";
@@ -23,12 +19,15 @@ export interface FilesystemRoute {
     routeKey: string;
 }
 
-export interface DiscoveredPageDefinition extends Omit<PageDefinition, "mode"> {
+export interface DiscoveredPageDefinition {
     file: string;
     exportName: string;
     path: string;
     mode: RenderMode;
     hasExplicitRenderMode?: boolean;
+    notFound?: boolean;
+    declaredRoutePath?: string;
+    head?: PageHeadDefinition;
     locales?: readonly string[];
     authorization?: PageAuthorizationMetadata;
 }

@@ -60,11 +60,11 @@ export class GreetingService {
 @CustomElement("x-mainz-navigation-spa-home-page")
 @Route("/")
 export class SpaHomePage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Home",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
@@ -77,15 +77,15 @@ export class SpaHomePage extends Page {
 @CustomElement("x-mainz-navigation-spa-docs-page")
 @Route("/docs/:slug")
 export class SpaDocsPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Docs",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
-        const slug = String(this.props?.route?.params?.slug ?? "");
+        const slug = String(this.route.params.slug ?? "");
         element.textContent = `Docs page:${slug}`;
         element.setAttribute("data-page", "docs");
         if (slug) {
@@ -96,13 +96,12 @@ export class SpaDocsPage extends Page {
 }
 
 @CustomElement("x-mainz-navigation-spa-not-found-page")
-@Route("/404")
 export class SpaNotFoundPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Not Found",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
@@ -115,11 +114,11 @@ export class SpaNotFoundPage extends Page {
 @CustomElement("x-mainz-navigation-spa-login-page")
 @Route("/login")
 export class SpaLoginPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Login",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
@@ -132,14 +131,14 @@ export class SpaLoginPage extends Page {
 @CustomElement("x-mainz-navigation-spa-protected-page")
 @Authorize()
 @Route("/dashboard")
-export class SpaProtectedPage extends Page {
-    static override page = {
-        head: {
+export class SpaProtectedPage extends Page<{}, {}, { userId: string }> {
+    override head() {
+        return {
             title: "Dashboard",
-        },
-    };
+        };
+    }
 
-    static load(context: PageLoadContext) {
+    override load(context: PageLoadContext) {
         protectedLoadCount += 1;
         return {
             userId: context.principal?.id ?? "anonymous",
@@ -148,7 +147,7 @@ export class SpaProtectedPage extends Page {
 
     override render(): HTMLElement {
         const element = document.createElement("section");
-        const userId = String(this.props?.data?.userId ?? "");
+        const userId = String(this.data?.userId ?? "");
         element.textContent = `Dashboard page:${userId}`;
         element.setAttribute("data-page", "dashboard");
         if (userId) {
@@ -162,11 +161,11 @@ export class SpaProtectedPage extends Page {
 @Authorize({ roles: ["admin"] })
 @Route("/admin")
 export class SpaAdminPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Admin",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
@@ -180,11 +179,11 @@ export class SpaAdminPage extends Page {
 @Authorize({ policy: "org-member" })
 @Route("/org")
 export class SpaPolicyPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Organization",
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         const element = document.createElement("section");
@@ -197,13 +196,13 @@ export class SpaPolicyPage extends Page {
 @CustomElement("x-mainz-navigation-spa-broken-page")
 @Route("/broken")
 export class SpaBrokenPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Broken",
-        },
-    };
+        };
+    }
 
-    static load(): never {
+    override load(): never {
         throw new Error("Broken route load.");
     }
 
@@ -218,13 +217,13 @@ export class SpaBrokenPage extends Page {
 @CustomElement("x-mainz-navigation-spa-slow-page")
 @Route("/slow")
 export class SpaSlowPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Slow",
-        },
-    };
+        };
+    }
 
-    static async load(context: PageLoadContext) {
+    override async load(context: PageLoadContext) {
         abortAwareLoadStartedCount += 1;
         resolveAbortAwareLoadStarted?.();
         resolveAbortAwareLoadStarted = undefined;
@@ -264,10 +263,10 @@ export class InjectedGreetingComponent extends Component<NoProps, NoState> {
 
 @CustomElement("x-mainz-navigation-spa-di-page")
 @Route("/di/:slug")
-export class SpaDiPage extends Page {
-    static readonly greetingService = inject(GreetingService);
+export class SpaDiPage extends Page<{}, {}, { message: string }> {
+    readonly greetingService = inject(GreetingService);
 
-    static async load(context: PageLoadContext) {
+    override async load(context: PageLoadContext) {
         await Promise.resolve();
 
         return {
@@ -278,7 +277,7 @@ export class SpaDiPage extends Page {
     override render(): HTMLElement {
         const section = document.createElement("section");
         section.setAttribute("data-page", "di");
-        section.setAttribute("data-message", String(this.props?.data?.message ?? ""));
+        section.setAttribute("data-message", String(this.data?.message ?? ""));
 
         ensureMainzCustomElementDefined(
             InjectedGreetingComponent as unknown as CustomElementConstructor & { getTagName(): string },

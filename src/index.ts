@@ -9,7 +9,6 @@ export {
     AllowAnonymous,
     Authorize,
     createPageLoadContext,
-    entries,
     isPageConstructor,
     load,
     Locales,
@@ -70,16 +69,18 @@ export type {
 } from "./navigation/index.ts";
 export type {
     PageConstructor,
-    PageDefinition,
     PageEntriesContext,
     PageEntryDefinition,
     PageHeadDefinition,
+    PageHeadContext,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
     PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
     PageRouteParams,
+    RouteContext,
+    RouteProfileContext,
 } from "./components/index.ts";
 export {
     createAppDictionaryI18n,

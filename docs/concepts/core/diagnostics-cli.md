@@ -29,6 +29,7 @@ Today `mainz diagnose` can report checks such as:
 - dynamic SSG routes with `entries()` but no `load()`
 - invalid `entries()` for dynamic SSG params
 - `notFound` pages that are not `ssg`
+- app-level `notFound` pages that still define `@Route(...)`
 - multiple `notFound` pages in the same routing set
 - pages that reference named authorization policies not declared in
   `target.authorization.policyNames`

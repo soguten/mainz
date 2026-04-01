@@ -1,20 +1,18 @@
-import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
-import { buildLocaleHref, type FixtureRouteProps } from "./shared.ts";
+import { CustomElement, Locales, Page, RenderMode } from "mainz";
+import { buildLocaleHref } from "./shared.ts";
 
 @CustomElement("x-mainz-fixture-base-path-not-found-page")
-@Route("/404")
 @RenderMode("ssg")
 @Locales("en", "pt")
-export class FixtureBasePathNotFoundPage extends Page<FixtureRouteProps> {
-    static override page = {
-        notFound: true,
-        head: {
+export class FixtureBasePathNotFoundPage extends Page {
+    override head() {
+        return {
             title: "404 | Fixture Base Path",
-        },
-    };
+        };
+    }
 
     override render() {
-        const locale = this.props.route?.locale ?? "en";
+        const locale = this.route.locale ?? "en";
         const isPortuguese = locale === "pt";
 
         return (
@@ -33,14 +31,14 @@ export class FixtureBasePathNotFoundPage extends Page<FixtureRouteProps> {
                     <a
                         className="locale-chip"
                         data-locale="en"
-                        href={buildLocaleHref({ route: this.props.route, nextLocale: "en" })}
+                        href={buildLocaleHref({ route: this.route, nextLocale: "en" })}
                     >
                         English
                     </a>
                     <a
                         className="locale-chip"
                         data-locale="pt"
-                        href={buildLocaleHref({ route: this.props.route, nextLocale: "pt" })}
+                        href={buildLocaleHref({ route: this.route, nextLocale: "pt" })}
                     >
                         Portugues
                     </a>

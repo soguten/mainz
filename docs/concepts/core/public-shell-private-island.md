@@ -72,21 +72,21 @@ for `@Authorize(...)` on the page and a CSR route contract.
 ## Example: docs page with authenticated menu
 
 ```tsx title="Docs.page.tsx"
-import { entries, Page, RenderMode, Route } from "mainz";
+import { Page, RenderMode, Route } from "mainz";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
 import { CurrentUserMenu } from "../components/CurrentUserMenu.tsx";
 import { docsArticles } from "../lib/docs.ts";
 
 @Route("/docs/:slug")
 @RenderMode("ssg")
-export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
-    static entries = entries.from(docsArticles, (article) => ({
-        slug: article.slug,
-    }));
+export class DocsPage extends Page {
+    static entries() {
+        return docsArticles.map((article) => ({
+            params: { slug: article.slug },
+        }));
+    }
 
     override render() {
-        const slug = this.props.route?.params?.slug;
-
         return (
             <>
                 <header class="docs-topbar">
@@ -94,7 +94,7 @@ export class DocsPage extends Page<{ route?: { params?: Record<string, string> }
                     <CurrentUserMenu />
                 </header>
 
-                <DocsArticleContent slug={slug} />
+                <DocsArticleContent />
             </>
         );
     }
@@ -182,14 +182,14 @@ Unsafe:
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {
-    static override async load({ principal }) {
+    override async load({ principal }) {
         return {
             currentUserName: principal?.claims.displayName,
         };
     }
 
     override render() {
-        return <header>{this.props.data?.currentUserName}</header>;
+        return <header>{this.data?.currentUserName}</header>;
     }
 }
 ```

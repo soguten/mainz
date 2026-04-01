@@ -5,11 +5,11 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en")
 export class FixtureSingleLocaleQuickstartPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Fixture Quickstart",
-        },
-    };
+        };
+    }
 
     override render() {
         return (

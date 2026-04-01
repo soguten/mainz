@@ -1,4 +1,4 @@
-import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
+import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
 import type { DocsNavSection } from "../lib/docs.ts";
 import { getDocsArticle, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
 import { parseMarkdown } from "../lib/markdown.ts";
@@ -9,10 +9,6 @@ import { DocsPageFrame } from "./docs-page/DocsPageFrame.tsx";
 import { DocsSidebar } from "./docs-page/DocsSidebar.tsx";
 import { DocsTopbar } from "./docs-page/DocsTopbar.tsx";
 
-interface DocsArticleContentProps {
-    slug?: string;
-}
-
 interface DocsArticlePageModel extends DocsArticleProps {
     navSections: readonly DocsNavSection[];
     activeSlug?: string;
@@ -22,10 +18,10 @@ const lastRecordedDocSlug = new WeakMap<DocsArticleContent, string>();
 
 @CustomElement("x-mainz-docs-article-content")
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<DocsArticleContentProps, NoState, DocsArticlePageModel> {
+export class DocsArticleContent extends Component<NoProps, NoState, DocsArticlePageModel> {
 
     override load(): DocsArticlePageModel {
-        return buildDocsArticlePageModel(this.props.slug);
+        return buildDocsArticlePageModel(this.route.params.slug);
     }
 
     override afterRender(): void {
@@ -56,13 +52,13 @@ export class DocsArticleContent extends Component<DocsArticleContentProps, NoSta
                         currentSlug={page.activeSlug}
                     />
                 }
-                rail={page.activeSlug ? <OnThisPage slug={page.activeSlug} /> : null}
+                rail={page.activeSlug ? <OnThisPage /> : null}
             />
         );
     }
 
     private recordCurrentDocVisit(): void {
-        const article = this.props.slug ? getDocsArticle(this.props.slug) : undefined;
+        const article = getDocsArticle(this.route.params.slug);
 
         if (!article || lastRecordedDocSlug.get(this) === article.slug) {
             return;
@@ -76,8 +72,8 @@ export class DocsArticleContent extends Component<DocsArticleContentProps, NoSta
     }
 }
 
-function buildDocsArticlePageModel(slug?: string): DocsArticlePageModel {
-    const article = slug ? getDocsArticle(slug) : undefined;
+function buildDocsArticlePageModel(slug: string): DocsArticlePageModel {
+    const article = getDocsArticle(slug);
 
     if (!article) {
         return {

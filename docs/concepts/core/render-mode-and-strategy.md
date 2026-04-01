@@ -24,9 +24,9 @@ It answers questions like:
 ```tsx title="Docs.page.tsx"
 @Route("/docs/:slug")
 @RenderMode("ssg")
-export class DocsPage extends Page<{ route?: { params?: Record<string, string> } }> {
+export class DocsPage extends Page {
     override render() {
-        return <DocsArticleContent slug={this.props.route?.params?.slug} />;
+        return <DocsArticleContent />;
     }
 }
 ```
@@ -44,9 +44,9 @@ It answers questions like:
 - should it wait for the browser?
 
 ```tsx title="DocsArticleContent.tsx"
-export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
+export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel> {
     override async load(context) {
-        return await buildDocsArticleModel(this.props.slug, {
+        return await buildDocsArticleModel(this.route.params.slug, {
             signal: context.signal,
         });
     }
@@ -149,9 +149,9 @@ Use this for public content that belongs in the first HTML response.
 
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<{ slug?: string }, NoState, DocsArticleModel> {
+export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel> {
     override async load(context) {
-        return await buildDocsArticleModel(this.props.slug, {
+        return await buildDocsArticleModel(this.route.params.slug, {
             signal: context.signal,
         });
     }
@@ -174,7 +174,7 @@ Use this for secondary UI like `On this page`, related content, or non-critical 
 @RenderStrategy("deferred", {
     fallback: () => <p>Scanning sections...</p>,
 })
-export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
+export class OnThisPage extends Component<{}, NoState, readonly Heading[]> {
     override async load(context) {
         return await collectArticleHeadings({
             signal: context.signal,
@@ -201,12 +201,12 @@ authenticated UI.
     fallback: () => <p>Recent pages appear after you browse the docs.</p>,
 })
 export class RecentlyViewedDocs extends Component<
-    { currentSlug?: string },
+    {},
     NoState,
     readonly RecentlyViewedDoc[]
 > {
     override async load(context) {
-        return readRecentDocsFromLocalStorage(this.props.currentSlug, {
+        return readRecentDocsFromLocalStorage(this.route.params.slug, {
             signal: context.signal,
         });
     }

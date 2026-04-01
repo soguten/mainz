@@ -6,8 +6,8 @@ import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Mainz",
             meta: [
                 {
@@ -16,8 +16,8 @@ export class HomePage extends Page {
                         "Mainz tutorial experience with component-first UI and page-first routing.",
                 },
             ],
-        },
-    };
+        };
+    }
 
     override render() {
         return <MainzTutorialPage />;

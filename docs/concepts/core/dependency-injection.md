@@ -73,11 +73,10 @@ import { inject } from "mainz/di";
 
 @Route("/articles/:slug")
 export class ArticlePage extends Page {
-    
-    private static readonly api = inject(ArticlesApi);
+    private readonly api = inject(ArticlesApi);
 
-    static async load({ params, signal }: PageLoadContext) {
-        return await this.api.getBySlug(params.slug, { signal });
+    override async load({ signal }: PageLoadContext) {
+        return await this.api.getBySlug(this.route.params.slug, { signal });
     }
 }
 ```

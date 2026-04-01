@@ -23,7 +23,7 @@ export function DocsSidebar(props: DocsSidebarProps) {
                     <DocsNavSectionView section={section} activeSlug={props.activeSlug} />
                 ))}
 
-                {props.activeSlug ? <RecentlyViewedDocs currentSlug={props.activeSlug} /> : null}
+                {props.activeSlug ? <RecentlyViewedDocs /> : null}
             </div>
         </aside>
     );

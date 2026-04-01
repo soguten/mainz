@@ -1,6 +1,7 @@
 import {
     resolveComponentAuthorization,
 } from "../authorization/index.ts";
+import type { Principal } from "../authorization/index.ts";
 import {
     createAnonymousPrincipal,
     evaluateAuthorizationRequirement,
@@ -61,6 +62,8 @@ import {
     readServiceContainer,
 } from "../di/context.ts";
 import type { ServiceContainer } from "../di/container.ts";
+import { isRouteContext, type PageRouteParams, type RouteContext, type RouteProfileContext } from "./route-context.ts";
+import type { NavigationMode, RenderMode } from "../routing/types.ts";
 
 export {
     CustomElement,
@@ -72,8 +75,20 @@ export type { ComponentRenderConfig, RenderStrategyOptions } from "./component-m
 
 const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
 
-export interface ComponentLoadContext {
+export interface ComponentLoadContext<Props = DefaultProps> {
     signal: AbortSignal;
+    props?: Props;
+    route?: RouteContext;
+    path?: string;
+    matchedPath?: string;
+    params?: PageRouteParams;
+    locale?: string;
+    url?: URL;
+    renderMode?: RenderMode;
+    navigationMode?: NavigationMode;
+    principal?: Principal;
+    profile?: RouteProfileContext;
+    resources?: unknown;
 }
 
 interface ComponentLoadState<Data = unknown> {
@@ -100,6 +115,7 @@ export abstract class Component<
     Props = DefaultProps,
     State = DefaultState,
     Data = unknown,
+    LoadContext extends ComponentLoadContext<Props> = ComponentLoadContext<Props>,
 > extends HTMLElementBase {
     private static tagNameCache = new WeakMap<typeof Component, string>();
     private static tagOwners = new Map<string, typeof Component>();
@@ -110,6 +126,21 @@ export abstract class Component<
 
     /** The state of the component */
     state: State = {} as State;
+
+    /**
+     * The active route context for this component subtree.
+     * Available automatically for routed pages and their descendants.
+     */
+    get route(): RouteContext {
+        const route = this.resolveComponentRouteContext();
+        if (!route) {
+            throw new Error(
+                `Component "${this.constructor.name}" is not attached to an active route context.`,
+            );
+        }
+
+        return route;
+    }
 
     /** Stores registered event listeners for cleanup */
     private eventListeners: TrackedEventListener[] = [];
@@ -132,16 +163,7 @@ export abstract class Component<
      * Initializes state once, renders the component, and triggers the `onMount` lifecycle method.
      */
     connectedCallback() {
-        if (!this.stateInitialized) {
-            const hasPreloadedState = Object.keys(this.state ?? {}).length > 0;
-
-            if (!hasPreloadedState && this.initState) {
-                this.state = this.initState();
-            }
-
-            this.stateInitialized = true;
-        }
-
+        this.ensureStateInitialized();
         this.renderDOM();
         const serviceContainer = this.resolveServiceContainer();
         this.serviceContainer = serviceContainer;
@@ -190,6 +212,20 @@ export abstract class Component<
      */
     protected initState?(): State;
 
+    private ensureStateInitialized(): void {
+        if (this.stateInitialized) {
+            return;
+        }
+
+        const hasPreloadedState = Object.keys(this.state ?? {}).length > 0;
+
+        if (!hasPreloadedState && this.initState) {
+            this.state = this.initState();
+        }
+
+        this.stateInitialized = true;
+    }
+
     /**
      * Updates the component state and re-renders it.
      * @param partial The partial state to merge with the current state.
@@ -212,10 +248,11 @@ export abstract class Component<
             return;
         }
 
+        this.ensureStateInitialized();
         this.renderDOM();
     }
 
-    load?(context: ComponentLoadContext): Data | Promise<Data>;
+    load?(context: LoadContext): Data | Promise<Data>;
 
     /** Resolved data returned by `load()` for async components. */
     get data(): Data {
@@ -464,7 +501,9 @@ export abstract class Component<
             pushCurrentServiceContainer(serviceContainer);
             loadResult = this.load!({
                 signal: controller.signal,
-            });
+                props: this.props,
+                route: this.resolveComponentRouteContext(),
+            } as LoadContext);
         } catch (error) {
             if (isAbortLikeError(error) || controller.signal.aborted) {
                 return;
@@ -553,7 +592,10 @@ export abstract class Component<
 
     private computeComponentLoadKey(): string {
         return stableSerializeForLoadKey(
-            this.props ?? null,
+            {
+                props: this.props ?? null,
+                route: this.toSerializableRouteContext(this.resolveComponentRouteContext()),
+            },
             (value): value is Node => isNodeLike(value, this.ownerDocument),
         );
     }
@@ -594,7 +636,73 @@ export abstract class Component<
     }
 
     private hasComponentLoad(): boolean {
-        return typeof this.load === "function";
+        return this.participatesInComponentLoad() && typeof this.load === "function";
+    }
+
+    protected participatesInComponentLoad(): boolean {
+        return true;
+    }
+
+    private resolveComponentRouteContext(): RouteContext | undefined {
+        const fromProps = this.readRouteContextFromValue(this.props);
+        if (fromProps) {
+            return fromProps;
+        }
+
+        return this.findAncestorRouteContext();
+    }
+
+    private findAncestorRouteContext(): RouteContext | undefined {
+        let current: Node | null = this.parentNode;
+
+        while (current) {
+            if (current instanceof HTMLElementBase) {
+                const element = current as HTMLElement & {
+                    props?: unknown;
+                };
+                const fromProps = this.readRouteContextFromValue(element.props);
+                if (fromProps) {
+                    return fromProps;
+                }
+            }
+
+            current = current.parentNode;
+        }
+
+        return undefined;
+    }
+
+    private readRouteContextFromValue(value: unknown): RouteContext | undefined {
+        if (typeof value !== "object" || value === null) {
+            return undefined;
+        }
+
+        const propsRecord = value as Record<string, unknown>;
+        return isRouteContext(propsRecord.route) ? propsRecord.route : undefined;
+    }
+
+    private toSerializableRouteContext(route: RouteContext | undefined): Record<string, unknown> | null {
+        if (!route) {
+            return null;
+        }
+
+        return {
+            path: route.path,
+            matchedPath: route.matchedPath,
+            params: route.params,
+            locale: route.locale,
+            url: route.url.toString(),
+            renderMode: route.renderMode,
+            navigationMode: route.navigationMode,
+            principalId: route.principal?.id,
+            profile: route.profile
+                ? {
+                    name: route.profile.name,
+                    basePath: route.profile.basePath,
+                    siteUrl: route.profile.siteUrl,
+                }
+                : undefined,
+        };
     }
 
     private resolveComponentLoadFallback(

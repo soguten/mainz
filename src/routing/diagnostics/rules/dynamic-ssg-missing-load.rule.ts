@@ -20,13 +20,18 @@ export function collectDynamicSsgMissingLoadDiagnostics(
 
     const staticMembers = facts?.staticMembers ?? {
         hasEntriesMember: false,
-        hasLoadMember: false,
+        hasStaticLoadMember: false,
+        hasInstanceLoadMember: false,
     };
     const entriesFact = facts?.entriesFact ?? {
         hasEntriesMember: staticMembers.hasEntriesMember,
     };
 
-    if (!entriesFact.hasEntriesMember || staticMembers.hasLoadMember) {
+    if (
+        !entriesFact.hasEntriesMember ||
+        staticMembers.hasStaticLoadMember ||
+        staticMembers.hasInstanceLoadMember
+    ) {
         return [];
     }
 
@@ -34,7 +39,7 @@ export function collectDynamicSsgMissingLoadDiagnostics(
         code: dynamicSsgMissingLoadDiagnosticCode,
         severity: "warning",
         message:
-            `Dynamic SSG route "${page.page.path}" defines entries() but no load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.`,
+            `Dynamic SSG route "${page.page.path}" defines entries() but no instance page load(). This is valid when route params are sufficient to render, but consider load.byParam(...) or load.byParams(...) if the page repeats route lookups.`,
         file: page.file,
         exportName: page.exportName,
         routePath: page.page.path,

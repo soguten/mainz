@@ -1,27 +1,18 @@
-import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
-
-type CoreContractsRouteProps = {
-    route?: {
-        locale?: string;
-        url?: URL;
-    };
-};
+import { CustomElement, Locales, Page, RenderMode } from "mainz";
 
 @CustomElement("x-mainz-not-found-page")
-@Route("/404")
 @RenderMode("ssg")
 @Locales("en", "pt")
-export class CoreContractsNotFoundPage extends Page<CoreContractsRouteProps> {
-    static override page = {
-        notFound: true,
-        head: {
+export class CoreContractsNotFoundPage extends Page {
+    override head() {
+        return {
             title: "404 | Mainz",
-        },
-    };
+        };
+    }
 
     override render() {
-        const locale = this.props.route?.locale ?? "en";
-        const pathname = this.props.route?.url?.pathname ?? "/";
+        const locale = this.route.locale ?? "en";
+        const pathname = this.route.url?.pathname ?? "/";
         const isPortuguese = locale === "pt";
 
         return (

@@ -12,17 +12,20 @@ import { Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-    
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Home",
-        },
-    };
+        };
+    }
 }
 ```
 
-The split is intentional: `@Route(...)` describes where the page lives, while `@RenderMode(...)` and `@Locales(...)` declare the route contract up front. `static page` then stays focused on richer
-metadata like `head` and `notFound`.
+The split is intentional: `@Route(...)` describes where the page lives, while `@RenderMode(...)`
+and `@Locales(...)` declare the route contract up front. The page instance then owns `load()`,
+`head()`, and `render()` for that concrete route.
+
+Document metadata should live in `head()`. App-level fallback concerns such as `notFound` belong in
+`defineApp({ notFound })`, not in the page class.
 
 When access control belongs to the route itself, keep that on the page too with `@Authorize(...)`
 or `@AllowAnonymous()`. See [Authorization](../core/authorization.md) for the runtime model.
@@ -39,6 +42,42 @@ That keeps the high-signal routing decisions visible before you read the class b
 When the page renders async components, those components use `@RenderStrategy(...)` to decide
 whether they block, defer, or wait for the browser. See [Render Mode and Render Strategy](../core/render-mode-and-strategy.md) for the full matrix.
 
+## Inheriting page metadata
+
+When a family of pages shares route-level metadata, let the base page define `head()` and refine it
+from subclasses with `super.head()`.
+
+```tsx title="Inherited head()"
+import { Page, Route } from "mainz";
+
+class DocsBasePage extends Page {
+    override head() {
+        return {
+            title: "Docs",
+            meta: [
+                { name: "description", content: "Mainz documentation" },
+            ],
+        };
+    }
+}
+
+@Route("/intro")
+export class IntroPage extends DocsBasePage {
+    override head() {
+        const parent = super.head();
+
+        return {
+            ...parent,
+            title: `${parent?.title ?? ""} Intro`,
+        };
+    }
+
+    override render() {
+        return <main>Intro</main>;
+    }
+}
+```
+
 ## Keep behavior near the page
 
 That same page can also define `entries()` and `load()` when a dynamic route needs it.
@@ -46,7 +85,8 @@ That same page can also define `entries()` and `load()` when a dynamic route nee
 The framework then expands and bootstraps the route without requiring a separate router file full of
 glue code.
 
-When a page defines `load()`, the context now includes `signal: AbortSignal`.
+When a page defines `load()`, the context now includes `signal: AbortSignal`, and the same route is
+available on `this.route` for page and component instances.
 
 That signal represents the lifetime of the current managed navigation in the runtime. If Mainz
 supersedes or aborts that navigation, the signal is aborted so the page can stop route-owned async

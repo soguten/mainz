@@ -12,7 +12,6 @@ import {
     readCallableIdentifier,
     readPropertyName,
     readStringLiteralLike,
-    readStringRecordLiteral,
     resolveRouteCallableExpression,
     type RouteLocalBindings,
     type RouteSourceContext,
@@ -85,11 +84,6 @@ function analyzeEntriesExpressionWithVisited(
     }
 
     if (ts.isCallExpression(expression)) {
-        const helperResult = analyzeEntriesHelperCall(expression, context);
-        if (helperResult) {
-            return helperResult;
-        }
-
         const callableResult = analyzeCallableEntriesCall(expression, context, visitedCallables);
         if (callableResult) {
             return callableResult;
@@ -171,104 +165,6 @@ function analyzeCallableEntriesCall(
     return analyzeCallableEntriesExpression(callableExpression, context, visitedCallables);
 }
 
-function analyzeEntriesHelperCall(
-    expression: ts.CallExpression,
-    context: RouteSourceContext,
-): RouteEntriesEvaluationFact | undefined {
-    if (!ts.isPropertyAccessExpression(expression.expression)) {
-        return undefined;
-    }
-
-    const target = expression.expression.expression;
-    const helper = expression.expression.name.text;
-    if (!ts.isIdentifier(target) || target.text !== "entries") {
-        return undefined;
-    }
-
-    if (helper === "from") {
-        return analyzeEntriesFromCall(expression.arguments, context);
-    }
-
-    if (helper === "fromAsync") {
-        return analyzeEntriesFromAsyncCall(expression.arguments, context);
-    }
-
-    return undefined;
-}
-
-function analyzeEntriesFromCall(
-    args: ts.NodeArray<ts.Expression>,
-    context: RouteSourceContext,
-): RouteEntriesEvaluationFact {
-    const [itemsExpression, mapperExpression] = args;
-    if (!itemsExpression || !mapperExpression) {
-        return { kind: "unknown" };
-    }
-
-    const items = readLiteralItems(itemsExpression, context);
-    const mapper = readEntriesMapper(mapperExpression, context);
-    if (!items || !mapper) {
-        return { kind: "unknown" };
-    }
-
-    const entries: RouteEntryDefinition[] = [];
-    for (const item of items) {
-        const mappedEntry = mapper(item);
-        if (!mappedEntry) {
-            return { kind: "unknown" };
-        }
-
-        entries.push(mappedEntry);
-    }
-
-    return {
-        kind: "array",
-        entries,
-    };
-}
-
-function analyzeEntriesFromAsyncCall(
-    args: ts.NodeArray<ts.Expression>,
-    context: RouteSourceContext,
-): RouteEntriesEvaluationFact {
-    const [loaderExpression, mapperExpression] = args;
-    if (!loaderExpression) {
-        return { kind: "unknown" };
-    }
-
-    const loadedItems = readAsyncEntriesLoaderItems(loaderExpression, context);
-    if (!loadedItems) {
-        return { kind: "unknown" };
-    }
-
-    if (!mapperExpression) {
-        return {
-            kind: "array",
-            entries: loadedItems.map((item) => ({ params: item })),
-        };
-    }
-
-    const mapper = readEntriesMapper(mapperExpression, context);
-    if (!mapper) {
-        return { kind: "unknown" };
-    }
-
-    const entries: RouteEntryDefinition[] = [];
-    for (const item of loadedItems) {
-        const mappedEntry = mapper(item);
-        if (!mappedEntry) {
-            return { kind: "unknown" };
-        }
-
-        entries.push(mappedEntry);
-    }
-
-    return {
-        kind: "array",
-        entries,
-    };
-}
-
 function readEntryParams(entry: ts.ObjectLiteralExpression): Record<string, string> {
     const normalized: Record<string, string> = {};
     const paramsProperty = entry.properties.find((property): property is ts.PropertyAssignment =>
@@ -291,90 +187,6 @@ function readEntryParams(entry: ts.ObjectLiteralExpression): Record<string, stri
     }
 
     return normalized;
-}
-
-function readLiteralItems(
-    expression: ts.Expression,
-    context: RouteSourceContext,
-): readonly Record<string, string>[] | undefined {
-    const normalizedExpression = unwrapExpression(expression);
-    if (ts.isIdentifier(normalizedExpression)) {
-        const resolved = context.constValues.get(normalizedExpression.text);
-        return Array.isArray(resolved) ? resolved : undefined;
-    }
-
-    if (!ts.isArrayLiteralExpression(normalizedExpression)) {
-        return undefined;
-    }
-
-    const items: Record<string, string>[] = [];
-    for (const element of normalizedExpression.elements) {
-        const item = readStringRecordLiteral(element);
-        if (!item) {
-            return undefined;
-        }
-
-        items.push(item);
-    }
-
-    return items;
-}
-
-function readAsyncEntriesLoaderItems(
-    expression: ts.Expression,
-    context: RouteSourceContext,
-): readonly Record<string, string>[] | undefined {
-    const normalizedExpression = resolveRouteCallableExpression(
-        unwrapExpression(expression),
-        context,
-    );
-    if (
-        !ts.isArrowFunction(normalizedExpression) && !ts.isFunctionExpression(normalizedExpression)
-    ) {
-        return undefined;
-    }
-
-    const returnedExpression = ts.isBlock(normalizedExpression.body)
-        ? findReturnedExpression(normalizedExpression.body)
-        : normalizedExpression.body;
-
-    return returnedExpression ? readLiteralItems(returnedExpression, context) : undefined;
-}
-
-function readEntriesMapper(
-    expression: ts.Expression,
-    context: RouteSourceContext,
-): ((item: Record<string, string>) => RouteEntryDefinition | undefined) | undefined {
-    const normalizedExpression = resolveRouteCallableExpression(
-        unwrapExpression(expression),
-        context,
-    );
-    if (
-        !ts.isArrowFunction(normalizedExpression) && !ts.isFunctionExpression(normalizedExpression)
-    ) {
-        return undefined;
-    }
-
-    const [itemParam] = normalizedExpression.parameters;
-    if (itemParam && !ts.isIdentifier(itemParam.name)) {
-        return undefined;
-    }
-
-    const paramName = itemParam && ts.isIdentifier(itemParam.name)
-        ? itemParam.name.text
-        : undefined;
-    const localBindings = ts.isBlock(normalizedExpression.body)
-        ? collectLocalConstBindings(normalizedExpression.body)
-        : new Map<string, ts.Expression>();
-    const returnedExpression = ts.isBlock(normalizedExpression.body)
-        ? findReturnedExpression(normalizedExpression.body)
-        : normalizedExpression.body;
-    if (!returnedExpression) {
-        return undefined;
-    }
-
-    return (item) =>
-        readMappedEntryDefinition(returnedExpression, paramName, item, localBindings, context);
 }
 
 function readMappedEntryDefinition(

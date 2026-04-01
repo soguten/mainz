@@ -11,14 +11,14 @@ export class DecoratedHomePage extends Page {
 @RenderMode("ssg")
 @Locales("pt-BR", "en-US")
 export class DecoratedSearchPage extends Page {
-    static override page = {
-        head: {
+    override head() {
+        return {
             title: "Search",
             meta: [
                 { name: "description", content: "Search page" },
             ],
-        },
-    };
+        };
+    }
 
     override render(): HTMLElement {
         return <main>Search</main>;

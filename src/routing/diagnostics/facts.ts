@@ -5,9 +5,11 @@ import { dynamicSsgMissingEntriesDiagnosticCode } from "./rules/dynamic-ssg-miss
 import { dynamicSsgMissingLoadDiagnosticCode } from "./rules/dynamic-ssg-missing-load.rule.ts";
 import { invalidLocaleTagDiagnosticCode } from "./rules/invalid-locale-tag.rule.ts";
 import { multipleNotFoundPagesDiagnosticCode } from "./rules/multiple-not-found-pages.rule.ts";
+import { notFoundMustNotDefineRouteDiagnosticCode } from "./rules/not-found-must-not-define-route.rule.ts";
 import { notFoundMustUseSsgDiagnosticCode } from "./rules/not-found-must-use-ssg.rule.ts";
 import { pageAuthorizationAnonymousConflictDiagnosticCode } from "./rules/page-authorization-anonymous-conflict.rule.ts";
 import { pageAuthorizationSsgWarningDiagnosticCode } from "./rules/page-authorization-ssg-warning.rule.ts";
+import { pageStaticLoadUnsupportedDiagnosticCode } from "./rules/page-static-load-unsupported.rule.ts";
 
 export type MainzDiagnosticSeverity = "warning" | "error";
 export const pageDiscoveryFailedDiagnosticCode = "page-discovery-failed" as const;
@@ -19,9 +21,11 @@ export type MainzDiagnosticCode =
     | typeof invalidLocaleTagDiagnosticCode
     | typeof pageDiscoveryFailedDiagnosticCode
     | typeof multipleNotFoundPagesDiagnosticCode
+    | typeof notFoundMustNotDefineRouteDiagnosticCode
     | typeof notFoundMustUseSsgDiagnosticCode
     | typeof pageAuthorizationAnonymousConflictDiagnosticCode
-    | typeof pageAuthorizationSsgWarningDiagnosticCode;
+    | typeof pageAuthorizationSsgWarningDiagnosticCode
+    | typeof pageStaticLoadUnsupportedDiagnosticCode;
 
 export interface MainzDiagnostic {
     code: MainzDiagnosticCode;
@@ -40,6 +44,7 @@ export interface RouteDiagnosticsPageInput {
         mode: "csr" | "ssg";
         hasExplicitRenderMode?: boolean;
         notFound?: boolean;
+        declaredRoutePath?: string;
         locales?: readonly string[];
         authorization?: PageAuthorizationMetadata;
     };
@@ -69,7 +74,8 @@ export type RouteEntriesEvaluationFact =
 
 export interface RouteStaticMembersFact {
     hasEntriesMember: boolean;
-    hasLoadMember: boolean;
+    hasStaticLoadMember: boolean;
+    hasInstanceLoadMember: boolean;
 }
 
 export interface RouteEntriesFact {

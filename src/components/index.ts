@@ -13,7 +13,6 @@ export {
 } from "../authorization/index.ts";
 export {
     createPageLoadContext,
-    entries,
     isPageConstructor,
     load,
     Locales,
@@ -35,14 +34,16 @@ export type {
 export type { AuthorizationRuntimeOptions } from "../authorization/runtime.ts";
 export type {
     PageConstructor,
-    PageDefinition,
     PageEntriesContext,
     PageEntryDefinition,
     PageHeadDefinition,
+    PageHeadContext,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
     PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
     PageRouteParams,
+    RouteContext,
+    RouteProfileContext,
 } from "./page.ts";

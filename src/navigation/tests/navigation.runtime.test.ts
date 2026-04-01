@@ -1443,7 +1443,7 @@ Deno.test("navigation/runtime: should reuse route snapshot for document-first bo
     controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should apply dynamic head from Page.load()", async () => {
+Deno.test("navigation/runtime: should merge dynamic instance head with inherited head()", async () => {
     const { startNavigation } = await prepareNavigationTest();
     const { SnapshotDocsPage, resetSnapshotLoadCount } = await loadSnapshotFixture();
     resetSnapshotLoadCount();
@@ -1468,7 +1468,23 @@ Deno.test("navigation/runtime: should apply dynamic head from Page.load()", asyn
         document.querySelector(`#app ${SnapshotDocsPage.getTagName()}`)?.textContent,
         "load:routing",
     );
-    assertEquals(document.title, "Snapshot:routing");
+    assertEquals(document.title, "Snapshot");
+    assertEquals(
+        document.head.querySelector('meta[name="description"]')?.getAttribute("content"),
+        "Snapshot description:routing",
+    );
+    assertEquals(
+        document.head.querySelector('meta[property="og:type"]')?.getAttribute("content"),
+        "article",
+    );
+    assertEquals(
+        document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+        "/docs/routing",
+    );
+    assertEquals(
+        document.head.querySelector('link[rel="preconnect"]')?.getAttribute("href"),
+        "https://cdn.mainz.dev",
+    );
 
     controller.cleanup();
 });

@@ -503,11 +503,35 @@ async function emitCsrRouteArtifacts(
             );
         }
 
+        let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
+        try {
+            renderedApp = await renderSsgAppHtml({
+                html,
+                absoluteOutputPath,
+                modeOutDir: resolve(cwd, modeOutDir),
+                locale: entry.locale,
+                basePath: toViteBasePath(job.profile.basePath),
+                renderPath: entry.renderPath,
+            });
+        } catch (error) {
+            throw new Error(
+                `Failed to evaluate CSR document route "${route.path}" for output "${entry.renderPath}" (locale "${entry.locale}"): ${
+                    toErrorMessage(error)
+                }`,
+            );
+        }
+
+        for (const warning of renderedApp.warnings) {
+            console.warn(
+                `CSR document evaluation warning for route "${route.path}" and output "${entry.renderPath}" (locale "${entry.locale}"): ${warning}`,
+            );
+        }
+
         const routeHead = buildRouteHead({
             path: entry.params ? materializeRoutePath(route.path, entry.params) : route.path,
             locale: entry.locale,
             locales: route.locales,
-            head: route.head,
+            head: renderedApp.routeSnapshot?.head ?? route.head,
             localePrefix: targetI18n?.localePrefix,
             defaultLocale: targetI18n?.defaultLocale,
             basePath: job.profile.basePath,
@@ -571,6 +595,7 @@ async function resolveStaticRouteBuildContext(
         manifest,
         cwd,
         buildServiceContainer,
+        job.profile,
     );
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
         localePrefix: targetI18n?.localePrefix,
@@ -592,6 +617,7 @@ async function resolveSsgRouteEntriesByRouteId(
     manifest: ReturnType<typeof buildTargetRouteManifest>,
     cwd: string,
     buildServiceContainer?: ServiceContainer,
+    profile?: ResolvedTargetBuildProfile,
 ): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
     const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
 
@@ -611,7 +637,16 @@ async function resolveSsgRouteEntriesByRouteId(
         for (const locale of route.locales) {
             const localizedEntries = await withServiceContainer(
                 buildServiceContainer,
-                () => pageCtor.entries!({ locale }),
+                () => pageCtor.entries!({
+                    locale,
+                    profile: profile
+                        ? {
+                            name: profile.name,
+                            basePath: profile.basePath,
+                            siteUrl: profile.siteUrl,
+                        }
+                        : undefined,
+                }),
             );
             for (const [entryIndex, entry] of localizedEntries.entries()) {
                 const normalizedParams = normalizeStaticEntryParams(entry.params, route.path);
@@ -1057,6 +1092,7 @@ function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapsho
 
     const routeRecord = route as Record<string, unknown>;
     const params = routeRecord.params;
+    const propsHead = routeElement.props.head;
 
     return {
         pageTagName: routeElement.tagName.toLowerCase(),
@@ -1065,7 +1101,7 @@ function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapsho
         params: isStringRecord(params) ? params : {},
         locale: typeof routeRecord.locale === "string" ? routeRecord.locale : undefined,
         data: routeElement.props.data,
-        head: isPageHeadDefinition(routeRecord.head) ? routeRecord.head : undefined,
+        head: isPageHeadDefinition(propsHead) ? propsHead : undefined,
     };
 }
 
