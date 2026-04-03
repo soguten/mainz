@@ -1,3 +1,10 @@
+---
+title: Quickstart
+slug: quickstart
+summary: Start with a page-first app, ship static HTML, and keep hydration predictable.
+order: 1
+---
+
 ## Why Mainz
 
 Mainz treats pages as first-class units, so routing, head metadata, build output, and hydration stay connected.

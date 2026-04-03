@@ -1,3 +1,10 @@
+---
+title: Authorization
+slug: authorization
+summary: Keep access rules on the page or component that owns them, then let runtime, navigation, and diagnostics consume the same metadata.
+order: 9
+---
+
 ## Authorization stays on the owner
 
 Mainz keeps authorization in the same place as the rest of the route and component contract.

@@ -1,11 +1,83 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { getDocsNavSections, getDocsPager, resolveDocsMarkdownHref } from "../docs.ts";
+import {
+    buildDocsCatalogFromFiles,
+    DocsService,
+    parseDocsFrontmatter,
+} from "../../services/DocsService.ts";
 import { parseMarkdown } from "../markdown.ts";
 
+const docs = new DocsService();
+
+Deno.test("docs frontmatter parser extracts attributes and body", () => {
+    const parsed = parseDocsFrontmatter(`---\ntitle: Quickstart\ngroupOrder: 2\n---\n## Intro\n`);
+
+    assertEquals(parsed.attributes, {
+        title: "Quickstart",
+        groupOrder: 2,
+    });
+    assertEquals(parsed.body, "## Intro\n");
+});
+
+Deno.test("docs catalog builder ignores markdown files without docs frontmatter", () => {
+    const catalog = buildDocsCatalogFromFiles([
+        {
+            sourcePath: "../../../docs/getting-started/quickstart.md",
+            raw: `---\ntitle: Quickstart\nslug: quickstart\nsection: getting-started\nsectionTitle: Getting Started\nsectionOrder: 1\norder: 1\n---\n## Intro\n`,
+        },
+        {
+            sourcePath: "../../../docs/concepts/core/app-definition.md",
+            raw: "## Internal note\n",
+        },
+    ]);
+
+    assertEquals(catalog.articles.map((article) => article.slug), ["quickstart"]);
+    assertEquals(catalog.navSections.map((section) => section.title), ["Getting Started"]);
+});
+
+Deno.test("docs catalog builder inherits section and group metadata from _meta.json", () => {
+    const catalog = buildDocsCatalogFromFiles(
+        [
+            {
+                sourcePath: "../../../docs/concepts/core/routing.md",
+                raw: `---\ntitle: Routing Modes\nslug: routing\norder: 1\n---\n## Intro\n`,
+            },
+        ],
+        [
+            {
+                sourcePath: "../../../docs/concepts/_meta.json",
+                attributes: {
+                    section: "concepts",
+                    sectionTitle: "Concepts",
+                    sectionOrder: 2,
+                },
+            },
+            {
+                sourcePath: "../../../docs/concepts/core/_meta.json",
+                attributes: {
+                    group: "core",
+                    groupTitle: "Core",
+                    groupOrder: 1,
+                },
+            },
+        ],
+    );
+
+    assertEquals(catalog.articles[0]?.sectionTitle, "Concepts");
+    assertEquals(catalog.articles[0]?.groupTitle, "Core");
+});
+
+Deno.test("docs service exposes frontmatter lookups by slug", () => {
+    const docs = new DocsService();
+    const frontmatter = docs.getFrontmatterBySlug("quickstart");
+
+    assertEquals(frontmatter?.title, "Quickstart");
+    assertEquals(frontmatter?.order, 1);
+});
+
 Deno.test("docs helpers group navigation into sections and nested groups", () => {
-    const sections = getDocsNavSections();
+    const sections = docs.listNavSections();
 
     assertEquals(sections.map((section) => section.title), [
         "Getting Started",
@@ -46,60 +118,60 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
 });
 
 Deno.test("docs helpers compute previous and next article links", () => {
-    assertEquals(getDocsPager("data-loading"), {
+    assertEquals(docs.getPagerBySlug("data-loading"), {
         previous: { slug: "route-metadata", title: "Route Metadata" },
         next: { slug: "navigation-runtime", title: "Navigation Runtime" },
     });
 
-    assertEquals(getDocsPager("custom-elements"), {
+    assertEquals(docs.getPagerBySlug("custom-elements"), {
         previous: { slug: "functional-components", title: "Functional Components" },
         next: { slug: "state-and-events", title: "State and Events" },
     });
 
-    assertEquals(getDocsPager("render-owner"), {
+    assertEquals(docs.getPagerBySlug("render-owner"), {
         previous: { slug: "state-and-events", title: "State and Events" },
         next: { slug: "page-model", title: "Page Model" },
     });
 
-    assertEquals(getDocsPager("authorization"), {
+    assertEquals(docs.getPagerBySlug("authorization"), {
         previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
         next: { slug: "dependency-injection", title: "Dependency Injection" },
     });
 
-    assertEquals(getDocsPager("dependency-injection"), {
+    assertEquals(docs.getPagerBySlug("dependency-injection"), {
         previous: { slug: "authorization", title: "Authorization" },
         next: { slug: "http-testing", title: "HTTP Testing" },
     });
 
-    assertEquals(getDocsPager("http-testing"), {
+    assertEquals(docs.getPagerBySlug("http-testing"), {
         previous: { slug: "dependency-injection", title: "Dependency Injection" },
         next: { slug: "component-model", title: "Component Model" },
     });
 
-    assertEquals(getDocsPager("page-model"), {
+    assertEquals(docs.getPagerBySlug("page-model"), {
         previous: { slug: "render-owner", title: "Render Owner" },
         next: { slug: "head-and-seo", title: "Head and SEO" },
     });
 
-    assertEquals(getDocsPager(), {
+    assertEquals(docs.getPagerBySlug(), {
         next: { slug: "quickstart", title: "Quickstart" },
     });
 });
 
 Deno.test("docs helpers resolve markdown links into docs routes", () => {
     assertEquals(
-        resolveDocsMarkdownHref("data-loading", "./render-mode-and-strategy.md"),
+        docs.resolveMarkdownHref("data-loading", "./render-mode-and-strategy.md"),
         "/render-mode-and-strategy",
     );
     assertEquals(
-        resolveDocsMarkdownHref("page-model", "../core/render-mode-and-strategy.md#blocking"),
+        docs.resolveMarkdownHref("page-model", "../core/render-mode-and-strategy.md#blocking"),
         "/render-mode-and-strategy#blocking",
     );
     assertEquals(
-        resolveDocsMarkdownHref("data-loading", "https://mainz.dev"),
+        docs.resolveMarkdownHref("data-loading", "https://mainz.dev"),
         "https://mainz.dev",
     );
-    assertEquals(resolveDocsMarkdownHref("data-loading", "#intro"), "#intro");
+    assertEquals(docs.resolveMarkdownHref("data-loading", "#intro"), "#intro");
 });
 
 Deno.test("markdown parser extracts headings, paragraphs, notes, and code fences", () => {

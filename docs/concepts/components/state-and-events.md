@@ -1,3 +1,10 @@
+---
+title: State and Events
+slug: state-and-events
+summary: Use initState(), setState(), and managed DOM events to build interactive components.
+order: 4
+---
+
 ## State starts with `initState()`
 
 Mainz components can preload local state before the first render with `initState()`.

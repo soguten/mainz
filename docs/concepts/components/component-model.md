@@ -1,3 +1,10 @@
+---
+title: Component Model
+slug: component-model
+summary: Understand how Component, props, state, and render fit together before page-specific concerns.
+order: 1
+---
+
 ## Components are the runtime building block
 
 `Component` is the base class for Mainz UI primitives.

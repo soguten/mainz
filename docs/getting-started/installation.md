@@ -1,3 +1,10 @@
+---
+title: Installation
+slug: installation
+summary: Set up Mainz in a repo and understand the minimum moving pieces.
+order: 2
+---
+
 ## Install the toolchain
 
 Mainz leans on Deno and Vite, so the setup is intentionally small.

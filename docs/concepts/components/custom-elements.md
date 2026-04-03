@@ -1,3 +1,10 @@
+---
+title: Custom Elements
+slug: custom-elements
+summary: Use generated tags by default, or add @CustomElement(...) when you want an explicit stable name.
+order: 3
+---
+
 ## Stable tags belong to the class
 
 Mainz pages and components are Web Components, so each class eventually needs a tag name.

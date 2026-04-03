@@ -1,3 +1,10 @@
+---
+title: Styling and Theme
+slug: styling
+summary: Build a bold docs interface without giving up static output or progressive enhancement.
+order: 1
+---
+
 ## Theme is app-level today
 
 Mainz does not ship a first-party theme manager yet, but it stays out of your way.

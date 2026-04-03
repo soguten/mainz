@@ -1,3 +1,10 @@
+---
+title: Public Shell, Private Island
+slug: public-shell-private-island
+summary: Keep SSG pages public and deterministic while letting authenticated or browser-local UI resolve after hydration.
+order: 5
+---
+
 ## Public shell, private island
 
 This is one of the most important SSG rules in Mainz:

@@ -1,3 +1,10 @@
+---
+title: Route Metadata
+slug: route-metadata
+summary: Keep route patterns, params, and page ownership visible right on the class.
+order: 6
+---
+
 ## Keep route intent on the page
 
 `@Route(...)` keeps the URL contract next to the page that owns it.

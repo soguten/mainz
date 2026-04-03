@@ -19,6 +19,7 @@ export default defineConfig({
         alias: [
             { find: /^mainz\/jsx-runtime$/, replacement: `${srcPath}/jsx-runtime.ts` },
             { find: /^mainz\/jsx-dev-runtime$/, replacement: `${srcPath}/jsx-dev-runtime.ts` },
+            { find: /^mainz\/di$/, replacement: `${srcPath}/di/index.ts` },
             { find: /^mainz\/i18n$/, replacement: `${srcPath}/i18n/index.ts` },
             { find: /^mainz$/, replacement: `${srcPath}/index.ts` },
         ],

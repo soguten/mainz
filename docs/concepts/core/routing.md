@@ -1,3 +1,10 @@
+---
+title: Routing Modes
+slug: routing
+summary: Separate render from navigation and choose the combination that matches the product.
+order: 1
+---
+
 ## Two different decisions
 
 Mainz separates render mode from navigation mode. Render answers how HTML exists; navigation answers

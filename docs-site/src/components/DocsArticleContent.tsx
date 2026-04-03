@@ -1,16 +1,10 @@
 import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
-import type { DocsNavSection } from "../lib/docs.ts";
-import { getDocsArticle, getDocsNavSections, getDocsPager } from "../lib/docs.ts";
-import { parseMarkdown } from "../lib/markdown.ts";
-import { OnThisPage } from "./OnThisPage.tsx";
+import { inject } from "mainz/di";
+import { DocsService } from "../services/DocsService.ts";
 import { recordRecentlyViewedDoc } from "./RecentlyViewedDocs.tsx";
 import { DocsArticle, type DocsArticleProps } from "./docs-page/DocsArticle.tsx";
-import { DocsPageFrame } from "./docs-page/DocsPageFrame.tsx";
-import { DocsSidebar } from "./docs-page/DocsSidebar.tsx";
-import { DocsTopbar } from "./docs-page/DocsTopbar.tsx";
 
 interface DocsArticlePageModel extends DocsArticleProps {
-    navSections: readonly DocsNavSection[];
     activeSlug?: string;
 }
 
@@ -19,9 +13,11 @@ const lastRecordedDocSlug = new WeakMap<DocsArticleContent, string>();
 @CustomElement("x-mainz-docs-article-content")
 @RenderStrategy("blocking")
 export class DocsArticleContent extends Component<NoProps, NoState, DocsArticlePageModel> {
+    
+    readonly docs = inject(DocsService);
 
     override load(): DocsArticlePageModel {
-        return buildDocsArticlePageModel(this.route.params.slug);
+        return this.buildDocsArticlePageModel(this.route.params.slug);
     }
 
     override afterRender(): void {
@@ -32,83 +28,75 @@ export class DocsArticleContent extends Component<NoProps, NoState, DocsArticleP
         const page = this.data;
 
         return (
-            <DocsPageFrame
-                topbar={<DocsTopbar />}
-                sidebar={
-                    <DocsSidebar
-                        navSections={page.navSections}
-                        activeSlug={page.activeSlug}
-                    />
-                }
-                main={
-                    <DocsArticle
-                        title={page.title}
-                        summary={page.summary}
-                        statusLabel={page.statusLabel}
-                        overviewCards={page.overviewCards}
-                        previous={page.previous}
-                        next={page.next}
-                        blocks={page.blocks}
-                        currentSlug={page.activeSlug}
-                    />
-                }
-                rail={page.activeSlug ? <OnThisPage /> : null}
+            <DocsArticle
+                title={page.title}
+                summary={page.summary}
+                statusLabel={page.statusLabel}
+                overviewCards={page.overviewCards}
+                markdown={page.markdown}
+                currentSlug={page.activeSlug}
+                resolveMarkdownHref={(href) => this.docs.resolveMarkdownHref(page.activeSlug, href)}
             />
         );
     }
 
     private recordCurrentDocVisit(): void {
-        const article = getDocsArticle(this.route.params.slug);
-
-        if (!article || lastRecordedDocSlug.get(this) === article.slug) {
+        if (!this.data) {
             return;
         }
 
-        lastRecordedDocSlug.set(this, article.slug);
+        const { activeSlug, title } = this.data;
+
+        if (!activeSlug || lastRecordedDocSlug.get(this) === activeSlug) {
+            return;
+        }
+
+        lastRecordedDocSlug.set(this, activeSlug);
         recordRecentlyViewedDoc({
-            slug: article.slug,
-            title: article.title,
+            slug: activeSlug,
+            title,
         });
+    }
+
+    private buildDocsArticlePageModel(slug: string): DocsArticlePageModel {
+        const article = this.docs.getArticleBySlug(slug);
+
+        if (!article) {
+            const page = this.docs.getPageById("collection-miss");
+            if (!page) {
+                throw new Error('Missing docs page content "collection-miss".');
+            }
+
+            return {
+                title: page.title,
+                summary: page.summary,
+                markdown: applyMarkdownTemplate(page.markdown, {
+                    slug: slug || "the current route",
+                }),
+                activeSlug: undefined,
+                statusLabel: page.statusLabel,
+            };
+        }
+
+        return {
+            title: article.title,
+            summary: article.summary ?? "",
+            markdown: article.markdown,
+            activeSlug: article.slug,
+            statusLabel: article.groupTitle ?? article.sectionTitle,
+        };
     }
 }
 
-function buildDocsArticlePageModel(slug: string): DocsArticlePageModel {
-    const article = getDocsArticle(slug);
+function applyMarkdownTemplate(
+    markdown: string,
+    values: Record<string, string>,
+): string {
+    let result = markdown;
 
-    if (!article) {
-        return {
-            title: "Document not found",
-            summary:
-                "This slug is not part of the docs collection. The demo keeps the docs shell intact so missing content still feels deliberate.",
-            blocks: parseMarkdown(
-                slug
-                    ? `## Unknown slug
-
-No docs article was found for \`${slug}\`.
-
-Use the left navigation to jump back into a known article.`
-                    : `## Unknown slug
-
-No docs article matched the current route.
-
-Use the left navigation to jump back into a known article.`,
-            ),
-            navSections: getDocsNavSections(),
-            activeSlug: undefined,
-            statusLabel: "Collection miss",
-        };
+    for (const [key, value] of Object.entries(values)) {
+        result = result.replaceAll(`{{${key}}}`, value);
     }
 
-    const pager = getDocsPager(article.slug);
-
-    return {
-        title: article.title,
-        summary: article.summary,
-        blocks: parseMarkdown(article.markdown),
-        navSections: getDocsNavSections(),
-        activeSlug: article.slug,
-        previous: pager.previous,
-        next: pager.next,
-        statusLabel: article.navSection,
-    };
+    return result;
 }

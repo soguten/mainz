@@ -1,3 +1,10 @@
+---
+title: Head and SEO
+slug: head-and-seo
+summary: Let Mainz manage canonical, hreflang, and page metadata without head duplication.
+order: 2
+---
+
 ## Head should not duplicate
 
 Mainz manages page-owned head tags so canonical links, hreflang entries, and metadata stay synchronized across build and hydration.

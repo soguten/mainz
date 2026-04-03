@@ -1,3 +1,10 @@
+---
+title: Dynamic Routes with entries() and component loading
+slug: data-loading
+summary: Expand dynamic SSG paths with entries(), keep route data on Page.load(), and let components own async assembly with Component.load().
+order: 7
+---
+
 ## Route expansion, route data, and component loading
 
 Mainz now treats async loading as an ownership question.

@@ -1,32 +1,44 @@
-import type { DocsNavSection } from "../../lib/docs.ts";
+import { Component, CustomElement, type NoState, RenderStrategy } from "mainz";
+import { inject } from "mainz/di";
+import type { DocsNavSection } from "../../services/DocsService.ts";
 import { buildDocsHref } from "../../lib/links.ts";
+import { DocsService } from "../../services/DocsService.ts";
 import { RecentlyViewedDocs } from "../RecentlyViewedDocs.tsx";
 
 interface DocsSidebarProps {
-    navSections: readonly DocsNavSection[];
     activeSlug?: string;
 }
 
-export function DocsSidebar(props: DocsSidebarProps) {
-    return (
-        <aside class="docs-sidebar">
-            <p class="docs-sidebar-title">Documentation</p>
-            <div class="docs-nav-sections">
-                <DocsNavLink
-                    href="/"
-                    title="Overview"
-                    active={!props.activeSlug}
-                    variant="root"
-                />
+@CustomElement("x-mainz-docs-sidebar")
+@RenderStrategy("blocking")
+export class DocsSidebar extends Component<DocsSidebarProps, NoState, readonly DocsNavSection[]> {
+    readonly docs = inject(DocsService);
 
-                {props.navSections.map((section) => (
-                    <DocsNavSectionView section={section} activeSlug={props.activeSlug} />
-                ))}
+    override load(): readonly DocsNavSection[] {
+        return this.docs.listNavSections();
+    }
 
-                {props.activeSlug ? <RecentlyViewedDocs /> : null}
-            </div>
-        </aside>
-    );
+    override render() {
+        return (
+            <aside class="docs-sidebar">
+                <p class="docs-sidebar-title">Documentation</p>
+                <div class="docs-nav-sections">
+                    <DocsNavLink
+                        href="/"
+                        title="Overview"
+                        active={!this.props.activeSlug}
+                        variant="root"
+                    />
+
+                    {this.data.map((section) => (
+                        <DocsNavSectionView section={section} activeSlug={this.props.activeSlug} />
+                    ))}
+
+                    {this.props.activeSlug ? <RecentlyViewedDocs /> : null}
+                </div>
+            </aside>
+        );
+    }
 }
 
 function DocsNavSectionView(props: {

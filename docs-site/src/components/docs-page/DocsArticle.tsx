@@ -1,6 +1,5 @@
-import { type DocsPagerLink, resolveDocsMarkdownHref } from "../../lib/docs.ts";
 import { buildDocsHref } from "../../lib/links.ts";
-import { type MarkdownBlock } from "../../lib/markdown.ts";
+import { parseMarkdown, type MarkdownBlock } from "../../lib/markdown.ts";
 import { DocsCodeBlock } from "./DocsCodeBlock.tsx";
 import { DocsPager } from "./DocsPager.tsx";
 
@@ -15,13 +14,15 @@ export interface DocsArticleProps {
     summary: string;
     statusLabel?: string;
     overviewCards?: readonly DocsOverviewCard[];
-    previous?: DocsPagerLink;
-    next?: DocsPagerLink;
-    blocks: readonly MarkdownBlock[];
+    showFirstPager?: boolean;
+    markdown: string;
     currentSlug?: string;
+    resolveMarkdownHref?: (href: string) => string;
 }
 
 export function DocsArticle(props: DocsArticleProps) {
+    const blocks = parseMarkdown(props.markdown);
+
     return (
         <article class="docs-article">
             <div class="docs-hero">
@@ -32,8 +33,14 @@ export function DocsArticle(props: DocsArticleProps) {
 
             <div class="docs-content">
                 <DocsOverviewCards cards={props.overviewCards} />
-                <DocsArticleBody blocks={props.blocks} currentSlug={props.currentSlug} />
-                <DocsPager previous={props.previous} next={props.next} />
+                <DocsArticleBody
+                    blocks={blocks}
+                    resolveMarkdownHref={props.resolveMarkdownHref}
+                />
+                <DocsPager
+                    currentSlug={props.currentSlug}
+                    fallbackToFirst={props.showFirstPager}
+                />
             </div>
         </article>
     );
@@ -58,19 +65,28 @@ function DocsOverviewCards(props: {
     );
 }
 
-function DocsArticleBody(props: { blocks: readonly MarkdownBlock[]; currentSlug?: string }) {
+function DocsArticleBody(props: {
+    blocks: readonly MarkdownBlock[];
+    resolveMarkdownHref?: (href: string) => string;
+}) {
     return (
         <div class="docs-article-body">
             {props.blocks.length > 0
                 ? props.blocks.map((block) => (
-                    <MarkdownBlockView block={block} currentSlug={props.currentSlug} />
+                    <MarkdownBlockView
+                        block={block}
+                        resolveMarkdownHref={props.resolveMarkdownHref}
+                    />
                 ))
                 : <div class="docs-empty">This page is still being drafted.</div>}
         </div>
     );
 }
 
-function MarkdownBlockView(props: { block: MarkdownBlock; currentSlug?: string }) {
+function MarkdownBlockView(props: {
+    block: MarkdownBlock;
+    resolveMarkdownHref?: (href: string) => string;
+}) {
     const block = props.block;
 
     if (block.type === "heading") {
@@ -82,11 +98,17 @@ function MarkdownBlockView(props: { block: MarkdownBlock; currentSlug?: string }
     }
 
     if (block.type === "paragraph") {
-        return <p>{renderInlineMarkdown(block.text, props.currentSlug)}</p>;
+        return (
+            <p>{renderInlineMarkdown(block.text, props.resolveMarkdownHref)}</p>
+        );
     }
 
     if (block.type === "blockquote") {
-        return <div class="docs-note">{renderInlineMarkdown(block.text, props.currentSlug)}</div>;
+        return (
+            <div class="docs-note">
+                {renderInlineMarkdown(block.text, props.resolveMarkdownHref)}
+            </div>
+        );
     }
 
     return (
@@ -98,7 +120,10 @@ function MarkdownBlockView(props: { block: MarkdownBlock; currentSlug?: string }
     );
 }
 
-function renderInlineMarkdown(text: string, currentSlug?: string): Array<string | HTMLElement> {
+function renderInlineMarkdown(
+    text: string,
+    resolveMarkdownHref?: (href: string) => string,
+): Array<string | HTMLElement> {
     const parts: Array<string | HTMLElement> = [];
     const pattern = /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g;
     let cursor = 0;
@@ -112,7 +137,9 @@ function renderInlineMarkdown(text: string, currentSlug?: string): Array<string 
         if (match[1]) {
             parts.push(<code class="docs-inline-code">{match[1]}</code>);
         } else if (match[2] && match[3]) {
-            const resolvedHref = resolveDocsMarkdownHref(currentSlug, match[3]);
+            const resolvedHref = resolveMarkdownHref
+                ? resolveMarkdownHref(match[3])
+                : match[3];
             parts.push(
                 <a
                     class="docs-inline-link"

@@ -1,3 +1,10 @@
+---
+title: Diagnostics CLI
+slug: diagnostics-cli
+summary: Use mainz diagnose in the terminal or CI without tying framework diagnostics to one editor.
+order: 2
+---
+
 ## diagnostics are framework diagnostics, not editor glue
 
 Mainz ships framework-level diagnostics that you can run from the CLI.

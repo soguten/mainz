@@ -1,5 +1,6 @@
 import {
     CustomElement,
+    type PageEntriesContext,
     type PageHeadDefinition,
     Locales,
     NoProps,
@@ -8,76 +9,70 @@ import {
     RenderMode,
     Route,
 } from "mainz";
+import { inject } from "mainz/di";
 import { DocsArticleContent } from "../components/DocsArticleContent.tsx";
-import { docsArticles, getDocsArticle } from "../lib/docs.ts";
-
-interface DocsPageData {
-    slug: string;
-    head: {
-        title: string;
-        meta: readonly [
-            {
-                name: "description";
-                content: string;
-            },
-        ];
-    };
-}
+import { OnThisPage } from "../components/OnThisPage.tsx";
+import { DocsPageFrame } from "../components/docs-page/DocsPageFrame.tsx";
+import { DocsSidebar } from "../components/docs-page/DocsSidebar.tsx";
+import { DocsTopbar } from "../components/docs-page/DocsTopbar.tsx";
+import { DocsService } from "../services/DocsService.ts";
 
 @CustomElement("x-mainz-docs-docs-page")
 @Route("/:slug")
 @RenderMode("ssg")
 @Locales("en")
-export class DocsPage extends Page<NoProps, NoState, DocsPageData> {
-    
-    static entries() {
-        return docsArticles.map((article) => ({
-            params: { slug: article.slug },
+export class DocsPage extends Page<NoProps, NoState> {
+
+    static readonly docs = inject(DocsService);
+    readonly docs = inject(DocsService);
+
+    static entries(_context: PageEntriesContext) {
+        return this.docs.listSlugs().map((slug) => ({
+            params: { slug },
         }));
     }
 
-    override load(): DocsPageData {
-        return buildDocsPageData(this.route.params.slug);
-    }
-
     override head(): PageHeadDefinition {
-        return this.data.head;
-    }
+        const article = this.docs.getArticleMetaBySlug(this.route.params.slug);
 
-    override render() {
-        return <DocsArticleContent />;
-    }
-}
+        if (!article) {
+            const page = this.docs.getPageById("collection-miss");
+            if (!page) {
+                throw new Error('Missing docs page content "collection-miss".');
+            }
 
-function buildDocsPageData(slug: string): DocsPageData {
-    const article = getDocsArticle(slug);
-
-    if (!article) {
-        return {
-            slug,
-            head: {
-                title: "Document not found | Mainz Docs",
+            return {
+                title: page.pageTitle ?? page.title,
                 meta: [
                     {
                         name: "description",
-                        content:
-                            "This docs route did not match a known Mainz documentation article.",
+                        content: page.description ?? page.summary,
                     },
                 ],
-            },
-        };
-    }
+            };
+        }
 
-    return {
-        slug: article.slug,
-        head: {
+        return {
             title: `${article.title} | Mainz Docs`,
             meta: [
                 {
                     name: "description",
-                    content: article.summary,
+                    content: article.summary ?? article.title,
                 },
             ],
-        },
-    };
+        };
+    }
+
+    override render() {
+        const slug = this.route.params.slug;
+
+        return (
+            <DocsPageFrame
+                topbar={<DocsTopbar />}
+                sidebar={<DocsSidebar activeSlug={slug} />}
+                main={<DocsArticleContent />}
+                rail={slug ? <OnThisPage /> : null}
+            />
+        );
+    }
 }

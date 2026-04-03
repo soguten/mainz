@@ -1,3 +1,10 @@
+---
+title: Render Owner
+slug: render-owner
+summary: Understand how Mainz assigns DOM listener ownership to the class component currently rendering.
+order: 5
+---
+
 ## Render owner is the component currently rendering
 
 Mainz tracks the current class component while `render()` runs.

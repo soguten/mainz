@@ -1,3 +1,10 @@
+---
+title: Dependency Injection
+slug: dependency-injection
+summary: Register infrastructure services at startup, resolve them with inject(Token) on pages or components, and keep route/component ownership explicit.
+order: 10
+---
+
 ## Dependency injection stays infrastructure-scoped
 
 Mainz now includes a small official DI model for infrastructure services.
