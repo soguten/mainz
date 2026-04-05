@@ -84,6 +84,7 @@ The human format:
 
 - prints a diagnostics summary first
 - groups diagnostics by target
+- groups app-aware diagnostics by app when app definitions are discovered
 - keeps each diagnostic easy to scan in the terminal
 
 Example:
@@ -99,6 +100,34 @@ error dynamic-ssg-missing-entries
   route: /docs/:slug
   SSG route "/docs/:slug" must define entries() to expand dynamic params.
 ```
+
+When a target contains multiple app definitions, `mainz diagnose --target <name>` evaluates all of
+them in lexicographic order by app `id`.
+
+Example:
+
+```txt
+Diagnostics summary: 1 error(s), 0 warning(s)
+
+Target: di-http-site
+App: mock-site
+
+error di-token-not-registered
+  export: HttpStoriesApi
+  file: C:/repo/examples/di-http-site/src/lib/api.ts
+  token: HttpClient
+  Class "HttpStoriesApi" injects "HttpClient" with mainz/di, but that token is not registered in app startup services.
+```
+
+To diagnose only one app within the target, pass its app id explicitly:
+
+```bash
+mainz diagnose --target di-http-site --app site --format human
+```
+
+If no app candidate is discovered, diagnostics fall back to conventional `pagesDir`
+discovery. If an app candidate is discovered but cannot be resolved completely, diagnostics
+report an app discovery error instead of silently falling back for that same candidate.
 
 ## JSON output
 

@@ -6,6 +6,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { DocsService } from "./services/DocsService.ts";
 
 const app = defineApp({
+    id: "docs-site",
     pages: [HomePage, DocsPage],
     notFound: NotFoundPage,
     services: [

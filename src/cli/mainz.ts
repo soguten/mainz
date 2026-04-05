@@ -37,6 +37,7 @@ type PublishInfoCommandOptions = SharedCliOptions & {
 
 type DiagnoseCommandOptions = SharedCliOptions & {
     command: "diagnose";
+    app?: string;
     format?: "json" | "human";
     failOn?: "never" | "error" | "warning";
 };
@@ -105,8 +106,8 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 function parseCommandOptions(
     command: MainzCliCommand["command"],
     args: string[],
-): SharedCliOptions & Pick<DiagnoseCommandOptions, "format" | "failOn"> {
-    const options: SharedCliOptions & Pick<DiagnoseCommandOptions, "format" | "failOn"> = {};
+): SharedCliOptions & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn"> {
+    const options: SharedCliOptions & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -145,6 +146,12 @@ function parseCommandOptions(
 
         if (current === "--format") {
             options.format = args[index + 1] as "json" | "human" | undefined;
+            index += 1;
+            continue;
+        }
+
+        if (current === "--app") {
+            options.app = args[index + 1];
             index += 1;
             continue;
         }
@@ -250,7 +257,7 @@ function printHelp(): void {
             "Usage:",
             "  mainz build [--target <name|all>] [--profile <name>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz publish-info --target <name> [--profile <name>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "  mainz diagnose [--target <name|all>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
+            "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
             "Examples:",
             "  mainz build",
@@ -261,6 +268,7 @@ function printHelp(): void {
             "  mainz publish-info --target site --navigation mpa",
             "  mainz diagnose",
             "  mainz diagnose --target docs",
+            "  mainz diagnose --target docs --app site",
             "  mainz diagnose --target docs --format human",
             "  mainz diagnose --target docs --format human --fail-on error",
         ].join("\n"),

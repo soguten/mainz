@@ -16,6 +16,7 @@ export type DiagnosticsSourceInput = ComponentSourceDiagnosticsInput;
 export interface DiagnosticsTargetContext {
     registeredPolicyNames?: readonly string[];
     routePathsByOwner: ReadonlyMap<string, string>;
+    appId?: string;
 }
 
 export interface DiagnosticsTargetModel {
@@ -29,6 +30,7 @@ export interface DiagnosticsTargetInput {
     sourceInputs: readonly DiagnosticsSourceInput[];
     registeredPolicyNames?: readonly string[];
     routePathsByOwner: ReadonlyMap<string, string>;
+    appId?: string;
 }
 
 export interface DiagnosticsContributor {
@@ -45,6 +47,7 @@ export function createDiagnosticsTargetModel(
         context: {
             registeredPolicyNames: input.registeredPolicyNames,
             routePathsByOwner: input.routePathsByOwner,
+            appId: input.appId,
         },
     };
 }

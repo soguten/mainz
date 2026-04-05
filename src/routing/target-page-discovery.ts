@@ -54,6 +54,19 @@ interface RoutedAppDefinitionResolution {
     context: AppFileContext;
 }
 
+export interface AppDiagnosticsCandidate {
+    appId?: string;
+    appFile: string;
+    discoveredPages: readonly CliDiscoveredPage[];
+    discoveryErrors?: readonly CliPageDiscoveryError[];
+}
+
+export interface TargetDiagnosticsEvaluation {
+    appId?: string;
+    discoveredPages: readonly CliDiscoveredPage[];
+    discoveryErrors?: readonly CliPageDiscoveryError[];
+}
+
 interface ResolvedAppExpression {
     expression: ts.Expression;
     context: AppFileContext;
@@ -108,20 +121,86 @@ export async function resolveTargetDiscoveredPagesForTarget(
 }> {
     const resolvedAppFile = resolveTargetAppFile(target, cwd);
     if (resolvedAppFile) {
-        const appDiscovery = await resolveTargetDiscoveredPagesFromAppFile(
+        const appDiscovery = await resolveTargetAppCandidatesFromAppFile(
             resolvedAppFile,
             target.appFile !== undefined,
         );
-        if (appDiscovery.foundAppDefinition) {
-            return normalizeDiscoveredPagesResult(appDiscovery);
+        const validCandidates = (appDiscovery.appCandidates ?? [])
+            .filter((candidate) => !candidate.discoveryErrors?.length && candidate.appId)
+            .sort(compareAppDiagnosticsCandidates);
+        if (validCandidates.length > 0) {
+            return normalizeDiscoveredPagesResult({
+                filesystemPageFiles: validCandidates[0]?.discoveredPages.map((page) => page.file),
+                discoveredPages: [...(validCandidates[0]?.discoveredPages ?? [])],
+                discoveryErrors: undefined,
+            });
         }
 
-        if (appDiscovery.discoveryErrors?.length) {
-            return normalizeDiscoveredPagesResult(appDiscovery);
+        const discoveryErrors = flattenCandidateDiscoveryErrors(appDiscovery.appCandidates);
+        if (discoveryErrors.length > 0) {
+            return normalizeDiscoveredPagesResult({
+                filesystemPageFiles: undefined,
+                discoveredPages: undefined,
+                discoveryErrors,
+            });
         }
     }
 
     return await resolveTargetDiscoveredPages(target.pagesDir, cwd);
+}
+
+export async function resolveTargetDiagnosticsEvaluationsForTarget(
+    target: NormalizedMainzTarget,
+    cwd = Deno.cwd(),
+    selectedAppId?: string,
+): Promise<readonly TargetDiagnosticsEvaluation[]> {
+    const resolvedAppFile = resolveTargetAppFile(target, cwd);
+    if (resolvedAppFile) {
+        const appDiscovery = await resolveTargetAppCandidatesFromAppFile(
+            resolvedAppFile,
+            target.appFile !== undefined,
+        );
+        if (appDiscovery.foundAppDefinition) {
+            const appCandidates = [...(appDiscovery.appCandidates ?? [])].sort(compareAppDiagnosticsCandidates);
+            if (selectedAppId) {
+                const selectedCandidates = appCandidates.filter((candidate) => candidate.appId === selectedAppId);
+                if (selectedCandidates.length === 0) {
+                    const availableIds = appCandidates
+                        .flatMap((candidate) => candidate.appId ? [candidate.appId] : [])
+                        .sort((a, b) => a.localeCompare(b));
+                    throw new Error(
+                        availableIds.length > 0
+                            ? `No app candidates matched "${selectedAppId}" for target "${target.name}". Available apps: ${availableIds.join(", ")}`
+                            : `Target "${target.name}" did not produce any selectable app ids.`,
+                    );
+                }
+
+                return selectedCandidates.map((candidate) => ({
+                    appId: candidate.appId,
+                    discoveredPages: candidate.discoveryErrors?.length ? [] : [...candidate.discoveredPages],
+                    discoveryErrors: candidate.discoveryErrors,
+                }));
+            }
+
+            return appCandidates.map((candidate) => ({
+                appId: candidate.appId,
+                discoveredPages: candidate.discoveryErrors?.length ? [] : [...candidate.discoveredPages],
+                discoveryErrors: candidate.discoveryErrors,
+            }));
+        }
+
+        if (selectedAppId) {
+            throw new Error(`Target "${target.name}" did not produce any routed app candidates.`);
+        }
+    } else if (selectedAppId) {
+        throw new Error(`Target "${target.name}" does not define an app file for app-aware diagnostics.`);
+    }
+
+    const fallbackDiscovery = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
+    return [{
+        discoveredPages: [...(fallbackDiscovery.discoveredPages ?? [])],
+        discoveryErrors: fallbackDiscovery.discoveryErrors,
+    }];
 }
 
 export async function collectFilesystemFiles(directory: string): Promise<string[]> {
@@ -143,33 +222,31 @@ export async function collectFilesystemFiles(directory: string): Promise<string[
     return filePaths;
 }
 
-async function resolveTargetDiscoveredPagesFromAppFile(
+async function resolveTargetAppCandidatesFromAppFile(
     appFile: string,
     explicit: boolean,
 ): Promise<{
-    filesystemPageFiles: string[] | undefined;
-    discoveredPages: CliDiscoveredPage[] | undefined;
-    discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
+    appCandidates: readonly AppDiagnosticsCandidate[] | undefined;
     foundAppDefinition: boolean;
 }> {
     const normalizedAppFile = normalizePathSlashes(resolve(appFile));
     if (!existsSync(normalizedAppFile)) {
         if (!explicit) {
             return {
-                filesystemPageFiles: undefined,
-                discoveredPages: undefined,
-                discoveryErrors: undefined,
+                appCandidates: undefined,
                 foundAppDefinition: false,
             };
         }
 
         return {
-            filesystemPageFiles: undefined,
-            discoveredPages: undefined,
-            discoveryErrors: [{
-                kind: pageDiscoveryFailedErrorKind,
-                file: normalizedAppFile,
-                message: `Configured appFile "${normalizedAppFile}" could not be found.`,
+            appCandidates: [{
+                appFile: normalizedAppFile,
+                discoveredPages: [],
+                discoveryErrors: [{
+                    kind: pageDiscoveryFailedErrorKind,
+                    file: normalizedAppFile,
+                    message: `Configured appFile "${normalizedAppFile}" could not be found.`,
+                }],
             }],
             foundAppDefinition: false,
         };
@@ -180,14 +257,14 @@ async function resolveTargetDiscoveredPagesFromAppFile(
         source = await Deno.readTextFile(normalizedAppFile);
     } catch (error) {
         return {
-            filesystemPageFiles: undefined,
-            discoveredPages: undefined,
-            discoveryErrors: [{
-                kind: pageDiscoveryFailedErrorKind,
-                file: normalizedAppFile,
-                message: `Could not read app module "${normalizedAppFile}": ${
-                    toErrorMessage(error)
-                }`,
+            appCandidates: [{
+                appFile: normalizedAppFile,
+                discoveredPages: [],
+                discoveryErrors: [{
+                    kind: pageDiscoveryFailedErrorKind,
+                    file: normalizedAppFile,
+                    message: `Could not read app module "${normalizedAppFile}": ${toErrorMessage(error)}`,
+                }],
             }],
             foundAppDefinition: false,
         };
@@ -196,35 +273,187 @@ async function resolveTargetDiscoveredPagesFromAppFile(
     const contexts = new Map<string, AppFileContext>();
     const context = createAppFileContext(normalizedAppFile, source);
     contexts.set(normalizedAppFile, context);
-    const appResolution = findRoutedAppDefinition(context, contexts);
-    if (!appResolution) {
+    const appResolutions = collectAppDefinitions(context, contexts);
+    if (appResolutions.length === 0) {
         return {
-            filesystemPageFiles: undefined,
-            discoveredPages: undefined,
-            discoveryErrors: undefined,
+            appCandidates: undefined,
             foundAppDefinition: false,
         };
     }
 
+    const appCandidates = await Promise.all(
+        appResolutions.map((appResolution) => resolveAppCandidate(appResolution)),
+    );
+    applyDuplicateAppIdErrors(appCandidates);
+
+    return {
+        appCandidates: appCandidates.sort(compareAppDiagnosticsCandidates),
+        foundAppDefinition: true,
+    };
+}
+
+function createAppFileContext(file: string, source: string): AppFileContext {
+    const sourceFile = ts.createSourceFile(
+        file,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    );
+
+    return {
+        file,
+        sourceFile,
+        variables: collectTopLevelVariableExpressions(sourceFile),
+        imports: collectImports(sourceFile, file),
+        exportedBindings: collectExportedBindings(sourceFile),
+    };
+}
+
+function collectAppDefinitions(
+    context: AppFileContext,
+    contexts: Map<string, AppFileContext>,
+): readonly RoutedAppDefinitionResolution[] {
+    const found: RoutedAppDefinitionResolution[] = [];
+    const seen = new Set<string>();
+
+    visitNode(context.sourceFile, (node) => {
+        if (!ts.isCallExpression(node)) {
+            return;
+        }
+
+        const callee = readIdentifierLike(node.expression);
+        if (callee !== "startApp" && callee !== "defineApp") {
+            return;
+        }
+
+        const candidates = collectAppDefinitionExpressions(
+            node.arguments[0],
+            context,
+            contexts,
+            new Set<string>(),
+            callee === "defineApp",
+        );
+        for (const candidate of candidates) {
+            const candidateKey =
+                `${candidate.context.file}::${candidate.appDefinition.pos}::${candidate.appDefinition.end}`;
+            if (seen.has(candidateKey)) {
+                continue;
+            }
+
+            seen.add(candidateKey);
+            found.push(candidate);
+        }
+    });
+
+    return found;
+}
+
+function collectAppDefinitionExpressions(
+    expression: ts.Expression | undefined,
+    context: AppFileContext,
+    contexts: Map<string, AppFileContext>,
+    visitedReferences: Set<string>,
+    allowObjectLiteral: boolean,
+): readonly RoutedAppDefinitionResolution[] {
+    const normalizedExpression = expression ? unwrapExpression(expression) : undefined;
+    if (!normalizedExpression) {
+        return [];
+    }
+
+    if (ts.isObjectLiteralExpression(normalizedExpression)) {
+        return allowObjectLiteral && isAppDefinitionObjectLiteral(normalizedExpression)
+            ? [{
+                appDefinition: normalizedExpression,
+                context,
+            }]
+            : [];
+    }
+
+    if (
+        ts.isCallExpression(normalizedExpression) &&
+        readIdentifierLike(normalizedExpression.expression) === "defineApp"
+    ) {
+        return collectAppDefinitionExpressions(
+            normalizedExpression.arguments[0],
+            context,
+            contexts,
+            visitedReferences,
+            true,
+        );
+    }
+
+    if (ts.isConditionalExpression(normalizedExpression)) {
+        return [
+            ...collectAppDefinitionExpressions(
+                normalizedExpression.whenTrue,
+                context,
+                contexts,
+                new Set(visitedReferences),
+                allowObjectLiteral,
+            ),
+            ...collectAppDefinitionExpressions(
+                normalizedExpression.whenFalse,
+                context,
+                contexts,
+                new Set(visitedReferences),
+                allowObjectLiteral,
+            ),
+        ];
+    }
+
+    if (!ts.isIdentifier(normalizedExpression)) {
+        return [];
+    }
+
+    const referenceKey = `${context.file}::${normalizedExpression.text}`;
+    if (visitedReferences.has(referenceKey)) {
+        return [];
+    }
+
+    visitedReferences.add(referenceKey);
+    const resolved = resolveIdentifierExpression(context, contexts, normalizedExpression.text);
+    if (!resolved) {
+        return [];
+    }
+
+    return collectAppDefinitionExpressions(
+        resolved.expression,
+        resolved.context,
+        contexts,
+        visitedReferences,
+        allowObjectLiteral,
+    );
+}
+
+async function resolveAppCandidate(
+    appResolution: RoutedAppDefinitionResolution,
+): Promise<AppDiagnosticsCandidate> {
+    const appId = readAppDefinitionId(appResolution.appDefinition);
+    const discoveryErrors: CliPageDiscoveryError[] = [];
+    if (!appId) {
+        discoveryErrors.push({
+            kind: pageDiscoveryFailedErrorKind,
+            file: appResolution.context.file,
+            message: `App definition in "${appResolution.context.file}" must declare a unique string id.`,
+        });
+    }
+
     const references = readAppPageReferences(appResolution.appDefinition);
     const discoveredPages: CliDiscoveredPage[] = [];
-    const discoveryErrors: CliPageDiscoveryError[] = [];
-    const pageFiles = new Set<string>();
 
     for (const reference of references) {
         const importedBinding = appResolution.context.imports.get(reference.localName);
         if (!importedBinding) {
             discoveryErrors.push({
                 kind: pageDiscoveryFailedErrorKind,
-                file: normalizedAppFile,
+                file: appResolution.context.file,
                 message:
-                    `App definition "${normalizedAppFile}" references "${reference.localName}" in pages/notFound, ` +
+                    `App definition "${appResolution.context.file}" references "${reference.localName}" in pages/notFound, ` +
                     "but only directly imported page constructors are currently supported there.",
             });
             continue;
         }
-
-        pageFiles.add(importedBinding.sourceFile);
 
         try {
             const discoveredPage = await discoverPageExportFromFile(
@@ -261,121 +490,77 @@ async function resolveTargetDiscoveredPagesFromAppFile(
         }
     }
 
-    return normalizeDiscoveredPagesResult({
-        filesystemPageFiles: pageFiles.size > 0
-            ? [...pageFiles].sort((a, b) => a.localeCompare(b))
-            : undefined,
-        discoveredPages,
-        discoveryErrors,
-        foundAppDefinition: true,
-    });
-}
-
-function createAppFileContext(file: string, source: string): AppFileContext {
-    const sourceFile = ts.createSourceFile(
-        file,
-        source,
-        ts.ScriptTarget.Latest,
-        true,
-        file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-    );
-
     return {
-        file,
-        sourceFile,
-        variables: collectTopLevelVariableExpressions(sourceFile),
-        imports: collectImports(sourceFile, file),
-        exportedBindings: collectExportedBindings(sourceFile),
+        appId,
+        appFile: appResolution.context.file,
+        discoveredPages: normalizeDiscoveredPages([...discoveredPages]),
+        discoveryErrors: discoveryErrors.length > 0 ? discoveryErrors : undefined,
     };
 }
 
-function findRoutedAppDefinition(
-    context: AppFileContext,
-    contexts: Map<string, AppFileContext>,
-): RoutedAppDefinitionResolution | undefined {
-    let found: RoutedAppDefinitionResolution | undefined;
-
-    visitNode(context.sourceFile, (node) => {
-        if (found || !ts.isCallExpression(node)) {
-            return;
+function applyDuplicateAppIdErrors(
+    candidates: AppDiagnosticsCandidate[],
+): void {
+    const candidatesById = new Map<string, AppDiagnosticsCandidate[]>();
+    for (const candidate of candidates) {
+        if (!candidate.appId) {
+            continue;
         }
 
-        const callee = readIdentifierLike(node.expression);
-        if (callee !== "startApp" && callee !== "defineApp") {
-            return;
+        const bucket = candidatesById.get(candidate.appId) ?? [];
+        bucket.push(candidate);
+        candidatesById.set(candidate.appId, bucket);
+    }
+
+    for (const [appId, duplicates] of candidatesById) {
+        if (duplicates.length < 2) {
+            continue;
         }
 
-        const candidate = resolveRoutedAppDefinitionExpression(
-            node.arguments[0],
-            context,
-            contexts,
-            new Set<string>(),
-            callee === "defineApp",
-        );
-        if (candidate) {
-            found = candidate;
+        for (const candidate of duplicates) {
+            const errors = [...(candidate.discoveryErrors ?? [])];
+            errors.push({
+                kind: pageDiscoveryFailedErrorKind,
+                file: candidate.appFile,
+                message: `Discovered app id "${appId}" more than once for diagnostics. App ids must be unique per target.`,
+            });
+            candidate.discoveryErrors = errors;
         }
-    });
-
-    return found;
+    }
 }
 
-function resolveRoutedAppDefinitionExpression(
-    expression: ts.Expression | undefined,
-    context: AppFileContext,
-    contexts: Map<string, AppFileContext>,
-    visitedReferences: Set<string>,
-    allowObjectLiteral: boolean,
-): RoutedAppDefinitionResolution | undefined {
-    const normalizedExpression = expression ? unwrapExpression(expression) : undefined;
-    if (!normalizedExpression) {
+function readAppDefinitionId(appDefinition: ts.ObjectLiteralExpression): string | undefined {
+    const idExpression = readNamedPropertyInitializer(appDefinition, "id");
+    const normalizedIdExpression = idExpression ? unwrapExpression(idExpression) : undefined;
+    if (!normalizedIdExpression || !ts.isStringLiteralLike(normalizedIdExpression)) {
         return undefined;
     }
 
-    if (ts.isObjectLiteralExpression(normalizedExpression)) {
-        return allowObjectLiteral && hasNamedProperty(normalizedExpression, "pages")
-            ? {
-                appDefinition: normalizedExpression,
-                context,
-            }
-            : undefined;
+    const appId = normalizedIdExpression.text.trim();
+    return appId.length > 0 ? appId : undefined;
+}
+
+function compareAppDiagnosticsCandidates(
+    a: Pick<AppDiagnosticsCandidate, "appId" | "appFile">,
+    b: Pick<AppDiagnosticsCandidate, "appId" | "appFile">,
+): number {
+    if ((a.appId ?? "") !== (b.appId ?? "")) {
+        return (a.appId ?? "").localeCompare(b.appId ?? "");
     }
 
-    if (
-        ts.isCallExpression(normalizedExpression) &&
-        readIdentifierLike(normalizedExpression.expression) === "defineApp"
-    ) {
-        return resolveRoutedAppDefinitionExpression(
-            normalizedExpression.arguments[0],
-            context,
-            contexts,
-            visitedReferences,
-            true,
-        );
-    }
+    return a.appFile.localeCompare(b.appFile);
+}
 
-    if (!ts.isIdentifier(normalizedExpression)) {
-        return undefined;
-    }
+function flattenCandidateDiscoveryErrors(
+    candidates: readonly AppDiagnosticsCandidate[] | undefined,
+): readonly CliPageDiscoveryError[] {
+    return (candidates ?? []).flatMap((candidate) => candidate.discoveryErrors ?? []);
+}
 
-    const referenceKey = `${context.file}::${normalizedExpression.text}`;
-    if (visitedReferences.has(referenceKey)) {
-        return undefined;
-    }
-
-    visitedReferences.add(referenceKey);
-    const resolved = resolveIdentifierExpression(context, contexts, normalizedExpression.text);
-    if (!resolved) {
-        return undefined;
-    }
-
-    return resolveRoutedAppDefinitionExpression(
-        resolved.expression,
-        resolved.context,
-        contexts,
-        visitedReferences,
-        allowObjectLiteral,
-    );
+function isAppDefinitionObjectLiteral(
+    objectLiteral: ts.ObjectLiteralExpression,
+): boolean {
+    return hasNamedProperty(objectLiteral, "pages") || hasNamedProperty(objectLiteral, "root");
 }
 
 function resolveIdentifierExpression(
@@ -722,7 +907,22 @@ function normalizeDiscoveredPagesResult<
         discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
     },
 >(result: T): T {
-    const discoveredPages = result.discoveredPages?.sort((a, b) => {
+    const discoveredPages = result.discoveredPages ? normalizeDiscoveredPages(result.discoveredPages) : undefined;
+
+    return {
+        ...result,
+        discoveredPages: discoveredPages?.length ? discoveredPages : undefined,
+        discoveryErrors: result.discoveryErrors?.length ? result.discoveryErrors : undefined,
+        filesystemPageFiles: result.filesystemPageFiles?.length
+            ? [...result.filesystemPageFiles].sort((a, b) => a.localeCompare(b))
+            : undefined,
+    };
+}
+
+function normalizeDiscoveredPages(
+    discoveredPages: readonly CliDiscoveredPage[],
+): CliDiscoveredPage[] {
+    return [...discoveredPages].sort((a, b) => {
         if (a.path !== b.path) {
             return a.path.localeCompare(b.path);
         }
@@ -733,15 +933,6 @@ function normalizeDiscoveredPagesResult<
 
         return a.exportName.localeCompare(b.exportName);
     });
-
-    return {
-        ...result,
-        discoveredPages: discoveredPages?.length ? discoveredPages : undefined,
-        discoveryErrors: result.discoveryErrors?.length ? result.discoveryErrors : undefined,
-        filesystemPageFiles: result.filesystemPageFiles?.length
-            ? [...result.filesystemPageFiles].sort((a, b) => a.localeCompare(b))
-            : undefined,
-    };
 }
 
 function normalizePathSlashes(path: string): string {

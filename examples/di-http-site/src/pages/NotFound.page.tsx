@@ -2,7 +2,6 @@ import { RenderMode, Route } from "mainz";
 import { DiHttpFrame } from "../components/DiHttpFrame.tsx";
 import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 
-@Route("/404")
 @RenderMode("ssg")
 export class NotFoundPage extends DiHttpExamplePage {
     

@@ -6,6 +6,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { StoryPage } from "./pages/Story.page.tsx";
 
 export const mockApp = defineApp({
+    id: "mock-site",
     pages: [HomePage, StoryPage],
     notFound: NotFoundPage,
     services: [

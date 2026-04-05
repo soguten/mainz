@@ -14,7 +14,7 @@ import {
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
     collectFilesystemFiles,
-    resolveTargetDiscoveredPagesForTarget,
+    resolveTargetDiagnosticsEvaluationsForTarget,
 } from "../routing/target-page-discovery.ts";
 import {
     createDiagnosticsTargetModel,
@@ -49,49 +49,62 @@ export async function collectDiagnosticsFromModel(
 export async function collectDiagnosticsForTarget(
     target: NormalizedMainzTarget,
     cwd = Deno.cwd(),
-): Promise<readonly MainzDiagnostic[]> {
-    const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
+    selectedAppId?: string,
+): Promise<readonly {
+    appId?: string;
+    diagnostics: readonly MainzDiagnostic[];
+}[]> {
+    const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(
         target,
         cwd,
+        selectedAppId,
     );
-    const pages = (discoveredPages ?? []).map((page) => ({
-        file: page.file,
-        exportName: page.exportName,
-        page: {
-            path: page.path,
-            mode: page.mode,
-            hasExplicitRenderMode: page.hasExplicitRenderMode,
-            notFound: page.notFound,
-            declaredRoutePath: page.declaredRoutePath,
-            locales: page.locales,
-            authorization: page.authorization,
-        },
-    }));
     const sourceInputs = await discoverTargetSourceInputs(target, cwd);
-    const routePathsByOwner = new Map(
-        (discoveredPages ?? []).map((page) => [`${page.file}::${page.exportName}`, page.path]),
-    );
-    const diagnostics = await collectDiagnosticsFromModel(createDiagnosticsTargetModel({
-        pages,
-        sourceInputs,
-        registeredPolicyNames: target.authorization?.policyNames ?? [],
-        routePathsByOwner,
-    }));
+    const collectedDiagnostics: Array<{ appId?: string; diagnostics: readonly MainzDiagnostic[] }> = [];
 
-    if (!discoveryErrors?.length) {
-        return diagnostics;
+    for (const evaluation of evaluations) {
+        const pages = evaluation.discoveredPages.map((page) => ({
+            file: page.file,
+            exportName: page.exportName,
+            page: {
+                path: page.path,
+                mode: page.mode,
+                hasExplicitRenderMode: page.hasExplicitRenderMode,
+                notFound: page.notFound,
+                declaredRoutePath: page.declaredRoutePath,
+                locales: page.locales,
+                authorization: page.authorization,
+            },
+        }));
+        const routePathsByOwner = new Map(
+            evaluation.discoveredPages.map((page) => [`${page.file}::${page.exportName}`, page.path]),
+        );
+        const diagnostics = evaluation.discoveryErrors?.length
+            ? []
+            : await collectDiagnosticsFromModel(createDiagnosticsTargetModel({
+                pages,
+                sourceInputs,
+                registeredPolicyNames: target.authorization?.policyNames ?? [],
+                routePathsByOwner,
+                appId: evaluation.appId,
+            }));
+
+        collectedDiagnostics.push({
+            appId: evaluation.appId,
+            diagnostics: [
+                ...diagnostics,
+                ...((evaluation.discoveryErrors ?? []).map((discoveryError) => ({
+                    code: toPageDiscoveryDiagnosticCode(discoveryError.kind),
+                    severity: "error" as const,
+                    message: discoveryError.message,
+                    file: discoveryError.file,
+                    exportName: "(page discovery)",
+                }))),
+            ].sort(compareMainzDiagnostics),
+        });
     }
 
-    return [
-        ...diagnostics,
-        ...discoveryErrors.map((discoveryError) => ({
-            code: toPageDiscoveryDiagnosticCode(discoveryError.kind),
-            severity: "error" as const,
-            message: discoveryError.message,
-            file: discoveryError.file,
-            exportName: "(page discovery)",
-        })),
-    ].sort(compareMainzDiagnostics);
+    return collectedDiagnostics;
 }
 
 function compareMainzDiagnostics(a: MainzDiagnostic, b: MainzDiagnostic): number {

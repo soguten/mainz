@@ -24,6 +24,10 @@ When a target uses routing or shared DI composition, treat `src/app.ts` as the r
 composition root and keep `src/main.tsx` small. For simple root-only apps, that extra `app.ts`
 layer is optional.
 
+When you use `defineApp(...)`, give the app a stable unique `id`.
+Mainz uses that `id` for app-aware diagnostics and commands such as
+`mainz diagnose --target <name> --app <id>`.
+
 ## Avoid hiding routing in helpers
 
 The point is not to eliminate all helpers.

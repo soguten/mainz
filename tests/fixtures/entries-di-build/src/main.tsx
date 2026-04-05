@@ -8,6 +8,7 @@ import {
 } from "./services/story-services.ts";
 
 const app = defineApp({
+    id: "entries-di-build",
     pages: [EntriesDiStoryPage],
     services: [
         singleton(BuildEntriesConfigService),

@@ -8,29 +8,34 @@ import type { MainzDiagnostic } from "./core/target-model.ts";
 
 export interface DiagnoseCommandOptions {
     target?: string;
+    app?: string;
     format?: "json" | "human";
     failOn?: "never" | "error" | "warning";
 }
 
 export type TargetDiagnostic = MainzDiagnostic & {
     target: string;
+    appId?: string;
 };
 
 export async function collectDiagnosticsForConfig(
     config: NormalizedMainzConfig,
-    options: Pick<DiagnoseCommandOptions, "target">,
+    options: Pick<DiagnoseCommandOptions, "target" | "app">,
     cwd = Deno.cwd(),
 ): Promise<readonly TargetDiagnostic[]> {
     const diagnostics: TargetDiagnostic[] = [];
 
     for (const target of resolveDiagnoseTargets(config, options.target)) {
-        const targetDiagnostics = await collectDiagnosticsForTarget(target, cwd);
-        diagnostics.push(
-            ...targetDiagnostics.map((diagnostic) => ({
-                ...diagnostic,
-                target: target.name,
-            })),
-        );
+        const targetEvaluations = await collectDiagnosticsForTarget(target, cwd, options.app);
+        for (const evaluation of targetEvaluations) {
+            diagnostics.push(
+                ...evaluation.diagnostics.map((diagnostic) => ({
+                    ...diagnostic,
+                    target: target.name,
+                    appId: evaluation.appId,
+                })),
+            );
+        }
     }
 
     return diagnostics.sort(compareDiagnostics);
@@ -58,22 +63,26 @@ export function formatDiagnosticsHuman(
     ];
 
     for (const [target, targetDiagnostics] of byTarget) {
+        const groupedByApp = groupDiagnosticsByApp(targetDiagnostics);
         sections.push([
             `Target: ${target}`,
-            ...targetDiagnostics.map((diagnostic) =>
-                [
-                    `${diagnostic.severity} ${diagnostic.code}`,
-                    `  export: ${diagnostic.exportName}`,
-                    `  file: ${diagnostic.file}`,
-                    ...(readDiagnosticRoutePath(diagnostic)
-                        ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`]
-                        : []),
-                    ...((diagnostic.subject?.length ?? 0) > 0
-                        ? [`  subject: ${diagnostic.subject}`]
-                        : []),
-                    `  ${diagnostic.message}`,
-                ].join("\n")
-            ),
+            ...[...groupedByApp.entries()].map(([appId, appDiagnostics]) => [
+                ...(appId ? [`App: ${appId}`] : []),
+                ...appDiagnostics.map((diagnostic) =>
+                    [
+                        `${diagnostic.severity} ${diagnostic.code}`,
+                        `  export: ${diagnostic.exportName}`,
+                        `  file: ${diagnostic.file}`,
+                        ...(readDiagnosticRoutePath(diagnostic)
+                            ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`]
+                            : []),
+                        ...((diagnostic.subject?.length ?? 0) > 0
+                            ? [`  subject: ${diagnostic.subject}`]
+                            : []),
+                        `  ${diagnostic.message}`,
+                    ].join("\n")
+                ),
+            ].join("\n\n")),
         ].join("\n\n"));
     }
 
@@ -121,6 +130,10 @@ function compareDiagnostics(a: TargetDiagnostic, b: TargetDiagnostic): number {
         return a.target.localeCompare(b.target);
     }
 
+    if ((a.appId ?? "") !== (b.appId ?? "")) {
+        return (a.appId ?? "").localeCompare(b.appId ?? "");
+    }
+
     if (a.severity !== b.severity) {
         return a.severity.localeCompare(b.severity);
     }
@@ -153,6 +166,20 @@ function groupDiagnosticsByTarget(
         const targetDiagnostics = grouped.get(diagnostic.target) ?? [];
         targetDiagnostics.push(diagnostic);
         grouped.set(diagnostic.target, targetDiagnostics);
+    }
+
+    return grouped;
+}
+
+function groupDiagnosticsByApp(
+    diagnostics: readonly TargetDiagnostic[],
+): ReadonlyMap<string | undefined, readonly TargetDiagnostic[]> {
+    const grouped = new Map<string | undefined, TargetDiagnostic[]>();
+
+    for (const diagnostic of diagnostics) {
+        const appDiagnostics = grouped.get(diagnostic.appId) ?? [];
+        appDiagnostics.push(diagnostic);
+        grouped.set(diagnostic.appId, appDiagnostics);
     }
 
     return grouped;

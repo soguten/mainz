@@ -132,6 +132,7 @@ export interface StartNavigationOptions {
 }
 
 export interface RoutedAppDefinition {
+    id: string;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     services?: readonly ServiceRegistration[];
@@ -143,6 +144,7 @@ type RootComponentConstructor = CustomElementConstructor & {
 };
 
 export interface RootAppDefinition {
+    id: string;
     root: RootComponentConstructor;
     services?: readonly ServiceRegistration[];
 }
@@ -347,7 +349,7 @@ export function startApp(
 }
 
 function startRootApp(
-    app: RootAppDefinition,
+    app: Pick<RootAppDefinition, "root" | "services">,
     options?: StartDefinedAppOptions,
 ): NavigationController {
     const mode = resolveMainzNavigationMode();
@@ -397,6 +399,10 @@ function isRoutedAppDefinitionShape(value: unknown): value is RoutedAppDefinitio
     }
 
     const record = value as Record<string, unknown>;
+    if (typeof record.id !== "string" || record.id.trim().length === 0) {
+        return false;
+    }
+
     if (!Array.isArray(record.pages) || !record.pages.every(isRoutedPageEntry)) {
         return false;
     }
@@ -417,6 +423,10 @@ function isRootAppDefinitionShape(value: unknown): value is RootAppDefinition {
     }
 
     const record = value as Record<string, unknown>;
+    if (typeof record.id !== "string" || record.id.trim().length === 0) {
+        return false;
+    }
+
     if (!isRootComponentConstructor(record.root)) {
         return false;
     }

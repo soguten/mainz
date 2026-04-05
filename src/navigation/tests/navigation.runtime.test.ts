@@ -974,6 +974,7 @@ Deno.test("navigation/runtime: startApp should accept defineApp(...) composition
     window.history.replaceState(null, "", "/docs/pt/");
 
     const app = defineApp({
+        id: "navigation-runtime-test",
         pages: [SpaHomePage],
         notFound: SpaNotFoundPage,
     });
@@ -1069,6 +1070,7 @@ Deno.test("navigation/runtime: startApp should accept defineApp({ root, services
     document.body.innerHTML = '<main id="app"></main>';
 
     const app = defineApp({
+        id: "root-services-app",
         root: RootServicesApp,
         services: [
             singleton(RootGreetingService, () => new RootGreetingService("root-app")),

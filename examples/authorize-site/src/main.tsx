@@ -8,6 +8,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { ReportsPage } from "./pages/Reports.page.tsx";
 
 const app = defineApp({
+    id: "authorize-site",
     pages: [HomePage, LoginPage, AccountPage, BillingPage, ReportsPage],
     notFound: NotFoundPage,
 });

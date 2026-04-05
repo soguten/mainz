@@ -51,6 +51,7 @@ export class DiagnosticsDiFixturePage extends DiagnosticsFixturePage {
 }
 
 const app = defineApp({
+    id: "di-diagnostics",
     pages: [DiagnosticsDiFixturePage],
     services: [
         singleton(RegisteredDependency),

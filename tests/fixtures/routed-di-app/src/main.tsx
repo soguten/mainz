@@ -8,6 +8,7 @@ import {
 } from "./services/story-services.ts";
 
 const app = defineApp({
+    id: "routed-di-app",
     pages: [RoutedDiStoryPage],
     services: [
         singleton(RouteAtlasConfigService),

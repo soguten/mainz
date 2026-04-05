@@ -3,6 +3,7 @@ import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 const app = defineApp({
+    id: "site",
     pages: [HomePage],
     notFound: NotFoundPage,
 });

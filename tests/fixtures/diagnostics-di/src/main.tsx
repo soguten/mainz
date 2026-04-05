@@ -24,6 +24,7 @@ class CycleB {
 }
 
 const app = defineApp({
+    id: "diagnostics-di",
     pages: [DiagnosticsDiFixturePage],
     services: [
         singleton(RegisteredDependency),

@@ -11,6 +11,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { StoryPage } from "./pages/Story.page.tsx";
 
 export const app = defineApp({
+    id: "site",
     pages: [HomePage, StoryPage],
     notFound: NotFoundPage,
     services: [

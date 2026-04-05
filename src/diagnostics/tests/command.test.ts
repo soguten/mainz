@@ -132,6 +132,89 @@ Deno.test("diagnostics/command: should support failure policies and human format
     }
 });
 
+Deno.test("diagnostics/command: should evaluate multi-app targets by app id and allow explicit --app selection", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-app",
+        targetName: "diagnostics-multi-app",
+        locales: ["en"],
+        omitPagesDir: true,
+    });
+
+    try {
+        const loadedConfig = await loadMainzConfig(fixture.configPath);
+        const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+
+        const diagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+        }, Deno.cwd());
+        const betaDiagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+            app: "beta-app",
+        }, Deno.cwd());
+        const alphaDiagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+            app: "alpha-app",
+        }, Deno.cwd());
+
+        assertEquals(diagnostics.some((diagnostic) => diagnostic.appId === "alpha-app"), true);
+        assertEquals(
+            diagnostics.some((diagnostic) => diagnostic.code === "di-token-not-registered"),
+            true,
+        );
+        assertEquals(betaDiagnostics, []);
+        assertEquals(
+            alphaDiagnostics.some((diagnostic) =>
+                diagnostic.appId === "alpha-app" && diagnostic.code === "di-token-not-registered"
+            ),
+            true,
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id and allow explicit --app selection", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-root-app",
+        targetName: "diagnostics-multi-root-app",
+        omitPagesDir: true,
+    });
+
+    try {
+        const loadedConfig = await loadMainzConfig(fixture.configPath);
+        const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+
+        const diagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+        }, Deno.cwd());
+        const betaDiagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+            app: "beta-root-app",
+        }, Deno.cwd());
+        const alphaDiagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
+            target: fixture.targetName,
+            app: "alpha-root-app",
+        }, Deno.cwd());
+
+        assertEquals(diagnostics.some((diagnostic) => diagnostic.appId === "alpha-root-app"), true);
+        assertEquals(
+            diagnostics.some((diagnostic) =>
+                diagnostic.appId === "alpha-root-app" && diagnostic.code === "di-token-not-registered"
+            ),
+            true,
+        );
+        assertEquals(betaDiagnostics, []);
+        assertEquals(
+            alphaDiagnostics.some((diagnostic) =>
+                diagnostic.appId === "alpha-root-app" && diagnostic.code === "di-token-not-registered"
+            ),
+            true,
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
 Deno.test("diagnostics/command: human formatting should print subject when present", () => {
     const output = formatDiagnosticsHuman([
         {
@@ -149,6 +232,25 @@ Deno.test("diagnostics/command: human formatting should print subject when prese
     assertStringIncludes(output, "error invalid-locale-tag");
     assertStringIncludes(output, "subject: locale=pt_BR");
     assertStringIncludes(output, "route: /docs");
+});
+
+Deno.test("diagnostics/command: human formatting should group diagnostics by app when app id is present", () => {
+    const output = formatDiagnosticsHuman([
+        {
+            target: "docs",
+            appId: "site",
+            code: "invalid-locale-tag",
+            severity: "error",
+            message: 'Page "DocsPage" declares invalid locale "pt_BR".',
+            file: "C:/repo/docs-site/src/pages/Docs.page.tsx",
+            exportName: "DocsPage",
+            routePath: "/docs",
+        },
+    ]);
+
+    assertStringIncludes(output, "Target: docs");
+    assertStringIncludes(output, "App: site");
+    assertStringIncludes(output, "error invalid-locale-tag");
 });
 
 async function collectFixtureDiagnostics(configPath: string, target: string) {

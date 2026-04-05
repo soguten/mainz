@@ -7,6 +7,7 @@ import {
 } from "./services/client-story-services.ts";
 
 const app = defineApp({
+    id: "routed-di-client-app",
     pages: [RoutedDiClientStoryPage],
     services: [
         singleton(ClientRouteBoardService),

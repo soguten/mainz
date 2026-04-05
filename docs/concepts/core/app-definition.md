@@ -31,6 +31,7 @@ import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 export const app = defineApp({
+    id: "site",
     pages: [HomePage],
     notFound: NotFoundPage,
 });
@@ -49,6 +50,7 @@ This keeps the app definition readable and reusable without tying static tooling
 in `main.tsx`.
 
 For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`.
+App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
 
 ## Root-only apps
 
@@ -68,6 +70,7 @@ class AppRoot extends Component {
 }
 
 export const app = defineApp({
+    id: "marketing-root",
     root: AppRoot,
     services: [singleton(ApiClient)],
 });
@@ -101,6 +104,7 @@ They represent different responsibilities.
 
 - what pages or root belong to this app?
 - which services belong to this app composition?
+- what stable app `id` should tooling use?
 
 `startApp(...)` answers:
 

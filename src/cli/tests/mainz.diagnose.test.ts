@@ -119,3 +119,96 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
         await fixture.cleanup();
     }
 });
+
+Deno.test("cli/mainz: diagnose should support selecting one app by id", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-app",
+        targetName: "diagnostics-multi-app",
+        locales: ["en"],
+        omitPagesDir: true,
+    });
+
+    try {
+        const { stdout: defaultStdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose default app-aware output failed for diagnostics-multi-app fixture.",
+        );
+        const { stdout: selectedStdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+                "--app",
+                "beta-app",
+            ],
+            "diagnose selected app output failed for diagnostics-multi-app fixture.",
+        );
+
+        const defaultDiagnostics = JSON.parse(defaultStdout) as Array<{ code: string; appId?: string }>;
+        const selectedDiagnostics = JSON.parse(selectedStdout) as Array<{ code: string; appId?: string }>;
+
+        assertEquals(
+            defaultDiagnostics.some((diagnostic) =>
+                diagnostic.appId === "alpha-app" && diagnostic.code === "di-token-not-registered"
+            ),
+            true,
+        );
+        assertEquals(selectedDiagnostics, []);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("cli/mainz: diagnose should support selecting one root-only app by id", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-root-app",
+        targetName: "diagnostics-multi-root-app",
+        omitPagesDir: true,
+    });
+
+    try {
+        const { stdout: defaultStdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+            ],
+            "diagnose default app-aware output failed for diagnostics-multi-root-app fixture.",
+        );
+        const { stdout: selectedStdout } = await runMainzCliCommand(
+            [
+                "diagnose",
+                "--config",
+                fixture.configPath,
+                "--target",
+                fixture.targetName,
+                "--app",
+                "beta-root-app",
+            ],
+            "diagnose selected app output failed for diagnostics-multi-root-app fixture.",
+        );
+
+        const defaultDiagnostics = JSON.parse(defaultStdout) as Array<{ code: string; appId?: string }>;
+        const selectedDiagnostics = JSON.parse(selectedStdout) as Array<{ code: string; appId?: string }>;
+
+        assertEquals(
+            defaultDiagnostics.some((diagnostic) =>
+                diagnostic.appId === "alpha-root-app" && diagnostic.code === "di-token-not-registered"
+            ),
+            true,
+        );
+        assertEquals(selectedDiagnostics, []);
+    } finally {
+        await fixture.cleanup();
+    }
+});

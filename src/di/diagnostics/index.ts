@@ -39,7 +39,9 @@ type DiDiagnosticsRuntimeContext = {
 export const diDiagnosticsContributor = {
     name: "di",
     async collect(model: DiagnosticsTargetModel) {
-        const facts = await discoverDiFacts(model.sourceInputs);
+        const facts = await discoverDiFacts(model.sourceInputs, {
+            appId: model.context.appId,
+        });
         const context = createDiDiagnosticsContext(facts.registrations, {
             routePathsByOwner: model.context.routePathsByOwner,
         });

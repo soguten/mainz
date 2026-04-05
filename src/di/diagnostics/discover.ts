@@ -31,9 +31,12 @@ interface ResolvedDiExpression {
 
 export async function discoverDiFacts(
     sourceInputs: readonly DiSourceDiagnosticsInput[],
+    options?: {
+        appId?: string;
+    },
 ): Promise<DiDiagnosticsFacts> {
     const fileContexts = createFileContexts(sourceInputs);
-    const registrations = collectProjectServiceRegistrations(fileContexts);
+    const registrations = collectProjectServiceRegistrations(fileContexts, options);
     return {
         registrations,
         injections: collectProjectInjectionUsages(fileContexts),
@@ -71,6 +74,9 @@ function createFileContexts(
 
 function collectProjectServiceRegistrations(
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
+    options?: {
+        appId?: string;
+    },
 ): readonly DiRegistrationFact[] {
     const registrations: DiRegistrationFact[] = [];
 
@@ -85,13 +91,14 @@ function collectProjectServiceRegistrations(
                 return;
             }
 
-            const servicesResolution = callee === "startApp"
-                ? extractServicesExpressionFromAppDefinition(
+            const servicesResolutions = callee === "startApp"
+                ? extractServicesExpressionsFromAppDefinition(
                     node.arguments[0],
                     fileContext,
                     fileContexts,
                     new Set<string>(),
                     false,
+                    options?.appId,
                 )
                 : (() => {
                     const servicesExpression = extractServicesExpression(node.arguments[0]);
@@ -102,18 +109,25 @@ function collectProjectServiceRegistrations(
                         }
                         : undefined;
                 })();
-            if (!servicesResolution) {
+            const resolvedExpressions = Array.isArray(servicesResolutions)
+                ? servicesResolutions
+                : servicesResolutions
+                ? [servicesResolutions]
+                : [];
+            if (resolvedExpressions.length === 0) {
                 return;
             }
 
-            registrations.push(
-                ...resolveServiceRegistrationsFromExpression(
-                    servicesResolution.expression,
-                    servicesResolution.fileContext,
-                    fileContexts,
-                    new Set<string>(),
-                ),
-            );
+            for (const servicesResolution of resolvedExpressions) {
+                registrations.push(
+                    ...resolveServiceRegistrationsFromExpression(
+                        servicesResolution.expression,
+                        servicesResolution.fileContext,
+                        fileContexts,
+                        new Set<string>(),
+                    ),
+                );
+            }
         });
     }
 
@@ -517,48 +531,98 @@ function extractServicesExpression(node: ts.Expression | undefined): ts.Expressi
     return undefined;
 }
 
-function extractServicesExpressionFromAppDefinition(
+function readNamedPropertyInitializer(
+    objectLiteral: ts.ObjectLiteralExpression,
+    expectedName: string,
+): ts.Expression | undefined {
+    for (const property of objectLiteral.properties) {
+        if (
+            ts.isPropertyAssignment(property) &&
+            isNamedProperty(property.name, expectedName)
+        ) {
+            return property.initializer;
+        }
+
+        if (ts.isShorthandPropertyAssignment(property) && property.name.text === expectedName) {
+            return property.name;
+        }
+    }
+
+    return undefined;
+}
+
+function extractServicesExpressionsFromAppDefinition(
     node: ts.Expression | undefined,
     fileContext: DiDiagnosticFileContext,
     fileContexts: ReadonlyMap<string, DiDiagnosticFileContext>,
     visitedReferences: Set<string>,
     allowObjectLiteral: boolean,
-): ResolvedDiExpression | undefined {
+    appId?: string,
+): readonly ResolvedDiExpression[] {
     const normalizedNode = node ? unwrapExpression(node) : undefined;
     if (!normalizedNode) {
-        return undefined;
+        return [];
     }
 
     if (allowObjectLiteral) {
+        const discoveredAppId = readAppIdFromAppDefinition(normalizedNode);
+        if (appId && discoveredAppId !== appId) {
+            return [];
+        }
+
         const directServices = extractServicesExpression(normalizedNode);
         if (directServices) {
-            return {
+            return [{
                 expression: directServices,
                 fileContext,
-            };
+            }];
         }
+
+        return [];
     }
 
     if (
         ts.isCallExpression(normalizedNode) &&
         readIdentifierLike(normalizedNode.expression) === "defineApp"
     ) {
-        return extractServicesExpressionFromAppDefinition(
+        return extractServicesExpressionsFromAppDefinition(
             normalizedNode.arguments[0],
             fileContext,
             fileContexts,
             visitedReferences,
             true,
+            appId,
         );
     }
 
+    if (ts.isConditionalExpression(normalizedNode)) {
+        return [
+            ...extractServicesExpressionsFromAppDefinition(
+                normalizedNode.whenTrue,
+                fileContext,
+                fileContexts,
+                new Set(visitedReferences),
+                allowObjectLiteral,
+                appId,
+            ),
+            ...extractServicesExpressionsFromAppDefinition(
+                normalizedNode.whenFalse,
+                fileContext,
+                fileContexts,
+                new Set(visitedReferences),
+                allowObjectLiteral,
+                appId,
+            ),
+        ];
+    }
+
     if (!ts.isIdentifier(normalizedNode)) {
-        return undefined;
+        return [];
     }
 
     const referenceKey = `${fileContext.file}::app::${normalizedNode.text}`;
     if (visitedReferences.has(referenceKey)) {
-        return undefined;
+        return [];
     }
 
     visitedReferences.add(referenceKey);
@@ -568,16 +632,33 @@ function extractServicesExpressionFromAppDefinition(
         normalizedNode.text,
     );
     if (!resolved) {
-        return undefined;
+        return [];
     }
 
-    return extractServicesExpressionFromAppDefinition(
+    return extractServicesExpressionsFromAppDefinition(
         resolved.expression,
         resolved.fileContext,
         fileContexts,
         visitedReferences,
         allowObjectLiteral,
+        appId,
     );
+}
+
+function readAppIdFromAppDefinition(expression: ts.Expression): string | undefined {
+    const normalizedExpression = unwrapExpression(expression);
+    if (!ts.isObjectLiteralExpression(normalizedExpression)) {
+        return undefined;
+    }
+
+    const idExpression = readNamedPropertyInitializer(normalizedExpression, "id");
+    const normalizedIdExpression = idExpression ? unwrapExpression(idExpression) : undefined;
+    if (!normalizedIdExpression || !ts.isStringLiteralLike(normalizedIdExpression)) {
+        return undefined;
+    }
+
+    const appId = normalizedIdExpression.text.trim();
+    return appId.length > 0 ? appId : undefined;
 }
 
 function readMemberInjectionToken(node: ts.ClassElement): DiTokenReference | undefined {

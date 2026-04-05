@@ -5,6 +5,7 @@ import { MemberDashboardPage } from "./pages/MemberDashboard.page.tsx";
 import { AdminVaultPage } from "./pages/AdminVault.page.tsx";
 
 const app = defineApp({
+    id: "routed-authorization-app",
     pages: [LoginPage, MemberDashboardPage, AdminVaultPage],
 });
 

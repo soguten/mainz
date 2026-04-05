@@ -3,6 +3,7 @@ import { CoreContractsHomePage } from "./pages/Home.page.tsx";
 import { CoreContractsNotFoundPage } from "./pages/NotFound.page.tsx";
 
 const app = defineApp({
+    id: "core-contracts",
     pages: [CoreContractsHomePage],
     notFound: CoreContractsNotFoundPage,
 });
