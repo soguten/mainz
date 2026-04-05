@@ -3,6 +3,7 @@ import { Authorize, Component, type NoProps, type NoState, RenderStrategy } from
 @Authorize({ roles: ["owner"] })
 @RenderStrategy("blocking")
 export class OwnerTools extends Component<NoProps, NoState, readonly string[]> {
+
     override load(): readonly string[] {
         return [
             "Rotate organization keys",

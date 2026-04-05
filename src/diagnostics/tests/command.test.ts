@@ -1,0 +1,134 @@
+/// <reference lib="deno.ns" />
+
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import { loadMainzConfig, normalizeMainzConfig } from "../../config/index.ts";
+import {
+    collectDiagnosticsForConfig,
+    formatDiagnosticsHuman,
+    shouldFailDiagnostics,
+} from "../index.ts";
+import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+
+Deno.test("diagnostics/command: should collect route diagnostics for a fixture target", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-routes",
+        targetName: "diagnostics-routes",
+        locales: ["en"],
+    });
+
+    try {
+        const diagnostics = await collectFixtureDiagnostics(fixture.configPath, fixture.targetName);
+
+        assertEquals(
+            diagnostics.some((diagnostic) => diagnostic.code === "dynamic-ssg-missing-entries"),
+            true,
+        );
+        assertEquals(
+            diagnostics.some((diagnostic) => diagnostic.code === "dynamic-ssg-invalid-entries"),
+            true,
+        );
+        assertEquals(
+            diagnostics.some((diagnostic) => diagnostic.code === "page-static-load-unsupported"),
+            true,
+        );
+        assertEquals(
+            diagnostics.some((diagnostic) => diagnostic.code === "component-load-missing-fallback"),
+            true,
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should report invalid locale tags declared in @Locales(...)", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-invalid-locales",
+        targetName: "diagnostics-invalid-locales",
+        locales: ["en"],
+    });
+
+    try {
+        const diagnostics = await collectFixtureDiagnostics(fixture.configPath, fixture.targetName);
+
+        assertEquals(diagnostics.length, 1);
+        assertEquals(diagnostics[0]?.code, "invalid-locale-tag");
+        assertStringIncludes(diagnostics[0]?.message ?? "", 'Invalid locale "en--US"');
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should report authorization and DI diagnostics from fixture targets", async () => {
+    const authorizationFixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-authorization-policies",
+        targetName: "diagnostics-authorization-policies",
+        locales: ["en"],
+    });
+    const diFixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-di",
+        targetName: "diagnostics-di",
+        locales: ["en"],
+    });
+
+    try {
+        const authorizationDiagnostics = await collectFixtureDiagnostics(
+            authorizationFixture.configPath,
+            authorizationFixture.targetName,
+        );
+        const diDiagnostics = await collectFixtureDiagnostics(diFixture.configPath, diFixture.targetName);
+
+        assertEquals(authorizationDiagnostics[0]?.code, "authorization-policy-not-registered");
+        assertEquals(diDiagnostics.some((diagnostic) => diagnostic.code === "di-token-not-registered"), true);
+        assertEquals(
+            diDiagnostics.some((diagnostic) => diagnostic.code === "di-registration-cycle"),
+            true,
+        );
+    } finally {
+        await authorizationFixture.cleanup();
+        await diFixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should accept named authorization policies declared in target config", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-authorization-policies",
+        targetName: "diagnostics-authorization-policies",
+        locales: ["en"],
+        authorizationPolicyNames: ["org-member"],
+    });
+
+    try {
+        const diagnostics = await collectFixtureDiagnostics(fixture.configPath, fixture.targetName);
+        assertEquals(diagnostics, []);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should support failure policies and human formatting", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-routes",
+        targetName: "diagnostics-routes",
+        locales: ["en"],
+    });
+
+    try {
+        const diagnostics = await collectFixtureDiagnostics(fixture.configPath, fixture.targetName);
+        const output = formatDiagnosticsHuman(diagnostics);
+
+        assertEquals(shouldFailDiagnostics(diagnostics, "never"), false);
+        assertEquals(shouldFailDiagnostics(diagnostics, "error"), true);
+        assertEquals(shouldFailDiagnostics(diagnostics, "warning"), true);
+        assertStringIncludes(output, "Diagnostics summary:");
+        assertStringIncludes(output, "Target: diagnostics-routes");
+        assertStringIncludes(output, "error dynamic-ssg-missing-entries");
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+async function collectFixtureDiagnostics(configPath: string, target: string) {
+    const loadedConfig = await loadMainzConfig(configPath);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    return await collectDiagnosticsForConfig(normalizedConfig, { target }, Deno.cwd());
+}

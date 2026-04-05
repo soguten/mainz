@@ -1,5 +1,19 @@
 {
     "group": "pages",
     "groupTitle": "Pages",
-    "groupOrder": 4
+    "groupOrder": 4,
+    "articles": {
+        "page-model.md": {
+            "slug": "page-model",
+            "order": 1
+        },
+        "head-and-seo.md": {
+            "slug": "head-and-seo",
+            "order": 2
+        },
+        "not-found.md": {
+            "slug": "not-found",
+            "order": 3
+        }
+    }
 }

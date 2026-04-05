@@ -18,18 +18,16 @@ Deno.test("routing/filesystem: should identify supported page files", () => {
 Deno.test("routing/filesystem: should infer root and nested static paths", () => {
     const root = inferFilesystemRoute("C:\\repo\\site\\pages\\index.page.tsx", {
         pagesDir: "C:\\repo\\site\\pages",
-        defaultMode: "ssg",
     });
 
     const nested = inferFilesystemRoute("C:\\repo\\site\\pages\\docs\\install.ssg.page.tsx", {
         pagesDir: "C:\\repo\\site\\pages",
-        defaultMode: "csr",
     });
 
     assertEquals(root, {
         file: "C:/repo/site/pages/index.page.tsx",
         source: "filesystem",
-        mode: "ssg",
+        mode: "csr",
         path: "/",
         pattern: "/",
         routeKey: "/",
@@ -48,17 +46,14 @@ Deno.test("routing/filesystem: should infer root and nested static paths", () =>
 Deno.test("routing/filesystem: should infer dynamic and catch-all segments", () => {
     const dynamicRoute = inferFilesystemRoute("site/pages/blog/[slug].page.tsx", {
         pagesDir: "site/pages",
-        defaultMode: "csr",
     });
 
     const catchAllRoute = inferFilesystemRoute("site/pages/blog/[...parts].csr.page.tsx", {
         pagesDir: "site/pages",
-        defaultMode: "ssg",
     });
 
     const legacySpaSuffixRoute = inferFilesystemRoute("site/pages/blog/[...legacy].spa.page.tsx", {
         pagesDir: "site/pages",
-        defaultMode: "ssg",
     });
 
     assertEquals(dynamicRoute?.path, "/blog/:slug");
@@ -76,7 +71,6 @@ Deno.test("routing/filesystem: should throw for invalid catch-all placement", ()
     assertThrows(() => {
         inferFilesystemRoute("site/pages/docs/[...parts]/edit.page.tsx", {
             pagesDir: "site/pages",
-            defaultMode: "ssg",
         });
     }, Error, "catch-all segment must be in the final path segment");
 });
@@ -85,7 +79,6 @@ Deno.test("routing/filesystem: should throw for duplicate param names in one rou
     assertThrows(() => {
         inferFilesystemRoute("site/pages/blog/[slug]/[slug].page.tsx", {
             pagesDir: "site/pages",
-            defaultMode: "ssg",
         });
     }, Error, "duplicate param name \"slug\"");
 });
@@ -99,7 +92,6 @@ Deno.test("routing/filesystem: should detect canonical route conflicts", () => {
             ],
             {
                 pagesDir: "site/pages",
-                defaultMode: "ssg",
             },
         );
     }, Error, "Filesystem routing conflict");
@@ -116,7 +108,6 @@ Deno.test("routing/filesystem: should sort routes using RFC matching priority", 
         ],
         {
             pagesDir: "site/pages",
-            defaultMode: "ssg",
         },
     );
 

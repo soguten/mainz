@@ -1,16 +1,13 @@
 /// <reference lib="deno.ns" />
 
-import { cliTestCombinations, runCliHelperScript } from "../../helpers/test-helpers.ts";
+import { runSingleLocaleRoutingCheck } from "../../checks/single-locale-routing-check.ts";
+import { testCombinations } from "../../helpers/types.ts";
 
-for (const combination of cliTestCombinations) {
+for (const combination of testCombinations) {
     Deno.test(
         `e2e/smoke single-locale routing: ${combination.mode} + ${combination.navigation} should keep emitted routes unprefixed for a single-locale target`,
         async () => {
-            await runCliHelperScript(
-                "./tests/checks/single-locale-routing-check.ts",
-                [combination.mode, combination.navigation],
-                `Single-locale routing check failed for ${combination.mode} + ${combination.navigation}.`,
-            );
+            await runSingleLocaleRoutingCheck(combination);
         },
     );
 }

@@ -11,16 +11,10 @@ interface HomePageData {
 
 @Route("/")
 export class HomePage extends DiHttpExamplePage<HomePageData> {
-    
-    static override page = {
-        head: {
-            title: "Mainz DI + HTTP Example",
-        },
-    };
 
-    static readonly api = inject(StoriesApi);
+    private readonly api = inject(StoriesApi);
 
-    static async load(context: PageLoadContext) {
+    override async load(context: PageLoadContext) {
         return {
             featured: await this.api.listFeatured({
                 signal: context.signal,
@@ -28,7 +22,14 @@ export class HomePage extends DiHttpExamplePage<HomePageData> {
         };
     }
 
+    override head() {
+        return {
+            title: "Mainz DI + HTTP Example",
+        };
+    }
+
     override render() {
+        
         const featured = this.props.data?.featured ?? [];
 
         return (

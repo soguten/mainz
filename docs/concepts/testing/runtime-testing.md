@@ -1,3 +1,8 @@
+---
+title: Runtime Testing
+summary: Exercise routing, locale handling, navigation, and runtime-managed behavior through Mainz testing helpers.
+---
+
 ## Runtime tests verify framework behavior directly
 
 Some behavior belongs above one component:

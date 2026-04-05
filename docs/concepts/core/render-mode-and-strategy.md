@@ -1,8 +1,6 @@
 ---
 title: Render Mode and Render Strategy
-slug: render-mode-and-strategy
 summary: Understand how pages define the route envelope and how components decide whether they block, defer, or wait for the browser.
-order: 3
 ---
 
 ## `RenderMode` and `RenderStrategy` solve different problems

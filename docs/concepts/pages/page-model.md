@@ -1,8 +1,6 @@
 ---
 title: Page Model
-slug: page-model
 summary: Keep routes, head metadata, and behavior close to the page itself.
-order: 1
 ---
 
 ## A page is the center of gravity

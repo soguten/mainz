@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { runMainzCliCommand } from "../../../tests/helpers/test-helpers.ts";
+import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
+import { runMainzCliCommand } from "../../../tests/helpers/cli.ts";
 
 Deno.test("cli/mainz: publish-info should print artifact metadata resolved from a target profile", async () => {
     const { stdout } = await runMainzCliCommand(
@@ -12,21 +13,34 @@ Deno.test("cli/mainz: publish-info should print artifact metadata resolved from 
 
     assertEquals(metadata.target, "site");
     assertEquals(metadata.profile, "gh-pages");
-    assertEquals(metadata.artifactDir, "dist/site/ssg");
+    assertEquals(metadata.outDir, "dist/site");
     assertEquals(metadata.basePath, "/");
-    assertEquals(metadata.renderMode, "ssg");
-    assertEquals(metadata.navigationMode, "enhanced-mpa");
+    assertEquals(metadata.navigation, "enhanced-mpa");
 });
 
-Deno.test("cli/mainz: publish-info should accept explicit navigation overrides without a dedicated profile", async () => {
-    const { stdout } = await runMainzCliCommand(
-        ["publish-info", "--target", "site", "--mode", "csr", "--navigation", "spa"],
-        "publish-info failed.",
-    );
-    const metadata = JSON.parse(stdout);
+Deno.test("cli/mainz: publish-info should reject legacy render overrides", async () => {
+    const command = new Deno.Command("deno", {
+        args: [
+            "run",
+            "-A",
+            "./src/cli/mainz.ts",
+            "publish-info",
+            "--target",
+            "site",
+            "--mode",
+            "csr",
+            "--navigation",
+            "spa",
+        ],
+        cwd: cliTestsRepoRoot,
+        stdout: "piped",
+        stderr: "piped",
+    });
+    const result = await command.output();
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
 
-    assertEquals(metadata.target, "site");
-    assertEquals(metadata.profile, "production");
-    assertEquals(metadata.renderMode, "csr");
-    assertEquals(metadata.navigationMode, "spa");
+    assertEquals(result.code, 1);
+    assertEquals(stdout, "");
+    assertEquals(stderr.includes('Command "publish-info" no longer accepts --mode.'), true);
 });

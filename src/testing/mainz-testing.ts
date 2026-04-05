@@ -1,23 +1,13 @@
 import { Window } from "happy-dom";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
+import { createTestScreen, type TestScreen } from "./test-screen.ts";
 
 export type MainzComponentCtor<T extends HTMLElement> = {
     getTagName(): string;
     new(): T;
 };
 
-export type RenderResult<T extends HTMLElement> = {
-    component: T;
-    host: HTMLElement;
-    container: HTMLElement;
-    getBySelector<E extends Element = Element>(selector: string): E;
-    queryBySelector<E extends Element = Element>(selector: string): E | null;
-    click(selector: string): void;
-    dispatch(selector: string, event: Event): void;
-    input(selector: string, value: string): void;
-    change(selector: string, value: string): void;
-    cleanup(): void;
-};
+export type RenderResult<T extends HTMLElement> = TestScreen<T>;
 
 type PropsOf<T> = T extends { props: infer P } ? P : never;
 type StateOf<T> = T extends { state: infer S } ? S : never;
@@ -111,71 +101,6 @@ function ensureDefined<T extends HTMLElement>(Ctor: MainzComponentCtor<T>): stri
     return ensureMainzCustomElementDefined(Ctor as unknown as CustomElementConstructor & { getTagName(): string });
 }
 
-function createRenderResult<T extends HTMLElement>(
-    component: T,
-    host: HTMLElement,
-): RenderResult<T> {
-    const queryBySelector = <E extends Element = Element>(
-        selector: string,
-    ): E | null => {
-        return component.querySelector(selector) as E | null;
-    };
-
-    const getBySelector = <E extends Element = Element>(selector: string): E => {
-        const node = queryBySelector<E>(selector);
-        if (!node) {
-            throw new Error(`Expected element for selector: ${selector}`);
-        }
-        return node;
-    };
-
-    const click = (selector: string): void => {
-        const node = getBySelector<HTMLElement>(selector);
-        node.click();
-    };
-
-    const dispatch = (selector: string, event: Event): void => {
-        const node = getBySelector<HTMLElement>(selector);
-        node.dispatchEvent(event);
-    };
-
-    const input = (selector: string, value: string): void => {
-        const node = getBySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
-        node.value = value;
-        node.dispatchEvent(new Event("input", { bubbles: true }));
-    };
-
-    const change = (selector: string, value: string): void => {
-        const node = getBySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-            selector,
-        );
-        node.value = value;
-        node.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-
-    const cleanup = (): void => {
-        const parent = host.parentElement;
-        host.remove();
-
-        if (parent?.id === "test-root" && parent.childElementCount === 0) {
-            parent.remove();
-        }
-    };
-
-    return {
-        component,
-        host,
-        container: host,
-        getBySelector,
-        queryBySelector,
-        click,
-        dispatch,
-        input,
-        change,
-        cleanup,
-    };
-}
-
 export function renderMainzComponent<T extends HTMLElement>(
     Ctor: MainzComponentCtor<T>,
 ): RenderResult<T>;
@@ -221,5 +146,5 @@ export function renderMainzComponent<T extends HTMLElement>(
 
     host.appendChild(component);
 
-    return createRenderResult(component, host);
+    return createTestScreen(component, host);
 }

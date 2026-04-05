@@ -1,8 +1,6 @@
 ---
 title: NotFound Pages
-slug: not-found
 summary: Model custom 404 behavior across SPA and document-first navigation.
-order: 3
 ---
 
 ## 404 is part of the app model

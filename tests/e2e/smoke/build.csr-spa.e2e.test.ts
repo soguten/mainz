@@ -5,12 +5,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../src/ssg/happy-dom.ts";
 import { nextTick } from "../../../src/testing/async-testing.ts";
+import { buildTargetWithEngine } from "../../helpers/build.ts";
 import {
-    cliTestsRepoRoot as repoRoot,
     extractModuleScriptSrc,
     resolveOutputScriptPath,
-    runMainzCliCommand,
-} from "../../helpers/test-helpers.ts";
+} from "../../helpers/fixture-io.ts";
+import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
 Deno.test("e2e/csr spa: build should emit a direct-load shell that works for localized routes and notFound routes", async () => {
     await buildSiteCsrSpa();
@@ -75,25 +75,28 @@ Deno.test("e2e/csr spa: build should emit a direct-load shell that works for loc
     }, { url: "https://mainz.local/enadasd" });
 });
 
-Deno.test("e2e/csr spa: task contract should preview csr spa with explicit spa navigation env", async () => {
+Deno.test("e2e/csr spa: task contract should keep explicit csr preview env for app-like targets", async () => {
     const denoJson = JSON.parse(await Deno.readTextFile(resolve(repoRoot, "deno.json"))) as {
         tasks?: Record<string, string>;
     };
 
-    const previewCsrTask = denoJson.tasks?.["preview:site:csr"];
-    const previewCsrSpaTask = denoJson.tasks?.["preview:site:csr:spa"];
+    const previewPlaygroundTask = denoJson.tasks?.["preview:playground"];
+    const previewDiHttpTask = denoJson.tasks?.["preview:di-http-site"];
 
-    assert(previewCsrTask, 'Expected deno task "preview:site:csr" to exist.');
-    assert(previewCsrSpaTask, 'Expected deno task "preview:site:csr:spa" to exist.');
-    assertStringIncludes(previewCsrTask, "MAINZ_NAVIGATION_MODE=spa");
-    assertStringIncludes(previewCsrSpaTask, "MAINZ_NAVIGATION_MODE=spa");
+    assert(previewPlaygroundTask, 'Expected deno task "preview:playground" to exist.');
+    assert(previewDiHttpTask, 'Expected deno task "preview:di-http-site" to exist.');
+    assertStringIncludes(previewPlaygroundTask, "MAINZ_RENDER_MODE=csr");
+    assertStringIncludes(previewPlaygroundTask, "MAINZ_NAVIGATION_MODE=spa");
+    assertStringIncludes(previewDiHttpTask, "MAINZ_RENDER_MODE=csr");
+    assertStringIncludes(previewDiHttpTask, "MAINZ_NAVIGATION_MODE=spa");
 });
 
 async function buildSiteCsrSpa(): Promise<void> {
-    await runMainzCliCommand(
-        ["build", "--target", "site", "--mode", "csr", "--navigation", "spa"],
-        "Failed to build site for CSR SPA e2e test.",
-    );
+    await buildTargetWithEngine({
+        targetName: "site",
+        mode: "csr",
+        navigation: "spa",
+    });
 }
 
 function overrideNavigatorLocale(locale: string): void {

@@ -12,6 +12,12 @@ export {
     collectTargetDiagnostics,
     collectTargetModelDiagnostics,
 } from "./collect.ts";
+export {
+    collectDiagnosticsForConfig,
+    formatDiagnosticsHuman,
+    formatDiagnosticsJson,
+    shouldFailDiagnostics,
+} from "./command.ts";
 export type {
     DiagnosticsContributor,
     DiagnosticsContributorInput,
@@ -23,6 +29,7 @@ export type {
     DiagnosticsTargetModel,
     MainzDiagnostic,
 } from "./core/target-model.ts";
+export type { DiagnoseCommandOptions, TargetDiagnostic } from "./command.ts";
 export { createDiagnosticsTargetModel } from "./core/target-model.ts";
 export {
     componentDiagnosticsContributor,

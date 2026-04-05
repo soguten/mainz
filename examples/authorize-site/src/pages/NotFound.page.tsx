@@ -1,19 +1,22 @@
-import { type Principal, RenderMode, Route } from "mainz";
+import { type PageLoadContext, RenderMode } from "mainz";
 import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
-import { AuthorizeSitePage, loadAuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 
-@Route("/404")
 @RenderMode("ssg")
 export class NotFoundPage extends AuthorizeSitePage {
-    static override page = {
-        notFound: true,
-        head: {
-            title: "Not Found",
-        },
-    };
+    
+    override async load(context: PageLoadContext) {
+        return await buildAuthorizeSiteShellData({
+            principal: context.principal,
+            url: context.url,
+        });
+    }
 
-    static async load({ principal, url }: { principal?: Principal; url: URL }) {
-        return await loadAuthorizeSitePage({ principal, url });
+    override head() {
+        return {
+            title: "Not Found",
+        };
     }
 
     override render(): HTMLElement {

@@ -1,8 +1,6 @@
 ---
 title: Navigation Runtime
-slug: navigation-runtime
 summary: Understand what SPA, MPA, and enhanced-MPA do in practice inside the browser.
-order: 8
 ---
 
 ## Three navigation modes

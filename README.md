@@ -2,34 +2,31 @@
 
 A class-based TSX runtime built on Web Components
 
-## Build and Routing (CSR + SSG)
+## Build and Routing
 
 This repository supports multi-target builds driven by `mainz.config.ts`, with:
 
-- `csr` and `ssg` modes
+- page-owned render selection through `@RenderMode(...)`
 - target-level navigation policy (`spa`, `mpa`, `enhanced-mpa`)
 - target selection (`site`, `playground`, or `all`)
-- i18n-aware SSG outputs
-- page-first routing for `site` and app-only CSR fallback for `playground`
+- i18n-aware prerendered outputs where pages opt into `ssg`
+- undecorated pages defaulting to `csr`
+- page-first routing for `site` and app-only browser-first fallback for `playground`
 - hydration-safe custom elements in prerendered pages
 
 Quick commands:
 
 - `deno task build:mainz`
-- `deno task build:site:csr`
-- `deno task build:site:ssg`
-- `deno task build:playground:csr`
-- `deno task preview:site:csr`
-- `deno task preview:site:ssg`
-- `deno task preview:playground:csr`
+- `deno task build:site`
+- `deno task build:playground`
+- `deno task preview:site:production`
+- `deno task preview:playground`
 - `deno task test:fast`
 - `deno task test:e2e:core`
-- `deno task test:e2e:special`
 - `deno task test:smoke`
 - `deno task test`
 
-`preview:site:ssg` now uses a Mainz static preview server that serves the generated `404.html` for
-missing routes, so custom 404 title and meta tags are preserved during local preview.
+`preview:site:artifact` now uses a Mainz static preview server that serves the generated `404.html` for missing routes, so custom 404 title and meta tags are preserved during local preview.
 
 For related framework docs and examples, see:
 

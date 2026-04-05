@@ -21,16 +21,16 @@ interface AuthorizeSiteRouteDefinition extends RouteManifestEntry {
     access: string;
 }
 
-export async function getAuthorizeSiteNavigation(args: {
-    principal: Principal;
-    currentPath: string;
-}): Promise<AuthorizeSiteNavItem[]> {
+export async function getAuthorizeSiteNavigation(args: { principal: Principal; currentPath: string; }): Promise<AuthorizeSiteNavItem[]> {
+    
     const routes = await loadAuthorizeSiteRouteDefinitions();
+    
     const visibleRoutes = await filterVisibleRoutes({
         routes,
         principal: args.principal,
         policies: authorizeSitePolicies,
     });
+    
     const visibleRouteIds = new Set(visibleRoutes.map((route) => route.id));
 
     return routes

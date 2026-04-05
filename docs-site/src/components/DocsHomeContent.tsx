@@ -14,6 +14,7 @@ interface DocsHomePageModel {
 @CustomElement("x-mainz-docs-home-content")
 @RenderStrategy("blocking")
 export class DocsHomeContent extends Component<NoProps, NoState, DocsHomePageModel> {
+    
     readonly docs = inject(DocsService);
 
     override load(): DocsHomePageModel {

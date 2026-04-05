@@ -1,8 +1,6 @@
 ---
 title: Project Structure
-slug: project-structure
 summary: Organize targets, pages, and content without hiding how the framework works.
-order: 3
 ---
 
 ## Keep the product shape visible

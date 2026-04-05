@@ -1,5 +1,27 @@
 {
     "group": "components",
     "groupTitle": "Components",
-    "groupOrder": 3
+    "groupOrder": 3,
+    "articles": {
+        "component-model.md": {
+            "slug": "component-model",
+            "order": 1
+        },
+        "functional-components.md": {
+            "slug": "functional-components",
+            "order": 2
+        },
+        "custom-elements.md": {
+            "slug": "custom-elements",
+            "order": 3
+        },
+        "state-and-events.md": {
+            "slug": "state-and-events",
+            "order": 4
+        },
+        "render-owner.md": {
+            "slug": "render-owner",
+            "order": 5
+        }
+    }
 }

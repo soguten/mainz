@@ -1,8 +1,6 @@
 ---
 title: Head and SEO
-slug: head-and-seo
 summary: Let Mainz manage canonical, hreflang, and page metadata without head duplication.
-order: 2
 ---
 
 ## Head should not duplicate

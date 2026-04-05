@@ -15,7 +15,6 @@ export default defineMainzConfig({
                 fallbackLocale: "en",
             },
             outDir: "dist/site",
-            defaultMode: "ssg",
             defaultNavigation: "enhanced-mpa",
         },
         {
@@ -24,7 +23,6 @@ export default defineMainzConfig({
             viteConfig: "./vite.config.playground.ts",
             locales: ["en"],
             outDir: "dist/playground",
-            defaultMode: "ssg",
             defaultNavigation: "spa",
         },
         {
@@ -37,7 +35,6 @@ export default defineMainzConfig({
                 policyNames: ["org-member"],
             },
             outDir: "dist/examples/authorize-site",
-            defaultMode: "csr",
             defaultNavigation: "spa",
         },
         {
@@ -47,7 +44,6 @@ export default defineMainzConfig({
             pagesDir: "./examples/di-http-site/src/pages",
             locales: ["en"],
             outDir: "dist/examples/di-http-site",
-            defaultMode: "csr",
             defaultNavigation: "spa",
         },
         {
@@ -63,11 +59,7 @@ export default defineMainzConfig({
                 fallbackLocale: "en",
             },
             outDir: "dist/docs",
-            defaultMode: "ssg",
             defaultNavigation: "enhanced-mpa",
         },
     ],
-    render: {
-        modes: ["csr", "ssg"],
-    },
 });

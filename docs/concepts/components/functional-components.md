@@ -1,8 +1,6 @@
 ---
 title: Functional Components
-slug: functional-components
 summary: Use functions for composition, while class components remain the stateful runtime boundary.
-order: 2
 ---
 
 ## Functional components are composition helpers

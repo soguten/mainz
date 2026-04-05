@@ -5,12 +5,12 @@ import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 @Route("/404")
 @RenderMode("ssg")
 export class NotFoundPage extends DiHttpExamplePage {
-    static override page = {
-        notFound: true,
-        head: {
+    
+    override head() {
+        return {
             title: "DI + HTTP Example | Not Found",
-        },
-    };
+        };
+    }
 
     override render() {
         return (

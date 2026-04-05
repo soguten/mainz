@@ -13,9 +13,10 @@ interface StoryPageData {
 
 @Route("/stories/:slug")
 export class StoryPage extends DiHttpExamplePage<StoryPageData> {
-    static readonly api = inject(StoriesApi);
 
-    static async load(context: PageLoadContext) {
+    private readonly api = inject(StoriesApi);
+
+    override async load(context: PageLoadContext) {
         return {
             story: await this.api.getBySlug(context.params.slug, {
                 signal: context.signal,
@@ -24,7 +25,9 @@ export class StoryPage extends DiHttpExamplePage<StoryPageData> {
     }
 
     override render() {
+
         const story = this.props.data?.story;
+        
         if (!story) {
             return <div></div>;
         }

@@ -1,20 +1,24 @@
-import { type Principal, RenderMode, Route } from "mainz";
+import { type PageLoadContext, RenderMode, Route } from "mainz";
 import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
-import { AuthorizeSitePage, loadAuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 import { activateSessionAndNavigate, listSessionPresets } from "../lib/session.ts";
 
 @Route("/login")
 @RenderMode("csr")
 export class LoginPage extends AuthorizeSitePage {
     
-    static override page = {
-        head: {
-            title: "Choose Session",
-        },
-    };
+    override async load(context: PageLoadContext) {
+        return await buildAuthorizeSiteShellData({
+            principal: context.principal,
+            url: context.url,
+        });
+    }
 
-    static async load({ principal, url }: { principal?: Principal; url: URL }) {
-        return await loadAuthorizeSitePage({ principal, url });
+    override head() {
+        return {
+            title: "Choose Session",
+        };
     }
 
     override render(): HTMLElement {

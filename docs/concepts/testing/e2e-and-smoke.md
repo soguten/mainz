@@ -1,3 +1,8 @@
+---
+title: E2E and Smoke Testing
+summary: Use explicit targets, profiles, and navigation modes to drive predictable smoke and browser-level testing.
+---
+
 ## Mainz helps E2E by making build inputs explicit
 
 Mainz does not ship its own browser E2E framework.
@@ -6,7 +11,6 @@ Instead, it tries to make E2E and smoke testing predictable by exposing the dime
 through the CLI:
 
 - `--target`
-- `--mode`
 - `--navigation`
 - `--profile`
 
@@ -26,18 +30,17 @@ one overloaded flag.
 ## Example build commands
 
 ```bash title="CLI"
-deno run -A ./src/cli/mainz.ts build --target site --mode ssg --navigation enhanced-mpa
-deno run -A ./src/cli/mainz.ts build --target site --mode csr --navigation spa
-deno run -A ./src/cli/mainz.ts build --target docs --mode ssg --navigation mpa
+deno run -A ./src/cli/mainz.ts build --target site --profile production
+deno run -A ./src/cli/mainz.ts build --target site --profile gh-pages
+deno run -A ./src/cli/mainz.ts build --target docs --profile production
 ```
 
-These commands make the test scenario obvious in CI logs and local debugging.
+These commands make the target and publication profile obvious in CI logs and local debugging, while render ownership stays with each page through `@RenderMode(...)`.
 
 ## What Mainz makes easier for E2E suites
 
 Even without shipping a browser runner, the framework helps with common E2E pain points:
 
-- build mode is explicit
 - navigation mode is explicit
 - targets are explicit
 - profile-specific output is explicit
@@ -45,8 +48,8 @@ Even without shipping a browser runner, the framework helps with common E2E pain
 
 That means your E2E suite can ask better questions, such as:
 
-- does `ssg + enhanced-mpa` preserve head tags?
-- does `csr + spa` redirect the root locale correctly?
+- does a page-owned `ssg` route preserve head tags under `enhanced-mpa`?
+- does a default-`csr` route redirect the root locale correctly under `spa`?
 - does publication with `basePath` emit the right routing behavior?
 - does publication with `siteUrl` emit the right absolute SEO links?
 
@@ -76,16 +79,37 @@ For broader E2E coverage:
 
 That is the same philosophy used internally by the Mainz repository itself.
 
+## Static artifact checks versus booted-runtime checks
+
+A useful split for build-oriented E2E coverage is:
+
+- static artifact checks: read emitted HTML directly when the contract is about publication output
+- booted-runtime checks: execute the built client runtime when the contract is about hydration,
+  navigation, or post-boot head/body behavior
+
+Use static artifact checks for things like:
+
+- canonical links
+- alternate links
+- emitted redirects
+- file layout under `basePath`
+
+Use booted-runtime checks for things like:
+
+- hydration continuity
+- locale-aware navigation
+- runtime title or head updates
+- interactive route behavior after boot
+
+For booted-runtime checks, prefer synchronizing on `waitForNavigationReady(...)` from
+`mainz/testing` or on the bubbled `mainz:navigationready` event before asserting title, locale, body, or head behavior.
+
 ## Public surface versus internal test architecture
 
 As a framework user, the public part you rely on is:
 
 - the `mainz/testing` helpers for unit and runtime tests
-- the CLI build inputs that make E2E scenarios explicit
-
-The repository's internal grouped matrix used to validate Mainz itself is documented separately for contributors in:
-
-- [`../../advanced/testing-matrix.md`](../../advanced/testing-matrix.md)
+- the CLI target/profile/navigation inputs that make E2E scenarios explicit
 
 For DOM-based smoke checks that execute the built runtime directly, prefer synchronizing on
 `waitForNavigationReady(...)` from `mainz/testing` or on the bubbled `mainz:navigationready` event

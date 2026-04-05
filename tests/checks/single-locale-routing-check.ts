@@ -5,40 +5,30 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
 import { nextTick, waitFor } from "../../src/testing/async-testing.ts";
+import { buildTargetWithEngine } from "../helpers/build.ts";
 import {
-    cliTestsRepoRoot as repoRoot,
     extractModuleScriptSrc,
     resolveOutputHtmlPath,
     resolveOutputScriptPath,
     resolvePreviewFixture,
-    runMainzCliCommand,
-    waitForNextNavigationReady,
-} from "../helpers/test-helpers.ts";
+} from "../helpers/fixture-io.ts";
+import { waitForNextNavigationReady } from "../helpers/navigation.ts";
+import { cliTestsRepoRoot as repoRoot } from "../helpers/types.ts";
 
-const [mode, navigation] = Deno.args as [("csr" | "ssg")?, ("spa" | "mpa" | "enhanced-mpa")?];
+export async function runSingleLocaleRoutingCheck(args: {
+    mode: "csr" | "ssg";
+    navigation: "spa" | "mpa" | "enhanced-mpa";
+}): Promise<void> {
+    await buildTargetWithEngine({
+        targetName: "docs",
+        mode: args.mode,
+        navigation: args.navigation,
+    });
 
-if (!mode || !navigation) {
-    throw new Error(
-        "Usage: deno run -A ./tests/checks/single-locale-routing-check.ts <mode> <navigation>",
-    );
+    await assertRootRoute(args);
+    await assertHomeLinks(args);
+    await assertDocsRoute(args);
 }
-
-await runMainzCliCommand(
-    [
-        "build",
-        "--target",
-        "docs",
-        "--mode",
-        mode,
-        "--navigation",
-        navigation,
-    ],
-    "Failed to build docs for single-locale routing check.",
-);
-
-await assertRootRoute({ mode, navigation });
-await assertHomeLinks({ mode, navigation });
-await assertDocsRoute({ mode, navigation });
 
 async function assertRootRoute(args: {
     mode: "csr" | "ssg";
@@ -230,11 +220,6 @@ async function resolveRouteFixture(
             return resolveOutputHtmlPath(outputDir, routePath);
         },
     });
-}
-
-function extractInlineRedirectScript(html: string): string | null {
-    const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i);
-    return match?.[1]?.trim() ?? null;
 }
 
 function readAnchorHref(label: string): string | null {

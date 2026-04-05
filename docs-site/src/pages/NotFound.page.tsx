@@ -10,10 +10,12 @@ import { DocsService } from "../services/DocsService.ts";
 @RenderMode("ssg")
 @Locales("en")
 export class NotFoundPage extends Page {
+
     readonly docs = inject(DocsService);
 
     override head() {
         const page = this.docs.getPageById("not-found");
+        
         if (!page) {
             throw new Error('Missing docs page content "not-found".');
         }

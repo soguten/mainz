@@ -15,7 +15,7 @@ import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
     collectFilesystemFiles,
     resolveTargetDiscoveredPagesForTarget,
-} from "../cli/route-pages.ts";
+} from "../routing/target-page-discovery.ts";
 import { diagnosticsContributors } from "./contributors.ts";
 import {
     createDiagnosticsTargetModel,

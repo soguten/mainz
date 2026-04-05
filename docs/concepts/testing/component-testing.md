@@ -1,3 +1,8 @@
+---
+title: Component Testing
+summary: Render Mainz components in a DOM-like test environment and assert behavior through the public testing helpers.
+---
+
 ## Component tests should stay close to the DOM
 
 Mainz components are custom elements. A good component test usually looks like:

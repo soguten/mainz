@@ -21,10 +21,7 @@ export interface AuthorizeSiteShellData {
     accessChecks: AuthorizeSiteAccessCheck[];
 }
 
-export async function loadAuthorizeSiteShellData(args: {
-    principal?: Principal;
-    url: URL;
-}): Promise<AuthorizeSiteShellData> {
+export async function buildAuthorizeSiteShellData(args: { principal?: Principal; url: URL; }): Promise<AuthorizeSiteShellData> {
     const principal = args.principal ?? createAnonymousPrincipal();
     const currentPath = args.url.pathname || "/";
     const principalDetails = describeAuthorizeSitePrincipal(principal);

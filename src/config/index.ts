@@ -50,18 +50,31 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
         throw new Error("Mainz config requires at least one target.");
     }
 
+    if ("render" in (input as unknown as Record<string, unknown>)) {
+        throw new Error(
+            'Top-level render config is no longer supported. Remove "render.modes" and rely on page-owned render plus build recipe selection.',
+        );
+    }
+
+    for (const target of input.targets) {
+        if ("defaultMode" in (target as unknown as Record<string, unknown>)) {
+            throw new Error(
+                `Target "${target.name}" no longer supports "defaultMode". Page render is page-owned and defaults to "csr" when undecorated.`,
+            );
+        }
+
+        if ("filesystemDefaultMode" in (target as unknown as Record<string, unknown>)) {
+            throw new Error(
+                `Target "${target.name}" no longer supports "filesystemDefaultMode". Filesystem routing now defaults locally to "csr" when no explicit render signal exists.`,
+            );
+        }
+    }
+
     const normalizedTargets = input.targets.map(normalizeTarget);
     assertUniqueTargetNames(normalizedTargets);
 
-    const requestedModes: RenderMode[] = input.render?.modes && input.render.modes.length > 0
-        ? [...input.render.modes]
-        : ["csr", "ssg"];
-
-    const renderModes = dedupeRenderModes(requestedModes);
-
     return {
         targets: normalizedTargets,
-        renderModes,
     };
 }
 
@@ -98,7 +111,6 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
     return {
         ...target,
         appFile: target.appFile?.trim() || undefined,
-        defaultMode: target.defaultMode,
         defaultNavigation: target.defaultNavigation
             ? normalizeNavigationMode(target.defaultNavigation)
             : undefined,
@@ -125,13 +137,11 @@ function normalizeTargetAuthorization(
 
 function normalizeTargetBuildProfile(profile: {
     basePath?: string;
-    overridePageMode?: RenderMode;
     overrideNavigation?: NavigationMode;
     siteUrl?: string;
 }): NormalizedTargetBuildProfile {
     return {
         basePath: normalizeBasePath(profile.basePath),
-        overridePageMode: profile.overridePageMode,
         overrideNavigation: profile.overrideNavigation
             ? normalizeNavigationMode(profile.overrideNavigation)
             : undefined,
@@ -150,24 +160,6 @@ function assertUniqueTargetNames(targets: NormalizedMainzTarget[]): void {
 
         seen.add(key);
     }
-}
-
-function dedupeRenderModes(modes: RenderMode[]): RenderMode[] {
-    const allowed = new Set<RenderMode>(["csr", "ssg"]);
-    const unique: RenderMode[] = [];
-    const seen = new Set<RenderMode>();
-
-    for (const mode of modes) {
-        if (!allowed.has(mode)) {
-            throw new Error(`Unsupported render mode "${mode}". Use "csr" or "ssg".`);
-        }
-
-        if (seen.has(mode)) continue;
-        seen.add(mode);
-        unique.push(mode);
-    }
-
-    return unique;
 }
 
 function normalizeNavigationMode(mode: NavigationMode): NavigationMode {

@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import {
     buildDocsCatalogFromFiles,
     DocsService,
@@ -68,6 +68,125 @@ Deno.test("docs catalog builder inherits section and group metadata from _meta.j
     assertEquals(catalog.articles[0]?.groupTitle, "Core");
 });
 
+Deno.test("docs catalog builder inherits per-article slug and order from _meta.json", () => {
+    const catalog = buildDocsCatalogFromFiles(
+        [
+            {
+                sourcePath: "../../../docs/concepts/testing/overview.md",
+                raw: `---\ntitle: Testing Overview\nsummary: Public testing surface.\n---\n## Intro\n`,
+            },
+        ],
+        [
+            {
+                sourcePath: "../../../docs/concepts/_meta.json",
+                attributes: {
+                    section: "concepts",
+                    sectionTitle: "Concepts",
+                    sectionOrder: 2,
+                },
+            },
+            {
+                sourcePath: "../../../docs/concepts/testing/_meta.json",
+                attributes: {
+                    group: "testing",
+                    groupTitle: "Testing",
+                    groupOrder: 2,
+                    articles: {
+                        "overview.md": {
+                            slug: "testing-overview",
+                            order: 0,
+                        },
+                    },
+                },
+            },
+        ],
+    );
+
+    assertEquals(catalog.articles[0]?.slug, "testing-overview");
+    assertEquals(catalog.articles[0]?.order, 0);
+});
+
+Deno.test("docs catalog builder ignores article files not listed in _meta.json articles", () => {
+    const catalog = buildDocsCatalogFromFiles(
+        [
+            {
+                sourcePath: "../../../docs/concepts/testing/overview.md",
+                raw: `---\ntitle: Testing Overview\nsummary: Public testing surface.\n---\n## Intro\n`,
+            },
+            {
+                sourcePath: "../../../docs/concepts/testing/extra-note.md",
+                raw: `---\ntitle: Extra Note\nsummary: Should not be listed.\n---\n## Intro\n`,
+            },
+        ],
+        [
+            {
+                sourcePath: "../../../docs/concepts/_meta.json",
+                attributes: {
+                    section: "concepts",
+                    sectionTitle: "Concepts",
+                    sectionOrder: 2,
+                },
+            },
+            {
+                sourcePath: "../../../docs/concepts/testing/_meta.json",
+                attributes: {
+                    group: "testing",
+                    groupTitle: "Testing",
+                    groupOrder: 2,
+                    articles: {
+                        "overview.md": {
+                            slug: "testing-overview",
+                            order: 0,
+                        },
+                    },
+                },
+            },
+        ],
+    );
+
+    assertEquals(catalog.articles.map((article) => article.slug), ["testing-overview"]);
+});
+
+Deno.test("docs catalog builder fails when _meta.json declares a missing article file", () => {
+    assertThrows(() =>
+        buildDocsCatalogFromFiles(
+            [
+                {
+                    sourcePath: "../../../docs/concepts/testing/overview.md",
+                    raw: `---\ntitle: Testing Overview\nsummary: Public testing surface.\n---\n## Intro\n`,
+                },
+            ],
+            [
+                {
+                    sourcePath: "../../../docs/concepts/_meta.json",
+                    attributes: {
+                        section: "concepts",
+                        sectionTitle: "Concepts",
+                        sectionOrder: 2,
+                    },
+                },
+                {
+                    sourcePath: "../../../docs/concepts/testing/_meta.json",
+                    attributes: {
+                        group: "testing",
+                        groupTitle: "Testing",
+                        groupOrder: 2,
+                        articles: {
+                            "overview.md": {
+                                slug: "testing-overview",
+                                order: 0,
+                            },
+                            "missing.md": {
+                                slug: "missing-article",
+                                order: 1,
+                            },
+                        },
+                    },
+                },
+            ],
+        ), Error, 'Docs metadata declares article "missing.md"');
+});
+
 Deno.test("docs service exposes frontmatter lookups by slug", () => {
     const docs = new DocsService();
     const frontmatter = docs.getFrontmatterBySlug("quickstart");
@@ -99,7 +218,11 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     ]);
     assertEquals(sections[1].groups?.[1].title, "Testing");
     assertEquals(sections[1].groups?.[1].items.map((item) => item.slug), [
+        "testing-overview",
         "http-testing",
+        "component-testing",
+        "runtime-testing",
+        "e2e-and-smoke",
     ]);
     assertEquals(sections[1].groups?.[2].title, "Components");
     assertEquals(sections[1].groups?.[2].items.map((item) => item.slug), [
@@ -140,11 +263,21 @@ Deno.test("docs helpers compute previous and next article links", () => {
 
     assertEquals(docs.getPagerBySlug("dependency-injection"), {
         previous: { slug: "authorization", title: "Authorization" },
+        next: { slug: "testing-overview", title: "Testing Overview" },
+    });
+
+    assertEquals(docs.getPagerBySlug("testing-overview"), {
+        previous: { slug: "dependency-injection", title: "Dependency Injection" },
         next: { slug: "http-testing", title: "HTTP Testing" },
     });
 
     assertEquals(docs.getPagerBySlug("http-testing"), {
-        previous: { slug: "dependency-injection", title: "Dependency Injection" },
+        previous: { slug: "testing-overview", title: "Testing Overview" },
+        next: { slug: "component-testing", title: "Component Testing" },
+    });
+
+    assertEquals(docs.getPagerBySlug("e2e-and-smoke"), {
+        previous: { slug: "runtime-testing", title: "Runtime Testing" },
         next: { slug: "component-model", title: "Component Model" },
     });
 

@@ -7,7 +7,6 @@ export type RouteSource = "filesystem";
 
 export interface FilesystemRoutingOptions {
     pagesDir: string;
-    defaultMode: RenderMode;
 }
 
 export interface FilesystemRoute {
@@ -43,7 +42,6 @@ export interface TargetDefinition {
         fallbackLocale?: string;
     };
     outDir?: string;
-    defaultMode?: RenderMode;
 }
 
 export interface RouteManifestEntry {

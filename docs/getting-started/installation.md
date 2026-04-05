@@ -1,8 +1,6 @@
 ---
 title: Installation
-slug: installation
 summary: Set up Mainz in a repo and understand the minimum moving pieces.
-order: 2
 ---
 
 ## Install the toolchain
@@ -12,8 +10,8 @@ Mainz leans on Deno and Vite, so the setup is intentionally small.
 If your repo already uses Deno tasks, Mainz fits in cleanly without an extra package manager layer.
 
 ```bash title="Install and run"
-deno task build:site:ssg:enhanced-mpa
-deno task preview:site:ssg:enhanced-mpa
+deno task build:site
+deno task preview:site:production
 ```
 
 ## Configure Vite

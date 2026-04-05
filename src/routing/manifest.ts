@@ -67,12 +67,6 @@ export function buildTargetRouteManifest(input: BuildTargetRouteManifestInput): 
         };
     }
 
-    if (filesystemConfigured && !target.defaultMode && !input.discoveredPages?.length) {
-        throw new Error(
-            `Target "${targetName}" uses filesystem routing and requires defaultMode ("ssg" or "csr").`,
-        );
-    }
-
     const filesystemRoutes = buildFilesystemCandidates(input);
 
     const mergedByRouteAndLocale = new Map<string, ExpandedRouteLocale>();
@@ -388,7 +382,6 @@ function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): Candid
     try {
         filesystemRoutes = inferFilesystemRoutes([...input.filesystemPageFiles], {
             pagesDir: target.pagesDir,
-            defaultMode: target.defaultMode!,
         });
     } catch (error) {
         throw new Error(
@@ -1029,4 +1022,3 @@ function toErrorMessage(error: unknown): string {
 
     return String(error);
 }
-

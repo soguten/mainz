@@ -1,8 +1,6 @@
 ---
 title: Styling and Theme
-slug: styling
 summary: Build a bold docs interface without giving up static output or progressive enhancement.
-order: 1
 ---
 
 ## Theme is app-level today

@@ -59,7 +59,7 @@ export interface DocsSourceFile {
 
 export interface DocsMetaFile {
     sourcePath: string;
-    attributes: Record<string, string | number>;
+    attributes: Record<string, unknown>;
 }
 
 export interface ParsedDocsFrontmatter {
@@ -95,6 +95,11 @@ interface DocsNormalizedFile {
     groupTitle?: string;
     groupOrder?: number;
     order?: number;
+}
+
+interface DocsDirectoryMeta {
+    attributes: Readonly<Record<string, string | number>>;
+    articles?: ReadonlyMap<string, Readonly<Record<string, string | number>>>;
 }
 
 const DEFAULT_DOCS_ROOT = "../../../docs/";
@@ -192,6 +197,8 @@ export function buildDocsCatalogFromFiles(
             frontmatter: file.frontmatter,
         }))
         .sort(compareDocsArticles);
+
+    assertDeclaredDocsArticlesExist(normalizedFiles, directoryMetaByPath);
 
     const pages = normalizedFiles
         .filter((file): file is DocsNormalizedFile & { kind: "page" } => file.kind === "page")
@@ -312,9 +319,9 @@ function loadMarkdownModules(): Record<string, string> | null {
     }
 }
 
-function loadMetaModules(): Record<string, Record<string, string | number>> | null {
+function loadMetaModules(): Record<string, Record<string, unknown>> | null {
     try {
-        return import.meta.glob<Record<string, string | number>>("../../../docs/**/_meta.json", {
+        return import.meta.glob<Record<string, unknown>>("../../../docs/**/_meta.json", {
             eager: true,
             import: "default",
         });
@@ -438,7 +445,7 @@ function collectDenoDocsMetaFiles(
 
         files.push({
             sourcePath: normalizeRootPath(childRelativePath).slice(0, -1),
-            attributes: JSON.parse(deno.readTextFileSync(childUrl)) as Record<string, string | number>,
+            attributes: JSON.parse(deno.readTextFileSync(childUrl)) as Record<string, unknown>,
         });
     }
 
@@ -447,19 +454,26 @@ function collectDenoDocsMetaFiles(
 
 function buildDirectoryMetaByPath(
     metaFiles: readonly DocsMetaFile[],
-): ReadonlyMap<string, Readonly<Record<string, string | number>>> {
+): ReadonlyMap<string, DocsDirectoryMeta> {
     return new Map(
         metaFiles.map((file) => [
             normalizeDirectoryPath(file.sourcePath.replace(/\/_meta\.json$/i, "")),
-            Object.freeze({ ...file.attributes }),
+            normalizeDocsDirectoryMeta(file.sourcePath, file.attributes),
         ] as const),
     );
 }
 
 function normalizeDocsFile(
     file: DocsSourceFile,
-    directoryMetaByPath: ReadonlyMap<string, Readonly<Record<string, string | number>>>,
+    directoryMetaByPath: ReadonlyMap<string, DocsDirectoryMeta>,
 ): DocsNormalizedFile | null {
+    const normalizedSourcePath = file.sourcePath.replace(/\\/g, "/");
+    const currentDirectoryPath = collectDirectoryAncestors(normalizedSourcePath).at(-1);
+    const currentDirectoryMetadata = currentDirectoryPath
+        ? directoryMetaByPath.get(currentDirectoryPath)
+        : undefined;
+    const currentFileName = normalizedSourcePath.split("/").at(-1);
+
     const frontmatter = parseDocsFrontmatter(file.raw);
 
     if (Object.keys(frontmatter.attributes).length === 0) {
@@ -472,6 +486,15 @@ function normalizeDocsFile(
         ...frontmatter.attributes,
     });
     const kind = readOptionalString(attributes, "kind") === "page" ? "page" : "article";
+
+    if (
+        kind === "article" &&
+        currentDirectoryMetadata?.articles &&
+        currentFileName &&
+        !currentDirectoryMetadata.articles.has(currentFileName)
+    ) {
+        return null;
+    }
 
     if (kind === "page") {
         const id = readRequiredString(attributes, "id", file.sourcePath);
@@ -487,7 +510,7 @@ function normalizeDocsFile(
             pageTitle: readOptionalString(attributes, "pageTitle"),
             description: readOptionalString(attributes, "description"),
             markdown: frontmatter.body,
-            sourcePath: file.sourcePath.replace(/\\/g, "/"),
+            sourcePath: normalizedSourcePath,
             frontmatter: attributes,
         };
     }
@@ -524,26 +547,144 @@ function normalizeDocsFile(
         groupOrder,
         order,
         markdown: frontmatter.body,
-        sourcePath: file.sourcePath.replace(/\\/g, "/"),
+        sourcePath: normalizedSourcePath,
         frontmatter: attributes,
     };
 }
 
 function resolveInheritedDirectoryMeta(
     sourcePath: string,
-    directoryMetaByPath: ReadonlyMap<string, Readonly<Record<string, string | number>>>,
+    directoryMetaByPath: ReadonlyMap<string, DocsDirectoryMeta>,
 ): Record<string, string | number> {
     const inherited: Record<string, string | number> = {};
     const directories = collectDirectoryAncestors(sourcePath);
+    const articleFileName = sourcePath.replace(/\\/g, "/").split("/").at(-1);
 
     for (const directoryPath of directories) {
         const metadata = directoryMetaByPath.get(directoryPath);
         if (metadata) {
-            Object.assign(inherited, metadata);
+            Object.assign(inherited, metadata.attributes);
+        }
+    }
+
+    if (articleFileName) {
+        const currentDirectoryPath = directories.at(-1);
+        const currentDirectoryMetadata = currentDirectoryPath
+            ? directoryMetaByPath.get(currentDirectoryPath)
+            : undefined;
+        const articleMetadata = currentDirectoryMetadata?.articles?.get(articleFileName);
+        if (articleMetadata) {
+            Object.assign(inherited, articleMetadata);
         }
     }
 
     return inherited;
+}
+
+function normalizeDocsDirectoryMeta(
+    sourcePath: string,
+    rawAttributes: Record<string, unknown>,
+): DocsDirectoryMeta {
+    const attributes: Record<string, string | number> = {};
+    let articles: ReadonlyMap<string, Readonly<Record<string, string | number>>> | undefined;
+
+    for (const [key, value] of Object.entries(rawAttributes)) {
+        if (key === "articles") {
+            articles = normalizeDocsDirectoryArticles(sourcePath, value);
+            continue;
+        }
+
+        if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) {
+            attributes[key] = value;
+            continue;
+        }
+
+        throw new Error(
+            `Docs meta file "${sourcePath}" contains unsupported value for "${key}".`,
+        );
+    }
+
+    return {
+        attributes: Object.freeze(attributes),
+        articles,
+    };
+}
+
+function normalizeDocsDirectoryArticles(
+    sourcePath: string,
+    value: unknown,
+): ReadonlyMap<string, Readonly<Record<string, string | number>>> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error(`Docs meta file "${sourcePath}" must define "articles" as an object.`);
+    }
+
+    const entries = new Map<string, Readonly<Record<string, string | number>>>();
+
+    for (const [fileName, rawEntry] of Object.entries(value)) {
+        if (!rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) {
+            throw new Error(
+                `Docs meta file "${sourcePath}" must define article metadata for "${fileName}" as an object.`,
+            );
+        }
+
+        const entry: Record<string, string | number> = {};
+        for (const [key, rawValue] of Object.entries(rawEntry)) {
+            if (
+                typeof rawValue === "string" ||
+                (typeof rawValue === "number" && Number.isFinite(rawValue))
+            ) {
+                entry[key] = rawValue;
+                continue;
+            }
+
+            throw new Error(
+                `Docs meta file "${sourcePath}" contains unsupported article metadata for "${fileName}.${key}".`,
+            );
+        }
+
+        entries.set(fileName, Object.freeze(entry));
+    }
+
+    return entries;
+}
+
+function assertDeclaredDocsArticlesExist(
+    normalizedFiles: readonly DocsNormalizedFile[],
+    directoryMetaByPath: ReadonlyMap<string, DocsDirectoryMeta>,
+): void {
+    const discoveredArticleFilesByDirectory = new Map<string, Set<string>>();
+
+    for (const file of normalizedFiles) {
+        if (file.kind !== "article") {
+            continue;
+        }
+
+        const normalizedSourcePath = file.sourcePath.replace(/\\/g, "/");
+        const fileName = normalizedSourcePath.split("/").at(-1);
+        const directoryPath = collectDirectoryAncestors(normalizedSourcePath).at(-1);
+        if (!fileName || !directoryPath) {
+            continue;
+        }
+
+        const discovered = discoveredArticleFilesByDirectory.get(directoryPath) ?? new Set<string>();
+        discovered.add(fileName);
+        discoveredArticleFilesByDirectory.set(directoryPath, discovered);
+    }
+
+    for (const [directoryPath, metadata] of directoryMetaByPath.entries()) {
+        if (!metadata.articles) {
+            continue;
+        }
+
+        const discovered = discoveredArticleFilesByDirectory.get(directoryPath) ?? new Set<string>();
+        for (const fileName of metadata.articles.keys()) {
+            if (!discovered.has(fileName)) {
+                throw new Error(
+                    `Docs metadata declares article "${fileName}" in "${directoryPath}", but no matching article file was discovered.`,
+                );
+            }
+        }
+    }
 }
 
 function collectDirectoryAncestors(sourcePath: string): readonly string[] {

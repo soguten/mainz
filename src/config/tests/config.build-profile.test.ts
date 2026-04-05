@@ -54,6 +54,54 @@ Deno.test("config/mainz: should reject invalid defaultNavigation values", () => 
     }, Error, "Unsupported navigation mode");
 });
 
+Deno.test("config/mainz: should reject legacy defaultMode", () => {
+    assertThrows(() => {
+        normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    defaultMode: "ssg" as never,
+                },
+            ],
+        } as unknown as Parameters<typeof normalizeMainzConfig>[0]);
+    }, Error, 'no longer supports "defaultMode"');
+});
+
+Deno.test("config/mainz: should reject legacy filesystemDefaultMode", () => {
+    assertThrows(() => {
+        normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    filesystemDefaultMode: "ssg" as never,
+                },
+            ],
+        } as unknown as Parameters<typeof normalizeMainzConfig>[0]);
+    }, Error, 'no longer supports "filesystemDefaultMode"');
+});
+
+Deno.test("config/mainz: should reject legacy top-level render.modes", () => {
+    assertThrows(() => {
+        normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    pagesDir: "./site/src/pages",
+                },
+            ],
+            render: {
+                modes: ["csr", "ssg"],
+            },
+        } as unknown as Parameters<typeof normalizeMainzConfig>[0]);
+    }, Error, "Top-level render config is no longer supported");
+});
+
 Deno.test("config/mainz: should normalize authorization policy names per target", () => {
     const config = normalizeMainzConfig({
         targets: [

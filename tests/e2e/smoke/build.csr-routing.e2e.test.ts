@@ -3,16 +3,16 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { createSsgPreviewHandler } from "../../../src/preview/ssg-server.ts";
+import { createArtifactPreviewHandler } from "../../../src/preview/artifact-server.ts";
 import { withHappyDom } from "../../../src/ssg/happy-dom.ts";
 import { nextTick } from "../../../src/testing/async-testing.ts";
+import { buildTargetWithEngine } from "../../helpers/build.ts";
 import {
-    cliTestsRepoRoot as repoRoot,
     extractModuleScriptSrc,
     readJsonFile,
     resolveOutputScriptPath,
-    runMainzCliCommand,
-} from "../../helpers/test-helpers.ts";
+} from "../../helpers/fixture-io.ts";
+import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
 Deno.test("e2e/csr routing: mpa build should emit localized route shells and hydrate direct document loads", async () => {
     await buildSiteCsrMpa();
@@ -54,7 +54,7 @@ Deno.test("e2e/csr routing: mpa build should emit localized route shells and hyd
 Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 404 page", async () => {
     await buildSiteCsrMpa();
 
-    const handler = createSsgPreviewHandler(resolve(repoRoot, "dist/site/csr"));
+    const handler = createArtifactPreviewHandler(resolve(repoRoot, "dist/site/csr"));
 
     const enResponse = await handler(new Request("http://127.0.0.1:4173/en/"));
     const enHtml = await enResponse.text();
@@ -124,10 +124,11 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
 });
 
 async function buildSiteCsrMpa(): Promise<void> {
-    await runMainzCliCommand(
-        ["build", "--target", "site", "--mode", "csr", "--navigation", "mpa"],
-        "Failed to build site for CSR routing e2e test.",
-    );
+    await buildTargetWithEngine({
+        targetName: "site",
+        mode: "csr",
+        navigation: "mpa",
+    });
 }
 
 async function readHydrationManifest(): Promise<

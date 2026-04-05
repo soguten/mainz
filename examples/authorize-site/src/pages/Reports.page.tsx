@@ -1,19 +1,24 @@
-import { Authorize, type Principal, RenderMode, Route } from "mainz";
+import { Authorize, type PageLoadContext, RenderMode, Route } from "mainz";
 import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
-import { AuthorizeSitePage, loadAuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
+import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 
 @Route("/reports")
 @RenderMode("csr")
 @Authorize({ roles: ["billing-admin"] })
 export class ReportsPage extends AuthorizeSitePage {
-    static override page = {
-        head: {
-            title: "Reports",
-        },
-    };
+    
+    override async load(context: PageLoadContext) {
+        return await buildAuthorizeSiteShellData({
+            principal: context.principal,
+            url: context.url,
+        });
+    }
 
-    static async load({ principal, url }: { principal?: Principal; url: URL }) {
-        return await loadAuthorizeSitePage({ principal, url });
+    override head() {
+        return {
+            title: "Reports",
+        };
     }
 
     override render(): HTMLElement {

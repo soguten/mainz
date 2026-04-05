@@ -1,3 +1,8 @@
+---
+title: Testing Overview
+summary: Understand the public testing surface and how Mainz supports component, runtime, smoke, and E2E coverage.
+---
+
 ## Testing in Mainz
 
 Mainz exposes a public testing surface through `mainz/testing`.
@@ -84,6 +89,14 @@ See:
 
 - [`e2e-and-smoke.md`](./e2e-and-smoke.md)
 
+For build-oriented E2E coverage, a good rule of thumb is:
+
+- read emitted HTML directly when the contract is about static publication output
+- boot the built runtime when the contract is about hydration, navigation, or post-boot behavior
+
+When you boot the built runtime in a DOM-based test, prefer synchronizing on
+`waitForNavigationReady(...)` or the bubbled `mainz:navigationready` event before asserting on the final page state.
+
 ## Async helpers
 
 Two small helpers are especially useful in tests:
@@ -111,7 +124,3 @@ everything behind a big custom test DSL.
 This section documents the public testing surface and testing-friendly patterns of the framework.
 
 It does not document the repository's internal matrix architecture used to validate Mainz itself.
-That contributor-facing document lives separately in:
-
-- [`../../advanced/testing-matrix.md`](../../advanced/testing-matrix.md)
-

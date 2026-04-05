@@ -88,13 +88,12 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
     ]);
 });
 
-Deno.test("routing/manifest: should use explicit csr defaultMode for filesystem pages", () => {
+Deno.test("routing/manifest: should default filesystem pages to csr when no explicit render signal exists", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "playground",
             rootDir: "./playground",
             pagesDir: "./playground/pages",
-            defaultMode: "csr",
             locales: ["en"],
         },
         filesystemPageFiles: [
@@ -103,6 +102,39 @@ Deno.test("routing/manifest: should use explicit csr defaultMode for filesystem 
     });
 
     assertEquals(manifest.routes[0].mode, "csr");
+});
+
+Deno.test("routing/manifest: should preserve discovered page modes even when filesystem fallback differs", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "site",
+            rootDir: "./site",
+            pagesDir: "./site/pages",
+            locales: ["en"],
+        },
+        discoveredPages: [
+            {
+                file: "./site/pages/live.page.tsx",
+                exportName: "LivePage",
+                path: "/live",
+                mode: "csr",
+            },
+            {
+                file: "./site/pages/docs.page.tsx",
+                exportName: "DocsPage",
+                path: "/docs",
+                mode: "ssg",
+            },
+        ],
+    });
+
+    assertEquals(
+        manifest.routes.map((route) => ({ path: route.path, mode: route.mode })),
+        [
+            { path: "/docs", mode: "ssg" },
+            { path: "/live", mode: "csr" },
+        ],
+    );
 });
 
 Deno.test("routing/manifest: should fail when discovered pages conflict in the same locale scope", () => {
@@ -155,18 +187,20 @@ Deno.test("routing/manifest: should require notFound pages to use ssg mode", () 
     }, Error, 'must use mode "ssg"');
 });
 
-Deno.test("routing/manifest: should require target defaultMode for filesystem routing", () => {
-    assertThrows(() => {
-        buildTargetRouteManifest({
-            target: {
-                name: "docs",
-                rootDir: "./docs-site",
-                pagesDir: "./docs-site/pages",
-                locales: ["en"],
-            },
-            filesystemPageFiles: ["./docs-site/pages/index.page.tsx"],
-        });
-    }, Error, "requires defaultMode");
+Deno.test("routing/manifest: should default filesystem pages to csr when no explicit render signal exists", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "docs",
+            rootDir: "./docs-site",
+            pagesDir: "./docs-site/pages",
+            locales: ["en"],
+        },
+        filesystemPageFiles: ["./docs-site/pages/index.page.tsx"],
+    });
+
+    assertEquals(manifest.routes.map((route) => ({ path: route.path, mode: route.mode })), [
+        { path: "/", mode: "csr" },
+    ]);
 });
 
 Deno.test("routing/manifest: should build routes from discovered page metadata", () => {
@@ -544,4 +578,3 @@ Deno.test("routing/manifest: locale path segment should be lowercase", () => {
     assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
     assertEquals(toLocalePathSegment("EN-us"), "en-us");
 });
-

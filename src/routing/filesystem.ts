@@ -29,7 +29,7 @@ export function inferFilesystemRoute(
     }
 
     const relativeFilePath = toRelativePath(normalizedFilePath, options.pagesDir);
-    const mode = inferRenderMode(relativeFilePath, options.defaultMode);
+    const mode = inferRenderMode(relativeFilePath);
     const withoutSuffix = trimPageSuffix(relativeFilePath);
 
     if (!withoutSuffix) {
@@ -73,7 +73,7 @@ function trimPageSuffix(relativeFilePath: string): string | null {
     return null;
 }
 
-function inferRenderMode(relativeFilePath: string, defaultMode: RenderMode): RenderMode {
+function inferRenderMode(relativeFilePath: string): RenderMode {
     if (relativeFilePath.endsWith(".ssg.page.tsx")) {
         return "ssg";
     }
@@ -86,7 +86,7 @@ function inferRenderMode(relativeFilePath: string, defaultMode: RenderMode): Ren
         return "csr";
     }
 
-    return defaultMode;
+    return "csr";
 }
 
 function inferRoutePattern(withoutSuffix: string, filePath: string): { path: string; routeKey: string } {

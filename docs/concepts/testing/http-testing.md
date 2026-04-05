@@ -1,8 +1,6 @@
 ---
 title: HTTP Testing
-slug: http-testing
 summary: Use mainz/http/testing to fake fetch, simulate latency, and keep HttpClient-based tests deterministic.
-order: 1
 ---
 
 ## HTTP testing with `mainz/http/testing`

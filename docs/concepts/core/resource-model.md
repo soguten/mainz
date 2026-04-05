@@ -1,8 +1,6 @@
 ---
 title: Resource Model
-slug: resource-model
 summary: Extract reusable data contracts without hiding whether the page or component owns the async work.
-order: 4
 ---
 
 ## Reusable data contracts after the ownership shift

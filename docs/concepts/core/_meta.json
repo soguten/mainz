@@ -1,5 +1,47 @@
 {
     "group": "core",
     "groupTitle": "Core",
-    "groupOrder": 1
+    "groupOrder": 1,
+    "articles": {
+        "routing.md": {
+            "slug": "routing",
+            "order": 1
+        },
+        "diagnostics-cli.md": {
+            "slug": "diagnostics-cli",
+            "order": 2
+        },
+        "render-mode-and-strategy.md": {
+            "slug": "render-mode-and-strategy",
+            "order": 3
+        },
+        "resource-model.md": {
+            "slug": "resource-model",
+            "order": 4
+        },
+        "public-shell-private-island.md": {
+            "slug": "public-shell-private-island",
+            "order": 5
+        },
+        "route-metadata.md": {
+            "slug": "route-metadata",
+            "order": 6
+        },
+        "data-loading.md": {
+            "slug": "data-loading",
+            "order": 7
+        },
+        "navigation-runtime.md": {
+            "slug": "navigation-runtime",
+            "order": 8
+        },
+        "authorization.md": {
+            "slug": "authorization",
+            "order": 9
+        },
+        "dependency-injection.md": {
+            "slug": "dependency-injection",
+            "order": 10
+        }
+    }
 }

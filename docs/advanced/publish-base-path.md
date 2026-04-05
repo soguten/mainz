@@ -1,8 +1,6 @@
 ---
 title: Publish Under a Base Path
-slug: publish-base-path
 summary: Handle basePath, siteUrl, and localized routes when publishing under a subpath.
-order: 2
 ---
 
 ## Base paths need real coverage
