@@ -22,6 +22,7 @@ Deno.test("di/diagnostics/rules: missing injected token should report route path
     assertEquals(diagnostics, [{
         code: "di-token-not-registered",
         severity: "error",
+        subject: "token=MissingApi",
         message: 'Class "HomePage" injects "MissingApi" with mainz/di, ' +
             "but that token is not registered in app startup services.",
         file: "/repo/src/pages/Home.page.tsx",
