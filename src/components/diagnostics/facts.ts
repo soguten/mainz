@@ -4,6 +4,11 @@ import { componentAuthorizationSsgWarningRuleCode } from "./rules/component-auth
 import { componentBlockingFallbackMisleadingRuleCode } from "./rules/component-blocking-fallback-misleading.rule.ts";
 import { componentLoadMissingFallbackRuleCode } from "./rules/component-load-missing-fallback.rule.ts";
 import { componentRenderStrategyWithoutLoadRuleCode } from "./rules/component-render-strategy-without-load.rule.ts";
+import {
+    invalidDiagnosticSuppressionCode,
+    unknownDiagnosticSuppressionCode,
+    unusedDiagnosticSuppressionCode,
+} from "../../diagnostics/core/suppressions.ts";
 
 export interface ComponentSourceDiagnosticsInput {
     file: string;
@@ -40,7 +45,10 @@ export type ComponentDiagnosticCode =
     | typeof componentAuthorizationSsgWarningRuleCode
     | typeof componentBlockingFallbackMisleadingRuleCode
     | typeof componentLoadMissingFallbackRuleCode
-    | typeof componentRenderStrategyWithoutLoadRuleCode;
+    | typeof componentRenderStrategyWithoutLoadRuleCode
+    | typeof invalidDiagnosticSuppressionCode
+    | typeof unknownDiagnosticSuppressionCode
+    | typeof unusedDiagnosticSuppressionCode;
 
 export interface ComponentDiagnostic {
     code: ComponentDiagnosticCode;
@@ -48,4 +56,5 @@ export interface ComponentDiagnostic {
     message: string;
     file: string;
     exportName: string;
+    subject?: string;
 }

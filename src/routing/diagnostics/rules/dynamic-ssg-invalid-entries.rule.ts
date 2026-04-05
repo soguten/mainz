@@ -74,9 +74,14 @@ function collectArrayEntriesDiagnostics(
             try {
                 validateRouteEntryParams(page.page.path, entry.params);
             } catch (error) {
+                const subject = locale
+                    ? `entry=${entryIndex};locale=${locale}`
+                    : `entry=${entryIndex}`;
                 diagnostics.push({
                     code: dynamicSsgInvalidEntriesDiagnosticCode,
                     severity: "error",
+                    // Keep entry-based subject formatting stable because suppression matching relies on it.
+                    subject,
                     message:
                         `entries() for dynamic SSG route "${page.page.path}" returned an invalid entry at index ${entryIndex}${
                             locale ? ` for locale "${locale}"` : ""

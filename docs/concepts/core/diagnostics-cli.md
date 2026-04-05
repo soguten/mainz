@@ -114,6 +114,73 @@ That keeps the output machine-readable for:
 - custom scripts
 - future editor adapters
 
+## Diagnostic suppression comments
+
+When one page or component intentionally needs a local escape hatch, Mainz diagnostics support a
+tooling-only suppression comment attached to the exported declaration.
+
+Place the comment:
+
+- above the first decorator when the export has decorators
+- or directly above the exported declaration when it does not
+
+Owner-wide suppression:
+
+```ts
+/**
+ * @mainz-diagnostics-ignore
+ * component-load-missing-fallback: fixture intentionally omits fallback UI
+ */
+@CustomElement("x-owner-tools")
+@RenderStrategy("client-only")
+export class OwnerTools extends Component {
+}
+```
+
+That suppresses every `component-load-missing-fallback` diagnostic emitted for that export.
+
+Subject-specific suppression:
+
+```ts
+/**
+ * @mainz-diagnostics-ignore
+ * invalid-locale-tag[locale=pt_BR]: legacy locale value kept for migration coverage
+ */
+@Locales("pt_BR", "en_US")
+export class SearchPage extends Page {
+}
+```
+
+That suppresses only the matching semantic occurrence.
+
+When you need more than one subject, repeat the diagnostic code once per subject:
+
+```ts
+/**
+ * @mainz-diagnostics-ignore
+ * di-token-not-registered[token=StoriesApi]: fixture keeps this legacy token unresolved on purpose
+ * di-token-not-registered[token=HttpClient]: external mock wiring still depends on this token shape
+ */
+export class StoriesPage extends Page {
+}
+```
+
+Today subject-aware diagnostics include cases such as:
+
+- invalid locale tags with `locale=<locale>`
+- invalid dynamic SSG entries with `entry=<index>` or `entry=<index>;locale=<locale>`
+- missing DI registrations for one injected token with `token=<token-name>`
+- missing DI registrations for one service dependency with `dependency=<token-name>`
+
+Suppression validation is diagnostic-aware:
+
+- unknown suppression codes warn
+- malformed or unsupported subjects warn
+- duplicate `code + subject` entries warn
+- unused suppressions warn
+
+If a suppression omits `subject`, it applies to all subjects of that code for the same owner.
+
 ## CI usage
 
 The same command can fail the process when diagnostics cross a threshold.

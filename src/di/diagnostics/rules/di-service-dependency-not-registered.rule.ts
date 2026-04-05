@@ -21,6 +21,8 @@ export const diServiceDependencyNotRegisteredRule: DiagnosticsRule<
             diagnostics.push({
                 code: diServiceDependencyNotRegisteredRuleCode,
                 severity: "error",
+                // Keep dependency-based subject formatting stable because suppression matching relies on it.
+                subject: `dependency=${dependency.name}`,
                 message:
                     `Service "${registration.token.name}" depends on "${dependency.name}" in its registered service graph, ` +
                     "but that dependency is not registered in app startup services.",

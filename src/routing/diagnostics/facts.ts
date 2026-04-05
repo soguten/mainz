@@ -10,6 +10,11 @@ import { notFoundMustUseSsgDiagnosticCode } from "./rules/not-found-must-use-ssg
 import { pageAuthorizationAnonymousConflictDiagnosticCode } from "./rules/page-authorization-anonymous-conflict.rule.ts";
 import { pageAuthorizationSsgWarningDiagnosticCode } from "./rules/page-authorization-ssg-warning.rule.ts";
 import { pageStaticLoadUnsupportedDiagnosticCode } from "./rules/page-static-load-unsupported.rule.ts";
+import {
+    invalidDiagnosticSuppressionCode,
+    unknownDiagnosticSuppressionCode,
+    unusedDiagnosticSuppressionCode,
+} from "../../diagnostics/core/suppressions.ts";
 
 export type MainzDiagnosticSeverity = "warning" | "error";
 export const pageDiscoveryFailedDiagnosticCode = "page-discovery-failed" as const;
@@ -19,13 +24,16 @@ export type MainzDiagnosticCode =
     | typeof dynamicSsgMissingEntriesDiagnosticCode
     | typeof dynamicSsgMissingLoadDiagnosticCode
     | typeof invalidLocaleTagDiagnosticCode
+    | typeof invalidDiagnosticSuppressionCode
     | typeof pageDiscoveryFailedDiagnosticCode
     | typeof multipleNotFoundPagesDiagnosticCode
     | typeof notFoundMustNotDefineRouteDiagnosticCode
     | typeof notFoundMustUseSsgDiagnosticCode
     | typeof pageAuthorizationAnonymousConflictDiagnosticCode
     | typeof pageAuthorizationSsgWarningDiagnosticCode
-    | typeof pageStaticLoadUnsupportedDiagnosticCode;
+    | typeof pageStaticLoadUnsupportedDiagnosticCode
+    | typeof unknownDiagnosticSuppressionCode
+    | typeof unusedDiagnosticSuppressionCode;
 
 export interface MainzDiagnostic {
     code: MainzDiagnosticCode;
@@ -34,6 +42,7 @@ export interface MainzDiagnostic {
     file: string;
     exportName: string;
     routePath?: string;
+    subject?: string;
 }
 
 export interface RouteDiagnosticsPageInput {

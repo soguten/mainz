@@ -15,6 +15,8 @@ export function collectInvalidLocaleTagDiagnostics(
             diagnostics.push({
                 code: invalidLocaleTagDiagnosticCode,
                 severity: "error",
+                // Keep locale-based subject formatting stable because suppression matching relies on it.
+                subject: `locale=${locale}`,
                 message:
                     `Page "${page.exportName}" declares invalid locale "${locale}" in @Locales(...). ${
                         toErrorMessage(error)

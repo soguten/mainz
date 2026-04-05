@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { discoverPagesFromFile } from "../../server.ts";
 import { collectRouteDiagnostics } from "../index.ts";
 import { setupMainzDom } from "../../../testing/index.ts";
+import { applyDiagnosticSuppressions } from "../../../diagnostics/core/suppressions.ts";
 
 Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, and routing-set warnings", async () => {
     await setupMainzDom();
@@ -48,6 +49,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/shared/:slug" returned an invalid entry at index 0: Dynamic route "/shared/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -57,6 +59,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/helper/:slug" returned an invalid entry at index 0: Dynamic route "/helper/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -66,6 +69,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/nested/:slug" returned an invalid entry at index 0: Dynamic route "/nested/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -75,6 +79,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/spread/:slug" returned an invalid entry at index 0: Dynamic route "/spread/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -84,6 +89,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/shared-spread/:slug" returned an invalid entry at index 0: Dynamic route "/shared-spread/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -93,6 +99,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/local-spread/:slug" returned an invalid entry at index 0: Dynamic route "/local-spread/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -102,6 +109,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/entries-ref/:slug" returned an invalid entry at index 0: Dynamic route "/entries-ref/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -111,6 +119,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
             {
                 code: "dynamic-ssg-invalid-entries",
                 severity: "error",
+                subject: "entry=0",
                 message:
                     'entries() for dynamic SSG route "/blog/:slug" returned an invalid entry at index 0: Dynamic route "/blog/:slug" requires "slug"; these params is missing from entries().',
                 file: file.replaceAll("\\", "/"),
@@ -213,7 +222,123 @@ Deno.test("routing/diagnostics: collector should report missing named authorizat
     );
 });
 
-function sortDiagnostics<T extends { code: string; exportName: string; routePath?: string }>(
+Deno.test("routing/diagnostics: suppression helper should support owner-wide and subject-scoped matching", async () => {
+    const file = resolve(
+        join(Deno.cwd(), "src/routing/diagnostics/tests/route-suppression.fixture.tsx"),
+    ).replaceAll("\\", "/");
+    const diagnostics = sortDiagnostics(applyDiagnosticSuppressions([
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=pt_BR",
+            message: 'Page "OwnerWideLocaleSuppressionPage" declares invalid locale "pt_BR".',
+            file,
+            exportName: "OwnerWideLocaleSuppressionPage",
+            routePath: "/owner-wide",
+        },
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=en_US",
+            message: 'Page "OwnerWideLocaleSuppressionPage" declares invalid locale "en_US".',
+            file,
+            exportName: "OwnerWideLocaleSuppressionPage",
+            routePath: "/owner-wide",
+        },
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=pt_BR",
+            message: 'Page "SubjectScopedLocaleSuppressionPage" declares invalid locale "pt_BR".',
+            file,
+            exportName: "SubjectScopedLocaleSuppressionPage",
+            routePath: "/subject-only",
+        },
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=en_US",
+            message: 'Page "SubjectScopedLocaleSuppressionPage" declares invalid locale "en_US".',
+            file,
+            exportName: "SubjectScopedLocaleSuppressionPage",
+            routePath: "/subject-only",
+        },
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=pt_BR",
+            message: 'Page "InvalidSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
+            file,
+            exportName: "InvalidSubjectLocaleSuppressionPage",
+            routePath: "/invalid-subject",
+        },
+        {
+            code: "invalid-locale-tag",
+            severity: "error",
+            subject: "locale=pt_BR",
+            message: 'Page "DuplicateSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
+            file,
+            exportName: "DuplicateSubjectLocaleSuppressionPage",
+            routePath: "/duplicate-subject",
+        },
+    ], [
+        {
+            file,
+            source: await Deno.readTextFile(file),
+        },
+    ], {
+        routePathsByOwner: new Map([
+            [`${file}::OwnerWideLocaleSuppressionPage`, "/owner-wide"],
+            [`${file}::SubjectScopedLocaleSuppressionPage`, "/subject-only"],
+            [`${file}::InvalidSubjectLocaleSuppressionPage`, "/invalid-subject"],
+            [`${file}::DuplicateSubjectLocaleSuppressionPage`, "/duplicate-subject"],
+        ]),
+    }));
+
+    assertEquals(
+        diagnostics,
+        sortDiagnostics([
+            {
+                code: "invalid-diagnostic-suppression",
+                severity: "warning",
+                message:
+                    'Duplicate diagnostic suppression "invalid-locale-tag[locale=pt_BR]" on "DuplicateSubjectLocaleSuppressionPage".',
+                file,
+                exportName: "DuplicateSubjectLocaleSuppressionPage",
+                routePath: "/duplicate-subject",
+            },
+            {
+                code: "invalid-diagnostic-suppression",
+                severity: "warning",
+                message:
+                    'Invalid diagnostic suppression subject "token=pt_BR" for "invalid-locale-tag" on "InvalidSubjectLocaleSuppressionPage".',
+                file,
+                exportName: "InvalidSubjectLocaleSuppressionPage",
+                routePath: "/invalid-subject",
+            },
+            {
+                code: "invalid-locale-tag",
+                severity: "error",
+                subject: "locale=pt_BR",
+                message: 'Page "InvalidSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
+                file,
+                exportName: "InvalidSubjectLocaleSuppressionPage",
+                routePath: "/invalid-subject",
+            },
+            {
+                code: "invalid-locale-tag",
+                severity: "error",
+                subject: "locale=en_US",
+                message: 'Page "SubjectScopedLocaleSuppressionPage" declares invalid locale "en_US".',
+                file,
+                exportName: "SubjectScopedLocaleSuppressionPage",
+                routePath: "/subject-only",
+            },
+        ]),
+    );
+});
+
+function sortDiagnostics<T extends { code: string; exportName: string; routePath?: string; subject?: string }>(
     diagnostics: readonly T[],
 ): T[] {
     return [...diagnostics].sort((a, b) => {
@@ -225,6 +350,10 @@ function sortDiagnostics<T extends { code: string; exportName: string; routePath
             return a.exportName.localeCompare(b.exportName);
         }
 
-        return (a.routePath ?? "").localeCompare(b.routePath ?? "");
+        if ((a.routePath ?? "") !== (b.routePath ?? "")) {
+            return (a.routePath ?? "").localeCompare(b.routePath ?? "");
+        }
+
+        return (a.subject ?? "").localeCompare(b.subject ?? "");
     });
 }

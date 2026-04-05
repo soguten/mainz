@@ -77,7 +77,12 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
         );
         const diDiagnostics = await collectFixtureDiagnostics(diFixture.configPath, diFixture.targetName);
 
-        assertEquals(authorizationDiagnostics[0]?.code, "authorization-policy-not-registered");
+        assertEquals(
+            authorizationDiagnostics.some((diagnostic) =>
+                diagnostic.code === "authorization-policy-not-registered"
+            ),
+            true,
+        );
         assertEquals(diDiagnostics.some((diagnostic) => diagnostic.code === "di-token-not-registered"), true);
         assertEquals(
             diDiagnostics.some((diagnostic) => diagnostic.code === "di-registration-cycle"),
@@ -125,6 +130,25 @@ Deno.test("diagnostics/command: should support failure policies and human format
     } finally {
         await fixture.cleanup();
     }
+});
+
+Deno.test("diagnostics/command: human formatting should print subject when present", () => {
+    const output = formatDiagnosticsHuman([
+        {
+            target: "docs",
+            code: "invalid-locale-tag",
+            severity: "error",
+            message: 'Page "DocsPage" declares invalid locale "pt_BR".',
+            file: "C:/repo/docs-site/src/pages/Docs.page.tsx",
+            exportName: "DocsPage",
+            routePath: "/docs",
+            subject: "locale=pt_BR",
+        },
+    ]);
+
+    assertStringIncludes(output, "error invalid-locale-tag");
+    assertStringIncludes(output, "subject: locale=pt_BR");
+    assertStringIncludes(output, "route: /docs");
 });
 
 async function collectFixtureDiagnostics(configPath: string, target: string) {

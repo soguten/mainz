@@ -1,5 +1,9 @@
 import { Authorize, Component, type NoProps, type NoState, RenderStrategy } from "mainz";
 
+/**
+ * @mainz-diagnostics-ignore
+ * component-authorization-ssg-warning: false positive; this fixture is only used from a CSR page, so the component is not rendered during SSG
+ */
 @Authorize({ roles: ["owner"] })
 @RenderStrategy("blocking")
 export class OwnerTools extends Component<NoProps, NoState, readonly string[]> {

@@ -1,6 +1,11 @@
 import { diServiceDependencyNotRegisteredRuleCode } from "./rules/di-service-dependency-not-registered.rule.ts";
 import { diRegistrationCycleRuleCode } from "./rules/di-registration-cycle.rule.ts";
 import { diTokenNotRegisteredRuleCode } from "./rules/di-token-not-registered.rule.ts";
+import {
+    invalidDiagnosticSuppressionCode,
+    unknownDiagnosticSuppressionCode,
+    unusedDiagnosticSuppressionCode,
+} from "../../diagnostics/core/suppressions.ts";
 
 export interface DiSourceDiagnosticsInput {
     file: string;
@@ -44,13 +49,17 @@ export interface DiDiagnosticsContext {
 export type DiDiagnosticCode =
     | typeof diServiceDependencyNotRegisteredRuleCode
     | typeof diRegistrationCycleRuleCode
-    | typeof diTokenNotRegisteredRuleCode;
+    | typeof diTokenNotRegisteredRuleCode
+    | typeof invalidDiagnosticSuppressionCode
+    | typeof unknownDiagnosticSuppressionCode
+    | typeof unusedDiagnosticSuppressionCode;
 
 export interface DiDiagnostic {
     code: DiDiagnosticCode;
-    severity: "error";
+    severity: "error" | "warning";
     message: string;
     file: string;
     exportName: string;
     routePath?: string;
+    subject?: string;
 }

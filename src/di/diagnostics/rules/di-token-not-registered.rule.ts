@@ -22,6 +22,8 @@ export const diTokenNotRegisteredRule: DiagnosticsRule<
         return [{
             code: diTokenNotRegisteredRuleCode,
             severity: "error",
+            // Keep token-based subject formatting stable because suppression matching relies on it.
+            subject: `token=${injection.token.name}`,
             message:
                 `Class "${injection.exportName}" injects "${injection.token.name}" with mainz/di, ` +
                 "but that token is not registered in app startup services.",

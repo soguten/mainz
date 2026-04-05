@@ -4,6 +4,8 @@ import { collectRoutePageFacts } from "./discover.ts";
 import { collectDynamicSsgDiagnostics } from "./rules/dynamic-ssg.rule.ts";
 import { collectPageLoadLifecycleDiagnostics } from "./rules/page-load-lifecycle.rule.ts";
 import { collectPageMetadataDiagnostics } from "./rules/page-metadata.rule.ts";
+import { collectDiagnosticsFromModel } from "../../diagnostics/collect.ts";
+import { createDiagnosticsTargetModel } from "../../diagnostics/core/target-model.ts";
 
 export type {
     MainzDiagnostic,
@@ -46,20 +48,26 @@ export async function collectRouteDiagnostics(
         registeredPolicyNames?: readonly string[];
     },
 ): Promise<readonly MainzDiagnostic[]> {
-    return analyzeRouteDiagnostics(
-        {
-            pages,
-            pageFactsByPage: await collectRoutePageFacts(pages),
-        },
-        createRoutingDiagnosticsContext(options),
+    const sourceInputs = await collectRouteSourceInputs(pages);
+    const routePathsByOwner = new Map(
+        pages.map((page) => [`${page.file}::${page.exportName}`, page.page.path]),
     );
+    return await collectDiagnosticsFromModel(
+        createDiagnosticsTargetModel({
+            pages,
+            sourceInputs,
+            registeredPolicyNames: options?.registeredPolicyNames,
+            routePathsByOwner,
+        }),
+        [routeDiagnosticsContributor],
+    ) as readonly MainzDiagnostic[];
 }
 
 function createRoutingDiagnosticsContext(
     options: { registeredPolicyNames?: readonly string[] } | undefined,
 ): RoutingDiagnosticsContext {
     return {
-        registeredPolicyNames: options?.registeredPolicyNames
+        registeredPolicyNames: options?.registeredPolicyNames !== undefined
             ? new Set(options.registeredPolicyNames)
             : undefined,
     };
@@ -93,4 +101,20 @@ function analyzeRouteDiagnostics(
     }
 
     return diagnostics;
+}
+
+async function collectRouteSourceInputs(
+    pages: readonly RouteDiagnosticsPageInput[],
+): Promise<readonly { file: string; source: string }[]> {
+    const uniqueFiles = [...new Set(pages.map((page) => page.file))];
+    const sourceInputs: { file: string; source: string }[] = [];
+
+    for (const file of uniqueFiles) {
+        sourceInputs.push({
+            file,
+            source: await Deno.readTextFile(file),
+        });
+    }
+
+    return sourceInputs;
 }

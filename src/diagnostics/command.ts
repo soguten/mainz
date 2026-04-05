@@ -68,6 +68,9 @@ export function formatDiagnosticsHuman(
                     ...(readDiagnosticRoutePath(diagnostic)
                         ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`]
                         : []),
+                    ...((diagnostic.subject?.length ?? 0) > 0
+                        ? [`  subject: ${diagnostic.subject}`]
+                        : []),
                     `  ${diagnostic.message}`,
                 ].join("\n")
             ),
@@ -134,7 +137,11 @@ function compareDiagnostics(a: TargetDiagnostic, b: TargetDiagnostic): number {
         return a.exportName.localeCompare(b.exportName);
     }
 
-    return (readDiagnosticRoutePath(a) ?? "").localeCompare(readDiagnosticRoutePath(b) ?? "");
+    if ((readDiagnosticRoutePath(a) ?? "") !== (readDiagnosticRoutePath(b) ?? "")) {
+        return (readDiagnosticRoutePath(a) ?? "").localeCompare(readDiagnosticRoutePath(b) ?? "");
+    }
+
+    return (a.subject ?? "").localeCompare(b.subject ?? "");
 }
 
 function groupDiagnosticsByTarget(

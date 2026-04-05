@@ -11,6 +11,8 @@ import type {
 import { diServiceDependencyNotRegisteredRule } from "./rules/di-service-dependency-not-registered.rule.ts";
 import { diRegistrationCycleRule } from "./rules/di-registration-cycle.rule.ts";
 import { diTokenNotRegisteredRule } from "./rules/di-token-not-registered.rule.ts";
+import { collectDiagnosticsFromModel } from "../../diagnostics/collect.ts";
+import { createDiagnosticsTargetModel } from "../../diagnostics/core/target-model.ts";
 
 export type {
     DiDiagnostic,
@@ -51,10 +53,15 @@ export async function collectDiDiagnostics(
         routePathsByOwner?: ReadonlyMap<string, string>;
     },
 ): Promise<readonly DiDiagnostic[]> {
-    const facts = await discoverDiFacts(sourceInputs);
-    const context = createDiDiagnosticsContext(facts.registrations, options);
-    const diagnostics = analyzeDiDiagnostics(facts, context);
-    return diagnostics.sort(compareDiDiagnostics);
+    return await collectDiagnosticsFromModel(
+        createDiagnosticsTargetModel({
+            pages: [],
+            sourceInputs,
+            registeredPolicyNames: [],
+            routePathsByOwner: options?.routePathsByOwner ?? new Map<string, string>(),
+        }),
+        [diDiagnosticsContributor],
+    ) as readonly DiDiagnostic[];
 }
 
 function createDiDiagnosticsContext(
@@ -82,20 +89,4 @@ function analyzeDiDiagnostics(
         ),
         ...runDiagnosticsRules(facts.cycles, [diRegistrationCycleRule], context),
     ];
-}
-
-function compareDiDiagnostics(a: DiDiagnostic, b: DiDiagnostic): number {
-    if (a.code !== b.code) {
-        return a.code.localeCompare(b.code);
-    }
-
-    if (a.file !== b.file) {
-        return a.file.localeCompare(b.file);
-    }
-
-    if (a.exportName !== b.exportName) {
-        return a.exportName.localeCompare(b.exportName);
-    }
-
-    return (a.routePath ?? "").localeCompare(b.routePath ?? "");
 }

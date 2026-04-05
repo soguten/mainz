@@ -8,12 +8,13 @@ export interface MainzDiagnostic {
     file: string;
     exportName: string;
     routePath?: string;
+    subject?: string;
 }
 
 export type DiagnosticsSourceInput = ComponentSourceDiagnosticsInput;
 
 export interface DiagnosticsTargetContext {
-    registeredPolicyNames: readonly string[];
+    registeredPolicyNames?: readonly string[];
     routePathsByOwner: ReadonlyMap<string, string>;
 }
 
@@ -26,7 +27,7 @@ export interface DiagnosticsTargetModel {
 export interface DiagnosticsTargetInput {
     pages: readonly RouteDiagnosticsPageInput[];
     sourceInputs: readonly DiagnosticsSourceInput[];
-    registeredPolicyNames: readonly string[];
+    registeredPolicyNames?: readonly string[];
     routePathsByOwner: ReadonlyMap<string, string>;
 }
 

@@ -16,7 +16,6 @@ import {
     collectFilesystemFiles,
     resolveTargetDiscoveredPagesForTarget,
 } from "../routing/target-page-discovery.ts";
-import { diagnosticsContributors } from "./contributors.ts";
 import {
     createDiagnosticsTargetModel,
     type DiagnosticsContributor,
@@ -25,6 +24,7 @@ import {
     type DiagnosticsTargetModel,
     type MainzDiagnostic,
 } from "./core/target-model.ts";
+import { applyDiagnosticSuppressions } from "./core/suppressions.ts";
 
 export async function collectDiagnosticsFromInput(
     input: DiagnosticsTargetInput,
@@ -34,13 +34,16 @@ export async function collectDiagnosticsFromInput(
 
 export async function collectDiagnosticsFromModel(
     model: DiagnosticsTargetModel,
-    contributors: readonly DiagnosticsContributor[] = diagnosticsContributors,
+    contributors?: readonly DiagnosticsContributor[],
 ): Promise<readonly MainzDiagnostic[]> {
+    const resolvedContributors = contributors ?? (await import("./contributors.ts")).diagnosticsContributors;
     const diagnostics = await Promise.all(
-        contributors.map((contributor) => contributor.collect(model)),
+        resolvedContributors.map((contributor) => contributor.collect(model)),
     );
 
-    return diagnostics.flat().sort(compareMainzDiagnostics);
+    return [...applyDiagnosticSuppressions(diagnostics.flat(), model.sourceInputs, {
+        routePathsByOwner: model.context.routePathsByOwner,
+    })].sort(compareMainzDiagnostics);
 }
 
 export async function collectDiagnosticsForTarget(
@@ -108,7 +111,11 @@ function compareMainzDiagnostics(a: MainzDiagnostic, b: MainzDiagnostic): number
         return a.exportName.localeCompare(b.exportName);
     }
 
-    return (readDiagnosticRoutePath(a) ?? "").localeCompare(readDiagnosticRoutePath(b) ?? "");
+    if ((readDiagnosticRoutePath(a) ?? "") !== (readDiagnosticRoutePath(b) ?? "")) {
+        return (readDiagnosticRoutePath(a) ?? "").localeCompare(readDiagnosticRoutePath(b) ?? "");
+    }
+
+    return (a.subject ?? "").localeCompare(b.subject ?? "");
 }
 
 function toPageDiscoveryDiagnosticCode(kind: PageDiscoveryErrorKind): string {

@@ -12,6 +12,8 @@ import { componentAuthorizationSsgWarningRule } from "./rules/component-authoriz
 import { componentBlockingFallbackMisleadingRule } from "./rules/component-blocking-fallback-misleading.rule.ts";
 import { componentLoadMissingFallbackRule } from "./rules/component-load-missing-fallback.rule.ts";
 import { componentRenderStrategyWithoutLoadRule } from "./rules/component-render-strategy-without-load.rule.ts";
+import { collectDiagnosticsFromModel } from "../../diagnostics/collect.ts";
+import { createDiagnosticsTargetModel } from "../../diagnostics/core/target-model.ts";
 
 export type {
     ComponentDiagnostic,
@@ -58,19 +60,22 @@ export async function collectComponentDiagnostics(
         registeredPolicyNames?: readonly string[];
     },
 ): Promise<readonly ComponentDiagnostic[]> {
-    const facts = await discoverComponentFacts(sourceInputs);
-    const diagnostics = analyzeComponentDiagnostics(
-        facts,
-        createComponentDiagnosticsContext(options),
-    );
-    return diagnostics.sort(compareComponentDiagnostics);
+    return await collectDiagnosticsFromModel(
+        createDiagnosticsTargetModel({
+            pages: [],
+            sourceInputs,
+            registeredPolicyNames: options?.registeredPolicyNames,
+            routePathsByOwner: new Map<string, string>(),
+        }),
+        [componentDiagnosticsContributor],
+    ) as readonly ComponentDiagnostic[];
 }
 
 function createComponentDiagnosticsContext(
     options: { registeredPolicyNames?: readonly string[] } | undefined,
 ): ComponentDiagnosticsContext {
     return {
-        registeredPolicyNames: options?.registeredPolicyNames
+        registeredPolicyNames: options?.registeredPolicyNames !== undefined
             ? new Set(options.registeredPolicyNames)
             : undefined,
     };
@@ -85,20 +90,4 @@ function analyzeComponentDiagnostics(
         componentDiagnosticsRules,
         context,
     );
-}
-
-function compareComponentDiagnostics(a: ComponentDiagnostic, b: ComponentDiagnostic): number {
-    if (a.severity !== b.severity) {
-        return a.severity.localeCompare(b.severity);
-    }
-
-    if (a.code !== b.code) {
-        return a.code.localeCompare(b.code);
-    }
-
-    if (a.file !== b.file) {
-        return a.file.localeCompare(b.file);
-    }
-
-    return a.exportName.localeCompare(b.exportName);
 }

@@ -104,3 +104,52 @@ Deno.test("components/diagnostics: collector should report missing named authori
         },
     );
 });
+
+Deno.test("components/diagnostics: collector should validate and apply suppression comments above decorators", async () => {
+    const file = resolve(
+        Deno.cwd(),
+        "src/components/diagnostics/tests/component-suppression.fixture.tsx",
+    ).replaceAll("\\", "/");
+    const diagnostics = await collectComponentDiagnostics([
+        {
+            file,
+            source: await Deno.readTextFile(file),
+        },
+    ]);
+    const normalizedDiagnostics = JSON.parse(JSON.stringify(diagnostics));
+
+    assertEquals(normalizedDiagnostics, [
+        {
+            code: "component-load-missing-fallback",
+            severity: "warning",
+            message:
+                'Component "UnknownSuppressionComponent" declares load() with @RenderStrategy("client-only") without a fallback. ' +
+                "Add a fallback to make the component's async placeholder explicit.",
+            file,
+            exportName: "UnknownSuppressionComponent",
+        },
+        {
+            code: "invalid-diagnostic-suppression",
+            severity: "warning",
+            message:
+                'Duplicate diagnostic suppression "component-load-missing-fallback" on "DuplicateSuppressionComponent".',
+            file,
+            exportName: "DuplicateSuppressionComponent",
+        },
+        {
+            code: "unknown-diagnostic-suppression",
+            severity: "warning",
+            message: 'Unknown diagnostic suppression code "not-a-real-code" on "UnknownSuppressionComponent".',
+            file,
+            exportName: "UnknownSuppressionComponent",
+        },
+        {
+            code: "unused-diagnostic-suppression",
+            severity: "warning",
+            message:
+                'Diagnostic suppression "component-load-missing-fallback" on "UnusedSuppressionComponent" was not used.',
+            file,
+            exportName: "UnusedSuppressionComponent",
+        },
+    ]);
+});
