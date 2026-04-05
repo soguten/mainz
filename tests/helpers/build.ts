@@ -273,7 +273,6 @@ export async function createFixtureTargetDefinition(args: {
     locales?: readonly string[];
     defaultLocale?: string;
     localePrefix?: "auto" | "always";
-    defaultNavigation?: TestNavigationMode;
     authorizationPolicyNames?: readonly string[];
 }): Promise<FixtureTargetDefinition> {
     await cleanupStaleFixtureTempDirs(args.fixtureName);
@@ -324,7 +323,6 @@ export async function createFixtureTargetDefinition(args: {
                 },
             }
             : {}),
-        ...(args.defaultNavigation ? { defaultNavigation: args.defaultNavigation } : {}),
     };
     const target = normalizeMainzConfig({
         targets: [targetDefinition],

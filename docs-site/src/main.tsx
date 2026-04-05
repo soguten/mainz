@@ -7,6 +7,7 @@ import { DocsService } from "./services/DocsService.ts";
 
 const app = defineApp({
     id: "docs-site",
+    navigation: "enhanced-mpa",
     pages: [HomePage, DocsPage],
     notFound: NotFoundPage,
     services: [

@@ -32,6 +32,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 export const app = defineApp({
     id: "site",
+    navigation: "enhanced-mpa",
     pages: [HomePage],
     notFound: NotFoundPage,
 });
@@ -48,6 +49,9 @@ startApp(app, {
 
 This keeps the app definition readable and reusable without tying static tooling to bootstrap code
 in `main.tsx`.
+
+For routed apps, `navigation` is the app-owned default publication intent. Build profiles and the
+CLI may still override it, but the baseline value now lives with the routed app definition itself.
 
 For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`.
 App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
@@ -103,6 +107,7 @@ They represent different responsibilities.
 `defineApp(...)` answers:
 
 - what pages or root belong to this app?
+- what default navigation intent belongs to this routed app?
 - which services belong to this app composition?
 - what stable app `id` should tooling use?
 

@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { NavigationMode, RenderMode } from "../routing/index.ts";
+import { NavigationMode } from "../routing/index.ts";
 import {
     LoadedMainzConfig,
     MainzConfig,
@@ -57,6 +57,12 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     }
 
     for (const target of input.targets) {
+        if ("defaultNavigation" in (target as unknown as Record<string, unknown>)) {
+            throw new Error(
+                `Target "${target.name}" no longer supports "defaultNavigation". Routed app navigation now belongs in defineApp({ navigation }).`,
+            );
+        }
+
         if ("defaultMode" in (target as unknown as Record<string, unknown>)) {
             throw new Error(
                 `Target "${target.name}" no longer supports "defaultMode". Page render is page-owned and defaults to "csr" when undecorated.`,
@@ -111,9 +117,6 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
     return {
         ...target,
         appFile: target.appFile?.trim() || undefined,
-        defaultNavigation: target.defaultNavigation
-            ? normalizeNavigationMode(target.defaultNavigation)
-            : undefined,
         authorization: normalizeTargetAuthorization(target.authorization),
         outDir,
     };
@@ -137,13 +140,19 @@ function normalizeTargetAuthorization(
 
 function normalizeTargetBuildProfile(profile: {
     basePath?: string;
-    overrideNavigation?: NavigationMode;
+    navigation?: NavigationMode;
     siteUrl?: string;
 }): NormalizedTargetBuildProfile {
+    if ("overrideNavigation" in (profile as unknown as Record<string, unknown>)) {
+        throw new Error(
+            'Target build profiles no longer support "overrideNavigation". Use "navigation" instead.',
+        );
+    }
+
     return {
         basePath: normalizeBasePath(profile.basePath),
-        overrideNavigation: profile.overrideNavigation
-            ? normalizeNavigationMode(profile.overrideNavigation)
+        navigation: profile.navigation
+            ? normalizeNavigationMode(profile.navigation)
             : undefined,
         siteUrl: normalizeSiteUrl(profile.siteUrl),
     };

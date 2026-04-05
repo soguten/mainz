@@ -1,5 +1,5 @@
 import { dirname, resolve } from "node:path";
-import type { FixtureTargetConfig, TestNavigationMode } from "./types.ts";
+import type { FixtureTargetConfig } from "./types.ts";
 import { createFixtureTargetDefinition } from "./build.ts";
 
 export async function createFixtureTargetConfig(args: {
@@ -10,7 +10,6 @@ export async function createFixtureTargetConfig(args: {
     locales?: readonly string[];
     defaultLocale?: string;
     localePrefix?: "auto" | "always";
-    defaultNavigation?: TestNavigationMode;
     authorizationPolicyNames?: readonly string[];
 }): Promise<FixtureTargetConfig> {
     const fixture = await createFixtureTargetDefinition(args);
@@ -61,9 +60,6 @@ function renderFixtureTargetDefinition(
                 `        policyNames: ${JSON.stringify(target.authorization.policyNames)}`,
                 "      },",
             ]
-            : []),
-        ...(target.defaultNavigation
-            ? [`      defaultNavigation: ${JSON.stringify(target.defaultNavigation)}`]
             : []),
         "    }",
     ].join("\n");

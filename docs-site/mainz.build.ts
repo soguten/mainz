@@ -3,11 +3,11 @@ import { defineTargetBuild } from "mainz/config";
 export default defineTargetBuild({
     profiles: {
         dev: {
-            overrideNavigation: "spa",
+            navigation: "spa",
         },
         production: {},
         "plain-static": {
-            overrideNavigation: "mpa",
+            navigation: "mpa",
         },
         "gh-pages": {
             // Published under the docs subpath.

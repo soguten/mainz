@@ -27,19 +27,19 @@ Deno.test("config/build-profile: should reject non-absolute siteUrl", () => {
     }, Error, "Invalid build profile siteUrl");
 });
 
-Deno.test("config/build-profile: should reject invalid overrideNavigation values", () => {
+Deno.test("config/build-profile: should reject invalid navigation values", () => {
     assertThrows(() => {
         normalizeTargetBuildConfig({
             profiles: {
                 production: {
-                    overrideNavigation: "turbo" as never,
+                    navigation: "turbo" as never,
                 },
             },
         });
     }, Error, "Unsupported navigation mode");
 });
 
-Deno.test("config/mainz: should reject invalid defaultNavigation values", () => {
+Deno.test("config/mainz: should reject legacy defaultNavigation", () => {
     assertThrows(() => {
         normalizeMainzConfig({
             targets: [
@@ -47,11 +47,23 @@ Deno.test("config/mainz: should reject invalid defaultNavigation values", () => 
                     name: "site",
                     rootDir: "./site",
                     viteConfig: "./vite.config.site.ts",
-                    defaultNavigation: "turbo" as never,
+                    defaultNavigation: "spa" as never,
                 },
             ],
-        });
-    }, Error, "Unsupported navigation mode");
+        } as unknown as Parameters<typeof normalizeMainzConfig>[0]);
+    }, Error, 'no longer supports "defaultNavigation"');
+});
+
+Deno.test("config/build-profile: should reject legacy overrideNavigation", () => {
+    assertThrows(() => {
+        normalizeTargetBuildConfig({
+            profiles: {
+                production: {
+                    overrideNavigation: "spa" as never,
+                },
+            },
+        } as unknown as Parameters<typeof normalizeTargetBuildConfig>[0]);
+    }, Error, 'no longer support "overrideNavigation"');
 });
 
 Deno.test("config/mainz: should reject legacy defaultMode", () => {

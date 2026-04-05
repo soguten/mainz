@@ -22,7 +22,7 @@ The runtime already knows mode, basePath, locales, and hydration strategy from t
 
 ## Profiles versus combinations
 
-Profiles like `dev`, `production`, and `gh-pages` still matter, but render selection is now page-owned instead of controlled through a public CLI `--mode` flag.
+Profiles like `dev`, `production`, and `gh-pages` still matter, but render selection is page-owned. Routed apps should declare their default navigation in `defineApp({ navigation })`, and profiles only override that intent when a publication needs a different mode.
 
 ```bash title="CLI"
 deno run -A ./src/cli/mainz.ts build --target site --profile production
@@ -34,4 +34,6 @@ In production builds:
 
 - `@RenderMode(...)` on the page is the source of truth
 - undecorated pages default to `csr`
-- navigation can still vary by profile or explicit CLI selection where supported
+- routed app navigation starts from `defineApp({ navigation })`
+- build profiles may override navigation with `navigation`
+- CLI `--navigation` remains the highest-priority override

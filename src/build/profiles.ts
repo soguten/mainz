@@ -7,6 +7,7 @@ import {
 } from "../config/index.ts";
 import { NavigationMode } from "../routing/index.ts";
 import { resolveTargetDiscoveredPagesForTarget } from "../routing/target-page-discovery.ts";
+import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 
 export interface BuildProfileOverrides {
     navigation?: string;
@@ -15,7 +16,7 @@ export interface BuildProfileOverrides {
 export interface ResolvedBuildProfile {
     name: string;
     basePath: string;
-    overrideNavigation?: NavigationMode;
+    navigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -61,7 +62,7 @@ export async function resolveTargetBuildProfile(
     return {
         name: profileName,
         basePath: profile.basePath ?? "/",
-        overrideNavigation: profile.overrideNavigation,
+        navigation: profile.navigation,
         siteUrl: profile.siteUrl,
     };
 }
@@ -99,7 +100,7 @@ export function applyBuildProfileOverrides(
 
     return {
         ...profile,
-        overrideNavigation: explicitNavigation,
+        navigation: explicitNavigation,
     };
 }
 
@@ -108,15 +109,20 @@ export async function resolveEffectiveNavigationMode(
     profile: ResolvedBuildProfile,
     cwd = Deno.cwd(),
 ): Promise<NavigationMode> {
-    if (profile.overrideNavigation) {
-        return profile.overrideNavigation;
+    if (profile.navigation) {
+        return profile.navigation;
     }
 
-    if (target.defaultNavigation) {
-        return target.defaultNavigation;
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd);
+    if (appDefinition?.navigation) {
+        return appDefinition.navigation;
     }
 
-    return await hasRoutingInput(target, cwd) ? "enhanced-mpa" : "spa";
+    if (await hasRoutingInput(target, cwd)) {
+        return "spa";
+    }
+
+    return "spa";
 }
 
 async function loadTargetBuildConfig(

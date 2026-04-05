@@ -28,15 +28,12 @@ import {
     resolveTargetDiscoveredPagesForTarget,
 } from "../routing/target-page-discovery.ts";
 import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
-import {
-    captureDefinedRoutedAppDuring,
-    resolveRoutedAppDefinitionFromModuleExports,
-    type RoutedAppDefinition,
-} from "../navigation/index.ts";
+import { type RoutedAppDefinition } from "../navigation/index.ts";
 import {
     resolveEffectiveNavigationMode,
     type ResolvedBuildProfile,
 } from "./profiles.ts";
+import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 
 export interface ArtifactBuildJob {
     target: NormalizedMainzTarget;
@@ -382,33 +379,6 @@ async function resolveTargetBuildServiceContainer(
     return appDefinition?.services?.length
         ? createServiceContainer(appDefinition.services)
         : undefined;
-}
-
-async function loadTargetBuildRoutedAppDefinition(
-    target: NormalizedMainzTarget,
-    cwd: string,
-): Promise<RoutedAppDefinition | undefined> {
-    const appFile = resolveTargetAppFile(target, cwd);
-    if (!appFile) {
-        return undefined;
-    }
-
-    const resolvedAppFile = normalizePathSlashes(resolve(cwd, appFile));
-    const moduleUrl = `${pathToFileURL(resolvedAppFile).href}?build-app=${Date.now()}-${
-        Math.random().toString(36).slice(2)
-    }`;
-
-    try {
-        const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
-            return await import(moduleUrl) as Record<string, unknown>;
-        });
-
-        return resolveRoutedAppDefinitionFromModuleExports(moduleExports) ?? app;
-    } catch (error) {
-        throw new Error(
-            `Could not load app definition from "${resolvedAppFile}": ${toErrorMessage(error)}`,
-        );
-    }
 }
 
 async function loadRoutePageConstructor(

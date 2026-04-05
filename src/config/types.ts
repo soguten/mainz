@@ -13,7 +13,6 @@ export interface MainzTargetDefinition {
     locales?: readonly string[];
     i18n?: Omit<I18nConfig<string>, "locales" | "detectLocale">;
     outDir?: string;
-    defaultNavigation?: NavigationMode;
     authorization?: MainzTargetAuthorizationDefinition;
     viteConfig: string;
     buildConfig?: string;
@@ -21,7 +20,7 @@ export interface MainzTargetDefinition {
 
 export interface TargetBuildProfileDefinition {
     basePath?: string;
-    overrideNavigation?: NavigationMode;
+    navigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -38,9 +37,7 @@ export interface LoadedMainzConfig {
     config: MainzConfig;
 }
 
-export interface NormalizedMainzTarget
-    extends Omit<MainzTargetDefinition, "defaultNavigation"> {
-    defaultNavigation?: NavigationMode;
+export interface NormalizedMainzTarget extends MainzTargetDefinition {
     outDir: string;
     authorization?: {
         policyNames: string[];
@@ -49,7 +46,7 @@ export interface NormalizedMainzTarget
 
 export interface NormalizedTargetBuildProfile {
     basePath?: string;
-    overrideNavigation?: NavigationMode;
+    navigation?: NavigationMode;
     siteUrl?: string;
 }
 

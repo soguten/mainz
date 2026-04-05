@@ -133,6 +133,7 @@ export interface StartNavigationOptions {
 
 export interface RoutedAppDefinition {
     id: string;
+    navigation?: NavigationMode;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     services?: readonly ServiceRegistration[];

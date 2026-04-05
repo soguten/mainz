@@ -88,7 +88,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 locales: ["en"],
                 outDir: fixture.outputDir,
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
@@ -134,7 +133,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 locales: ["en"],
                 outDir: fixture.outputDir,
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
@@ -182,7 +180,6 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 locales: ["en", "pt"],
                 outDir: fixture.outputDir,
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
@@ -235,7 +232,6 @@ Deno.test("routing/target-page-discovery: should collect all routed app candidat
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 locales: ["en"],
                 outDir: fixture.outputDir,
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
@@ -277,7 +273,6 @@ Deno.test("routing/target-page-discovery: should collect root-only app candidate
                 viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
@@ -351,7 +346,6 @@ Deno.test("routing/target-page-discovery: should report an explicit discovery er
                 viteConfig: resolve(tempRoot, "vite.config.ts"),
                 appFile: resolve(srcDir, "main.tsx"),
                 outDir: resolve(tempRoot, "dist"),
-                defaultNavigation: "spa",
             }],
         }).targets[0];
 
