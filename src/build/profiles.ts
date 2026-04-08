@@ -82,7 +82,7 @@ export async function resolvePublicationMetadata(
     return {
         target: target.name,
         profile: profile.name,
-        outDir: normalizePathSlashes(target.outDir),
+        outDir: resolvePublicationOutDir(target.outDir, navigationMode),
         basePath: profile.basePath,
         navigation: navigationMode,
         siteUrl: profile.siteUrl,
@@ -203,6 +203,11 @@ function resolveExplicitNavigationMode(mode: string | undefined): NavigationMode
 
 function normalizePathSlashes(path: string): string {
     return path.replaceAll("\\", "/");
+}
+
+function resolvePublicationOutDir(outDir: string, navigation: NavigationMode): string {
+    const publicationMode = navigation === "spa" ? "csr" : "ssg";
+    return normalizePathSlashes(`${outDir}/${publicationMode}`);
 }
 
 function toErrorMessage(error: unknown): string {

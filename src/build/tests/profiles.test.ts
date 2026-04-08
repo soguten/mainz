@@ -128,7 +128,7 @@ Deno.test("build/profiles: should resolve publication metadata from profile and 
         assertEquals(metadata, {
             target: "site",
             profile: "gh-pages",
-            outDir: "dist/site",
+            outDir: "dist/site/csr",
             basePath: "/mainz/",
             navigation: "spa",
             siteUrl: "https://mainz.dev",
@@ -299,10 +299,37 @@ Deno.test("build/profiles: should allow explicit CLI navigation override without
         assertEquals(profile.navigation, "spa");
         assertEquals(profile.basePath, "/docs/");
         assertEquals(metadata.navigation, "spa");
-        assertEquals(metadata.outDir, "dist/site");
+        assertEquals(metadata.outDir, "dist/site/csr");
         assertEquals(metadata.basePath, "/docs/");
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
+    }
+});
+
+Deno.test("build/profiles: publication outDir should assemble a Pages artifact without an extra mode segment", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-pages-artifact-" });
+
+    try {
+        const publicationOutDir = join(cwd, "dist", "artifact", "ssg");
+        const stagingDir = join(cwd, "_pages");
+
+        await Deno.mkdir(join(publicationOutDir, "assets"), { recursive: true });
+        await Deno.writeTextFile(
+            join(publicationOutDir, "index.html"),
+            "<html><body>artifact</body></html>",
+        );
+        await Deno.writeTextFile(
+            join(publicationOutDir, "assets", "artifact.js"),
+            "console.log('artifact');",
+        );
+
+        await Deno.mkdir(stagingDir, { recursive: true });
+        await copyDirectoryContents(publicationOutDir, stagingDir);
+
+        assertEquals(await pathExists(join(stagingDir, "index.html")), true);
+        assertEquals(await pathExists(join(stagingDir, "ssg", "index.html")), false);
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
     }
 });
 
@@ -332,4 +359,28 @@ async function createTargetBuildFixture(
     );
 
     return { cwd, relativeConfigPath };
+}
+
+async function copyDirectoryContents(sourceDir: string, destinationDir: string): Promise<void> {
+    for await (const entry of Deno.readDir(sourceDir)) {
+        const sourcePath = join(sourceDir, entry.name);
+        const destinationPath = join(destinationDir, entry.name);
+
+        if (entry.isDirectory) {
+            await Deno.mkdir(destinationPath, { recursive: true });
+            await copyDirectoryContents(sourcePath, destinationPath);
+            continue;
+        }
+
+        await Deno.copyFile(sourcePath, destinationPath);
+    }
+}
+
+async function pathExists(path: string): Promise<boolean> {
+    try {
+        await Deno.stat(path);
+        return true;
+    } catch {
+        return false;
+    }
 }
