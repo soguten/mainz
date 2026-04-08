@@ -15,6 +15,7 @@ export class HomePage extends DiHttpExamplePage<HomePageData> {
     private readonly api = inject(StoriesApi);
 
     override async load(context: PageLoadContext) {
+
         return {
             featured: await this.api.listFeatured({
                 signal: context.signal,

@@ -1,5 +1,6 @@
 export { defineResource, readResource } from "./resource.ts";
 export type {
+    RenderPolicy,
     RenderStrategy,
     Resource,
     ResourceAccessErrorCode,

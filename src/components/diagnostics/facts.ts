@@ -1,8 +1,11 @@
 import { authorizationPolicyNotRegisteredComponentRuleCode } from "./rules/authorization-policy-not-registered.rule.ts";
 import { componentAllowAnonymousNotSupportedRuleCode } from "./rules/component-allow-anonymous-not-supported.rule.ts";
 import { componentAuthorizationSsgWarningRuleCode } from "./rules/component-authorization-ssg-warning.rule.ts";
-import { componentBlockingFallbackMisleadingRuleCode } from "./rules/component-blocking-fallback-misleading.rule.ts";
-import { componentLoadMissingFallbackRuleCode } from "./rules/component-load-missing-fallback.rule.ts";
+import { componentBlockingPlaceholderConflictRuleCode } from "./rules/component-blocking-placeholder-conflict.rule.ts";
+import { componentErrorWithoutLoadRuleCode } from "./rules/component-error-without-load.rule.ts";
+import { componentLoadMissingPlaceholderRuleCode } from "./rules/component-load-missing-placeholder.rule.ts";
+import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "./rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
+import { componentPlaceholderWithoutLoadRuleCode } from "./rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRuleCode } from "./rules/component-render-strategy-without-load.rule.ts";
 import {
     invalidDiagnosticSuppressionCode,
@@ -17,8 +20,11 @@ export interface ComponentSourceDiagnosticsInput {
 
 export type ComponentRenderStrategy =
     | "blocking"
-    | "deferred"
-    | "client-only"
+    | "defer";
+
+export type ComponentRenderPolicy =
+    | "placeholder-in-ssg"
+    | "hide-in-ssg"
     | "forbidden-in-ssg";
 
 export interface ComponentFact {
@@ -29,7 +35,11 @@ export interface ComponentFact {
     extendsPage: boolean;
     hasLoad: boolean;
     renderStrategy?: ComponentRenderStrategy;
-    hasFallback: boolean;
+    renderPolicy?: ComponentRenderPolicy;
+    hasPlaceholder: boolean;
+    hasError: boolean;
+    hasExplicitRenderStrategy: boolean;
+    hasExplicitRenderPolicy: boolean;
     hasAuthorize: boolean;
     authorizationPolicy?: string;
     hasAllowAnonymous: boolean;
@@ -43,8 +53,11 @@ export type ComponentDiagnosticCode =
     | typeof authorizationPolicyNotRegisteredComponentRuleCode
     | typeof componentAllowAnonymousNotSupportedRuleCode
     | typeof componentAuthorizationSsgWarningRuleCode
-    | typeof componentBlockingFallbackMisleadingRuleCode
-    | typeof componentLoadMissingFallbackRuleCode
+    | typeof componentBlockingPlaceholderConflictRuleCode
+    | typeof componentErrorWithoutLoadRuleCode
+    | typeof componentLoadMissingPlaceholderRuleCode
+    | typeof componentPlaceholderInSsgMissingPlaceholderRuleCode
+    | typeof componentPlaceholderWithoutLoadRuleCode
     | typeof componentRenderStrategyWithoutLoadRuleCode
     | typeof invalidDiagnosticSuppressionCode
     | typeof unknownDiagnosticSuppressionCode

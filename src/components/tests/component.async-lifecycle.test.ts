@@ -3,7 +3,7 @@
 /**
  * Async lifecycle tests
  *
- * Verifies that deferred state updates do not rerender detached components
+ * Verifies that defer state updates do not rerender detached components
  * and remain safe when components are later reconnected.
  */
 
@@ -14,7 +14,7 @@ await setupMainzDom();
 
 const fixtures = await import("./component.async-lifecycle.fixture.tsx") as typeof import("./component.async-lifecycle.fixture.tsx");
 
-Deno.test("async lifecycle: deferred updates should not rerender a detached component after cleanup", async () => {
+Deno.test("async lifecycle: defer updates should not rerender a detached component after cleanup", async () => {
     const screen = renderMainzComponent(fixtures.AsyncAfterUnmountComponent);
 
     assertEquals(screen.getBySelector("p").textContent, "init");
@@ -27,7 +27,7 @@ Deno.test("async lifecycle: deferred updates should not rerender a detached comp
     assertEquals(document.getElementById("test-root"), null);
 });
 
-Deno.test("async lifecycle: deferred state should render when the component is connected again", async () => {
+Deno.test("async lifecycle: defer state should render when the component is connected again", async () => {
     const screen = renderMainzComponent(fixtures.AsyncAfterUnmountComponent);
     const component = screen.component;
 

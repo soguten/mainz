@@ -20,13 +20,14 @@ import {
     resolveComponentRenderConfig,
     resolveDecoratedCustomElementTag,
     type ComponentRenderConfig,
-    type RenderStrategyOptions,
 } from "./component-metadata.ts";
 import {
+    isSsgBuildEnvironment,
     isAbortLikeError,
     isPromiseLike,
     resolveComponentLoadEnvironment,
     stableSerializeForLoadKey,
+    shouldApplyRenderPolicyInSsgBuild,
     shouldWaitForClientRuntime,
 } from "./component-load.ts";
 import {
@@ -53,7 +54,7 @@ import {
     syncProperties,
     toRenderedNodes,
 } from "./component-patching.ts";
-import { warnAboutMissingLoadFallback } from "./component-render-strategy-guardrails.ts";
+import { warnAboutMissingLoadPlaceholder } from "./component-render-strategy-guardrails.ts";
 import {
     attachServiceContainer,
     getCurrentServiceContainer,
@@ -64,14 +65,17 @@ import {
 import type { ServiceContainer } from "../di/container.ts";
 import { isRouteContext, type PageRouteParams, type RouteContext, type RouteProfileContext } from "./route-context.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
+import type { RenderPolicy } from "../resources/index.ts";
 
 export {
     CustomElement,
+    RenderPolicy,
     RenderStrategy,
     resolveComponentRenderConfig,
+    resolveComponentRenderPolicy,
     resolveComponentRenderStrategy,
 } from "./component-metadata.ts";
-export type { ComponentRenderConfig, RenderStrategyOptions } from "./component-metadata.ts";
+export type { ComponentRenderConfig } from "./component-metadata.ts";
 
 const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
 
@@ -98,18 +102,34 @@ interface ComponentLoadState<Data = unknown> {
 }
 
 /**
- * Abstract base class for custom web components.
- * Provides lifecycle management, state handling, event registration, and rendering logic.
+ * Base class for Mainz components.
+ *
+ * `Component` is the primary base class for stateful and lifecycle-aware Mainz components.
+ * A component can:
+ *
+ * - receive caller-provided `props`
+ * - own local `state`
+ * - optionally resolve lifecycle `data` through `load()`
+ * - render visible output through `render()`
+ * - provide async placeholder and error UI through `placeholder()` and `error()`
  *
  * `Component` uses the generic order `Component<Props, State, Data>`.
  *
- * - Use `NoProps` when a component should not accept any props, including `children`.
- * - Use `ChildrenOnlyProps` when a component accepts only JSX children.
- * - Use `NoState` when a component does not use local state.
+ * Common shapes:
+ *
+ * - use `NoProps` when the component should not accept props
+ * - use `ChildrenOnlyProps` when the component accepts only JSX children
+ * - use `NoState` when the component does not keep local mutable state
+ *
+ * In Mainz's public model:
+ *
+ * - `props` are external inputs
+ * - `state` is local UI state
+ * - `data` is resolved lifecycle data returned by `load()`
  *
  * @template Props The type for the component's props.
- * @template State The type for the component's state.
- * @template Data The resolved value returned by `load()` and exposed through `this.data`.
+ * @template State The type for the component's local state.
+ * @template Data The lifecycle data resolved by `load()`.
  */
 export abstract class Component<
     Props = DefaultProps,
@@ -207,8 +227,13 @@ export abstract class Component<
     }
 
     /**
-     * Computes the initial state before the first render.
-     * Override this instead of using `onMount()` for state bootstrap.
+     * Returns the initial local state for this component.
+     *
+     * Mainz calls `initState()` once, before the first render, when the component has not already
+     * received state from some external initializer.
+     *
+     * Use this hook for synchronous state bootstrap.
+     * Prefer `initState()` over `onMount()` when the initial render depends on local state.
      */
     protected initState?(): State;
 
@@ -252,7 +277,26 @@ export abstract class Component<
         this.renderDOM();
     }
 
+    /**
+     * Resolves the lifecycle data for this component.
+     *
+     * When present, `load()` becomes the source of the component's `Data` value.
+     * Mainz may run it during initial render, during prop-driven rerenders, or in other
+     * render-environment transitions that require fresh component data.
+     *
+     * Use `load()` for data that belongs to the component's render lifecycle.
+     * Keep `props` for caller-provided input and `state` for local mutable UI state.
+     */
     load?(context: LoadContext): Data | Promise<Data>;
+    /**
+     * Returns placeholder UI while async component loading is pending.
+     */
+    placeholder?(): HTMLElement | DocumentFragment | unknown;
+    /**
+     * Returns error UI for rejected async component loading.
+     * Returning `undefined` falls back to `placeholder()`.
+     */
+    error?(error: unknown): HTMLElement | DocumentFragment | unknown;
 
     /** Resolved data returned by `load()` for async components. */
     get data(): Data {
@@ -396,6 +440,12 @@ export abstract class Component<
             return this.ownerDocument.createDocumentFragment();
         }
 
+        const renderConfig = this.requireRenderConfig();
+        const environment = resolveComponentLoadEnvironment();
+        if (shouldApplyRenderPolicyInSsgBuild(renderConfig.policy, environment)) {
+            return this.resolvePolicyDrivenTree(renderConfig.policy);
+        }
+
         if (!this.hasComponentLoad()) {
             return this.render();
         }
@@ -405,14 +455,13 @@ export abstract class Component<
         }
 
         if (this.componentLoadState.status === "rejected") {
-            const renderConfig = this.requireLoadRenderConfig();
             return this.resolveComponentLoadErrorFallback(
                 renderConfig,
                 this.componentLoadState.error,
             );
         }
 
-        return this.resolveComponentLoadFallback(this.requireLoadRenderConfig());
+        return this.resolveComponentLoadFallback(renderConfig);
     }
 
     private shouldSuppressUnauthorizedRender(): boolean {
@@ -459,17 +508,32 @@ export abstract class Component<
 
         this.asyncLoadKey = loadKey;
 
-        const renderConfig = this.requireLoadRenderConfig();
+        const renderConfig = this.requireRenderConfig();
         const environment = resolveComponentLoadEnvironment();
 
-        if (renderConfig.strategy === "forbidden-in-ssg" && environment.renderMode === "ssg") {
+        if (
+            renderConfig.policy === "forbidden-in-ssg" &&
+            isSsgBuildEnvironment(environment)
+        ) {
             throw new Error(
-                `Component "${this.constructor.name}" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.`,
+                `Component "${this.constructor.name}" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.`,
             );
         }
 
+        if (
+            shouldApplyRenderPolicyInSsgBuild(renderConfig.policy, environment) &&
+            (renderConfig.policy === "placeholder-in-ssg" || renderConfig.policy === "hide-in-ssg")
+        ) {
+            this.applyComponentLoadState({
+                status: "idle",
+                data: undefined,
+                error: undefined,
+            });
+            return;
+        }
+
         if (shouldWaitForClientRuntime(renderConfig.strategy, environment)) {
-            warnAboutMissingLoadFallback(this.constructor, renderConfig);
+            warnAboutMissingLoadPlaceholder(this.constructor, renderConfig);
             this.applyComponentLoadState({
                 status: "loading",
                 data: undefined,
@@ -624,7 +688,7 @@ export abstract class Component<
             getCurrentServiceContainer();
     }
 
-    private requireLoadRenderConfig(): ComponentRenderConfig {
+    private requireRenderConfig(): ComponentRenderConfig {
         const renderConfig = resolveComponentRenderConfig(this.constructor);
         if (renderConfig) {
             return renderConfig;
@@ -632,6 +696,8 @@ export abstract class Component<
 
         return {
             strategy: "blocking",
+            hasExplicitPolicy: false,
+            hasExplicitStrategy: false,
         };
     }
 
@@ -708,19 +774,38 @@ export abstract class Component<
     private resolveComponentLoadFallback(
         renderConfig: ComponentRenderConfig,
     ): HTMLElement | DocumentFragment {
-        if (typeof renderConfig.fallback === "function") {
-            const resolvedFallback = renderConfig.fallback();
-            if (resolvedFallback !== undefined) {
+        if (typeof this.placeholder === "function") {
+            const resolvedPlaceholder = this.placeholder();
+            if (resolvedPlaceholder !== undefined) {
                 return normalizeComponentRenderValue(
-                    resolvedFallback,
+                    resolvedPlaceholder,
                     this.ownerDocument,
                 );
             }
-        } else if (renderConfig.fallback !== undefined) {
-            return normalizeComponentRenderValue(
-                renderConfig.fallback,
-                this.ownerDocument,
+        }
+
+        return this.ownerDocument.createDocumentFragment();
+    }
+
+    private resolvePolicyDrivenTree(
+        policy: RenderPolicy | undefined,
+    ): HTMLElement | DocumentFragment {
+        if (policy === "forbidden-in-ssg") {
+            throw new Error(
+                `Component "${this.constructor.name}" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.`,
             );
+        }
+
+        if (policy === "hide-in-ssg") {
+            return this.ownerDocument.createDocumentFragment();
+        }
+
+        if (policy === "placeholder-in-ssg") {
+            return this.resolveComponentLoadFallback(this.requireRenderConfig());
+        }
+
+        if (!this.hasComponentLoad()) {
+            return this.render();
         }
 
         return this.ownerDocument.createDocumentFragment();
@@ -730,8 +815,8 @@ export abstract class Component<
         renderConfig: ComponentRenderConfig,
         error: unknown,
     ): HTMLElement | DocumentFragment {
-        if (typeof renderConfig.errorFallback === "function") {
-            const resolvedErrorFallback = renderConfig.errorFallback(error);
+        if (typeof this.error === "function") {
+            const resolvedErrorFallback = this.error(error);
             if (resolvedErrorFallback !== undefined) {
                 return normalizeComponentRenderValue(
                     resolvedErrorFallback,
@@ -740,13 +825,6 @@ export abstract class Component<
             }
 
             return this.resolveComponentLoadFallback(renderConfig);
-        }
-
-        if (renderConfig.errorFallback !== undefined) {
-            return normalizeComponentRenderValue(
-                renderConfig.errorFallback,
-                this.ownerDocument,
-            );
         }
 
         return this.resolveComponentLoadFallback(renderConfig);
@@ -921,16 +999,31 @@ export abstract class Component<
     }
 
     /**
-     * Abstract method for rendering the component's DOM structure.
-     * Must be implemented by subclasses.
-     * @returns {HTMLElement | DocumentFragment} The rendered component element or a Fragment.
+     * Returns the visible DOM output for this component.
+     *
+     * `render()` is the primary view hook for every Mainz component.
+     * Implement it for both synchronous components and data-owning components.
+     *
+     * When the component also defines `load()`, the rendered output may depend on resolved
+     * lifecycle data, placeholder UI, or error UI depending on the active render state.
+     *
+     * @returns {HTMLElement | DocumentFragment} The rendered component element or a fragment.
      */
     abstract render(): HTMLElement | DocumentFragment;
 
-    /** Optional lifecycle method called after the component is mounted */
+    /**
+     * Runs after the component is connected to the DOM.
+     *
+     * Use `onMount()` for imperative work that depends on the component being attached, such as
+     * subscriptions, observers, or DOM APIs that require a live node.
+     */
     onMount?(): void;
 
-    /** Optional lifecycle method called before the component is unmounted */
+    /**
+     * Runs when the component is being removed from the DOM.
+     *
+     * Use `onUnmount()` to release imperative resources that outlive a single render pass.
+     */
     onUnmount?(): void;
 
     /** Optional static property to define CSS styles for the component */
@@ -944,6 +1037,13 @@ export abstract class Component<
         return [...parentStyles, ...extra];
     }
 
+    /**
+     * Runs after Mainz applies the latest rendered DOM output for this component.
+     *
+     * Use `afterRender()` for post-render coordination that depends on the committed DOM tree.
+     * Prefer `render()` for declarative output and `afterRender()` only for imperative follow-up
+     * work.
+     */
     afterRender?(): void;
 
     private static toKebabCase(str: string): string {

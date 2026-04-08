@@ -7,8 +7,20 @@ export const componentRenderStrategyWithoutLoadRuleCode =
 export const componentRenderStrategyWithoutLoadRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
     code: componentRenderStrategyWithoutLoadRuleCode,
     run(component) {
-        if (component.isAbstract || component.hasLoad || !component.renderStrategy) {
+        if (component.isAbstract || component.hasLoad || !component.hasExplicitRenderStrategy) {
             return [];
+        }
+
+        if (component.renderStrategy === "blocking") {
+            return [{
+                code: componentRenderStrategyWithoutLoadRuleCode,
+                severity: "warning",
+                message:
+                    `Component "${component.exportName}" declares @RenderStrategy("blocking") but does not declare load(). ` +
+                    "@RenderStrategy(\"blocking\") is allowed on synchronous components, but it is redundant because blocking is already the default.",
+                file: component.file,
+                exportName: component.exportName,
+            }];
         }
 
         return [{
@@ -16,7 +28,7 @@ export const componentRenderStrategyWithoutLoadRule: DiagnosticsRule<ComponentFa
             severity: "warning",
             message:
                 `Component "${component.exportName}" declares @RenderStrategy("${component.renderStrategy}") but does not declare load(). ` +
-                "@RenderStrategy(...) only affects Component.load() and has no effect on synchronous components.",
+                `@RenderStrategy("${component.renderStrategy}") requires load() to participate in async component rendering.`,
             file: component.file,
             exportName: component.exportName,
         }];

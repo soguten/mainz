@@ -5,6 +5,7 @@ import {
     CustomElement,
     type NoProps,
     type NoState,
+    RenderPolicy,
     RenderStrategy,
 } from "../../../index.ts";
 
@@ -19,9 +20,8 @@ export class MissingStrategyLoadComponent extends Component<NoProps, NoState, { 
     }
 }
 
-@CustomElement("x-mainz-diagnostics-missing-fallback-load-component")
-@RenderStrategy("client-only")
-export class MissingFallbackLoadComponent extends Component<NoProps, NoState, { title: string }> {
+@CustomElement("x-mainz-diagnostics-missing-placeholder-load-component")
+export class MissingPlaceholderLoadComponent extends Component<NoProps, NoState, { title: string }> {
     override async load() {
         return { title: "Preview" };
     }
@@ -39,9 +39,13 @@ export class StrategyWithoutLoadComponent extends Component {
     }
 }
 
-abstract class DeferredLoadBase extends Component<NoProps, NoState, { title: string }> {
+abstract class DeferLoadBase extends Component<NoProps, NoState, { title: string }> {
     override async load() {
         return { title: "Guides" };
+    }
+
+    override placeholder(): HTMLElement {
+        return <p>loading</p>;
     }
 
     override render(): HTMLElement {
@@ -50,16 +54,42 @@ abstract class DeferredLoadBase extends Component<NoProps, NoState, { title: str
 }
 
 @CustomElement("x-mainz-diagnostics-valid-load-component")
-@RenderStrategy("deferred", {
-    fallback: () => <p>loading</p>,
-})
-export class ValidLoadComponent extends DeferredLoadBase {}
+@RenderStrategy("defer")
+export class ValidLoadComponent extends DeferLoadBase {}
 
-@CustomElement("x-mainz-diagnostics-blocking-fallback-component")
-@RenderStrategy("blocking", {
-    fallback: () => <p>loading</p>,
-})
-export class BlockingFallbackComponent extends DeferredLoadBase {}
+@CustomElement("x-mainz-diagnostics-blocking-placeholder-component")
+@RenderStrategy("blocking")
+export class BlockingPlaceholderComponent extends DeferLoadBase {}
+
+@CustomElement("x-mainz-diagnostics-placeholder-in-ssg-component")
+@RenderPolicy("placeholder-in-ssg")
+export class PlaceholderInSsgWithoutPlaceholderComponent extends Component {
+    override render(): HTMLElement {
+        return <p>Static content</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-placeholder-without-load-component")
+export class PlaceholderWithoutLoadComponent extends Component {
+    override placeholder(): HTMLElement {
+        return <p>loading static content</p>;
+    }
+
+    override render(): HTMLElement {
+        return <p>Static content</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-error-without-load-component")
+export class ErrorWithoutLoadComponent extends Component {
+    override error(error: unknown): HTMLElement {
+        return <p>{String(error)}</p>;
+    }
+
+    override render(): HTMLElement {
+        return <p>Static content</p>;
+    }
+}
 
 @CustomElement("x-mainz-diagnostics-allow-anonymous-component")
 @AllowAnonymous()

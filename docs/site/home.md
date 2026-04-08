@@ -15,7 +15,7 @@ This demo also exercises dynamic routes through `/:slug`, which now expand throu
 
 The docs article route now uses `@RenderMode("ssg")`, `@Locales("en")`, and a component-level `@RenderStrategy("blocking")` so the page owns routing while the article component owns async assembly.
 
-The right rail reintroduces **On this page** as a `deferred` component, and article pages now show **Recent pages** in the sidebar as a `client-only` component backed by local browser state.
+The right rail reintroduces **On this page** as a `defer` component with `placeholder()`, and article pages now show **Recent pages** in the sidebar as a `blocking` component plus `@RenderPolicy("placeholder-in-ssg")` so SSG emits placeholder UI while browser state stays client-driven.
 
 The diagnostics story is CLI-first: `mainz diagnose` now reuses the same framework diagnostics core for terminal use and CI without depending on one editor integration.
 

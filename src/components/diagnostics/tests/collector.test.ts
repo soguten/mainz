@@ -4,7 +4,7 @@ import { assertEquals } from "@std/assert";
 import { resolve } from "node:path";
 import { collectComponentDiagnostics } from "../index.ts";
 
-Deno.test("components/diagnostics: collector should report Component.load strategy and fallback intent", async () => {
+Deno.test("components/diagnostics: collector should report Component.load strategy and placeholder intent", async () => {
     const file = resolve(
         Deno.cwd(),
         "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx",
@@ -26,6 +26,15 @@ Deno.test("components/diagnostics: collector should report Component.load strate
             exportName: "AllowAnonymousComponent",
         },
         {
+            code: "component-placeholder-in-ssg-missing-placeholder",
+            severity: "error",
+            message:
+                'Component "PlaceholderInSsgWithoutPlaceholderComponent" declares @RenderPolicy("placeholder-in-ssg") without a placeholder(). ' +
+                '@RenderPolicy("placeholder-in-ssg") requires placeholder() so Mainz can emit placeholder output during SSG.',
+            file,
+            exportName: "PlaceholderInSsgWithoutPlaceholderComponent",
+        },
+        {
             code: "component-authorization-ssg-warning",
             severity: "warning",
             message: 'Component "AuthorizedComponent" declares @Authorize(...). ' +
@@ -42,29 +51,47 @@ Deno.test("components/diagnostics: collector should report Component.load strate
             exportName: "PolicyProtectedComponent",
         },
         {
-            code: "component-blocking-fallback-misleading",
+            code: "component-blocking-placeholder-conflict",
             severity: "warning",
             message:
-                'Component "BlockingFallbackComponent" declares @RenderStrategy("blocking") with a fallback. ' +
-                "Blocking components normally render resolved output instead of visible fallback UI, so this fallback may be misleading.",
+                'Component "BlockingPlaceholderComponent" declares @RenderStrategy("blocking") with a placeholder(). ' +
+                'Blocking components normally render resolved output instead of visible placeholder UI, so this placeholder may be misleading unless it is only intended for @RenderPolicy("placeholder-in-ssg").',
             file,
-            exportName: "BlockingFallbackComponent",
+            exportName: "BlockingPlaceholderComponent",
         },
         {
-            code: "component-load-missing-fallback",
+            code: "component-blocking-placeholder-conflict",
             severity: "warning",
             message:
-                'Component "MissingFallbackLoadComponent" declares load() with @RenderStrategy("client-only") without a fallback. ' +
-                "Add a fallback to make the component's async placeholder explicit.",
+                'Component "PlaceholderWithoutLoadComponent" declares @RenderStrategy("blocking") with a placeholder(). ' +
+                'Blocking components normally render resolved output instead of visible placeholder UI, so this placeholder may be misleading unless it is only intended for @RenderPolicy("placeholder-in-ssg").',
             file,
-            exportName: "MissingFallbackLoadComponent",
+            exportName: "PlaceholderWithoutLoadComponent",
+        },
+        {
+            code: "component-error-without-load",
+            severity: "warning",
+            message:
+                'Component "ErrorWithoutLoadComponent" declares error(error) but does not declare load(). ' +
+                "error(error) only participates when async component loading can reject.",
+            file,
+            exportName: "ErrorWithoutLoadComponent",
+        },
+        {
+            code: "component-placeholder-without-load",
+            severity: "warning",
+            message:
+                'Component "PlaceholderWithoutLoadComponent" declares placeholder() but does not declare load(). ' +
+                'placeholder() should accompany async component loading or @RenderPolicy("placeholder-in-ssg").',
+            file,
+            exportName: "PlaceholderWithoutLoadComponent",
         },
         {
             code: "component-render-strategy-without-load",
             severity: "warning",
             message:
                 'Component "StrategyWithoutLoadComponent" declares @RenderStrategy("blocking") but does not declare load(). ' +
-                "@RenderStrategy(...) only affects Component.load() and has no effect on synchronous components.",
+                '@RenderStrategy("blocking") is allowed on synchronous components, but it is redundant because blocking is already the default.',
             file,
             exportName: "StrategyWithoutLoadComponent",
         },
@@ -120,11 +147,11 @@ Deno.test("components/diagnostics: collector should validate and apply suppressi
 
     assertEquals(normalizedDiagnostics, [
         {
-            code: "component-load-missing-fallback",
+            code: "component-load-missing-placeholder",
             severity: "warning",
             message:
-                'Component "UnknownSuppressionComponent" declares load() with @RenderStrategy("client-only") without a fallback. ' +
-                "Add a fallback to make the component's async placeholder explicit.",
+                'Component "UnknownSuppressionComponent" declares load() with @RenderStrategy("defer") without a placeholder(). ' +
+                "Add placeholder() to make the component's async placeholder explicit.",
             file,
             exportName: "UnknownSuppressionComponent",
         },
@@ -132,7 +159,7 @@ Deno.test("components/diagnostics: collector should validate and apply suppressi
             code: "invalid-diagnostic-suppression",
             severity: "warning",
             message:
-                'Duplicate diagnostic suppression "component-load-missing-fallback" on "DuplicateSuppressionComponent".',
+                'Duplicate diagnostic suppression "component-load-missing-placeholder" on "DuplicateSuppressionComponent".',
             file,
             exportName: "DuplicateSuppressionComponent",
         },
@@ -147,7 +174,7 @@ Deno.test("components/diagnostics: collector should validate and apply suppressi
             code: "unused-diagnostic-suppression",
             severity: "warning",
             message:
-                'Diagnostic suppression "component-load-missing-fallback" on "UnusedSuppressionComponent" was not used.',
+                'Diagnostic suppression "component-load-missing-placeholder" on "UnusedSuppressionComponent" was not used.',
             file,
             exportName: "UnusedSuppressionComponent",
         },

@@ -84,7 +84,7 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", 
         const stdout = decoder.decode(result.stdout);
 
         assertEquals(result.code, 1);
-        assertStringIncludes(stdout, '"code": "component-load-missing-fallback"');
+        assertStringIncludes(stdout, '"code": "component-load-missing-placeholder"');
     } finally {
         await fixture.cleanup();
     }

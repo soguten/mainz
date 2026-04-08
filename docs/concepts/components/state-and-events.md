@@ -57,13 +57,13 @@ Do not use `initState()` just to represent "data has not loaded yet".
 That state already has a better home:
 
 - `load()` owns the async data
-- `fallback` owns the placeholder before the data arrives
+- `placeholder()` owns the visible loading state before the data arrives
 
 In other words:
 
 - `initState()` is for local UI state the component can bootstrap immediately
 - `load()` is for async data that does not exist yet
-- `fallback` is for the visible loading state
+- `placeholder()` is for the visible loading state
 
 If a component only needs async data, prefer `NoState` and keep the model small.
 
@@ -82,9 +82,7 @@ interface ArticleSummary {
     title: string;
 }
 
-@RenderStrategy("deferred", {
-    fallback: () => <p>Loading articles...</p>,
-})
+@RenderStrategy("defer")
 export class FilterableArticleList extends Component<
     NoProps,
     FilterableArticleListState,
@@ -99,6 +97,10 @@ export class FilterableArticleList extends Component<
 
     override async load(): Promise<readonly ArticleSummary[]> {
         return await fetchArticleSummaries();
+    }
+
+    override placeholder() {
+        return <p>Loading articles...</p>;
     }
 
     override render() {
@@ -138,7 +140,7 @@ Here:
 
 - `initState()` owns the local filter and panel visibility
 - `load()` owns the async article list
-- `fallback` owns the loading placeholder
+- `placeholder()` owns the loading placeholder
 
 For the async loading model itself, see [Data Loading](../core/data-loading.md).
 

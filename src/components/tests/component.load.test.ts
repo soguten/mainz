@@ -9,7 +9,7 @@ const fixtures = await import(
     "./component.load.fixture.tsx"
 ) as typeof import("./component.load.fixture.tsx");
 
-function createDeferred<T>() {
+function createPendingRequest<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
     let reject!: (reason?: unknown) => void;
     const promise = new Promise<T>((res, rej) => {
@@ -75,9 +75,9 @@ Deno.test("components/component load: should expose blocking load data on the fi
     screen.cleanup();
 });
 
-Deno.test("components/component load: should render fallback before deferred load resolves", async () => {
-    const request = createDeferred<{ title: string }>();
-    const Harness = fixtures.createDeferredLoadHarness(() => request.promise);
+Deno.test("components/component load: should render placeholder before defer load resolves", async () => {
+    const request = createPendingRequest<{ title: string }>();
+    const Harness = fixtures.createDeferLoadHarness(() => request.promise);
     const screen = renderMainzComponent(Harness);
 
     assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
@@ -89,17 +89,19 @@ Deno.test("components/component load: should render fallback before deferred loa
     screen.cleanup();
 });
 
-Deno.test("components/component load: should skip client-only load during ssg build", () => {
+Deno.test("components/component load: should render placeholder-in-ssg output during ssg build", () => {
     setMainzRuntimeEnvironment({
         renderMode: "ssg",
         runtime: "build",
     });
 
     let loadCalls = 0;
-    const Harness = fixtures.createDeferredLoadHarness(() => {
+    const Harness = fixtures.createDeferLoadHarness(() => {
         loadCalls += 1;
         return { title: "Preview" };
-    }, "client-only");
+    }, {
+        policy: "placeholder-in-ssg",
+    });
     const screen = renderMainzComponent(Harness);
 
     assertEquals(screen.getBySelector("[data-role='status']").textContent, "loading");
@@ -107,15 +109,17 @@ Deno.test("components/component load: should skip client-only load during ssg bu
     screen.cleanup();
 });
 
-Deno.test("components/component load: should resolve client-only load in the browser runtime", async () => {
+Deno.test("components/component load: should resolve placeholder-in-ssg component in the browser runtime", async () => {
     setMainzRuntimeEnvironment({
         renderMode: "ssg",
         runtime: "client",
     });
 
-    const Harness = fixtures.createDeferredLoadHarness(
+    const Harness = fixtures.createDeferLoadHarness(
         async () => ({ title: "Preview" }),
-        "client-only",
+        {
+            policy: "placeholder-in-ssg",
+        },
     );
     const screen = renderMainzComponent(Harness);
 
@@ -125,7 +129,7 @@ Deno.test("components/component load: should resolve client-only load in the bro
     screen.cleanup();
 });
 
-Deno.test("components/component load: should warn when deferred ssg placeholder has no fallback", () => {
+Deno.test("components/component load: should warn when explicit defer has no placeholder()", () => {
     setMainzRuntimeEnvironment({
         renderMode: "ssg",
         runtime: "build",
@@ -133,16 +137,15 @@ Deno.test("components/component load: should warn when deferred ssg placeholder 
 
     const warningCapture = captureConsoleWarnings();
     try {
-        const Harness = fixtures.createDeferredLoadHarness(
+        const Harness = fixtures.createExplicitDeferLoadHarness(
             async () => ({ title: "Routing" }),
-            "deferred",
-            { withFallback: false },
+            { withPlaceholder: false },
         );
         const screen = renderMainzComponent(Harness);
 
         assertEquals(screen.container.textContent ?? "", "");
         assertEquals(warningCapture.warnings, [
-            'Component "DeferredDocsPanel" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+            'Component "DeferDocsPanelWithoutPlaceholder" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
         ]);
         screen.cleanup();
     } finally {
@@ -150,7 +153,7 @@ Deno.test("components/component load: should warn when deferred ssg placeholder 
     }
 });
 
-Deno.test("components/component load: should not warn when client-only ssg placeholder provides a fallback", () => {
+Deno.test("components/component load: should not warn when placeholder-in-ssg provides placeholder()", () => {
     setMainzRuntimeEnvironment({
         renderMode: "ssg",
         runtime: "build",
@@ -158,9 +161,11 @@ Deno.test("components/component load: should not warn when client-only ssg place
 
     const warningCapture = captureConsoleWarnings();
     try {
-        const Harness = fixtures.createDeferredLoadHarness(
+        const Harness = fixtures.createDeferLoadHarness(
             async () => ({ title: "Preview" }),
-            "client-only",
+            {
+                policy: "placeholder-in-ssg",
+            },
         );
         const screen = renderMainzComponent(Harness);
 
@@ -183,15 +188,15 @@ Deno.test("components/component load: should fail fast for forbidden-in-ssg duri
     assertThrows(
         () => renderMainzComponent(Harness),
         Error,
-        'Component "LivePreviewPanel" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.',
+        'Component "LivePreviewPanel" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.',
     );
 });
 
 Deno.test("components/component load: should reload when props change and ignore stale resolutions", async () => {
     const calls: string[] = [];
-    const requests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const requests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createReloadHarness(calls, requests);
@@ -219,12 +224,12 @@ Deno.test("components/component load: should reload when props change and ignore
     screen.cleanup();
 });
 
-Deno.test("components/component load: should abort the previous deferred load when props change", async () => {
+Deno.test("components/component load: should abort the previous defer load when props change", async () => {
     const calls: string[] = [];
     const observedAborts: string[] = [];
-    const requests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const requests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createAbortAwareReloadHarness({
@@ -256,8 +261,8 @@ Deno.test("components/component load: should abort the previous deferred load wh
     screen.cleanup();
 });
 
-Deno.test("components/component load: should abort an in-flight deferred load on cleanup", async () => {
-    const request = createDeferred<{ title: string }>();
+Deno.test("components/component load: should abort an in-flight defer load on cleanup", async () => {
+    const request = createPendingRequest<{ title: string }>();
     const startedLoads: string[] = [];
     const observedAborts: string[] = [];
 
@@ -279,12 +284,12 @@ Deno.test("components/component load: should abort an in-flight deferred load on
     assertEquals(observedAborts, ["intro"]);
 });
 
-Deno.test("components/component load: should not render the error fallback when an aborted load rejects with AbortError", async () => {
+Deno.test("components/component load: should not render the error placeholder path when an aborted load rejects with AbortError", async () => {
     const calls: string[] = [];
     const observedAborts: string[] = [];
-    const requests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const requests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createAbortRejectingReloadHarness({
@@ -315,18 +320,18 @@ Deno.test("components/component load: should not render the error fallback when 
     screen.cleanup();
 });
 
-Deno.test("components/component load: should abort stale work across multiple deferred children when the host props change", async () => {
+Deno.test("components/component load: should abort stale work across multiple defer children when the host props change", async () => {
     const primaryCalls: string[] = [];
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createMultiPanelAbortHarness({
@@ -368,18 +373,18 @@ Deno.test("components/component load: should abort stale work across multiple de
     screen.cleanup();
 });
 
-Deno.test("components/component load: should keep abort and real error isolated across deferred sibling components", async () => {
+Deno.test("components/component load: should keep abort and real error isolated across defer sibling components", async () => {
     const primaryCalls: string[] = [];
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
-        ["routing", createDeferred<{ title: string }>()],
+    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
+        ["routing", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createMultiPanelAbortAndErrorHarness({
@@ -420,16 +425,16 @@ Deno.test("components/component load: should keep abort and real error isolated 
     screen.cleanup();
 });
 
-Deno.test("components/component load: should abort in-flight deferred sibling loads when the host tree is cleaned up", async () => {
+Deno.test("components/component load: should abort in-flight defer sibling loads when the host tree is cleaned up", async () => {
     const primaryCalls: string[] = [];
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
+    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createDeferred<{ title: string }>>>([
-        ["intro", createDeferred<{ title: string }>()],
+    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+        ["intro", createPendingRequest<{ title: string }>()],
     ]);
 
     const Harness = fixtures.createMultiPanelAbortHarness({

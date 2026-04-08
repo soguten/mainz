@@ -32,7 +32,7 @@ Deno.test("diagnostics/command: should collect route diagnostics for a fixture t
             true,
         );
         assertEquals(
-            diagnostics.some((diagnostic) => diagnostic.code === "component-load-missing-fallback"),
+            diagnostics.some((diagnostic) => diagnostic.code === "component-load-missing-placeholder"),
             true,
         );
     } finally {

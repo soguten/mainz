@@ -10,6 +10,7 @@ const STORAGE_KEY = "mainz-docs-theme";
 
 @CustomElement("x-mainz-docs-theme-toggle")
 export class ThemeToggle extends Component<Record<string, never>, ThemeToggleState> {
+    
     protected override initState(): ThemeToggleState {
         return {
             theme: readCurrentTheme(),

@@ -1,12 +1,22 @@
-import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
+import {
+    Component,
+    CustomElement,
+    type NoProps,
+    type NoState,
+    RenderPolicy,
+    RenderStrategy,
+} from "mainz";
 
 @CustomElement("x-component-load-client-only-with-fallback")
-@RenderStrategy("client-only", {
-    fallback: () => <p data-role="client-only-fallback">loading recent docs</p>,
-})
+@RenderStrategy("blocking")
+@RenderPolicy("placeholder-in-ssg")
 export class ClientOnlyWithFallback extends Component<NoProps, NoState, { title: string }> {
     override async load(): Promise<{ title: string }> {
         throw new Error("ClientOnlyWithFallback.load() should not run during SSG build.");
+    }
+
+    override placeholder() {
+        return <p data-role="client-only-fallback">loading recent docs</p>;
     }
 
     override render() {

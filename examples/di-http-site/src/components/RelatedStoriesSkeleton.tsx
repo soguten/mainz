@@ -5,7 +5,7 @@ export function RelatedStoriesSkeleton() {
             <h2>Related stories</h2>
             <p>
                 This delayed skeleton is intentional so the{" "}
-                <span className="di-http-link">deferred</span> example stays visible during demo.
+                <span className="di-http-link">defer</span> example stays visible during demo.
             </p>
             <div className="di-http-skeleton-list" aria-hidden="true">
                 <div className="di-http-skeleton-card">

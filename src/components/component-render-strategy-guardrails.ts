@@ -1,28 +1,29 @@
 import type { ComponentRenderConfig } from "./component-metadata.ts";
 
-const warnedMissingLoadFallbackComponents = new WeakSet<object>();
+const warnedMissingLoadPlaceholderComponents = new WeakSet<object>();
 
-export function warnAboutMissingLoadFallback(
+export function warnAboutMissingLoadPlaceholder(
     componentCtor: object,
     renderConfig: ComponentRenderConfig,
 ): void {
-    if (renderConfig.strategy !== "deferred" && renderConfig.strategy !== "client-only") {
+    if (renderConfig.strategy !== "defer") {
         return;
     }
 
     if (
-        renderConfig.fallback !== undefined ||
-        warnedMissingLoadFallbackComponents.has(componentCtor)
+        typeof (componentCtor as { prototype?: { placeholder?: unknown } }).prototype?.placeholder ===
+                "function" ||
+        warnedMissingLoadPlaceholderComponents.has(componentCtor)
     ) {
         return;
     }
 
     const componentName = resolveComponentName(componentCtor);
     console.warn(
-        `Component "${componentName}" uses @RenderStrategy("${renderConfig.strategy}") without a fallback. ` +
-            "Add a fallback to make the component's async placeholder explicit.",
+        `Component "${componentName}" uses @RenderStrategy("${renderConfig.strategy}") without a placeholder(). ` +
+            "Add placeholder() to make the component's async placeholder explicit.",
     );
-    warnedMissingLoadFallbackComponents.add(componentCtor);
+    warnedMissingLoadPlaceholderComponents.add(componentCtor);
 }
 
 function resolveComponentName(componentCtor: object): string {

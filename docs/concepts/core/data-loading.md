@@ -198,7 +198,7 @@ treated as current UI.
 
 - `initState()` is for local UI state the component already knows before first render
 - `load()` is for async data that does not exist yet
-- `fallback` is for the placeholder while that data is still pending
+- `placeholder()` is for the placeholder while that data is still pending
 
 So if the only thing you want to represent is "still loading", do not mirror that into component
 state.
@@ -228,37 +228,39 @@ strategy.
 - the component load can participate in the initial render path
 - use this when the component belongs in the first render
 
-### `deferred`
+### `defer`
 
-- the component renders its fallback first
+- the component renders its `placeholder()` first
 - the load resolves later
 
-### `client-only`
+### `RenderPolicy(...)`
 
-- the component load resolves only in the browser
-- use this for browser-local or user-specific state
+`@RenderPolicy(...)` is separate from strategy.
 
-### `forbidden-in-ssg`
+Use it when the component needs explicit SSG behavior:
 
-- the component cannot appear inside an SSG path
+- `placeholder-in-ssg` emits `placeholder()` during SSG
+- `hide-in-ssg` omits the component from SSG output
+- `forbidden-in-ssg` rejects the component inside an SSG path
 
-If a component uses `deferred` or `client-only`, provide a fallback so the placeholder stays
-explicit.
+If a component uses `defer`, provide `placeholder()` so the waiting UI stays explicit.
 
-If a component keeps the default `blocking` behavior, adding a fallback is usually misleading
+If a component keeps the default `blocking` behavior, adding `placeholder()` is usually misleading
 because blocking owners normally render resolved output instead of visible loading UI.
 
-## Example: `deferred`
+## Example: `defer`
 
 ```tsx title="OnThisPage.tsx"
-@RenderStrategy("deferred", {
-    fallback: () => <p>Scanning sections...</p>,
-})
+@RenderStrategy("defer")
 export class OnThisPage extends Component<{ slug?: string }, NoState, readonly Heading[]> {
     override async load(context) {
         return await collectArticleHeadings({
             signal: context.signal,
         });
+    }
+
+    override placeholder() {
+        return <p>Scanning sections...</p>;
     }
 
     override render() {
@@ -267,12 +269,11 @@ export class OnThisPage extends Component<{ slug?: string }, NoState, readonly H
 }
 ```
 
-## Example: `client-only`
+## Example: `blocking` with `placeholder-in-ssg`
 
 ```tsx title="RecentlyViewedDocs.tsx"
-@RenderStrategy("client-only", {
-    fallback: () => <RecentDocsPlaceholder />,
-})
+@RenderStrategy("blocking")
+@RenderPolicy("placeholder-in-ssg")
 export class RecentlyViewedDocs extends Component<
     { currentSlug?: string },
     NoState,
@@ -282,6 +283,10 @@ export class RecentlyViewedDocs extends Component<
         return readRecentDocsFromLocalStorage(this.props.currentSlug, {
             signal: context.signal,
         });
+    }
+
+    override placeholder() {
+        return <RecentDocsPlaceholder />;
     }
 
     override render() {
@@ -328,4 +333,5 @@ The short version is:
 - `@RenderMode(...)` belongs to the page and defines the route envelope
 - `@RenderStrategy(...)` belongs to the component and defines how that component participates inside
   the route
+- `@RenderPolicy(...)` belongs to the component and defines what SSG should do with that component
 - `Component.load()` is the normal component-owned async path

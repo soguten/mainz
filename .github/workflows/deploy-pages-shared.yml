@@ -39,8 +39,8 @@ jobs:
                   echo "$site_metadata"
                   echo "$docs_metadata"
 
-                  site_artifact_dir="$(METADATA="$site_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).artifactDir)')"
-                  docs_artifact_dir="$(METADATA="$docs_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).artifactDir)')"
+                  site_artifact_dir="$(METADATA="$site_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"
+                  docs_artifact_dir="$(METADATA="$docs_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"
                   staging_dir="_pages"
 
                   rm -rf "$staging_dir"

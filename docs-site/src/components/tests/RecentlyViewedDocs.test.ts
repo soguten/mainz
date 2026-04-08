@@ -12,7 +12,7 @@ const { recordRecentlyViewedDoc } = await import("../RecentlyViewedDocs.tsx") as
 
 const STORAGE_KEY = "mainz-docs-recent-pages";
 
-Deno.test("RecentlyViewedDocs renders the client-only fallback before hydration resolves", () => {
+Deno.test("RecentlyViewedDocs renders the placeholder-in-ssg placeholder before hydration resolves", () => {
     localStorage.removeItem(STORAGE_KEY);
 
     const view = renderMainzComponent(fixtures.RecentlyViewedDocsRouteHost, {

@@ -53,7 +53,7 @@ Deno.test("diagnostics: central contributors registry should aggregate routing, 
         true,
     );
     assertEquals(
-        diagnostics.some((diagnostics) => diagnostics.code === "component-load-missing-fallback"),
+        diagnostics.some((diagnostics) => diagnostics.code === "component-placeholder-without-load"),
         true,
     );
     assertEquals(
@@ -141,14 +141,14 @@ Deno.test("diagnostics: central collection should apply declaration suppressions
         async collect() {
             return [
                 {
-                    code: "component-load-missing-fallback",
+                    code: "component-load-missing-placeholder",
                     severity: "warning",
                     message: "synthetic component suppression hit",
                     file: componentFile,
                     exportName: "UsedSuppressedComponent",
                 },
                 {
-                    code: "component-load-missing-fallback",
+                    code: "component-load-missing-placeholder",
                     severity: "warning",
                     message: "synthetic component suppression miss",
                     file: componentFile,
@@ -200,7 +200,7 @@ Deno.test("diagnostics: central collection should apply declaration suppressions
                 subject: "locale=en_US",
             },
             {
-                code: "component-load-missing-fallback",
+                code: "component-load-missing-placeholder",
                 exportName: "UnknownSuppressionComponent",
                 subject: undefined,
             },

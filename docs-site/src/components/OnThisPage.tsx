@@ -7,20 +7,22 @@ interface OnThisPageHeading {
 }
 
 @CustomElement("x-mainz-docs-on-this-page")
-@RenderStrategy("deferred", {
-    fallback: () => (
-        <aside class="docs-rail">
-            <div class="docs-on-this-page">
-                <p class="docs-on-this-page-kicker">On this page</p>
-                <p class="docs-on-this-page-placeholder">Scanning sections...</p>
-            </div>
-        </aside>
-    ),
-})
+@RenderStrategy("defer")
 export class OnThisPage extends Component<NoProps, NoState, readonly OnThisPageHeading[]> {
     
     override async load(): Promise<readonly OnThisPageHeading[]> {
         return collectArticleHeadings();
+    }
+
+    override placeholder() {
+        return (
+            <aside class="docs-rail">
+                <div class="docs-on-this-page">
+                    <p class="docs-on-this-page-kicker">On this page</p>
+                    <p class="docs-on-this-page-placeholder">Scanning sections...</p>
+                </div>
+            </aside>
+        );
     }
 
     override render() {

@@ -7,7 +7,7 @@ await setupMainzDom();
 
 const fixtures = await import("./OnThisPage.fixture.tsx") as typeof import("./OnThisPage.fixture.tsx");
 
-Deno.test("OnThisPage renders a deferred placeholder and then client headings", async () => {
+Deno.test("OnThisPage renders a defer placeholder and then client headings", async () => {
     const view = renderMainzComponent(fixtures.OnThisPageHarness, {
         props: { route: fixtures.createDocsRoute("quickstart") },
     });

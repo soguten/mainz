@@ -1,4 +1,4 @@
-import type { RenderStrategy, ResourceRuntime } from "../resources/index.ts";
+import type { RenderPolicy, RenderStrategy, ResourceRuntime } from "../resources/index.ts";
 import type { RenderMode } from "../routing/index.ts";
 
 export interface ComponentLoadEnvironment {
@@ -19,7 +19,20 @@ export function shouldWaitForClientRuntime(
 ): boolean {
     return environment.renderMode === "ssg" &&
         environment.runtime === "build" &&
-        (strategy === "deferred" || strategy === "client-only");
+        strategy === "defer";
+}
+
+export function isSsgBuildEnvironment(
+    environment: ComponentLoadEnvironment,
+): boolean {
+    return environment.renderMode === "ssg" && environment.runtime === "build";
+}
+
+export function shouldApplyRenderPolicyInSsgBuild(
+    policy: RenderPolicy | undefined,
+    environment: ComponentLoadEnvironment,
+): boolean {
+    return policy !== undefined && isSsgBuildEnvironment(environment);
 }
 
 export function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {

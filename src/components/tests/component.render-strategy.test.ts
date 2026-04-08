@@ -3,8 +3,10 @@
 import { assertEquals } from "@std/assert";
 import {
     Component,
+    RenderPolicy,
     RenderStrategy,
     resolveComponentRenderConfig,
+    resolveComponentRenderPolicy,
     resolveComponentRenderStrategy,
 } from "../index.ts";
 import { setupMainzDom } from "../../testing/index.ts";
@@ -12,14 +14,14 @@ import { setupMainzDom } from "../../testing/index.ts";
 await setupMainzDom();
 
 Deno.test("components/render-strategy: should resolve strategy declared with decorator", () => {
-    @RenderStrategy("client-only")
+    @RenderStrategy("blocking")
     class UserMenu extends Component {
         override render(): HTMLElement {
             return document.createElement("div");
         }
     }
 
-    assertEquals(resolveComponentRenderStrategy(UserMenu), "client-only");
+    assertEquals(resolveComponentRenderStrategy(UserMenu), "blocking");
 });
 
 Deno.test("components/render-strategy: should default Component.load() owners to blocking", () => {
@@ -38,41 +40,53 @@ Deno.test("components/render-strategy: should default Component.load() owners to
     assertEquals(renderConfig?.strategy, "blocking");
 });
 
-Deno.test("components/render-strategy: should inherit strategy from a decorated base component", () => {
-    @RenderStrategy("deferred")
-    class DeferredPanel extends Component {
+Deno.test("components/render-strategy: should infer defer from load plus placeholder()", () => {
+    class DeferPanel extends Component {
+        override load() {
+            return { title: "Deferred" };
+        }
+
+        override placeholder(): HTMLElement {
+            return document.createElement("section");
+        }
+
         override render(): HTMLElement {
             return document.createElement("section");
         }
     }
 
-    class RelatedDocs extends DeferredPanel {}
+    assertEquals(resolveComponentRenderStrategy(DeferPanel), "defer");
+});
 
-    assertEquals(resolveComponentRenderStrategy(RelatedDocs), "deferred");
+Deno.test("components/render-strategy: should inherit strategy from a decorated base component", () => {
+    @RenderStrategy("defer")
+    class DeferPanel extends Component {
+        override render(): HTMLElement {
+            return document.createElement("section");
+        }
+    }
+
+    class RelatedDocs extends DeferPanel {}
+
+    assertEquals(resolveComponentRenderStrategy(RelatedDocs), "defer");
 });
 
 Deno.test("components/render-strategy: should allow subclasses to override inherited strategy", () => {
-    @RenderStrategy("deferred")
-    class DeferredPanel extends Component {
+    @RenderStrategy("defer")
+    class DeferPanel extends Component {
         override render(): HTMLElement {
             return document.createElement("section");
         }
     }
 
     @RenderStrategy("blocking")
-    class CriticalRelatedDocs extends DeferredPanel {}
+    class CriticalRelatedDocs extends DeferPanel {}
 
     assertEquals(resolveComponentRenderStrategy(CriticalRelatedDocs), "blocking");
 });
 
-Deno.test("components/render-strategy: should expose fallback metadata declared on the decorator", () => {
-    const fallback = () => {
-        const element = document.createElement("button");
-        element.textContent = "Login";
-        return element;
-    };
-
-    @RenderStrategy("client-only", { fallback })
+Deno.test("components/render-strategy: should resolve policy declared with decorator", () => {
+    @RenderPolicy("placeholder-in-ssg")
     class UserMenu extends Component {
         override render(): HTMLElement {
             return document.createElement("div");
@@ -81,19 +95,22 @@ Deno.test("components/render-strategy: should expose fallback metadata declared 
 
     const renderConfig = resolveComponentRenderConfig(UserMenu);
 
-    assertEquals(renderConfig?.strategy, "client-only");
-    assertEquals(renderConfig?.fallback, fallback);
+    assertEquals(renderConfig?.policy, "placeholder-in-ssg");
+    assertEquals(resolveComponentRenderPolicy(UserMenu), "placeholder-in-ssg");
 });
 
-Deno.test("components/render-strategy: should expose error fallback metadata declared on the decorator", () => {
-    const errorFallback = (error: unknown) => {
-        const element = document.createElement("p");
-        element.textContent = error instanceof Error ? error.message : String(error);
-        return element;
-    };
-
-    @RenderStrategy("deferred", { errorFallback })
+Deno.test("components/render-strategy: should expose explicit strategy and policy metadata", () => {
+    @RenderStrategy("defer")
+    @RenderPolicy("hide-in-ssg")
     class RelatedDocs extends Component {
+        override load() {
+            return { title: "Docs" };
+        }
+
+        override placeholder(): HTMLElement {
+            return document.createElement("div");
+        }
+
         override render(): HTMLElement {
             return document.createElement("div");
         }
@@ -101,6 +118,8 @@ Deno.test("components/render-strategy: should expose error fallback metadata dec
 
     const renderConfig = resolveComponentRenderConfig(RelatedDocs);
 
-    assertEquals(renderConfig?.strategy, "deferred");
-    assertEquals(renderConfig?.errorFallback, errorFallback);
+    assertEquals(renderConfig?.strategy, "defer");
+    assertEquals(renderConfig?.policy, "hide-in-ssg");
+    assertEquals(renderConfig?.hasExplicitStrategy, true);
+    assertEquals(renderConfig?.hasExplicitPolicy, true);
 });

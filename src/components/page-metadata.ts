@@ -6,6 +6,15 @@ const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
 const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
 const PAGE_LOCALES = Symbol("mainz.page.locales");
 
+/**
+ * Declares the application route served by a page class.
+ *
+ * Use `@Route(...)` to bind a `Page` to a concrete path such as:
+ *
+ * - `"/"`
+ * - `"/login"`
+ * - `"/stories/:slug"`
+ */
 export function Route(path: string) {
     return function <T extends PageConstructor>(
         value: T,
@@ -15,6 +24,17 @@ export function Route(path: string) {
     };
 }
 
+/**
+ * Declares how a page is rendered.
+ *
+ * `@RenderMode(...)` is page-owned and fixes the page's rendering model.
+ * Supported values are:
+ *
+ * - `"csr"`: the page renders in the client runtime
+ * - `"ssg"`: the page participates in static generation
+ *
+ * Use `@RenderMode(...)` to describe the page-level render contract.
+ */
 export function RenderMode(mode: RenderMode) {
     return function <T extends PageConstructor>(
         value: T,

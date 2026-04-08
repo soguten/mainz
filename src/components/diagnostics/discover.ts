@@ -1,6 +1,7 @@
 import { ts } from "@/compiler/typescript.ts";
 import type {
     ComponentFact,
+    ComponentRenderPolicy,
     ComponentRenderStrategy,
     ComponentSourceDiagnosticsInput,
 } from "./facts.ts";
@@ -10,7 +11,11 @@ interface ParsedClassInfo {
     exportName: string;
     extendsName?: string;
     renderStrategy?: ComponentRenderStrategy;
-    hasFallback: boolean;
+    renderPolicy?: ComponentRenderPolicy;
+    hasPlaceholder: boolean;
+    hasError: boolean;
+    hasExplicitRenderStrategy: boolean;
+    hasExplicitRenderPolicy: boolean;
     hasAuthorize: boolean;
     authorizationPolicy?: string;
     hasAllowAnonymous: boolean;
@@ -45,8 +50,12 @@ export async function discoverComponentFacts(
                 extendsComponent: extendsComponentValue,
                 extendsPage: extendsPageValue,
                 hasLoad: resolveInheritedComponentLoad(candidate, classes),
-                renderStrategy: resolveInheritedRenderStrategy(candidate, classes),
-                hasFallback: resolveInheritedDecoratorFallback(candidate, classes),
+                renderStrategy: resolveEffectiveRenderStrategy(candidate, classes),
+                renderPolicy: resolveInheritedRenderPolicy(candidate, classes),
+                hasPlaceholder: resolveInheritedPlaceholder(candidate, classes),
+                hasError: resolveInheritedError(candidate, classes),
+                hasExplicitRenderStrategy: candidate.hasExplicitRenderStrategy,
+                hasExplicitRenderPolicy: candidate.hasExplicitRenderPolicy,
                 hasAuthorize: candidate.hasAuthorize,
                 authorizationPolicy: candidate.authorizationPolicy,
                 hasAllowAnonymous: candidate.hasAllowAnonymous,
@@ -75,13 +84,17 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
             return;
         }
 
-        const renderStrategyConfig = findRenderStrategyConfig(node);
+        const renderStrategyConfig = findRenderMetadata(node);
         classes.set(node.name.text, {
             node,
             exportName: node.name.text,
             extendsName: resolveHeritageClauseName(node),
             renderStrategy: renderStrategyConfig.renderStrategy,
-            hasFallback: renderStrategyConfig.hasFallback,
+            renderPolicy: renderStrategyConfig.renderPolicy,
+            hasPlaceholder: classDeclaresMethod(node, "placeholder"),
+            hasError: classDeclaresMethod(node, "error"),
+            hasExplicitRenderStrategy: renderStrategyConfig.renderStrategy !== undefined,
+            hasExplicitRenderPolicy: renderStrategyConfig.renderPolicy !== undefined,
             hasAuthorize: hasDecorator(node, "Authorize"),
             authorizationPolicy: readAuthorizePolicy(node),
             hasAllowAnonymous: hasDecorator(node, "AllowAnonymous"),
@@ -114,34 +127,41 @@ function resolveHeritageClauseName(node: ts.ClassDeclaration): string | undefine
     return undefined;
 }
 
-function findRenderStrategyConfig(node: ts.ClassDeclaration): {
+function findRenderMetadata(node: ts.ClassDeclaration): {
     renderStrategy?: ComponentRenderStrategy;
-    hasFallback: boolean;
+    renderPolicy?: ComponentRenderPolicy;
 } {
+    let renderStrategy: ComponentRenderStrategy | undefined;
+    let renderPolicy: ComponentRenderPolicy | undefined;
+
     for (const decorator of ts.getDecorators(node) ?? []) {
         if (!ts.isCallExpression(decorator.expression)) {
             continue;
         }
 
         const expression = decorator.expression.expression;
-        if (!ts.isIdentifier(expression) || expression.text !== "RenderStrategy") {
+        if (!ts.isIdentifier(expression)) {
             continue;
         }
 
-        const [strategyArgument, optionsArgument] = decorator.expression.arguments;
-        const renderStrategy = ts.isStringLiteral(strategyArgument)
-            ? strategyArgument.text as ComponentRenderStrategy
-            : undefined;
+        const [argument] = decorator.expression.arguments;
+        if (!argument || !ts.isStringLiteral(argument)) {
+            continue;
+        }
 
-        return {
-            renderStrategy,
-            hasFallback: objectLiteralHasProperty(optionsArgument, "fallback"),
-        };
+        if (expression.text === "RenderStrategy") {
+            renderStrategy = argument.text as ComponentRenderStrategy;
+            continue;
+        }
+
+        if (expression.text === "RenderPolicy") {
+            renderPolicy = argument.text as ComponentRenderPolicy;
+        }
     }
 
     return {
-        renderStrategy: undefined,
-        hasFallback: false,
+        renderStrategy,
+        renderPolicy,
     };
 }
 
@@ -231,22 +251,38 @@ function extendsNamedBase(
     return false;
 }
 
-function resolveInheritedRenderStrategy(
+function resolveInheritedDeclaredRenderStrategy(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
 ): ComponentRenderStrategy | undefined {
     return walkClassHierarchy(candidate, classes, (current) => current.renderStrategy);
 }
 
-function resolveInheritedDecoratorFallback(
+function resolveInheritedRenderPolicy(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
-): boolean {
+): ComponentRenderPolicy | undefined {
     return walkClassHierarchy(
         candidate,
         classes,
-        (current) => current.hasFallback ? true : undefined,
-    ) ?? false;
+        (current) => current.renderPolicy,
+    );
+}
+
+function resolveInheritedPlaceholder(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return walkClassHierarchy(candidate, classes, (current) => current.hasPlaceholder ? true : undefined) ??
+        false;
+}
+
+function resolveInheritedError(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return walkClassHierarchy(candidate, classes, (current) => current.hasError ? true : undefined) ??
+        false;
 }
 
 function resolveInheritedComponentLoad(
@@ -258,6 +294,20 @@ function resolveInheritedComponentLoad(
         classes,
         (current) => current.declaresComponentLoadMethod ? true : undefined,
     ) ?? false;
+}
+
+function resolveEffectiveRenderStrategy(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): ComponentRenderStrategy {
+    const explicitStrategy = resolveInheritedDeclaredRenderStrategy(candidate, classes);
+    if (explicitStrategy) {
+        return explicitStrategy;
+    }
+
+    const hasLoad = resolveInheritedComponentLoad(candidate, classes);
+    const hasPlaceholder = resolveInheritedPlaceholder(candidate, classes);
+    return hasLoad && hasPlaceholder ? "defer" : "blocking";
 }
 
 function walkClassHierarchy<T>(
@@ -281,18 +331,6 @@ function walkClassHierarchy<T>(
     return undefined;
 }
 
-function objectLiteralHasProperty(node: ts.Expression | undefined, propertyName: string): boolean {
-    if (!node || !ts.isObjectLiteralExpression(node)) {
-        return false;
-    }
-
-    return node.properties.some((property) =>
-        (ts.isPropertyAssignment(property) || ts.isMethodDeclaration(property) ||
-            ts.isShorthandPropertyAssignment(property)) &&
-        isNamedProperty(property.name, propertyName)
-    );
-}
-
 function isNamedProperty(name: ts.PropertyName | undefined, propertyName: string): boolean {
     return !!name &&
         ((ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) &&
@@ -303,5 +341,3 @@ function visitSourceNode(node: ts.Node, visitor: (node: ts.Node) => void): void 
     visitor(node);
     node.forEachChild((child) => visitSourceNode(child, visitor));
 }
-
-

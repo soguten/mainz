@@ -1,19 +1,21 @@
 ---
 title: Render Mode and Render Strategy
-summary: Understand how pages define the route envelope and how components decide whether they block, defer, or wait for the browser.
+summary: Understand how pages define the route envelope, how components decide whether they block or defer, and how SSG policies shape build output.
 ---
 
-## `RenderMode` and `RenderStrategy` solve different problems
+## `RenderMode`, `RenderStrategy`, and `RenderPolicy` solve different problems
 
 Mainz keeps routing and component assembly separate on purpose.
 
 - `@RenderMode(...)` belongs to the page
 - `@RenderStrategy(...)` belongs to the component
+- `@RenderPolicy(...)` belongs to the component too, but only for build/SSG policy
 
 Think about them like this:
 
 - `RenderMode` defines the route envelope
-- `RenderStrategy` defines how one component participates inside that route
+- `RenderStrategy` defines when one component participates inside that route
+- `RenderPolicy` defines what SSG should do with that component
 
 Those two decisions stay separate from whether a route is static or dynamic.
 
@@ -45,8 +47,7 @@ The page decides that `/docs/:slug` is an SSG route.
 It answers questions like:
 
 - should this component block the first render?
-- can it show fallback first?
-- should it wait for the browser?
+- can it show `placeholder()` first?
 
 ```tsx title="DocsArticleContent.tsx"
 export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel> {
@@ -71,7 +72,7 @@ That also means deferred sibling components can settle independently:
 
 - one child may abort because its load became stale
 - another child may resolve successfully
-- a third child may render its real `errorFallback`
+- a third child may render its real `error()`
 
 Mainz keeps those outcomes isolated per component load attempt.
 
@@ -108,20 +109,21 @@ export class AboutPage extends Page {
 Here the route is static, but the components can still have different strategies:
 
 - `AboutHero` could be `blocking`
-- `TeamLocations` could be `deferred`
-- `RecentlyViewedDocs` could be `client-only`
+- `TeamLocations` could be `defer`
+- `RecentlyViewedDocs` could be `blocking` plus `@RenderPolicy("placeholder-in-ssg")`
 
 ## The mental model
 
 - `RenderMode("ssg")` asks: can Mainz emit shared HTML for this route ahead of time?
 - `RenderMode("csr")` asks: should this route only come alive in the browser?
 - `RenderStrategy("blocking")` asks: should this component participate in the first render path?
-- `RenderStrategy("deferred")` asks: can this component wait and render a placeholder first?
-- `RenderStrategy("client-only")` asks: should this component skip build-time loading and resolve
-  only in the browser?
+- `RenderStrategy("defer")` asks: can this component wait and render `placeholder()` first?
+- `RenderPolicy("placeholder-in-ssg")` asks: should SSG emit `placeholder()` instead of resolved output?
+- `RenderPolicy("hide-in-ssg")` asks: should SSG omit this component entirely?
+- `RenderPolicy("forbidden-in-ssg")` asks: should SSG reject this component entirely?
 
-That means `RenderStrategy(...)` is not an SSG-only feature. It matters most in SSG because build
-output makes the differences visible, but it still describes component behavior in CSR too.
+That means `RenderStrategy(...)` is not an SSG-only feature. It matters in every mode.
+`RenderPolicy(...)` is where Mainz currently concentrates SSG-specific component behavior.
 
 ## Matrix: `RenderMode` x `RenderStrategy`
 
@@ -132,18 +134,12 @@ output makes the differences visible, but it still describes component behavior 
 
 Use this when the component is important to the first interactive render of a CSR page.
 
-### `csr` page + `deferred` component
+### `csr` page + `defer` component
 
 - the component loads in the client runtime
-- it can show a fallback first and fill in later
+- it can show `placeholder()` first and fill in later
 
 Use this when the component is secondary and should not be treated as first-render-critical.
-
-### `csr` page + `client-only` component
-
-- the component still loads in the client runtime
-- the practical difference is smaller because there is no prerendered HTML to protect
-- the strategy still documents that this data belongs in the browser only
 
 ### `ssg` page + `blocking` component
 
@@ -167,23 +163,25 @@ export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel>
 }
 ```
 
-### `ssg` page + `deferred` component
+### `ssg` page + `defer` component
 
 - the page still prerenders
-- the component keeps its fallback in shared HTML
+- the component keeps its `placeholder()` in shared HTML
 - the component resolves later in the browser
 
 Use this for secondary UI like `On this page`, related content, or non-critical side panels.
 
 ```tsx title="OnThisPage.tsx"
-@RenderStrategy("deferred", {
-    fallback: () => <p>Scanning sections...</p>,
-})
+@RenderStrategy("defer")
 export class OnThisPage extends Component<{}, NoState, readonly Heading[]> {
     override async load(context) {
         return await collectArticleHeadings({
             signal: context.signal,
         });
+    }
+
+    override placeholder() {
+        return <p>Scanning sections...</p>;
     }
 
     override render() {
@@ -192,19 +190,20 @@ export class OnThisPage extends Component<{}, NoState, readonly Heading[]> {
 }
 ```
 
-### `ssg` page + `client-only` component
+## Matrix: `RenderMode("ssg")` x `RenderPolicy`
+
+### `ssg` page + `placeholder-in-ssg` policy
 
 - the page stays SSG
-- the component skips build-time data resolution
-- Mainz emits the fallback in shared HTML, then resolves the component after hydration
+- Mainz emits `placeholder()` in shared HTML for that component
+- the live component can still resolve later in the browser or runtime path
 
 Use this for browser-local or user-specific state like recent pages, local preferences, or
 authenticated UI.
 
 ```tsx title="RecentlyViewedDocs.tsx"
-@RenderStrategy("client-only", {
-    fallback: () => <p>Recent pages appear after you browse the docs.</p>,
-})
+@RenderStrategy("blocking")
+@RenderPolicy("placeholder-in-ssg")
 export class RecentlyViewedDocs extends Component<
     {},
     NoState,
@@ -216,13 +215,25 @@ export class RecentlyViewedDocs extends Component<
         });
     }
 
+    override placeholder() {
+        return <p>Recent pages appear after you browse the docs.</p>;
+    }
+
     override render() {
         return <RecentDocsNav items={this.data} />;
     }
 }
 ```
 
-### `ssg` page + `forbidden-in-ssg` component
+### `ssg` page + `hide-in-ssg` policy
+
+- the page stays SSG
+- the component does not emit any HTML during SSG
+- runtime behavior can still instantiate it later outside build output
+
+Use this when the component should disappear from prerendered output instead of leaving a visible placeholder.
+
+### `ssg` page + `forbidden-in-ssg` policy
 
 - the component is not allowed inside an SSG path
 - Mainz should fail fast instead of pretending the route can prerender safely
@@ -235,21 +246,24 @@ The component strategy applies in every mode, but SSG makes the tradeoff concret
 
 - does this component appear in shared HTML?
 - does the build need its data?
-- should users see final content or a placeholder first?
+- should users see final content, `placeholder()`, or nothing first?
 
 That is why `RenderStrategy(...)` feels most visible in SSG, even though it is still the component's
-render policy everywhere else.
+timing contract everywhere else. SSG-specific exceptions now belong in `RenderPolicy(...)`.
 
 ## A practical rule
 
 - page decides the route envelope
 - component decides its render participation
+- component policy decides what SSG should emit for that component
 - `Component.load()` is the normal component-owned async path
 
 If a route should be statically emitted, use `@RenderMode("ssg")`.
 
-If a component should block, defer, wait for the browser, or reject SSG participation, use
-`@RenderStrategy(...)`.
+If a component should block or defer, use `@RenderStrategy(...)`.
+
+If a component needs special SSG handling such as placeholder output, omission, or rejection, use
+`@RenderPolicy(...)`.
 
 For route expansion and the ownership split between page and component, see
 [Data Loading](./data-loading.md).

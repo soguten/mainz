@@ -117,7 +117,7 @@ Deno.test("resources: page load context should reject private resources during s
     assertEquals(resourceName, "current-user");
 });
 
-Deno.test("resources: page load context should reject client-only resources during ssg", () => {
+Deno.test("resources: page load context should reject execution:\"client\" resources during ssg", () => {
     const context = createPageLoadContext({
         params: { slug: "intro" },
         locale: "en",
@@ -148,7 +148,10 @@ Deno.test("resources: page load context should reject client-only resources duri
         }
     }
 
-    assertEquals(errorMessage, 'Resource "current-user" is client-only and cannot execute during SSG.');
+    assertEquals(
+        errorMessage,
+        'Resource "current-user" uses execution: "client" and cannot execute during SSG.',
+    );
     assertEquals(errorCode, "client-in-ssg");
     assertEquals(resourceName, "current-user");
 });

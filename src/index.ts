@@ -1,8 +1,10 @@
 export {
     Component,
     CustomElement,
+    RenderPolicy,
     RenderStrategy,
     resolveComponentRenderConfig,
+    resolveComponentRenderPolicy,
     resolveComponentRenderStrategy,
 } from "./components/index.ts";
 export {
@@ -48,7 +50,6 @@ export type {
     NoState,
     PageAuthorizationMetadata,
     Principal,
-    RenderStrategyOptions,
 } from "./components/index.ts";
 export type {
     DefinedRootApp,

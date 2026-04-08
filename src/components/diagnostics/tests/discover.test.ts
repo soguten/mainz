@@ -18,16 +18,20 @@ Deno.test("components/diagnostics: discover should resolve inherited load and st
     ]);
 
     assertEquals(
-        facts.find((fact) => fact.exportName === "BlockingFallbackComponent"),
+        facts.find((fact) => fact.exportName === "BlockingPlaceholderComponent"),
         {
             file,
-            exportName: "BlockingFallbackComponent",
+            exportName: "BlockingPlaceholderComponent",
             isAbstract: false,
             extendsComponent: true,
             extendsPage: false,
             hasLoad: true,
             renderStrategy: "blocking",
-            hasFallback: true,
+            renderPolicy: undefined,
+            hasPlaceholder: true,
+            hasError: false,
+            hasExplicitRenderStrategy: true,
+            hasExplicitRenderPolicy: false,
             hasAuthorize: false,
             authorizationPolicy: undefined,
             hasAllowAnonymous: false,

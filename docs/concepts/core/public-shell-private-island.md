@@ -31,8 +31,8 @@ That does **not** mean the whole page must become CSR.
 It means:
 
 - the page can still use `@RenderMode("ssg")`
-- the personalized component should usually use `@RenderStrategy("client-only")`
-- the build should emit a neutral fallback instead of real private data
+- the personalized component should usually use `@RenderPolicy("placeholder-in-ssg")`
+- the build should emit a neutral `placeholder()` instead of real private data
 
 ## This pattern is not the same as `@Authorize(...)`
 
@@ -113,14 +113,17 @@ What changes is only the menu component.
 ## The private island
 
 ```tsx title="CurrentUserMenu.tsx"
-import { Component, type NoProps, type NoState, RenderStrategy } from "mainz";
+import { Component, type NoProps, type NoState, RenderPolicy, RenderStrategy } from "mainz";
 
-@RenderStrategy("client-only", {
-    fallback: () => <a href="/login">Sign in</a>,
-})
+@RenderStrategy("blocking")
+@RenderPolicy("placeholder-in-ssg")
 export class CurrentUserMenu extends Component<NoProps, NoState, CurrentUser | null> {
     override async load() {
         return await getCurrentUserFromBrowserSession();
+    }
+
+    override placeholder() {
+        return <a href="/login">Sign in</a>;
     }
 
     override render() {
@@ -132,21 +135,22 @@ export class CurrentUserMenu extends Component<NoProps, NoState, CurrentUser | n
 What happens here:
 
 - during SSG, Mainz renders the fallback
+- during SSG, Mainz renders `placeholder()`
 - no private user data enters the HTML
 - after hydration, the browser loads the current user
-- the fallback is replaced by the personalized menu
+- the placeholder is replaced by the personalized menu
 
-## Why `client-only` is usually the right strategy
+## Why `placeholder-in-ssg` is usually the right policy
 
-For this pattern, `client-only` is usually the clearest choice because it says two things at once:
+For this pattern, `placeholder-in-ssg` is usually the clearest choice because it says two things at once:
 
-- the data belongs to the browser runtime
+- SSG should emit neutral placeholder UI
 - the build must not resolve that personalized state into shared HTML
 
 That makes intent visible right on the component instead of burying it in route-level comments or
 host-specific rules.
 
-`deferred` can still be correct when the data is public but non-critical. The important split is not
+`defer` can still be correct when the data is public but non-critical. The important split is not
 "fast" versus "slow"; it is "shared public HTML" versus "private browser-only state".
 
 ## Why this is safe
@@ -224,7 +228,7 @@ Now the route shell stays stable, and only the island becomes personalized after
 
 ## When to use `client-only`
 
-Use `client-only` when the component depends on:
+Use `placeholder-in-ssg` when the component depends on:
 
 - authenticated user data
 - `localStorage`
@@ -257,18 +261,18 @@ Use a private island when:
 So:
 
 - `@Authorize(...)` answers "who may see this?"
-- `client-only` private island answers "when and where may this resolve?"
+- `placeholder-in-ssg` private island answers "what should SSG emit before the browser resolves this?"
 
 Sometimes a product needs both, but they are not interchangeable.
 
-## When not to use `client-only`
+## When not to use `placeholder-in-ssg`
 
 If the data is public and build-safe, prefer:
 
 - `blocking` when it belongs in the first HTML
-- `deferred` when it can appear later without hurting the page shell
+- `defer` when it can appear later without hurting the page shell
 
-The goal is not to make everything `client-only`.
+The goal is not to make everything `placeholder-in-ssg`.
 
 The goal is to keep private state out of shared HTML while still letting the page stay SSG.
 
@@ -292,7 +296,7 @@ It is usually the wrong fit when:
 
 - page decides the public route shell
 - private component becomes an island
-- `client-only` keeps personalization in the browser
+- `RenderPolicy("placeholder-in-ssg")` keeps shared HTML neutral while the browser resolves personalization
 - `Component.load()` keeps the ownership visible on the component itself
 - `@Authorize(...)` remains the tool for truly protected routes
 

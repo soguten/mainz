@@ -65,7 +65,7 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
         assertStringIncludes(stdout + stderr, 'Failed to prerender SSG route "/"');
         assertStringIncludes(
             stdout + stderr,
-            'Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.',
+            'Component "LivePreview" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.',
         );
         assertStringIncludes(
             stdout + stderr,
@@ -76,7 +76,7 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
     }
 });
 
-Deno.test("cli/build: should warn for ownership-based deferred placeholders without fallback during ssg prerender", async () => {
+Deno.test("cli/build: should warn for ownership-based defer placeholders without placeholder() during ssg prerender", async () => {
     const fixture = await createFixtureTargetConfig({
         fixtureName: "component-load-ssg-warnings-build",
         targetName: "component-load-ssg-warnings-build",
@@ -110,7 +110,7 @@ Deno.test("cli/build: should warn for ownership-based deferred placeholders with
         assertEquals(result.code, 0);
         assertStringIncludes(
             combinedOutput,
-            'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+            'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
         );
         assertEquals(
             combinedOutput.match(

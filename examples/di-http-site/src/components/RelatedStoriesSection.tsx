@@ -8,9 +8,7 @@ interface RelatedStoriesSectionProps {
     slug: string;
 }
 
-@RenderStrategy("deferred", {
-    fallback: () => <RelatedStoriesSkeleton />,
-})
+@RenderStrategy("defer")
 export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps, NoState, readonly StorySummary[]> {
     
     private readonly api = inject(StoriesApi);
@@ -19,6 +17,10 @@ export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps,
         return this.api.listRelated(this.props.slug, {
             signal: context.signal,
         });
+    }
+
+    override placeholder() {
+        return <RelatedStoriesSkeleton />;
     }
 
     override render() {
@@ -34,7 +36,7 @@ export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps,
                     <span className="di-http-link">Component.load()</span> using the same resolved
                     {" "}
                     <span className="di-http-link">StoriesApi</span> token as the page, while a
-                    deferred skeleton keeps the shell responsive. The related endpoint is slowed
+                    defer placeholder keeps the shell responsive. The related endpoint is slowed
                     down on purpose so this loading state is easy to inspect.
                 </p>
                 <ul>

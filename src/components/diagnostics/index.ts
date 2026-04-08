@@ -9,8 +9,11 @@ import type {
 import { authorizationPolicyNotRegisteredComponentRule } from "./rules/authorization-policy-not-registered.rule.ts";
 import { componentAllowAnonymousNotSupportedRule } from "./rules/component-allow-anonymous-not-supported.rule.ts";
 import { componentAuthorizationSsgWarningRule } from "./rules/component-authorization-ssg-warning.rule.ts";
-import { componentBlockingFallbackMisleadingRule } from "./rules/component-blocking-fallback-misleading.rule.ts";
-import { componentLoadMissingFallbackRule } from "./rules/component-load-missing-fallback.rule.ts";
+import { componentBlockingPlaceholderConflictRule } from "./rules/component-blocking-placeholder-conflict.rule.ts";
+import { componentErrorWithoutLoadRule } from "./rules/component-error-without-load.rule.ts";
+import { componentLoadMissingPlaceholderRule } from "./rules/component-load-missing-placeholder.rule.ts";
+import { componentPlaceholderInSsgMissingPlaceholderRule } from "./rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
+import { componentPlaceholderWithoutLoadRule } from "./rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRule } from "./rules/component-render-strategy-without-load.rule.ts";
 import { collectDiagnosticsFromModel } from "../../diagnostics/collect.ts";
 import { createDiagnosticsTargetModel } from "../../diagnostics/core/target-model.ts";
@@ -28,8 +31,11 @@ export {
     authorizationPolicyNotRegisteredComponentRule,
     componentAllowAnonymousNotSupportedRule,
     componentAuthorizationSsgWarningRule,
-    componentBlockingFallbackMisleadingRule,
-    componentLoadMissingFallbackRule,
+    componentBlockingPlaceholderConflictRule,
+    componentErrorWithoutLoadRule,
+    componentLoadMissingPlaceholderRule,
+    componentPlaceholderInSsgMissingPlaceholderRule,
+    componentPlaceholderWithoutLoadRule,
     componentRenderStrategyWithoutLoadRule,
 };
 
@@ -38,8 +44,11 @@ const componentDiagnosticsRules = [
     componentAllowAnonymousNotSupportedRule,
     componentAuthorizationSsgWarningRule,
     authorizationPolicyNotRegisteredComponentRule,
-    componentLoadMissingFallbackRule,
-    componentBlockingFallbackMisleadingRule,
+    componentPlaceholderWithoutLoadRule,
+    componentErrorWithoutLoadRule,
+    componentPlaceholderInSsgMissingPlaceholderRule,
+    componentLoadMissingPlaceholderRule,
+    componentBlockingPlaceholderConflictRule,
 ] as const;
 export const componentDiagnosticsContributor = {
     name: "components",

@@ -107,6 +107,22 @@ export interface PageLoadContextInit {
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 
+/**
+ * Base class for Mainz pages.
+ *
+ * `Page` extends `Component` with route-owned concerns such as:
+ *
+ * - route path and route params
+ * - page render mode
+ * - document head metadata
+ * - static entry generation for SSG
+ *
+ * Use `Page` when the class represents a navigable route in the application.
+ * Use `Component` for reusable view pieces inside a page.
+ *
+ * Like `Component`, `Page` uses the generic order `Page<Props, State, Data>`.
+ * Page data is typically resolved through `load()` and then consumed by `render()` and `head()`.
+ */
 export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> extends Component<
     P,
     S,
@@ -127,6 +143,15 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
         this.pageData = value;
     }
 
+    /**
+     * Returns document head metadata for this page.
+     *
+     * Mainz calls `head()` with the current page context so the page can derive title, meta tags,
+     * and link tags from route state and resolved page data.
+     *
+     * Use `head()` for document metadata only.
+     * Use `render()` for visible page content.
+     */
     head(_context?: PageHeadContext): PageHeadDefinition | undefined {
         return undefined;
     }

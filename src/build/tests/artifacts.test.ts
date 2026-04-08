@@ -71,12 +71,12 @@ Deno.test("build/artifacts: formats route-aware prerender warnings", () => {
         renderPath: "/docs/intro",
         locale: "en",
         warning:
-            'Component "RelatedDocs" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+            'Component "RelatedDocs" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
     });
 
     assertEquals(
         message,
-        'SSG prerender warning for route "/docs/:slug" and output "/docs/intro" (locale "en"): Component "RelatedDocs" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+        'SSG prerender warning for route "/docs/:slug" and output "/docs/intro" (locale "en"): Component "RelatedDocs" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
     );
 });
 
@@ -86,12 +86,12 @@ Deno.test("build/artifacts: formats ownership-based prerender warnings", () => {
         renderPath: "/",
         locale: "en",
         warning:
-            'Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+            'Component "DeferredWithoutFallback" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
     });
 
     assertEquals(
         message,
-        'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("deferred") without a fallback. Add a fallback to make the component\'s async placeholder explicit.',
+        'SSG prerender warning for route "/" and output "/" (locale "en"): Component "DeferredWithoutFallback" uses @RenderStrategy("defer") without a placeholder(). Add placeholder() to make the component\'s async placeholder explicit.',
     );
 });
 
@@ -109,7 +109,7 @@ Deno.test("build/artifacts: formats private resource access errors with SSG guid
 
     assertEquals(
         message,
-        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "current-user" is private and cannot be read during SSG. Move this resource behind a deferred or client-only boundary.',
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Resource "current-user" is private and cannot be read during SSG. Move this resource behind a defer strategy or an SSG-safe render policy.',
     );
 });
 
@@ -150,19 +150,19 @@ Deno.test("build/artifacts: formats forbidden-in-ssg strategy errors with SSG gu
     );
 });
 
-Deno.test("build/artifacts: formats forbidden-in-ssg component load errors with SSG guidance", () => {
+Deno.test("build/artifacts: formats forbidden-in-ssg render policy errors with SSG guidance", () => {
     const message = formatSsgPrerenderError({
         routePath: "/docs/:slug",
         renderPath: "/docs/intro",
         locale: "en",
         error: new Error(
-            'Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG.',
+            'Component "LivePreview" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.',
         ),
     });
 
     assertEquals(
         message,
-        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Component "LivePreview" uses @RenderStrategy("forbidden-in-ssg") and cannot be rendered during SSG. Remove it from the SSG path or render this route in a non-SSG mode.',
+        'Failed to prerender SSG route "/docs/:slug" for output "/docs/intro" (locale "en"): Component "LivePreview" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG. Remove it from the SSG path or render this route in a non-SSG mode.',
     );
 });
 

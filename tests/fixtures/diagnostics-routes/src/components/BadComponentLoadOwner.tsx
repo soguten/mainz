@@ -12,7 +12,7 @@ export class MissingStrategyLoadOwner extends Component<NoProps, NoState, { titl
 }
 
 @CustomElement("x-mainz-diagnostics-routes-missing-fallback-load-owner")
-@RenderStrategy("client-only")
+@RenderStrategy("defer")
 export class MissingFallbackLoadOwner extends Component<NoProps, NoState, { title: string }> {
     override async load() {
         return { title: "Preview" };

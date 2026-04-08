@@ -21,10 +21,13 @@ Deno.test("components/diagnostics: contributor should preserve current component
         diagnostics.map((diagnostics) => diagnostics.code),
         [
             "component-allow-anonymous-not-supported",
+            "component-placeholder-in-ssg-missing-placeholder",
             "component-authorization-ssg-warning",
             "component-authorization-ssg-warning",
-            "component-blocking-fallback-misleading",
-            "component-load-missing-fallback",
+            "component-blocking-placeholder-conflict",
+            "component-blocking-placeholder-conflict",
+            "component-error-without-load",
+            "component-placeholder-without-load",
             "component-render-strategy-without-load",
         ],
     );

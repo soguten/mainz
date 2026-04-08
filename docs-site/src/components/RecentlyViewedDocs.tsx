@@ -1,4 +1,11 @@
-import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
+import {
+    Component,
+    CustomElement,
+    type NoProps,
+    type NoState,
+    RenderPolicy,
+    RenderStrategy,
+} from "mainz";
 import { buildDocsHref } from "../lib/links.ts";
 
 interface RecentlyViewedDoc {
@@ -10,20 +17,22 @@ const RECENT_DOCS_STORAGE_KEY = "mainz-docs-recent-pages";
 const MAX_RECENT_DOCS = 4;
 
 @CustomElement("x-mainz-docs-recently-viewed")
-@RenderStrategy("client-only", {
-    fallback: () => (
-        <section class="docs-recent-pages docs-recent-pages-placeholder" aria-live="polite">
-            <p class="docs-sidebar-title">Recent pages</p>
-            <p class="docs-recent-pages-empty">
-                Recent pages appear after you browse the docs in this browser.
-            </p>
-        </section>
-    ),
-})
+@RenderStrategy("blocking")
+@RenderPolicy("placeholder-in-ssg")
 export class RecentlyViewedDocs extends Component<NoProps, NoState, readonly RecentlyViewedDoc[]> {
-    
     override async load(): Promise<readonly RecentlyViewedDoc[]> {
         return readRecentlyViewedDocs(this.route.params.slug);
+    }
+
+    override placeholder() {
+        return (
+            <section class="docs-recent-pages docs-recent-pages-placeholder" aria-live="polite">
+                <p class="docs-sidebar-title">Recent pages</p>
+                <p class="docs-recent-pages-empty">
+                    Recent pages appear after you browse the docs in this browser.
+                </p>
+            </section>
+        );
     }
 
     override render() {

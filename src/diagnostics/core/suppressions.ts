@@ -2,8 +2,11 @@ import { ts } from "@/compiler/typescript.ts";
 import { authorizationPolicyNotRegisteredComponentRuleCode } from "../../components/diagnostics/rules/authorization-policy-not-registered.rule.ts";
 import { componentAllowAnonymousNotSupportedRuleCode } from "../../components/diagnostics/rules/component-allow-anonymous-not-supported.rule.ts";
 import { componentAuthorizationSsgWarningRuleCode } from "../../components/diagnostics/rules/component-authorization-ssg-warning.rule.ts";
-import { componentBlockingFallbackMisleadingRuleCode } from "../../components/diagnostics/rules/component-blocking-fallback-misleading.rule.ts";
-import { componentLoadMissingFallbackRuleCode } from "../../components/diagnostics/rules/component-load-missing-fallback.rule.ts";
+import { componentBlockingPlaceholderConflictRuleCode } from "../../components/diagnostics/rules/component-blocking-placeholder-conflict.rule.ts";
+import { componentErrorWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-error-without-load.rule.ts";
+import { componentLoadMissingPlaceholderRuleCode } from "../../components/diagnostics/rules/component-load-missing-placeholder.rule.ts";
+import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "../../components/diagnostics/rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
+import { componentPlaceholderWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-render-strategy-without-load.rule.ts";
 import { diRegistrationCycleRuleCode } from "../../di/diagnostics/rules/di-registration-cycle.rule.ts";
 import { diServiceDependencyNotRegisteredRuleCode } from "../../di/diagnostics/rules/di-service-dependency-not-registered.rule.ts";
@@ -66,8 +69,11 @@ const knownDiagnosticCodes = new Set<string>([
     authorizationPolicyNotRegisteredComponentRuleCode,
     componentAllowAnonymousNotSupportedRuleCode,
     componentAuthorizationSsgWarningRuleCode,
-    componentBlockingFallbackMisleadingRuleCode,
-    componentLoadMissingFallbackRuleCode,
+    componentBlockingPlaceholderConflictRuleCode,
+    componentErrorWithoutLoadRuleCode,
+    componentLoadMissingPlaceholderRuleCode,
+    componentPlaceholderInSsgMissingPlaceholderRuleCode,
+    componentPlaceholderWithoutLoadRuleCode,
     componentRenderStrategyWithoutLoadRuleCode,
     diRegistrationCycleRuleCode,
     diServiceDependencyNotRegisteredRuleCode,

@@ -819,7 +819,7 @@ function formatSsgPrerenderCause(error: unknown): string {
     if (error instanceof ResourceAccessError) {
         switch (error.code) {
             case "private-in-ssg":
-                return `${error.message} Move this resource behind a deferred or client-only boundary.`;
+                return `${error.message} Move this resource behind a defer strategy or an SSG-safe render policy.`;
             case "client-in-ssg":
                 return `${error.message} Read it on the client or replace it with a build-compatible resource.`;
             case "forbidden-in-ssg":
@@ -829,7 +829,7 @@ function formatSsgPrerenderCause(error: unknown): string {
 
     const message = toErrorMessage(error);
     if (
-        message.includes('@RenderStrategy("forbidden-in-ssg")') &&
+        message.includes('@RenderPolicy("forbidden-in-ssg")') &&
         message.includes("cannot be rendered during SSG.")
     ) {
         return appendSsgGuidance(

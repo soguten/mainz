@@ -38,9 +38,10 @@ Today `mainz diagnose` can report checks such as:
 - multiple `notFound` pages in the same routing set
 - pages that reference named authorization policies not declared in
   `target.authorization.policyNames`
-- `Component` declarations with `@RenderStrategy(...)` but no `load()`
-- `Component` declarations with `load()` using `deferred` or `client-only` without a fallback
-- `Component` declarations using `blocking` together with a fallback, which is usually misleading
+- `Component` declarations with `@RenderStrategy("defer")` but no `load()`
+- `Component` declarations with `load()` using `defer` without `placeholder()`
+- `Component` declarations using `blocking` together with `placeholder()`, which is usually misleading
+- `Component` declarations using `@RenderPolicy("placeholder-in-ssg")` without `placeholder()`
 - components that reference named authorization policies not declared in
   `target.authorization.policyNames`
 - DI registrations and injections that refer to missing services
@@ -158,15 +159,15 @@ Owner-wide suppression:
 ```ts
 /**
  * @mainz-diagnostics-ignore
- * component-load-missing-fallback: fixture intentionally omits fallback UI
+ * component-load-missing-placeholder: fixture intentionally omits placeholder UI
  */
 @CustomElement("x-owner-tools")
-@RenderStrategy("client-only")
+@RenderStrategy("defer")
 export class OwnerTools extends Component {
 }
 ```
 
-That suppresses every `component-load-missing-fallback` diagnostic emitted for that export.
+That suppresses every `component-load-missing-placeholder` diagnostic emitted for that export.
 
 Subject-specific suppression:
 

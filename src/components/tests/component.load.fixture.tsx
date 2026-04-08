@@ -1,4 +1,11 @@
-import { Component, type ComponentLoadContext, type NoProps, type NoState, RenderStrategy } from "../index.ts";
+import {
+    Component,
+    type ComponentLoadContext,
+    type NoProps,
+    type NoState,
+    RenderPolicy,
+    RenderStrategy,
+} from "../index.ts";
 
 export function createBlockingLoadHarness() {
     @RenderStrategy("blocking")
@@ -15,19 +22,75 @@ export function createBlockingLoadHarness() {
     return BlockingDocsPanel;
 }
 
-export function createDeferredLoadHarness(
+export function createDeferLoadHarness(
     load: () => { title: string } | Promise<{ title: string }>,
-    strategy: "deferred" | "client-only" = "deferred",
     options?: {
-        withFallback?: boolean;
+        withPlaceholder?: boolean;
+        policy?: "placeholder-in-ssg" | "hide-in-ssg" | "forbidden-in-ssg";
     },
 ) {
-    const renderOptions = options?.withFallback === false ? undefined : {
-        fallback: () => <p data-role="status">loading</p>,
-    };
+    const withPlaceholder = options?.withPlaceholder !== false;
 
-    @RenderStrategy(strategy, renderOptions)
-    class DeferredDocsPanel extends Component<NoProps, NoState, { title: string }> {
+    const DeferDocsPanel = withPlaceholder
+        ? class DeferDocsPanelWithPlaceholder extends Component<NoProps, NoState, { title: string }> {
+            override load() {
+                return load();
+            }
+
+            override placeholder(): HTMLElement | DocumentFragment {
+                return <p data-role="status">loading</p> as HTMLElement;
+            }
+
+            override render(): HTMLElement {
+                return <p data-role="status">{this.data.title}</p>;
+            }
+        }
+        : class DeferDocsPanelWithoutPlaceholder extends Component<NoProps, NoState, { title: string }> {
+            override load() {
+                return load();
+            }
+
+            override render(): HTMLElement {
+                return <p data-role="status">{this.data.title}</p>;
+            }
+        };
+
+    if (options?.policy === "placeholder-in-ssg") {
+        RenderPolicy("placeholder-in-ssg")(DeferDocsPanel);
+    } else if (options?.policy === "hide-in-ssg") {
+        RenderPolicy("hide-in-ssg")(DeferDocsPanel);
+    } else if (options?.policy === "forbidden-in-ssg") {
+        RenderPolicy("forbidden-in-ssg")(DeferDocsPanel);
+    }
+
+    return DeferDocsPanel;
+}
+
+export function createExplicitDeferLoadHarness(
+    load: () => { title: string } | Promise<{ title: string }>,
+    options?: {
+        withPlaceholder?: boolean;
+    },
+) {
+    const withPlaceholder = options?.withPlaceholder !== false;
+
+    @RenderStrategy("defer")
+    class DeferDocsPanelWithPlaceholder extends Component<NoProps, NoState, { title: string }> {
+        override load() {
+            return load();
+        }
+
+        override placeholder(): HTMLElement | DocumentFragment {
+            return <p data-role="status">loading</p> as HTMLElement;
+        }
+
+        override render(): HTMLElement {
+            return <p data-role="status">{this.data.title}</p>;
+        }
+    }
+
+    @RenderStrategy("defer")
+    class DeferDocsPanelWithoutPlaceholder extends Component<NoProps, NoState, { title: string }> {
         override load() {
             return load();
         }
@@ -37,11 +100,11 @@ export function createDeferredLoadHarness(
         }
     }
 
-    return DeferredDocsPanel;
+    return withPlaceholder ? DeferDocsPanelWithPlaceholder : DeferDocsPanelWithoutPlaceholder;
 }
 
 export function createForbiddenInSsgHarness() {
-    @RenderStrategy("forbidden-in-ssg")
+    @RenderPolicy("forbidden-in-ssg")
     class LivePreviewPanel extends Component<NoProps, NoState, { title: string }> {
         override async load() {
             return { title: "Preview" };
@@ -59,14 +122,15 @@ export function createReloadHarness(
     calls: string[],
     requests: Map<string, { promise: Promise<{ title: string }> }>,
 ) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="status">loading</p>,
-    })
     class RoutedDocsPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load() {
             calls.push(this.props.slug);
             return requests.get(this.props.slug)?.promise ??
                 Promise.reject(new Error(`Missing request for slug "${this.props.slug}".`));
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="status">loading</p>;
         }
 
         override render(): HTMLElement {
@@ -82,9 +146,6 @@ export function createAbortAwareReloadHarness(args: {
     observedAborts: string[];
     requests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="status">loading</p>,
-    })
     class AbortAwareRoutedDocsPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -95,6 +156,10 @@ export function createAbortAwareReloadHarness(args: {
 
             return args.requests.get(slug)?.promise ??
                 Promise.reject(new Error(`Missing request for slug "${slug}".`));
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="status">loading</p>;
         }
 
         override render(): HTMLElement {
@@ -110,9 +175,6 @@ export function createAbortAwareCleanupHarness(args: {
     observedAborts: string[];
     request: Promise<{ title: string }>;
 }) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="status">loading</p>,
-    })
     class AbortAwareCleanupPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -122,6 +184,10 @@ export function createAbortAwareCleanupHarness(args: {
             }, { once: true });
 
             return args.request;
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="status">loading</p>;
         }
 
         override render(): HTMLElement {
@@ -137,14 +203,6 @@ export function createAbortRejectingReloadHarness(args: {
     observedAborts: string[];
     requests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="status">loading</p>,
-        errorFallback: (error: unknown) => (
-            <p data-role="status">
-                {error instanceof Error ? error.message : String(error)}
-            </p>
-        ),
-    })
     class AbortRejectingRoutedDocsPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -155,6 +213,18 @@ export function createAbortRejectingReloadHarness(args: {
 
             return args.requests.get(slug)?.promise ??
                 Promise.reject(new Error(`Missing request for slug "${slug}".`));
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="status">loading</p>;
+        }
+
+        override error(error: unknown): HTMLElement {
+            return (
+                <p data-role="status">
+                    {error instanceof Error ? error.message : String(error)}
+                </p>
+            ) as HTMLElement;
         }
 
         override render(): HTMLElement {
@@ -173,9 +243,6 @@ export function createMultiPanelAbortHarness(args: {
     primaryRequests: Map<string, { promise: Promise<{ title: string }> }>;
     secondaryRequests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="primary-status">loading</p>,
-    })
     class PrimaryPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -188,14 +255,15 @@ export function createMultiPanelAbortHarness(args: {
                 Promise.reject(new Error(`Missing primary request for slug "${slug}".`));
         }
 
+        override placeholder(): HTMLElement {
+            return <p data-role="primary-status">loading</p>;
+        }
+
         override render(): HTMLElement {
             return <p data-role="primary-status">{this.data.title}</p>;
         }
     }
 
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="secondary-status">loading</p>,
-    })
     class SecondaryPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -206,6 +274,10 @@ export function createMultiPanelAbortHarness(args: {
 
             return args.secondaryRequests.get(slug)?.promise ??
                 Promise.reject(new Error(`Missing secondary request for slug "${slug}".`));
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="secondary-status">loading</p>;
         }
 
         override render(): HTMLElement {
@@ -235,14 +307,6 @@ export function createMultiPanelAbortAndErrorHarness(args: {
     primaryRequests: Map<string, { promise: Promise<{ title: string }> }>;
     secondaryRequests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="primary-status">loading</p>,
-        errorFallback: (error: unknown) => (
-            <p data-role="primary-status">
-                {error instanceof Error ? error.message : String(error)}
-            </p>
-        ),
-    })
     class PrimaryPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -255,19 +319,23 @@ export function createMultiPanelAbortAndErrorHarness(args: {
                 Promise.reject(new Error(`Missing primary request for slug "${slug}".`));
         }
 
+        override placeholder(): HTMLElement {
+            return <p data-role="primary-status">loading</p>;
+        }
+
+        override error(error: unknown): HTMLElement {
+            return (
+                <p data-role="primary-status">
+                    {error instanceof Error ? error.message : String(error)}
+                </p>
+            ) as HTMLElement;
+        }
+
         override render(): HTMLElement {
             return <p data-role="primary-status">{this.data.title}</p>;
         }
     }
 
-    @RenderStrategy("deferred", {
-        fallback: () => <p data-role="secondary-status">loading</p>,
-        errorFallback: (error: unknown) => (
-            <p data-role="secondary-status">
-                {error instanceof Error ? error.message : String(error)}
-            </p>
-        ),
-    })
     class SecondaryPanel extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
@@ -278,6 +346,18 @@ export function createMultiPanelAbortAndErrorHarness(args: {
 
             return args.secondaryRequests.get(slug)?.promise ??
                 Promise.reject(new Error(`Missing secondary request for slug "${slug}".`));
+        }
+
+        override placeholder(): HTMLElement {
+            return <p data-role="secondary-status">loading</p>;
+        }
+
+        override error(error: unknown): HTMLElement {
+            return (
+                <p data-role="secondary-status">
+                    {error instanceof Error ? error.message : String(error)}
+                </p>
+            ) as HTMLElement;
         }
 
         override render(): HTMLElement {

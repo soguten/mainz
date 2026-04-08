@@ -2,7 +2,8 @@ import type { NavigationMode, RenderMode } from "../routing/types.ts";
 
 export type ResourceVisibility = "public" | "private";
 export type ResourceExecution = "build" | "client" | "either";
-export type RenderStrategy = "blocking" | "deferred" | "client-only" | "forbidden-in-ssg";
+export type RenderStrategy = "blocking" | "defer";
+export type RenderPolicy = "placeholder-in-ssg" | "hide-in-ssg" | "forbidden-in-ssg";
 export type ResourceStrategy = RenderStrategy;
 export type ResourceRuntime = "build" | "client";
 export type ResourceCachePolicy =
@@ -39,6 +40,7 @@ export interface ResourceReadEnvironment {
     runtime?: ResourceRuntime;
     consumer?: "page-load" | "resource-boundary";
     renderStrategy?: RenderStrategy;
+    renderPolicy?: RenderPolicy;
 }
 
 export type ResourceAccessErrorCode =
@@ -113,11 +115,11 @@ function validateResourceAccess(
         });
     }
 
-    if (environment.renderMode === "ssg" && environment.renderStrategy === "forbidden-in-ssg") {
+    if (environment.renderMode === "ssg" && environment.renderPolicy === "forbidden-in-ssg") {
         throw new ResourceAccessError({
             code: "forbidden-in-ssg",
             resourceName: resource.name,
-            message: `Resource "${resource.name}" is being read by a component marked forbidden-in-ssg and cannot be used during SSG.`,
+            message: `Resource "${resource.name}" is being read by a component marked @RenderPolicy("forbidden-in-ssg") and cannot be used during SSG.`,
         });
     }
 
@@ -138,7 +140,8 @@ function validateResourceAccess(
             throw new ResourceAccessError({
                 code: "client-in-ssg",
                 resourceName: resource.name,
-                message: `Resource "${resource.name}" is client-only and cannot execute during SSG.`,
+                message:
+                    `Resource "${resource.name}" uses execution: "client" and cannot execute during SSG.`,
             });
         }
 
@@ -158,7 +161,8 @@ function validateResourceAccess(
             throw new ResourceAccessError({
                 code: "client-in-ssg",
                 resourceName: resource.name,
-                message: `Resource "${resource.name}" is client-only and cannot execute during SSG.`,
+                message:
+                    `Resource "${resource.name}" uses execution: "client" and cannot execute during SSG.`,
             });
         }
 
