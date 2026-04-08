@@ -40,17 +40,17 @@ export class DocsPager extends Component<DocsPagerProps, NoState, DocsPagerModel
         return {};
     }
 
-    override render() {
-        if (!this.data.previous && !this.data.next) {
+    override render(data: DocsPagerModel) {
+        if (!data.previous && !data.next) {
             return document.createDocumentFragment();
         }
 
         return (
             <div class="docs-pager">
-                {this.data.previous
-                    ? <DocsPagerLinkCard entry={this.data.previous} label="Previous page" />
+                {data.previous
+                    ? <DocsPagerLinkCard entry={data.previous} label="Previous page" />
                     : <div />}
-                {this.data.next ? <DocsPagerLinkCard entry={this.data.next} label="Next page" /> : <div />}
+                {data.next ? <DocsPagerLinkCard entry={data.next} label="Next page" /> : <div />}
             </div>
         );
     }

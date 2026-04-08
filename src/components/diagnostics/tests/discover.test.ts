@@ -35,6 +35,9 @@ Deno.test("components/diagnostics: discover should resolve inherited load and st
             hasAuthorize: false,
             authorizationPolicy: undefined,
             hasAllowAnonymous: false,
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: true,
         },
     );
 });

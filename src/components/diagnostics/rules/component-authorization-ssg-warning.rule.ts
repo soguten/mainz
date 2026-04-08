@@ -4,7 +4,11 @@ import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } 
 export const componentAuthorizationSsgWarningRuleCode =
     "component-authorization-ssg-warning" as const;
 
-export const componentAuthorizationSsgWarningRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
+export const componentAuthorizationSsgWarningRule: DiagnosticsRule<
+    ComponentFact,
+    ComponentDiagnosticsContext,
+    ComponentDiagnostic
+> = {
     code: componentAuthorizationSsgWarningRuleCode,
     run(component) {
         if (!component.hasAuthorize) {

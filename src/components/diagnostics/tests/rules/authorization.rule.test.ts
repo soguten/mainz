@@ -24,6 +24,9 @@ Deno.test("components/diagnostics/rules: authorization rules should report addit
         hasAuthorize: true,
         authorizationPolicy: "org-member",
         hasAllowAnonymous: true,
+        hasRenderDataParameter: false,
+        renderDataParameterTypeIsUnknown: false,
+        hasExplicitDataContract: false,
     };
     const diagnostics = [
         ...componentAllowAnonymousNotSupportedRule.run(component, {}),

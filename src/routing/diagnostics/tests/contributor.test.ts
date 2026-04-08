@@ -32,4 +32,11 @@ Deno.test("routing/diagnostics: route diagnostics entrypoint should preserve cur
         ),
         true,
     );
+    assertEquals(
+        diagnostics.some((diagnostics) =>
+            diagnostics.code === "page-render-data-without-load" &&
+            diagnostics.exportName === "RenderDataWithoutLoadPage"
+        ),
+        true,
+    );
 });

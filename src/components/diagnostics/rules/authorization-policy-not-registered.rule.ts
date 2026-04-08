@@ -4,7 +4,11 @@ import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } 
 export const authorizationPolicyNotRegisteredComponentRuleCode =
     "authorization-policy-not-registered" as const;
 
-export const authorizationPolicyNotRegisteredComponentRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
+export const authorizationPolicyNotRegisteredComponentRule: DiagnosticsRule<
+    ComponentFact,
+    ComponentDiagnosticsContext,
+    ComponentDiagnostic
+> = {
     code: authorizationPolicyNotRegisteredComponentRuleCode,
     run(component, context) {
         const policyName = component.authorizationPolicy?.trim();

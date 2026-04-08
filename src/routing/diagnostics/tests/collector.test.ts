@@ -172,6 +172,26 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
                 routePath: "/mixed",
             },
             {
+                code: "page-render-data-without-explicit-data",
+                severity: "error",
+                message:
+                    'Page "RenderDataWithoutExplicitDataPage" declares render(data) without an explicit Data generic on Page<Props, State, Data>. ' +
+                    "When Data is omitted, render(data) must accept unknown. Declare Data explicitly or change the parameter type to unknown.",
+                file: file.replaceAll("\\", "/"),
+                exportName: "RenderDataWithoutExplicitDataPage",
+                routePath: "/render-data/untyped",
+            },
+            {
+                code: "page-render-data-without-load",
+                severity: "error",
+                message:
+                    'Page "RenderDataWithoutLoadPage" declares render(data) but does not declare load(). ' +
+                    "render(data) is only valid when page lifecycle data is owned by load().",
+                file: file.replaceAll("\\", "/"),
+                exportName: "RenderDataWithoutLoadPage",
+                routePath: "/render-data/no-load",
+            },
+            {
                 code: "page-authorization-ssg-warning",
                 severity: "warning",
                 message: 'Page "AuthorizedSsgPage" uses @Authorize(...) with @RenderMode("ssg"). ' +
@@ -276,7 +296,8 @@ Deno.test("routing/diagnostics: suppression helper should support owner-wide and
             code: "invalid-locale-tag",
             severity: "error",
             subject: "locale=pt_BR",
-            message: 'Page "DuplicateSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
+            message:
+                'Page "DuplicateSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
             file,
             exportName: "DuplicateSubjectLocaleSuppressionPage",
             routePath: "/duplicate-subject",
@@ -320,7 +341,8 @@ Deno.test("routing/diagnostics: suppression helper should support owner-wide and
                 code: "invalid-locale-tag",
                 severity: "error",
                 subject: "locale=pt_BR",
-                message: 'Page "InvalidSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
+                message:
+                    'Page "InvalidSubjectLocaleSuppressionPage" declares invalid locale "pt_BR".',
                 file,
                 exportName: "InvalidSubjectLocaleSuppressionPage",
                 routePath: "/invalid-subject",
@@ -329,7 +351,8 @@ Deno.test("routing/diagnostics: suppression helper should support owner-wide and
                 code: "invalid-locale-tag",
                 severity: "error",
                 subject: "locale=en_US",
-                message: 'Page "SubjectScopedLocaleSuppressionPage" declares invalid locale "en_US".',
+                message:
+                    'Page "SubjectScopedLocaleSuppressionPage" declares invalid locale "en_US".',
                 file,
                 exportName: "SubjectScopedLocaleSuppressionPage",
                 routePath: "/subject-only",
@@ -338,7 +361,9 @@ Deno.test("routing/diagnostics: suppression helper should support owner-wide and
     );
 });
 
-function sortDiagnostics<T extends { code: string; exportName: string; routePath?: string; subject?: string }>(
+function sortDiagnostics<
+    T extends { code: string; exportName: string; routePath?: string; subject?: string },
+>(
     diagnostics: readonly T[],
 ): T[] {
     return [...diagnostics].sort((a, b) => {

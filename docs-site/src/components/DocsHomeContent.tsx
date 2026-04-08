@@ -1,6 +1,6 @@
 import { Component, CustomElement, type NoProps, type NoState, RenderStrategy } from "mainz";
 import { inject } from "mainz/di";
-import { type DocsOverviewCard, DocsArticle } from "./docs-page/DocsArticle.tsx";
+import { DocsArticle, type DocsOverviewCard } from "./docs-page/DocsArticle.tsx";
 import { DocsService } from "../services/DocsService.ts";
 
 interface DocsHomePageModel {
@@ -14,7 +14,6 @@ interface DocsHomePageModel {
 @CustomElement("x-mainz-docs-home-content")
 @RenderStrategy("blocking")
 export class DocsHomeContent extends Component<NoProps, NoState, DocsHomePageModel> {
-    
     readonly docs = inject(DocsService);
 
     override load(): DocsHomePageModel {
@@ -36,15 +35,15 @@ export class DocsHomeContent extends Component<NoProps, NoState, DocsHomePageMod
         };
     }
 
-    override render() {
+    override render(data: DocsHomePageModel) {
         return (
             <DocsArticle
-                title={this.data.title}
-                summary={this.data.summary}
-                overviewCards={this.data.overviewCards}
-                markdown={this.data.markdown}
+                title={data.title}
+                summary={data.summary}
+                overviewCards={data.overviewCards}
+                markdown={data.markdown}
                 showFirstPager
-                statusLabel={this.data.statusLabel}
+                statusLabel={data.statusLabel}
                 resolveMarkdownHref={(href) => this.docs.resolveMarkdownHref(undefined, href)}
             />
         );

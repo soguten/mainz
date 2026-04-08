@@ -18,7 +18,6 @@ interface CounterState {
 }
 
 export class CounterCard extends Component<NoProps, CounterState> {
-    
     protected override initState(): CounterState {
         return { count: 0 };
     }
@@ -67,7 +66,7 @@ The model is intentionally direct:
 
 - `props` receive input from JSX or the runtime
 - `state` holds local mutable UI state
-- `render()` returns the current DOM shape
+- `render()` or `render(data)` returns the current DOM shape
 - `initState()` bootstraps state before the first render
 - `load(context)` can own async component assembly
 - `Component.load()` defaults to `blocking` unless the component opts into another
@@ -76,7 +75,8 @@ The model is intentionally direct:
 That keeps component behavior local instead of splitting logic across hooks, templates, and external
 config.
 
-If the component needs infrastructure such as an API gateway or HTTP client, resolve that through `mainz/di` with `inject(Token)` rather than putting technical dependencies into `props`. See
+If the component needs infrastructure such as an API gateway or HTTP client, resolve that through
+`mainz/di` with `inject(Token)` rather than putting technical dependencies into `props`. See
 [Dependency Injection](../core/dependency-injection.md).
 
 When a component implements `load(context)`, Mainz now passes `context.signal`.
@@ -88,6 +88,10 @@ That signal is aborted when:
 
 This keeps component-owned async work cooperative with cancellation and prevents stale results from
 becoming the rendered state later.
+
+When a component declares `load(context)`, `render(data)` is the preferred explicit way to consume
+that resolved value. `this.data` still remains available when helper methods or lifecycle members
+need the same data outside `render()`.
 
 That behavior also composes across subtrees:
 

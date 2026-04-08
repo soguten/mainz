@@ -30,6 +30,9 @@ Deno.test("routing/diagnostics/rules: dynamic SSG missing load should warn when 
                     }],
                 },
             },
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: false,
         },
     );
 
@@ -43,6 +46,3 @@ Deno.test("routing/diagnostics/rules: dynamic SSG missing load should warn when 
         routePath: "/docs/:slug",
     }]);
 });
-
-
-

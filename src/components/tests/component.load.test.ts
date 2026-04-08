@@ -75,6 +75,14 @@ Deno.test("components/component load: should expose blocking load data on the fi
     screen.cleanup();
 });
 
+Deno.test("components/component load: should allow render(data: unknown) when Data is omitted", () => {
+    const Harness = fixtures.createUnknownRenderDataHarness();
+    const screen = renderMainzComponent(Harness);
+
+    assertEquals(screen.getBySelector("[data-role='status']").textContent, "Unknown Intro");
+    screen.cleanup();
+});
+
 Deno.test("components/component load: should render placeholder before defer load resolves", async () => {
     const request = createPendingRequest<{ title: string }>();
     const Harness = fixtures.createDeferLoadHarness(() => request.promise);
@@ -325,11 +333,17 @@ Deno.test("components/component load: should abort stale work across multiple de
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const primaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
         ["routing", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const secondaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
         ["routing", createPendingRequest<{ title: string }>()],
     ]);
@@ -368,8 +382,14 @@ Deno.test("components/component load: should abort stale work across multiple de
     secondaryRequests.get("routing")?.resolve({ title: "Secondary Routing" });
     await flushComponentLoadUpdates();
 
-    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "Primary Routing");
-    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "Secondary Routing");
+    assertEquals(
+        screen.getBySelector("[data-role='primary-status']").textContent,
+        "Primary Routing",
+    );
+    assertEquals(
+        screen.getBySelector("[data-role='secondary-status']").textContent,
+        "Secondary Routing",
+    );
     screen.cleanup();
 });
 
@@ -378,11 +398,17 @@ Deno.test("components/component load: should keep abort and real error isolated 
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const primaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
         ["routing", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const secondaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
         ["routing", createPendingRequest<{ title: string }>()],
     ]);
@@ -420,8 +446,14 @@ Deno.test("components/component load: should keep abort and real error isolated 
     secondaryRequests.get("routing")?.reject(new Error("Secondary failed"));
     await flushComponentLoadUpdates();
 
-    assertEquals(screen.getBySelector("[data-role='primary-status']").textContent, "Primary Routing");
-    assertEquals(screen.getBySelector("[data-role='secondary-status']").textContent, "Secondary failed");
+    assertEquals(
+        screen.getBySelector("[data-role='primary-status']").textContent,
+        "Primary Routing",
+    );
+    assertEquals(
+        screen.getBySelector("[data-role='secondary-status']").textContent,
+        "Secondary failed",
+    );
     screen.cleanup();
 });
 
@@ -430,10 +462,16 @@ Deno.test("components/component load: should abort in-flight defer sibling loads
     const secondaryCalls: string[] = [];
     const primaryObservedAborts: string[] = [];
     const secondaryObservedAborts: string[] = [];
-    const primaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const primaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
     ]);
-    const secondaryRequests = new Map<string, ReturnType<typeof createPendingRequest<{ title: string }>>>([
+    const secondaryRequests = new Map<
+        string,
+        ReturnType<typeof createPendingRequest<{ title: string }>>
+    >([
         ["intro", createPendingRequest<{ title: string }>()],
     ]);
 

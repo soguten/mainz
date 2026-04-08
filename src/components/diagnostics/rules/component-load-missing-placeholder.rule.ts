@@ -1,9 +1,14 @@
 import type { DiagnosticsRule } from "../../../diagnostics/core/pipeline.ts";
 import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } from "../facts.ts";
 
-export const componentLoadMissingPlaceholderRuleCode = "component-load-missing-placeholder" as const;
+export const componentLoadMissingPlaceholderRuleCode =
+    "component-load-missing-placeholder" as const;
 
-export const componentLoadMissingPlaceholderRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
+export const componentLoadMissingPlaceholderRule: DiagnosticsRule<
+    ComponentFact,
+    ComponentDiagnosticsContext,
+    ComponentDiagnostic
+> = {
     code: componentLoadMissingPlaceholderRuleCode,
     run(component) {
         if (

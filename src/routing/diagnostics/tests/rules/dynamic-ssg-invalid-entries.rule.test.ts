@@ -25,6 +25,9 @@ Deno.test("routing/diagnostics/rules: dynamic SSG invalid entries should report 
                     kind: "non-array",
                 },
             },
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: false,
         },
     );
 
@@ -41,6 +44,3 @@ Deno.test("routing/diagnostics/rules: dynamic SSG invalid entries should report 
         hasInvalidEntries: true,
     });
 });
-
-
-

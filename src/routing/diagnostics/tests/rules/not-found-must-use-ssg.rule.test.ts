@@ -16,6 +16,3 @@ Deno.test("routing/diagnostics/rules: notFound render mode rule should ignore ss
 
     assertEquals(diagnostics, []);
 });
-
-
-

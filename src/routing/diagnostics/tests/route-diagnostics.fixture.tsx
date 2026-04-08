@@ -28,10 +28,9 @@ const wrapInvalidParams = (value: string) => invalidHelperParams(value);
 const invalidEntryFromSharedParams = () => ({
     params: invalidSharedParams,
 });
-const invalidReferencedEntries = () =>
-    [{
-        params: invalidSharedParams,
-    }];
+const invalidReferencedEntries = () => [{
+    params: invalidSharedParams,
+}];
 const invalidAsyncLoader = async () => invalidAsyncItems;
 const invalidAsyncMapper = (item: (typeof invalidAsyncItems)[number]) => {
     const alias = item.wrong;
@@ -78,6 +77,42 @@ export class MixedLoadPage extends DiagnosticsRouteFixturePage {
         return {
             title: "instance",
         };
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-without-load-page")
+@Route("/render-data/no-load")
+export class RenderDataWithoutLoadPage extends Page {
+    override render(data: unknown) {
+        return <p>{String(data)}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-without-explicit-data-page")
+@Route("/render-data/untyped")
+export class RenderDataWithoutExplicitDataPage extends Page {
+    override load() {
+        return {
+            title: "Untyped",
+        };
+    }
+
+    override render(data: { title: string }) {
+        return <p>{data.title}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-unknown-page")
+@Route("/render-data/unknown")
+export class RenderDataUnknownPage extends Page {
+    override load() {
+        return {
+            title: "Unknown",
+        };
+    }
+
+    override render(data: unknown) {
+        return <p>{String(data)}</p>;
     }
 }
 

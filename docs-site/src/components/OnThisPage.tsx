@@ -9,7 +9,6 @@ interface OnThisPageHeading {
 @CustomElement("x-mainz-docs-on-this-page")
 @RenderStrategy("defer")
 export class OnThisPage extends Component<NoProps, NoState, readonly OnThisPageHeading[]> {
-    
     override async load(): Promise<readonly OnThisPageHeading[]> {
         return collectArticleHeadings();
     }
@@ -25,12 +24,12 @@ export class OnThisPage extends Component<NoProps, NoState, readonly OnThisPageH
         );
     }
 
-    override render() {
+    override render(data: readonly OnThisPageHeading[]) {
         if (!this.route.params.slug) {
             return document.createDocumentFragment();
         }
 
-        return renderOnThisPagePanel(this.data);
+        return renderOnThisPagePanel(data);
     }
 }
 

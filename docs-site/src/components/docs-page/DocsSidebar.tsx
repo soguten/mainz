@@ -18,7 +18,7 @@ export class DocsSidebar extends Component<DocsSidebarProps, NoState, readonly D
         return this.docs.listNavSections();
     }
 
-    override render() {
+    override render(data: readonly DocsNavSection[]) {
         return (
             <aside class="docs-sidebar">
                 <p class="docs-sidebar-title">Documentation</p>
@@ -30,7 +30,7 @@ export class DocsSidebar extends Component<DocsSidebarProps, NoState, readonly D
                         variant="root"
                     />
 
-                    {this.data.map((section) => (
+                    {data.map((section) => (
                         <DocsNavSectionView section={section} activeSlug={this.props.activeSlug} />
                     ))}
 

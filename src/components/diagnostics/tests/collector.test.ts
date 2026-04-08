@@ -35,6 +35,24 @@ Deno.test("components/diagnostics: collector should report Component.load strate
             exportName: "PlaceholderInSsgWithoutPlaceholderComponent",
         },
         {
+            code: "component-render-data-without-explicit-data",
+            severity: "error",
+            message:
+                'Component "RenderDataWithoutExplicitDataComponent" declares render(data) without an explicit Data generic on Component<Props, State, Data>. ' +
+                "When Data is omitted, render(data) must accept unknown. Declare Data explicitly or change the parameter type to unknown.",
+            file,
+            exportName: "RenderDataWithoutExplicitDataComponent",
+        },
+        {
+            code: "component-render-data-without-load",
+            severity: "error",
+            message:
+                'Component "RenderDataWithoutLoadComponent" declares render(data) but does not declare load(). ' +
+                "render(data) is only valid when lifecycle data is owned by load().",
+            file,
+            exportName: "RenderDataWithoutLoadComponent",
+        },
+        {
             code: "component-authorization-ssg-warning",
             severity: "warning",
             message: 'Component "AuthorizedComponent" declares @Authorize(...). ' +
@@ -166,7 +184,8 @@ Deno.test("components/diagnostics: collector should validate and apply suppressi
         {
             code: "unknown-diagnostic-suppression",
             severity: "warning",
-            message: 'Unknown diagnostic suppression code "not-a-real-code" on "UnknownSuppressionComponent".',
+            message:
+                'Unknown diagnostic suppression code "not-a-real-code" on "UnknownSuppressionComponent".',
             file,
             exportName: "UnknownSuppressionComponent",
         },

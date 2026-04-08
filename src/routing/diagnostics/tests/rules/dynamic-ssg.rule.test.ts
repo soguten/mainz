@@ -22,6 +22,9 @@ Deno.test("routing/diagnostics/rules: dynamic SSG should require entries before 
             entriesFact: {
                 hasEntriesMember: false,
             },
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: false,
         },
     );
 
@@ -34,6 +37,3 @@ Deno.test("routing/diagnostics/rules: dynamic SSG should require entries before 
         routePath: "/docs/:slug",
     }]);
 });
-
-
-

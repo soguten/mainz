@@ -4,7 +4,11 @@ import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } 
 export const componentRenderStrategyWithoutLoadRuleCode =
     "component-render-strategy-without-load" as const;
 
-export const componentRenderStrategyWithoutLoadRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
+export const componentRenderStrategyWithoutLoadRule: DiagnosticsRule<
+    ComponentFact,
+    ComponentDiagnosticsContext,
+    ComponentDiagnostic
+> = {
     code: componentRenderStrategyWithoutLoadRuleCode,
     run(component) {
         if (component.isAbstract || component.hasLoad || !component.hasExplicitRenderStrategy) {
@@ -17,7 +21,7 @@ export const componentRenderStrategyWithoutLoadRule: DiagnosticsRule<ComponentFa
                 severity: "warning",
                 message:
                     `Component "${component.exportName}" declares @RenderStrategy("blocking") but does not declare load(). ` +
-                    "@RenderStrategy(\"blocking\") is allowed on synchronous components, but it is redundant because blocking is already the default.",
+                    '@RenderStrategy("blocking") is allowed on synchronous components, but it is redundant because blocking is already the default.',
                 file: component.file,
                 exportName: component.exportName,
             }];

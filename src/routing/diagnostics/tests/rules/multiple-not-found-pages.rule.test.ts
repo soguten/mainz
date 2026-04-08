@@ -18,6 +18,3 @@ Deno.test("routing/diagnostics/rules: multiple notFound rule should allow a sing
 
     assertEquals(diagnostics, []);
 });
-
-
-

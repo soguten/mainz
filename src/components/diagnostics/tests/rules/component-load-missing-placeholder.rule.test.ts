@@ -21,6 +21,9 @@ Deno.test("components/diagnostics/rules: load without placeholder should warn fo
             hasAuthorize: false,
             authorizationPolicy: undefined,
             hasAllowAnonymous: false,
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: true,
         },
         {},
     );
@@ -37,5 +40,3 @@ Deno.test("components/diagnostics/rules: load without placeholder should warn fo
         },
     ]);
 });
-
-

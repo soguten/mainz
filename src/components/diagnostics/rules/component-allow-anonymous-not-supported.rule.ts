@@ -4,7 +4,11 @@ import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } 
 export const componentAllowAnonymousNotSupportedRuleCode =
     "component-allow-anonymous-not-supported" as const;
 
-export const componentAllowAnonymousNotSupportedRule: DiagnosticsRule<ComponentFact, ComponentDiagnosticsContext, ComponentDiagnostic> = {
+export const componentAllowAnonymousNotSupportedRule: DiagnosticsRule<
+    ComponentFact,
+    ComponentDiagnosticsContext,
+    ComponentDiagnostic
+> = {
     code: componentAllowAnonymousNotSupportedRuleCode,
     run(component) {
         if (!component.hasAllowAnonymous) {

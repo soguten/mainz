@@ -1,6 +1,4 @@
-import {
-    resolveComponentAuthorization,
-} from "../authorization/index.ts";
+import { resolveComponentAuthorization } from "../authorization/index.ts";
 import type { Principal } from "../authorization/index.ts";
 import {
     createAnonymousPrincipal,
@@ -8,27 +6,27 @@ import {
     readAuthorizationRuntimeOptions,
 } from "../authorization/runtime.ts";
 import {
+    type AuthorizationRenderContext,
     getCurrentAuthorizationRenderContext,
     popAuthorizationRenderContext,
     pushAuthorizationRenderContext,
     resolveAuthorizationRenderContextFromProps,
-    type AuthorizationRenderContext,
 } from "../authorization/render-context.ts";
 import { DefaultProps, DefaultState } from "./types.ts";
 import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
 import {
+    type ComponentRenderConfig,
     resolveComponentRenderConfig,
     resolveDecoratedCustomElementTag,
-    type ComponentRenderConfig,
 } from "./component-metadata.ts";
 import {
-    isSsgBuildEnvironment,
     isAbortLikeError,
     isPromiseLike,
+    isSsgBuildEnvironment,
     resolveComponentLoadEnvironment,
-    stableSerializeForLoadKey,
     shouldApplyRenderPolicyInSsgBuild,
     shouldWaitForClientRuntime,
+    stableSerializeForLoadKey,
 } from "./component-load.ts";
 import {
     elementTagName,
@@ -63,7 +61,12 @@ import {
     readServiceContainer,
 } from "../di/context.ts";
 import type { ServiceContainer } from "../di/container.ts";
-import { isRouteContext, type PageRouteParams, type RouteContext, type RouteProfileContext } from "./route-context.ts";
+import {
+    isRouteContext,
+    type PageRouteParams,
+    type RouteContext,
+    type RouteProfileContext,
+} from "./route-context.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
 import type { RenderPolicy } from "../resources/index.ts";
 
@@ -100,6 +103,8 @@ interface ComponentLoadState<Data = unknown> {
     data?: Data;
     error?: unknown;
 }
+
+type ComponentRenderArgs<Data = unknown> = [] | [data: Data];
 
 /**
  * Base class for Mainz components.
@@ -447,11 +452,11 @@ export abstract class Component<
         }
 
         if (!this.hasComponentLoad()) {
-            return this.render();
+            return this.renderResolvedOutput();
         }
 
         if (this.componentLoadState.status === "resolved") {
-            return this.render();
+            return this.renderResolvedOutput();
         }
 
         if (this.componentLoadState.status === "rejected") {
@@ -676,11 +681,12 @@ export abstract class Component<
     }
 
     private resolveServiceContainer(): ServiceContainer | undefined {
-        const fromRoute = typeof this.props === "object" && this.props !== null && "route" in this.props
-            ? readServiceContainer(
-                (this.props as Record<string, unknown>).route as object | null | undefined,
-            )
-            : undefined;
+        const fromRoute =
+            typeof this.props === "object" && this.props !== null && "route" in this.props
+                ? readServiceContainer(
+                    (this.props as Record<string, unknown>).route as object | null | undefined,
+                )
+                : undefined;
 
         return fromRoute ??
             this.serviceContainer ??
@@ -747,7 +753,9 @@ export abstract class Component<
         return isRouteContext(propsRecord.route) ? propsRecord.route : undefined;
     }
 
-    private toSerializableRouteContext(route: RouteContext | undefined): Record<string, unknown> | null {
+    private toSerializableRouteContext(
+        route: RouteContext | undefined,
+    ): Record<string, unknown> | null {
         if (!route) {
             return null;
         }
@@ -805,10 +813,22 @@ export abstract class Component<
         }
 
         if (!this.hasComponentLoad()) {
-            return this.render();
+            return this.renderResolvedOutput();
         }
 
         return this.ownerDocument.createDocumentFragment();
+    }
+
+    private renderResolvedOutput(): HTMLElement | DocumentFragment {
+        if (this.shouldPassResolvedDataToRender()) {
+            return this.render(this.data);
+        }
+
+        return this.render();
+    }
+
+    private shouldPassResolvedDataToRender(): boolean {
+        return typeof this.load === "function";
     }
 
     private resolveComponentLoadErrorFallback(
@@ -906,8 +926,7 @@ export abstract class Component<
             next,
             registerEvent: (target, type, listener, options) =>
                 this.registerEvent(target, type, listener, options),
-            unregisterSpecificEvent: (target, event) =>
-                this.unregisterSpecificEvent(target, event),
+            unregisterSpecificEvent: (target, event) => this.unregisterSpecificEvent(target, event),
         });
     }
 
@@ -1002,14 +1021,15 @@ export abstract class Component<
      * Returns the visible DOM output for this component.
      *
      * `render()` is the primary view hook for every Mainz component.
-     * Implement it for both synchronous components and data-owning components.
+     * Implement it as `render()` for synchronous components or `render(data)` when the component
+     * owns lifecycle data through `load()`.
      *
      * When the component also defines `load()`, the rendered output may depend on resolved
      * lifecycle data, placeholder UI, or error UI depending on the active render state.
      *
      * @returns {HTMLElement | DocumentFragment} The rendered component element or a fragment.
      */
-    abstract render(): HTMLElement | DocumentFragment;
+    abstract render(...args: ComponentRenderArgs<Data>): HTMLElement | DocumentFragment;
 
     /**
      * Runs after the component is connected to the DOM.

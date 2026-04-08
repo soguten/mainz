@@ -57,14 +57,14 @@ export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel>
         });
     }
 
-    override render() {
-        return <DocsArticlePage article={this.data} />;
+    override render(data: DocsArticleModel) {
+        return <DocsArticlePage article={data} />;
     }
 }
 ```
 
-The component decides how its own `load()` participates inside the page.
-Mainz passes `context.signal` to that load so a newer component load attempt or disconnect can abort the older one before it applies stale UI.
+The component decides how its own `load()` participates inside the page. Mainz passes
+`context.signal` to that load so a newer component load attempt or disconnect can abort the older one before it applies stale UI.
 
 If a component declares `load()` and no `@RenderStrategy(...)`, Mainz treats it as `blocking` by default.
 
@@ -157,8 +157,8 @@ export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel>
         });
     }
 
-    override render() {
-        return <DocsArticlePage article={this.data} />;
+    override render(data: DocsArticleModel) {
+        return <DocsArticlePage article={data} />;
     }
 }
 ```
@@ -184,8 +184,8 @@ export class OnThisPage extends Component<{}, NoState, readonly Heading[]> {
         return <p>Scanning sections...</p>;
     }
 
-    override render() {
-        return <OnThisPagePanel headings={this.data} />;
+    override render(data: readonly Heading[]) {
+        return <OnThisPagePanel headings={data} />;
     }
 }
 ```
@@ -219,8 +219,8 @@ export class RecentlyViewedDocs extends Component<
         return <p>Recent pages appear after you browse the docs.</p>;
     }
 
-    override render() {
-        return <RecentDocsNav items={this.data} />;
+    override render(data: readonly RecentlyViewedDoc[]) {
+        return <RecentDocsNav items={data} />;
     }
 }
 ```

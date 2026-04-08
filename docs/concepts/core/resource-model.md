@@ -75,8 +75,8 @@ export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel>
         return await docsArticleData.load(this.route.params.slug);
     }
 
-    override render() {
-        return <DocsArticlePage article={this.data} />;
+    override render(data: DocsArticleModel) {
+        return <DocsArticlePage article={data} />;
     }
 }
 ```

@@ -1,4 +1,5 @@
 import { ts } from "@/compiler/typescript.ts";
+import { readClassRenderDataContractInfo } from "../../diagnostics/core/class-render-data.ts";
 import type {
     ComponentFact,
     ComponentRenderPolicy,
@@ -20,6 +21,9 @@ interface ParsedClassInfo {
     authorizationPolicy?: string;
     hasAllowAnonymous: boolean;
     declaresComponentLoadMethod: boolean;
+    declaresRenderDataParameter: boolean;
+    renderDataParameterTypeIsUnknown: boolean;
+    declaresExplicitDataContract: boolean;
     isAbstract: boolean;
 }
 
@@ -59,6 +63,12 @@ export async function discoverComponentFacts(
                 hasAuthorize: candidate.hasAuthorize,
                 authorizationPolicy: candidate.authorizationPolicy,
                 hasAllowAnonymous: candidate.hasAllowAnonymous,
+                hasRenderDataParameter: resolveInheritedRenderDataParameter(candidate, classes),
+                renderDataParameterTypeIsUnknown: resolveInheritedRenderDataParameterType(
+                    candidate,
+                    classes,
+                ),
+                hasExplicitDataContract: resolveInheritedExplicitDataContract(candidate, classes),
             });
         }
     }
@@ -85,6 +95,10 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
         }
 
         const renderStrategyConfig = findRenderMetadata(node);
+        const renderDataContractInfo = readClassRenderDataContractInfo(node, [
+            "Component",
+            "Page",
+        ]);
         classes.set(node.name.text, {
             node,
             exportName: node.name.text,
@@ -99,6 +113,10 @@ function collectParsedClassInfos(sourceFile: ts.SourceFile): ReadonlyMap<string,
             authorizationPolicy: readAuthorizePolicy(node),
             hasAllowAnonymous: hasDecorator(node, "AllowAnonymous"),
             declaresComponentLoadMethod: classDeclaresMethod(node, "load"),
+            declaresRenderDataParameter: renderDataContractInfo.hasRenderDataParameter,
+            renderDataParameterTypeIsUnknown:
+                renderDataContractInfo.renderDataParameterTypeIsUnknown,
+            declaresExplicitDataContract: renderDataContractInfo.hasExplicitDataContract,
             isAbstract: isAbstractClassDeclaration(node),
         });
     });
@@ -273,7 +291,11 @@ function resolveInheritedPlaceholder(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
 ): boolean {
-    return walkClassHierarchy(candidate, classes, (current) => current.hasPlaceholder ? true : undefined) ??
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.hasPlaceholder ? true : undefined,
+    ) ??
         false;
 }
 
@@ -281,7 +303,11 @@ function resolveInheritedError(
     candidate: ParsedClassInfo,
     classes: ReadonlyMap<string, ParsedClassInfo>,
 ): boolean {
-    return walkClassHierarchy(candidate, classes, (current) => current.hasError ? true : undefined) ??
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.hasError ? true : undefined,
+    ) ??
         false;
 }
 
@@ -293,6 +319,42 @@ function resolveInheritedComponentLoad(
         candidate,
         classes,
         (current) => current.declaresComponentLoadMethod ? true : undefined,
+    ) ?? false;
+}
+
+function resolveInheritedRenderDataParameter(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.declaresRenderDataParameter ? true : undefined,
+    ) ?? false;
+}
+
+function resolveInheritedRenderDataParameterType(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) =>
+            current.declaresRenderDataParameter
+                ? current.renderDataParameterTypeIsUnknown
+                : undefined,
+    ) ?? false;
+}
+
+function resolveInheritedExplicitDataContract(
+    candidate: ParsedClassInfo,
+    classes: ReadonlyMap<string, ParsedClassInfo>,
+): boolean {
+    return walkClassHierarchy(
+        candidate,
+        classes,
+        (current) => current.declaresExplicitDataContract ? true : undefined,
     ) ?? false;
 }
 

@@ -12,6 +12,8 @@ import { componentAuthorizationSsgWarningRule } from "./rules/component-authoriz
 import { componentBlockingPlaceholderConflictRule } from "./rules/component-blocking-placeholder-conflict.rule.ts";
 import { componentErrorWithoutLoadRule } from "./rules/component-error-without-load.rule.ts";
 import { componentLoadMissingPlaceholderRule } from "./rules/component-load-missing-placeholder.rule.ts";
+import { componentRenderDataWithoutExplicitDataRule } from "./rules/component-render-data-without-explicit-data.rule.ts";
+import { componentRenderDataWithoutLoadRule } from "./rules/component-render-data-without-load.rule.ts";
 import { componentPlaceholderInSsgMissingPlaceholderRule } from "./rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
 import { componentPlaceholderWithoutLoadRule } from "./rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRule } from "./rules/component-render-strategy-without-load.rule.ts";
@@ -36,6 +38,8 @@ export {
     componentLoadMissingPlaceholderRule,
     componentPlaceholderInSsgMissingPlaceholderRule,
     componentPlaceholderWithoutLoadRule,
+    componentRenderDataWithoutExplicitDataRule,
+    componentRenderDataWithoutLoadRule,
     componentRenderStrategyWithoutLoadRule,
 };
 
@@ -44,10 +48,12 @@ const componentDiagnosticsRules = [
     componentAllowAnonymousNotSupportedRule,
     componentAuthorizationSsgWarningRule,
     authorizationPolicyNotRegisteredComponentRule,
+    componentRenderDataWithoutLoadRule,
     componentPlaceholderWithoutLoadRule,
     componentErrorWithoutLoadRule,
     componentPlaceholderInSsgMissingPlaceholderRule,
     componentLoadMissingPlaceholderRule,
+    componentRenderDataWithoutExplicitDataRule,
     componentBlockingPlaceholderConflictRule,
 ] as const;
 export const componentDiagnosticsContributor = {

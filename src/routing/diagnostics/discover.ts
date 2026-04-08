@@ -1,4 +1,5 @@
 import { ts } from "@/compiler/typescript.ts";
+import { readClassRenderDataContractInfo } from "../../diagnostics/core/class-render-data.ts";
 import type { RouteDiagnosticsPageInput, RoutePageFacts } from "./facts.ts";
 import { analyzeEntriesMember } from "./entries-evaluator.ts";
 import {
@@ -28,6 +29,9 @@ export async function collectRoutePageFacts(
             entriesFact: {
                 hasEntriesMember: false,
             },
+            hasRenderDataParameter: false,
+            renderDataParameterTypeIsUnknown: false,
+            hasExplicitDataContract: false,
         };
 
         pageFactsByPage.set(createPageFactsKey(page), pageFacts);
@@ -61,6 +65,7 @@ function parseRoutePageFacts(source: string): ReadonlyMap<string, RoutePageFacts
             hasStaticLoadMember: classHasStaticMember(node, "load"),
             hasInstanceLoadMember: classHasInstanceMember(node, "load"),
         };
+        const renderDataContractInfo = readClassRenderDataContractInfo(node, ["Page"]);
         const entriesFact = {
             hasEntriesMember: staticMembers.hasEntriesMember,
             evaluation: analyzeEntriesMember(node, context),
@@ -69,6 +74,10 @@ function parseRoutePageFacts(source: string): ReadonlyMap<string, RoutePageFacts
         pageFactsByExportName.set(node.name.text, {
             staticMembers,
             entriesFact,
+            hasRenderDataParameter: renderDataContractInfo.hasRenderDataParameter,
+            renderDataParameterTypeIsUnknown:
+                renderDataContractInfo.renderDataParameterTypeIsUnknown,
+            hasExplicitDataContract: renderDataContractInfo.hasExplicitDataContract,
         });
     });
 

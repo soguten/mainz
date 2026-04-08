@@ -31,6 +31,3 @@ Deno.test("routing/diagnostics/rules: invalid locale rule should report invalid 
     assertEquals(diagnostics.length, 1);
     assertEquals(diagnostics[0]?.code, "invalid-locale-tag");
 });
-
-
-

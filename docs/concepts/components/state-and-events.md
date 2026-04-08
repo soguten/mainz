@@ -103,8 +103,8 @@ export class FilterableArticleList extends Component<
         return <p>Loading articles...</p>;
     }
 
-    override render() {
-        const visibleArticles = this.data.filter((article) =>
+    override render(data: readonly ArticleSummary[]) {
+        const visibleArticles = data.filter((article) =>
             article.title.toLowerCase().includes(this.state.filter.toLowerCase())
         );
 

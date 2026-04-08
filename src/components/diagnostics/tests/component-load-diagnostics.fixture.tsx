@@ -21,7 +21,8 @@ export class MissingStrategyLoadComponent extends Component<NoProps, NoState, { 
 }
 
 @CustomElement("x-mainz-diagnostics-missing-placeholder-load-component")
-export class MissingPlaceholderLoadComponent extends Component<NoProps, NoState, { title: string }> {
+export class MissingPlaceholderLoadComponent
+    extends Component<NoProps, NoState, { title: string }> {
     override async load() {
         return { title: "Preview" };
     }
@@ -36,6 +37,35 @@ export class MissingPlaceholderLoadComponent extends Component<NoProps, NoState,
 export class StrategyWithoutLoadComponent extends Component {
     override render(): HTMLElement {
         return <p>Static content</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-without-load-component")
+export class RenderDataWithoutLoadComponent extends Component {
+    override render(data: unknown): HTMLElement {
+        return <p>{String(data)}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-without-explicit-data-component")
+export class RenderDataWithoutExplicitDataComponent extends Component {
+    override async load() {
+        return { title: "Untyped" };
+    }
+
+    override render(data: { title: string }): HTMLElement {
+        return <p>{data.title}</p>;
+    }
+}
+
+@CustomElement("x-mainz-diagnostics-render-data-unknown-component")
+export class RenderDataUnknownComponent extends Component {
+    override async load() {
+        return { title: "Unknown" };
+    }
+
+    override render(data: unknown): HTMLElement {
+        return <p>{String(data)}</p>;
     }
 }
 

@@ -22,6 +22,8 @@ Deno.test("components/diagnostics: contributor should preserve current component
         [
             "component-allow-anonymous-not-supported",
             "component-placeholder-in-ssg-missing-placeholder",
+            "component-render-data-without-explicit-data",
+            "component-render-data-without-load",
             "component-authorization-ssg-warning",
             "component-authorization-ssg-warning",
             "component-blocking-placeholder-conflict",

@@ -1,8 +1,7 @@
 import type { DiagnosticsRule } from "../../../diagnostics/core/pipeline.ts";
 import type { ComponentDiagnostic, ComponentDiagnosticsContext, ComponentFact } from "../facts.ts";
 
-export const componentErrorWithoutLoadRuleCode =
-    "component-error-without-load" as const;
+export const componentErrorWithoutLoadRuleCode = "component-error-without-load" as const;
 
 export const componentErrorWithoutLoadRule: DiagnosticsRule<
     ComponentFact,

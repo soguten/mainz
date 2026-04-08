@@ -80,10 +80,9 @@ Deno.test("routing/diagnostics/rules: page metadata should report notFound confl
         2,
     );
     assertEquals(
-        diagnostics.some((diagnostics) => diagnostics.code === "authorization-policy-not-registered"),
+        diagnostics.some((diagnostics) =>
+            diagnostics.code === "authorization-policy-not-registered"
+        ),
         true,
     );
 });
-
-
-

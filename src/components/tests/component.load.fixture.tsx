@@ -14,12 +14,27 @@ export function createBlockingLoadHarness() {
             return { title: "Intro" };
         }
 
-        override render(): HTMLElement {
-            return <p data-role="status">{this.data.title}</p>;
+        override render(data: { title: string }): HTMLElement {
+            return <p data-role="status">{data.title}</p>;
         }
     }
 
     return BlockingDocsPanel;
+}
+
+export function createUnknownRenderDataHarness() {
+    class UnknownRenderDataPanel extends Component {
+        override load() {
+            return { title: "Unknown Intro" };
+        }
+
+        override render(data: unknown): HTMLElement {
+            const record = data as { title: string };
+            return <p data-role="status">{record.title}</p>;
+        }
+    }
+
+    return UnknownRenderDataPanel;
 }
 
 export function createDeferLoadHarness(
@@ -32,7 +47,8 @@ export function createDeferLoadHarness(
     const withPlaceholder = options?.withPlaceholder !== false;
 
     const DeferDocsPanel = withPlaceholder
-        ? class DeferDocsPanelWithPlaceholder extends Component<NoProps, NoState, { title: string }> {
+        ? class DeferDocsPanelWithPlaceholder
+            extends Component<NoProps, NoState, { title: string }> {
             override load() {
                 return load();
             }
@@ -45,7 +61,8 @@ export function createDeferLoadHarness(
                 return <p data-role="status">{this.data.title}</p>;
             }
         }
-        : class DeferDocsPanelWithoutPlaceholder extends Component<NoProps, NoState, { title: string }> {
+        : class DeferDocsPanelWithoutPlaceholder
+            extends Component<NoProps, NoState, { title: string }> {
             override load() {
                 return load();
             }
@@ -146,7 +163,8 @@ export function createAbortAwareReloadHarness(args: {
     observedAborts: string[];
     requests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    class AbortAwareRoutedDocsPanel extends Component<{ slug: string }, NoState, { title: string }> {
+    class AbortAwareRoutedDocsPanel
+        extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
             args.calls.push(slug);
@@ -203,7 +221,8 @@ export function createAbortRejectingReloadHarness(args: {
     observedAborts: string[];
     requests: Map<string, { promise: Promise<{ title: string }> }>;
 }) {
-    class AbortRejectingRoutedDocsPanel extends Component<{ slug: string }, NoState, { title: string }> {
+    class AbortRejectingRoutedDocsPanel
+        extends Component<{ slug: string }, NoState, { title: string }> {
         override load(context: ComponentLoadContext) {
             const slug = this.props.slug;
             args.calls.push(slug);

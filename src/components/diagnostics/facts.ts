@@ -4,6 +4,8 @@ import { componentAuthorizationSsgWarningRuleCode } from "./rules/component-auth
 import { componentBlockingPlaceholderConflictRuleCode } from "./rules/component-blocking-placeholder-conflict.rule.ts";
 import { componentErrorWithoutLoadRuleCode } from "./rules/component-error-without-load.rule.ts";
 import { componentLoadMissingPlaceholderRuleCode } from "./rules/component-load-missing-placeholder.rule.ts";
+import { componentRenderDataWithoutExplicitDataRuleCode } from "./rules/component-render-data-without-explicit-data.rule.ts";
+import { componentRenderDataWithoutLoadRuleCode } from "./rules/component-render-data-without-load.rule.ts";
 import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "./rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
 import { componentPlaceholderWithoutLoadRuleCode } from "./rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRuleCode } from "./rules/component-render-strategy-without-load.rule.ts";
@@ -43,6 +45,9 @@ export interface ComponentFact {
     hasAuthorize: boolean;
     authorizationPolicy?: string;
     hasAllowAnonymous: boolean;
+    hasRenderDataParameter: boolean;
+    renderDataParameterTypeIsUnknown: boolean;
+    hasExplicitDataContract: boolean;
 }
 
 export interface ComponentDiagnosticsContext {
@@ -56,6 +61,8 @@ export type ComponentDiagnosticCode =
     | typeof componentBlockingPlaceholderConflictRuleCode
     | typeof componentErrorWithoutLoadRuleCode
     | typeof componentLoadMissingPlaceholderRuleCode
+    | typeof componentRenderDataWithoutExplicitDataRuleCode
+    | typeof componentRenderDataWithoutLoadRuleCode
     | typeof componentPlaceholderInSsgMissingPlaceholderRuleCode
     | typeof componentPlaceholderWithoutLoadRuleCode
     | typeof componentRenderStrategyWithoutLoadRuleCode

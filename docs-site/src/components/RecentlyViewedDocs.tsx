@@ -35,8 +35,8 @@ export class RecentlyViewedDocs extends Component<NoProps, NoState, readonly Rec
         );
     }
 
-    override render() {
-        return renderRecentlyViewedDocs(this.data);
+    override render(data: readonly RecentlyViewedDoc[]) {
+        return renderRecentlyViewedDocs(data);
     }
 }
 

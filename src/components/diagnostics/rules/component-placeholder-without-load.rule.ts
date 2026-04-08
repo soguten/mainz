@@ -25,7 +25,7 @@ export const componentPlaceholderWithoutLoadRule: DiagnosticsRule<
             severity: "warning",
             message:
                 `Component "${component.exportName}" declares placeholder() but does not declare load(). ` +
-                "placeholder() should accompany async component loading or @RenderPolicy(\"placeholder-in-ssg\").",
+                'placeholder() should accompany async component loading or @RenderPolicy("placeholder-in-ssg").',
             file: component.file,
             exportName: component.exportName,
         }];

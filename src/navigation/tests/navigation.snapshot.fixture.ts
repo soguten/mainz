@@ -1,4 +1,4 @@
-import { CustomElement, type PageHeadDefinition, Page, Route } from "../../index.ts";
+import { CustomElement, Page, type PageHeadDefinition, Route } from "../../index.ts";
 
 let snapshotLoadCount = 0;
 
@@ -41,9 +41,9 @@ export class SnapshotDocsPage extends Page<{}, {}, { slug: string; source: strin
         };
     }
 
-    override render(): HTMLElement {
+    override render(data: { slug: string; source: string }): HTMLElement {
         const element = document.createElement("section");
-        element.textContent = `${this.data?.source ?? "missing"}:${this.data?.slug ?? ""}`;
+        element.textContent = `${data.source}:${data.slug}`;
         return element;
     }
 }

@@ -34,8 +34,8 @@ override load() {
   return fetchDoc(this.route.params.slug);
 }
 
-override render() {
-  return <article>{this.data.title}</article>;
+override render(data: { title: string }) {
+  return <article>{data.title}</article>;
 }
 ```
 

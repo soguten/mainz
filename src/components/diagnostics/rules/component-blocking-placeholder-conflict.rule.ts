@@ -23,7 +23,7 @@ export const componentBlockingPlaceholderConflictRule: DiagnosticsRule<
             severity: "warning",
             message:
                 `Component "${component.exportName}" declares @RenderStrategy("blocking") with a placeholder(). ` +
-                "Blocking components normally render resolved output instead of visible placeholder UI, so this placeholder may be misleading unless it is only intended for @RenderPolicy(\"placeholder-in-ssg\").",
+                'Blocking components normally render resolved output instead of visible placeholder UI, so this placeholder may be misleading unless it is only intended for @RenderPolicy("placeholder-in-ssg").',
             file: component.file,
             exportName: component.exportName,
         }];

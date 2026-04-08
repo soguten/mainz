@@ -74,14 +74,13 @@ export class DocsPage extends Page {
         };
     }
 
-    override render() {
+    override render(data: { article: { title: string } }) {
         return <DocsArticleContent />;
     }
 }
 ```
 
-Use `Page.load()` when the page owns the answer. `head()` and `render()` both run on that same
-page instance, so they can consume `this.data` directly.
+Use `Page.load()` when the page owns the answer. `render(data)` is the preferred explicit rendering surface for resolved page data, while `head()` continues to read route context through `context` and page data through `this.data`.
 
 `Page.load()` now also receives `context.signal`.
 
@@ -144,8 +143,8 @@ export class DocsArticleContent extends Component<{}, NoState, DocsPageModel> {
         });
     }
 
-    override render() {
-        return <DocsArticlePage article={this.data} />;
+    override render(data: DocsPageModel) {
+        return <DocsArticlePage article={data} />;
     }
 }
 ```
@@ -157,15 +156,16 @@ In other words:
 - `render()` stays synchronous and only consumes already available state
 - `context.signal` lets component-owned load work stop when Mainz supersedes or tears down that load
 
-## `this.data` is the resolved component value
+## `render(data)` is the preferred explicit surface
 
-When a component declares `load()`, Mainz exposes the resolved value through `this.data`.
+When a component declares `load()`, Mainz can pass the resolved value directly to `render(data)`.
+That makes the `load()` to `render()` contract visible in the method signature itself.
 
 That means:
 
 - `load()` stays the async hook
-- `render()` stays synchronous
-- the component reads its own resolved value directly from `this.data`
+- `render(data)` stays synchronous
+- `this.data` remains available for helpers, lifecycle members, and `Page.head()`
 
 ```tsx
 @RenderStrategy("blocking")
@@ -176,11 +176,15 @@ export class ProductDetails extends Component<{ slug: string }, NoState, Product
         });
     }
 
-    override render() {
-        return <article>{this.data.title}</article>;
+    override render(data: Product) {
+        return <article>{data.title}</article>;
     }
 }
 ```
+
+When authors intentionally omit the `Data` generic, Mainz does not infer it from `load()` or
+`render(data)`. In that shape, `render(data)` should accept `unknown`, and `this.data` is also
+`unknown`.
 
 `Component.load()` now receives `context.signal`.
 
@@ -263,8 +267,8 @@ export class OnThisPage extends Component<{ slug?: string }, NoState, readonly H
         return <p>Scanning sections...</p>;
     }
 
-    override render() {
-        return <OnThisPagePanel headings={this.data} />;
+    override render(data: readonly Heading[]) {
+        return <OnThisPagePanel headings={data} />;
     }
 }
 ```
@@ -289,8 +293,8 @@ export class RecentlyViewedDocs extends Component<
         return <RecentDocsPlaceholder />;
     }
 
-    override render() {
-        return <RecentDocsNav items={this.data} />;
+    override render(data: readonly RecentlyViewedDoc[]) {
+        return <RecentDocsNav items={data} />;
     }
 }
 ```

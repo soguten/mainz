@@ -126,8 +126,8 @@ export class CurrentUserMenu extends Component<NoProps, NoState, CurrentUser | n
         return <a href="/login">Sign in</a>;
     }
 
-    override render() {
-        return this.data ? <button>{this.data.name}</button> : <a href="/login">Sign in</a>;
+    override render(data: CurrentUser | null) {
+        return data ? <button>{data.name}</button> : <a href="/login">Sign in</a>;
     }
 }
 ```
@@ -197,8 +197,8 @@ export class DocsPage extends Page {
         };
     }
 
-    override render() {
-        return <header>{this.data?.currentUserName}</header>;
+    override render(data: { currentUserName?: string }) {
+        return <header>{data.currentUserName}</header>;
     }
 }
 ```
@@ -261,7 +261,8 @@ Use a private island when:
 So:
 
 - `@Authorize(...)` answers "who may see this?"
-- `placeholder-in-ssg` private island answers "what should SSG emit before the browser resolves this?"
+- `placeholder-in-ssg` private island answers "what should SSG emit before the browser resolves
+  this?"
 
 Sometimes a product needs both, but they are not interchangeable.
 
@@ -296,7 +297,8 @@ It is usually the wrong fit when:
 
 - page decides the public route shell
 - private component becomes an island
-- `RenderPolicy("placeholder-in-ssg")` keeps shared HTML neutral while the browser resolves personalization
+- `RenderPolicy("placeholder-in-ssg")` keeps shared HTML neutral while the browser resolves
+  personalization
 - `Component.load()` keeps the ownership visible on the component itself
 - `@Authorize(...)` remains the tool for truly protected routes
 

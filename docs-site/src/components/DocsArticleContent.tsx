@@ -13,7 +13,6 @@ const lastRecordedDocSlug = new WeakMap<DocsArticleContent, string>();
 @CustomElement("x-mainz-docs-article-content")
 @RenderStrategy("blocking")
 export class DocsArticleContent extends Component<NoProps, NoState, DocsArticlePageModel> {
-    
     readonly docs = inject(DocsService);
 
     override load(): DocsArticlePageModel {
@@ -24,9 +23,7 @@ export class DocsArticleContent extends Component<NoProps, NoState, DocsArticleP
         this.recordCurrentDocVisit();
     }
 
-    override render() {
-        const page = this.data;
-
+    override render(page: DocsArticlePageModel) {
         return (
             <DocsArticle
                 title={page.title}

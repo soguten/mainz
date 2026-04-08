@@ -1,10 +1,10 @@
 import {
     Component,
     CustomElement,
-    RenderPolicy,
-    RenderStrategy,
     type NoProps,
     type NoState,
+    RenderPolicy,
+    RenderStrategy,
 } from "../../../index.ts";
 
 /**

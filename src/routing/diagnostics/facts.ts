@@ -9,6 +9,8 @@ import { notFoundMustNotDefineRouteDiagnosticCode } from "./rules/not-found-must
 import { notFoundMustUseSsgDiagnosticCode } from "./rules/not-found-must-use-ssg.rule.ts";
 import { pageAuthorizationAnonymousConflictDiagnosticCode } from "./rules/page-authorization-anonymous-conflict.rule.ts";
 import { pageAuthorizationSsgWarningDiagnosticCode } from "./rules/page-authorization-ssg-warning.rule.ts";
+import { pageRenderDataWithoutExplicitDataDiagnosticCode } from "./rules/page-render-data-without-explicit-data.rule.ts";
+import { pageRenderDataWithoutLoadDiagnosticCode } from "./rules/page-render-data-without-load.rule.ts";
 import { pageStaticLoadUnsupportedDiagnosticCode } from "./rules/page-static-load-unsupported.rule.ts";
 import {
     invalidDiagnosticSuppressionCode,
@@ -31,6 +33,8 @@ export type MainzDiagnosticCode =
     | typeof notFoundMustUseSsgDiagnosticCode
     | typeof pageAuthorizationAnonymousConflictDiagnosticCode
     | typeof pageAuthorizationSsgWarningDiagnosticCode
+    | typeof pageRenderDataWithoutExplicitDataDiagnosticCode
+    | typeof pageRenderDataWithoutLoadDiagnosticCode
     | typeof pageStaticLoadUnsupportedDiagnosticCode
     | typeof unknownDiagnosticSuppressionCode
     | typeof unusedDiagnosticSuppressionCode;
@@ -95,4 +99,7 @@ export interface RouteEntriesFact {
 export interface RoutePageFacts {
     staticMembers: RouteStaticMembersFact;
     entriesFact: RouteEntriesFact;
+    hasRenderDataParameter: boolean;
+    renderDataParameterTypeIsUnknown: boolean;
+    hasExplicitDataContract: boolean;
 }
