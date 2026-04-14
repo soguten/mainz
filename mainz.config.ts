@@ -43,6 +43,14 @@ export default defineMainzConfig({
             outDir: "dist/examples/di-http-site",
         },
         {
+            name: "typecase-site",
+            rootDir: "./typecase-site",
+            viteConfig: "./vite.config.typecase-site.ts",
+            pagesDir: "./typecase-site/src/pages",
+            locales: ["en"],
+            outDir: "dist/typecase-site",
+        },
+        {
             name: "docs",
             rootDir: "./docs-site",
             viteConfig: "./vite.config.docs-site.ts",

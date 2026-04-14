@@ -16,6 +16,7 @@ export default defineConfig({
     base,
     resolve: {
         alias: [
+            { find: /^mainz\/typecase$/, replacement: `${srcPath}/typecase/index.ts` },
             { find: /^mainz\/jsx-runtime$/, replacement: `${srcPath}/jsx-runtime.ts` },
             { find: /^mainz\/jsx-dev-runtime$/, replacement: `${srcPath}/jsx-dev-runtime.ts` },
             { find: /^mainz$/, replacement: `${srcPath}/index.ts` },
