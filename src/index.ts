@@ -21,6 +21,7 @@ export {
     Route,
 } from "./components/index.ts";
 export { defineApp, startApp, startNavigation } from "./navigation/index.ts";
+export { Portal } from "./portal/index.ts";
 export {
     MAINZ_LOCALE_CHANGE_EVENT,
     MAINZ_NAVIGATION_ABORT_EVENT,
@@ -68,12 +69,13 @@ export type {
     StartDefinedAppOptions,
     StartNavigationOptions,
 } from "./navigation/index.ts";
+export type { PortalLayer, PortalProps, PortalScope } from "./portal/index.ts";
 export type {
     PageConstructor,
     PageEntriesContext,
     PageEntryDefinition,
-    PageHeadDefinition,
     PageHeadContext,
+    PageHeadDefinition,
     PageHeadLinkDefinition,
     PageHeadMetaDefinition,
     PageLoadContext,

@@ -35,13 +35,17 @@
             "slug": "navigation-runtime",
             "order": 8
         },
+        "portal-rendering.md": {
+            "slug": "portal-rendering",
+            "order": 9
+        },
         "authorization.md": {
             "slug": "authorization",
-            "order": 9
+            "order": 10
         },
         "dependency-injection.md": {
             "slug": "dependency-injection",
-            "order": 10
+            "order": 11
         }
     }
 }

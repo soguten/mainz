@@ -148,43 +148,47 @@ Deno.test("docs catalog builder ignores article files not listed in _meta.json a
 });
 
 Deno.test("docs catalog builder fails when _meta.json declares a missing article file", () => {
-    assertThrows(() =>
-        buildDocsCatalogFromFiles(
-            [
-                {
-                    sourcePath: "../../../docs/concepts/testing/overview.md",
-                    raw: `---\ntitle: Testing Overview\nsummary: Public testing surface.\n---\n## Intro\n`,
-                },
-            ],
-            [
-                {
-                    sourcePath: "../../../docs/concepts/_meta.json",
-                    attributes: {
-                        section: "concepts",
-                        sectionTitle: "Concepts",
-                        sectionOrder: 2,
+    assertThrows(
+        () =>
+            buildDocsCatalogFromFiles(
+                [
+                    {
+                        sourcePath: "../../../docs/concepts/testing/overview.md",
+                        raw: `---\ntitle: Testing Overview\nsummary: Public testing surface.\n---\n## Intro\n`,
                     },
-                },
-                {
-                    sourcePath: "../../../docs/concepts/testing/_meta.json",
-                    attributes: {
-                        group: "testing",
-                        groupTitle: "Testing",
-                        groupOrder: 2,
-                        articles: {
-                            "overview.md": {
-                                slug: "testing-overview",
-                                order: 0,
-                            },
-                            "missing.md": {
-                                slug: "missing-article",
-                                order: 1,
+                ],
+                [
+                    {
+                        sourcePath: "../../../docs/concepts/_meta.json",
+                        attributes: {
+                            section: "concepts",
+                            sectionTitle: "Concepts",
+                            sectionOrder: 2,
+                        },
+                    },
+                    {
+                        sourcePath: "../../../docs/concepts/testing/_meta.json",
+                        attributes: {
+                            group: "testing",
+                            groupTitle: "Testing",
+                            groupOrder: 2,
+                            articles: {
+                                "overview.md": {
+                                    slug: "testing-overview",
+                                    order: 0,
+                                },
+                                "missing.md": {
+                                    slug: "missing-article",
+                                    order: 1,
+                                },
                             },
                         },
                     },
-                },
-            ],
-        ), Error, 'Docs metadata declares article "missing.md"');
+                ],
+            ),
+        Error,
+        'Docs metadata declares article "missing.md"',
+    );
 });
 
 Deno.test("docs service exposes frontmatter lookups by slug", () => {
@@ -213,6 +217,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
         "route-metadata",
         "data-loading",
         "navigation-runtime",
+        "portal-rendering",
         "authorization",
         "dependency-injection",
     ]);
@@ -256,8 +261,13 @@ Deno.test("docs helpers compute previous and next article links", () => {
         next: { slug: "page-model", title: "Page Model" },
     });
 
-    assertEquals(docs.getPagerBySlug("authorization"), {
+    assertEquals(docs.getPagerBySlug("portal-rendering"), {
         previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
+        next: { slug: "authorization", title: "Authorization" },
+    });
+
+    assertEquals(docs.getPagerBySlug("authorization"), {
+        previous: { slug: "portal-rendering", title: "Portal Rendering" },
         next: { slug: "dependency-injection", title: "Dependency Injection" },
     });
 

@@ -44,6 +44,11 @@ import {
     type ServiceContainer,
     type ServiceRegistration,
 } from "../di/container.ts";
+import {
+    cleanupManagedAppPortalLayers,
+    ensureDefaultAppPortalLayer,
+    markMainzAppPortalRoot,
+} from "../portal/index.ts";
 
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
@@ -365,6 +370,7 @@ function startRootApp(
     document.documentElement.dataset.mainzNavigation = mode;
 
     const mount = resolveSpaMount(options?.mount);
+    markMainzAppPortalRoot(mount);
     const serviceContainer = app.services?.length
         ? createServiceContainer(app.services)
         : undefined;
@@ -376,16 +382,19 @@ function startRootApp(
     withServiceContainer(serviceContainer, () => {
         mount.replaceChildren(rootElement);
     });
+    ensureDefaultAppPortalLayer(mount);
 
     return {
         mode,
         cleanup() {
             if (rootElement.parentNode === mount) {
                 mount.removeChild(rootElement);
+                cleanupManagedAppPortalLayers(mount);
                 return;
             }
 
             rootElement.remove();
+            cleanupManagedAppPortalLayers(mount);
         },
     };
 }
@@ -666,6 +675,7 @@ function startSpaNavigation(
 
     const routes = normalizeSpaRoutes(pageOptions.pages, pageOptions.notFound);
     const mount = resolveSpaMount(pageOptions.mount);
+    ensureDefaultAppPortalLayer(mount);
     let activeSequence: NavigationSequenceState | undefined;
     const initialUrl = resolveSpaLocalizedDocumentUrl(
         new URL(window.location.href),
@@ -1043,6 +1053,7 @@ async function renderSpaRoute(args: {
         const nextPageElement = pageElement;
         applySpaRouteContext(nextPageElement, routeContext);
         args.mount.replaceChildren(nextPageElement);
+        ensureDefaultAppPortalLayer(args.mount);
         finalizeNavigationReady({
             sequence,
             mount: args.mount,
@@ -1798,6 +1809,7 @@ function renderForbiddenRoute(mount: HTMLElement): void {
     element.setAttribute("data-mainz-status", "403");
     element.textContent = "403 Forbidden";
     mount.replaceChildren(element);
+    ensureDefaultAppPortalLayer(mount);
     applyResolvedPageHeadToDocument({
         title: "403 Forbidden",
     });
@@ -2600,6 +2612,7 @@ async function bootstrapDocumentNavigation(
     }
 
     const mount = resolveSpaMount(options.mount);
+    ensureDefaultAppPortalLayer(mount);
     const routes = normalizeSpaRoutes(options.pages, options.notFound);
     const url = new URL(window.location.href);
     const currentPath = resolveRoutePath(url, basePath, options.resolvePath, options.locales) ??

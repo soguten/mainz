@@ -4,7 +4,7 @@ import { createTestScreen, type TestScreen } from "./test-screen.ts";
 
 export type MainzComponentCtor<T extends HTMLElement> = {
     getTagName(): string;
-    new(): T;
+    new (): T;
 };
 
 export type RenderResult<T extends HTMLElement> = TestScreen<T>;
@@ -98,7 +98,9 @@ function ensureTestRoot(): HTMLElement {
 }
 
 function ensureDefined<T extends HTMLElement>(Ctor: MainzComponentCtor<T>): string {
-    return ensureMainzCustomElementDefined(Ctor as unknown as CustomElementConstructor & { getTagName(): string });
+    return ensureMainzCustomElementDefined(
+        Ctor as unknown as CustomElementConstructor & { getTagName(): string },
+    );
 }
 
 export function renderMainzComponent<T extends HTMLElement>(
@@ -118,6 +120,7 @@ export function renderMainzComponent<T extends HTMLElement>(
 
     const host = document.createElement("div");
     host.setAttribute("data-testid", "mainz-host");
+    host.setAttribute("data-mainz-app-root", "");
 
     const testRoot = ensureTestRoot();
     testRoot.appendChild(host);
@@ -136,7 +139,8 @@ export function renderMainzComponent<T extends HTMLElement>(
     }
 
     if (options.stateOverride !== undefined && "state" in component) {
-        const currentState = (component as T & { state: ObjectStateOf<T> }).state ?? {} as ObjectStateOf<T>;
+        const currentState = (component as T & { state: ObjectStateOf<T> }).state ??
+            {} as ObjectStateOf<T>;
 
         (component as T & { state: ObjectStateOf<T> }).state = {
             ...currentState,

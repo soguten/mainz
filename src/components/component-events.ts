@@ -93,6 +93,7 @@ export function pruneDetachedEventListeners(args: {
     host: HTMLElement;
     ownerDocument: Document;
     eventListeners: TrackedEventListener[];
+    retainedNodes?: readonly Node[];
 }): TrackedEventListener[] {
     const stillTracked: TrackedEventListener[] = [];
 
@@ -105,6 +106,11 @@ export function pruneDetachedEventListeners(args: {
         }
 
         if (target === args.host || args.host.contains(target)) {
+            stillTracked.push(entry);
+            continue;
+        }
+
+        if (args.retainedNodes?.some((node) => node === target || node.contains(target))) {
             stillTracked.push(entry);
             continue;
         }

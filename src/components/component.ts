@@ -51,6 +51,14 @@ import {
     syncProperties,
     toRenderedNodes,
 } from "./component-patching.ts";
+import {
+    getPortalDescriptor,
+    isPortalMarkerNode,
+    type PortalMarkerNode,
+    resolvePortalTarget,
+    syncPortalMarkerNode,
+    toPortalRenderedNodes,
+} from "../portal/index.ts";
 import { warnAboutMissingLoadPlaceholder } from "./component-render-strategy-guardrails.ts";
 import {
     attachServiceContainer,
@@ -101,6 +109,11 @@ interface ComponentLoadState<Data = unknown> {
     status: "idle" | "loading" | "resolved" | "rejected";
     data?: Data;
     error?: unknown;
+}
+
+interface ComponentPortalEntry {
+    nodes: Node[];
+    target: HTMLElement;
 }
 
 type ComponentRenderArgs<Data = unknown> = [] | [data: Data];
@@ -171,6 +184,7 @@ export abstract class Component<
 
     private styleInjected = false;
     private renderedNodes: Node[] = [];
+    private portalEntries = new Map<PortalMarkerNode, ComponentPortalEntry>();
     private stateInitialized = false;
     private authorizationRenderContext?: AuthorizationRenderContext;
     private serviceContainer?: ServiceContainer;
@@ -228,6 +242,7 @@ export abstract class Component<
         }
 
         this.eventListeners = [];
+        this.cleanupPortalEntries();
     }
 
     /**
@@ -399,6 +414,7 @@ export abstract class Component<
                     this.appendChild(nextNode);
                 }
                 this.renderedNodes = nextNodes;
+                this.syncPortalEntries();
                 this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
@@ -420,6 +436,7 @@ export abstract class Component<
                 }
 
                 this.renderedNodes = nextNodes;
+                this.syncPortalEntries();
                 this.pruneDetachedEventListeners();
                 this.afterRender?.();
                 return;
@@ -430,6 +447,7 @@ export abstract class Component<
                 this.renderedNodes,
                 nextNodes,
             );
+            this.syncPortalEntries();
             this.pruneDetachedEventListeners();
             this.afterRender?.();
         } finally {
@@ -850,6 +868,11 @@ export abstract class Component<
     }
 
     private patchNode(current: Node, next: Node): Node {
+        if (isPortalMarkerNode(current) && isPortalMarkerNode(next)) {
+            syncPortalMarkerNode(current, next);
+            return current;
+        }
+
         if (!this.isSameNodeType(current, next)) {
             (current as ChildNode).replaceWith(next);
             return next;
@@ -904,6 +927,84 @@ export abstract class Component<
             buildNodeLookupKey: (node, key) => this.buildNodeLookupKey(node, key),
             patchNode: (current, next) => this.patchNode(current, next),
         });
+    }
+
+    private syncPortalEntries(): void {
+        const nextMarkers = this.collectPortalMarkers();
+        const retainedMarkers = new Set(nextMarkers);
+
+        for (const marker of nextMarkers) {
+            const descriptor = getPortalDescriptor(marker);
+            const target = resolvePortalTarget(this, descriptor);
+            const existingEntry = this.portalEntries.get(marker);
+
+            if (!target) {
+                if (existingEntry) {
+                    this.cleanupPortalEntry(existingEntry);
+                    this.portalEntries.delete(marker);
+                }
+                continue;
+            }
+
+            const nextNodes = toPortalRenderedNodes(descriptor.children, this.ownerDocument);
+            if (existingEntry && existingEntry.target !== target) {
+                this.cleanupPortalEntry(existingEntry);
+                this.portalEntries.delete(marker);
+            }
+
+            const currentEntry = this.portalEntries.get(marker);
+            const currentNodes = currentEntry?.nodes ?? [];
+            const patchedNodes = this.patchChildNodeList(target, currentNodes, nextNodes);
+            this.portalEntries.set(marker, {
+                nodes: patchedNodes,
+                target,
+            });
+        }
+
+        for (const [marker, entry] of this.portalEntries) {
+            if (retainedMarkers.has(marker)) {
+                continue;
+            }
+
+            this.cleanupPortalEntry(entry);
+            this.portalEntries.delete(marker);
+        }
+    }
+
+    private collectPortalMarkers(): PortalMarkerNode[] {
+        const markers: PortalMarkerNode[] = [];
+        const visit = (node: Node) => {
+            if (isPortalMarkerNode(node)) {
+                markers.push(node);
+                return;
+            }
+
+            for (const child of Array.from(node.childNodes)) {
+                visit(child);
+            }
+        };
+
+        for (const renderedNode of this.renderedNodes) {
+            visit(renderedNode);
+        }
+
+        return markers;
+    }
+
+    private cleanupPortalEntries(): void {
+        for (const entry of this.portalEntries.values()) {
+            this.cleanupPortalEntry(entry);
+        }
+
+        this.portalEntries.clear();
+    }
+
+    private cleanupPortalEntry(entry: ComponentPortalEntry): void {
+        for (const node of entry.nodes) {
+            if (node.parentNode === entry.target) {
+                entry.target.removeChild(node);
+            }
+        }
     }
 
     private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
@@ -962,7 +1063,12 @@ export abstract class Component<
             host: this,
             ownerDocument: this.ownerDocument,
             eventListeners: this.eventListeners,
+            retainedNodes: this.getPortalRetainedNodes(),
         });
+    }
+
+    private getPortalRetainedNodes(): Node[] {
+        return Array.from(this.portalEntries.values()).flatMap((entry) => entry.nodes);
     }
 
     private getNodeKey(node: Node): string | null {
