@@ -1,7 +1,7 @@
 export const authorizeSiteStyles = `
     :host {
         color: #1f2937;
-        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * {
@@ -15,10 +15,7 @@ export const authorizeSiteStyles = `
     .authorize-site-app {
         min-height: 100vh;
         padding: 32px 20px 56px;
-        background:
-            radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 34%),
-            radial-gradient(circle at top right, rgba(245, 158, 11, 0.18), transparent 28%),
-            linear-gradient(180deg, #f8fafc 0%, #ecfeff 46%, #fffbeb 100%);
+        background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
     }
 
     .authorize-site-shell {
@@ -33,10 +30,9 @@ export const authorizeSiteStyles = `
         gap: 18px;
         padding: 28px;
         border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 28px;
-        background: rgba(255, 255, 255, 0.88);
-        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(14px);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.06);
     }
 
     .authorize-site-topline {
@@ -55,7 +51,7 @@ export const authorizeSiteStyles = `
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: #0f766e;
+        color: #2563eb;
         text-decoration: none;
     }
 
@@ -63,9 +59,8 @@ export const authorizeSiteStyles = `
         width: 12px;
         height: 12px;
         border-radius: 999px;
-        background:
-            linear-gradient(135deg, #0f766e 0%, #14b8a6 58%, #f59e0b 100%);
-        box-shadow: 0 0 0 6px rgba(20, 184, 166, 0.12);
+        background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+        box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12);
     }
 
     .authorize-site-status {
@@ -87,7 +82,7 @@ export const authorizeSiteStyles = `
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #0f766e;
+        color: #2563eb;
     }
 
     .authorize-site-status-summary {
@@ -95,7 +90,6 @@ export const authorizeSiteStyles = `
         font-size: 0.92rem;
     }
 
-    .authorize-site-button,
     .authorize-site-link-chip {
         display: inline-flex;
         align-items: center;
@@ -103,7 +97,7 @@ export const authorizeSiteStyles = `
         min-height: 42px;
         padding: 0 16px;
         border-radius: 999px;
-        border: 1px solid rgba(15, 118, 110, 0.16);
+        border: 1px solid rgba(37, 99, 235, 0.16);
         background: #ffffff;
         color: #0f172a;
         font: inherit;
@@ -113,16 +107,15 @@ export const authorizeSiteStyles = `
         transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
     }
 
-    .authorize-site-button:hover,
     .authorize-site-link-chip:hover {
         transform: translateY(-1px);
-        border-color: rgba(15, 118, 110, 0.36);
+        border-color: rgba(37, 99, 235, 0.34);
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
     }
 
     .authorize-site-button-primary {
         border-color: transparent;
-        background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: #f8fafc;
     }
 
@@ -137,15 +130,14 @@ export const authorizeSiteStyles = `
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: #0f766e;
+        color: #475569;
     }
 
     .authorize-site-title {
         margin: 0;
-        max-width: 14ch;
-        font-family: "Cormorant Garamond", Georgia, serif;
-        font-size: clamp(2.8rem, 5vw, 4.6rem);
-        line-height: 0.96;
+        max-width: 16ch;
+        font-size: clamp(2.35rem, 4vw, 3.6rem);
+        line-height: 1.02;
         color: #0f172a;
     }
 
@@ -169,8 +161,8 @@ export const authorizeSiteStyles = `
         gap: 8px;
         padding: 10px 14px;
         border-radius: 999px;
-        background: rgba(15, 118, 110, 0.08);
-        color: #134e4a;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1d4ed8;
         font-size: 0.92rem;
         font-weight: 600;
     }
@@ -196,16 +188,11 @@ export const authorizeSiteStyles = `
         display: grid;
         gap: 14px;
         padding: 20px;
-        border-radius: 24px;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
-    .authorize-site-runtime-card h2 {
+    .authorize-site-runtime-card h2,
+    .authorize-site-runtime-card .tc-card-title {
         margin: 0;
-        font-family: "Cormorant Garamond", Georgia, serif;
         color: #0f172a;
     }
 
@@ -221,15 +208,7 @@ export const authorizeSiteStyles = `
     }
 
     .authorize-site-json-block {
-        overflow: auto;
         margin: 0;
-        padding: 16px;
-        border-radius: 18px;
-        background: #0f172a;
-        color: #dbeafe;
-        font-family: "IBM Plex Mono", Consolas, monospace;
-        font-size: 0.86rem;
-        line-height: 1.65;
     }
 
     .authorize-site-check-list {
@@ -278,8 +257,8 @@ export const authorizeSiteStyles = `
     }
 
     .authorize-site-check-badge[data-result="pass"] {
-        background: rgba(20, 184, 166, 0.16);
-        color: #0f766e;
+        background: rgba(34, 197, 94, 0.14);
+        color: #15803d;
     }
 
     .authorize-site-check-badge[data-result="fail"] {
@@ -307,7 +286,7 @@ export const authorizeSiteStyles = `
 
     .authorize-site-nav-link[data-active="true"] {
         border-color: transparent;
-        background: linear-gradient(135deg, rgba(15, 118, 110, 0.94), rgba(20, 184, 166, 0.94));
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.94), rgba(59, 130, 246, 0.94));
         color: #f8fafc;
     }
 
@@ -344,11 +323,13 @@ export const authorizeSiteStyles = `
 
     .authorize-site-card h2,
     .authorize-site-card h3,
+    .authorize-site-card .tc-card-title,
     .authorize-site-panel h2,
     .authorize-site-panel h3,
-    .authorize-site-login-card h3 {
+    .authorize-site-panel .tc-card-title,
+    .authorize-site-login-card h3,
+    .authorize-site-login-card .tc-card-title {
         margin: 0 0 10px;
-        font-family: "Cormorant Garamond", Georgia, serif;
         color: #0f172a;
     }
 
@@ -384,7 +365,7 @@ export const authorizeSiteStyles = `
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #0f766e;
+        color: #2563eb;
     }
 
     .authorize-site-code {
@@ -400,9 +381,9 @@ export const authorizeSiteStyles = `
     .authorize-site-note {
         padding: 16px 18px;
         border-radius: 20px;
-        border: 1px solid rgba(245, 158, 11, 0.2);
-        background: rgba(255, 251, 235, 0.94);
-        color: #92400e;
+        border: 1px solid rgba(37, 99, 235, 0.14);
+        background: rgba(239, 246, 255, 0.96);
+        color: #1e3a8a;
         line-height: 1.65;
     }
 
@@ -418,7 +399,7 @@ export const authorizeSiteStyles = `
     }
 
     .authorize-site-login-route {
-        color: #0f766e;
+        color: #2563eb;
         font-size: 0.9rem;
         font-weight: 700;
     }
@@ -433,7 +414,7 @@ export const authorizeSiteStyles = `
         gap: 12px;
         padding: 18px;
         border-radius: 20px;
-        background: linear-gradient(160deg, #0f172a 0%, #0f766e 100%);
+        background: linear-gradient(160deg, #1e293b 0%, #334155 100%);
         color: #f8fafc;
     }
 

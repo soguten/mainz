@@ -6,6 +6,7 @@ import { StoryFailureSection } from "../components/StoryFailureSection.tsx";
 import { StoriesApi } from "../lib/api.ts";
 import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 import type { StoryDetail } from "../lib/story-data.ts";
+import { Card } from "mainz/typecase";
 
 interface StoryPageData {
     story: StoryDetail;
@@ -13,7 +14,6 @@ interface StoryPageData {
 
 @Route("/stories/:slug")
 export class StoryPage extends DiHttpExamplePage<StoryPageData> {
-
     private readonly api = inject(StoriesApi);
 
     override async load(context: PageLoadContext) {
@@ -25,9 +25,8 @@ export class StoryPage extends DiHttpExamplePage<StoryPageData> {
     }
 
     override render() {
-
         const story = this.props.data?.story;
-        
+
         if (!story) {
             return <div></div>;
         }
@@ -38,7 +37,7 @@ export class StoryPage extends DiHttpExamplePage<StoryPageData> {
                 title={story.title}
                 lead={story.summary}
             >
-                <section className="di-http-panel">
+                <Card className="di-http-panel">
                     <div className="di-http-card-meta">
                         <span>{story.readingTime}</span>
                         <span>{story.slug}</span>
@@ -57,7 +56,7 @@ export class StoryPage extends DiHttpExamplePage<StoryPageData> {
                     <div className="di-http-story-nav">
                         <a href="/">Back to featured stories</a>
                     </div>
-                </section>
+                </Card>
 
                 <RelatedStoriesSection slug={story.slug} />
                 <StoryFailureSection slug={story.slug} />

@@ -3,11 +3,11 @@ import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
 import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
 import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 import { listSessionPresets } from "../lib/session.ts";
+import { Card } from "mainz/typecase";
 
 @Route("/")
 @RenderMode("csr")
 export class HomePage extends AuthorizeSitePage {
-    
     override async load(context: PageLoadContext) {
         return await buildAuthorizeSiteShellData({
             principal: context.principal,
@@ -32,17 +32,17 @@ export class HomePage extends AuthorizeSitePage {
                 lead="This mini app shows page authorization, component authorization, runtime policies, and navigation that hides routes by reusing the same metadata."
             >
                 <section className="authorize-site-card-grid">
-                    <article className="authorize-site-card">
-                        <h2>What to try</h2>
+                    <Card className="authorize-site-card" variant="subtle">
+                        <Card.Title>What to try</Card.Title>
                         <p>
                             Visit{" "}
                             <span className="authorize-site-code">/login</span>, choose a persona,
                             and watch the navigation change as the resolved principal changes.
                         </p>
-                    </article>
+                    </Card>
 
-                    <article className="authorize-site-card">
-                        <h2>Protected pages</h2>
+                    <Card className="authorize-site-card" variant="subtle">
+                        <Card.Title>Protected pages</Card.Title>
                         <p>
                             <span className="authorize-site-code">/account</span>{" "}
                             uses plain authentication,{" "}
@@ -52,24 +52,24 @@ export class HomePage extends AuthorizeSitePage {
                             uses the <span className="authorize-site-code">billing-admin</span>{" "}
                             role.
                         </p>
-                    </article>
+                    </Card>
 
-                    <article className="authorize-site-card">
-                        <h2>Protected component</h2>
+                    <Card className="authorize-site-card" variant="subtle">
+                        <Card.Title>Protected component</Card.Title>
                         <p>
                             The account page always renders for authenticated users, but an
                             owner-only component appears only when the current principal carries the
                             <span className="authorize-site-code">owner</span> role.
                         </p>
-                    </article>
+                    </Card>
                 </section>
 
-                <section className="authorize-site-panel">
-                    <h2>Suggested personas</h2>
+                <Card className="authorize-site-panel">
+                    <Card.Title>Suggested personas</Card.Title>
                     <div className="authorize-site-card-grid">
                         {listSessionPresets().map((preset) => (
-                            <article key={preset.id} className="authorize-site-card">
-                                <h3>{preset.label}</h3>
+                            <Card key={preset.id} className="authorize-site-card" variant="subtle">
+                                <Card.Title>{preset.label}</Card.Title>
                                 <p>{preset.description}</p>
                                 <div className="authorize-site-kv">
                                     <div className="authorize-site-kv-row">
@@ -91,10 +91,10 @@ export class HomePage extends AuthorizeSitePage {
                                         </span>
                                     </div>
                                 </div>
-                            </article>
+                            </Card>
                         ))}
                     </div>
-                </section>
+                </Card>
             </AuthorizeSiteFrame>
         );
     }

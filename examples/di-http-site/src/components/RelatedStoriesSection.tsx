@@ -1,5 +1,6 @@
 import { Component, type ComponentLoadContext, type NoState, RenderStrategy } from "mainz";
 import { inject } from "mainz/di";
+import { Card } from "mainz/typecase";
 import { StoriesApi } from "../lib/api.ts";
 import type { StorySummary } from "../lib/story-data.ts";
 import { RelatedStoriesSkeleton } from "./RelatedStoriesSkeleton.tsx";
@@ -9,8 +10,8 @@ interface RelatedStoriesSectionProps {
 }
 
 @RenderStrategy("defer")
-export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps, NoState, readonly StorySummary[]> {
-    
+export class RelatedStoriesSection
+    extends Component<RelatedStoriesSectionProps, NoState, readonly StorySummary[]> {
     private readonly api = inject(StoriesApi);
 
     override load(context: ComponentLoadContext) {
@@ -24,20 +25,20 @@ export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps,
     }
 
     override render() {
-        
         const items = this.data ?? [];
 
         return (
-            <section className="di-http-related">
+            <Card className="di-http-related" variant="subtle">
                 <p className="di-http-eyebrow">Component-level injection</p>
-                <h2>Related stories</h2>
+                <Card.Title>Related stories</Card.Title>
                 <p>
                     This section resolves through{" "}
                     <span className="di-http-link">Component.load()</span> using the same resolved
                     {" "}
-                    <span className="di-http-link">StoriesApi</span> token as the page, while a
-                    defer placeholder keeps the shell responsive. The related endpoint is slowed
-                    down on purpose so this loading state is easy to inspect.
+                    <span className="di-http-link">StoriesApi</span>{" "}
+                    token as the page, while a defer placeholder keeps the shell responsive. The
+                    related endpoint is slowed down on purpose so this loading state is easy to
+                    inspect.
                 </p>
                 <ul>
                     {items.map((story) => (
@@ -47,7 +48,7 @@ export class RelatedStoriesSection extends Component<RelatedStoriesSectionProps,
                         </li>
                     ))}
                 </ul>
-            </section>
+            </Card>
         );
     }
 }

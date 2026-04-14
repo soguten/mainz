@@ -1,26 +1,26 @@
 export const diHttpExampleStyles = `
     :host {
-        --di-http-bg: linear-gradient(180deg, #f7f3eb 0%, #f4ede2 40%, #efe5d6 100%);
-        --di-http-ink: #1f2f3a;
-        --di-http-muted: #5f6c75;
-        --di-http-accent: #0d7a74;
-        --di-http-accent-soft: rgba(13, 122, 116, 0.12);
-        --di-http-card: rgba(255, 252, 247, 0.9);
-        --di-http-border: rgba(31, 47, 58, 0.12);
-        --di-http-shadow: 0 18px 60px rgba(57, 46, 28, 0.12);
+        --di-http-bg: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        --di-http-ink: #1f2937;
+        --di-http-muted: #475569;
+        --di-http-accent: #2563eb;
+        --di-http-accent-soft: rgba(37, 99, 235, 0.12);
+        --di-http-card: rgba(255, 255, 255, 0.94);
+        --di-http-border: rgba(31, 41, 55, 0.1);
+        --di-http-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
         color: var(--di-http-ink);
         display: block;
         min-height: 100vh;
         background: var(--di-http-bg);
-        font-family: Georgia, "Times New Roman", serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .di-http-app {
         min-height: 100vh;
         padding: 32px 20px 56px;
         background:
-            radial-gradient(circle at top right, rgba(13, 122, 116, 0.16), transparent 30%),
-            radial-gradient(circle at left center, rgba(191, 135, 72, 0.16), transparent 28%);
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.1), transparent 28%),
+            radial-gradient(circle at left center, rgba(148, 163, 184, 0.12), transparent 26%);
     }
 
     .di-http-shell {
@@ -37,7 +37,7 @@ export const diHttpExampleStyles = `
         background: var(--di-http-card);
         border: 1px solid var(--di-http-border);
         box-shadow: var(--di-http-shadow);
-        border-radius: 24px;
+        border-radius: 20px;
     }
 
     .di-http-hero {
@@ -69,7 +69,6 @@ export const diHttpExampleStyles = `
         font-size: 0.95rem;
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        font-family: "Trebuchet MS", sans-serif;
         color: var(--di-http-muted);
     }
 
@@ -79,13 +78,12 @@ export const diHttpExampleStyles = `
         text-transform: uppercase;
         letter-spacing: 0.16em;
         font-size: 0.78rem;
-        font-family: "Trebuchet MS", sans-serif;
     }
 
     .di-http-title {
         margin: 0;
-        font-size: clamp(2.2rem, 4vw, 4.4rem);
-        line-height: 0.95;
+        font-size: clamp(2.1rem, 4vw, 3.4rem);
+        line-height: 1.02;
     }
 
     .di-http-lead,
@@ -101,13 +99,11 @@ export const diHttpExampleStyles = `
     }
 
     .di-http-chip,
-    .di-http-button,
     .di-http-link-chip {
         border-radius: 999px;
         padding: 10px 16px;
         border: 1px solid var(--di-http-border);
         background: rgba(255, 255, 255, 0.72);
-        font-family: "Trebuchet MS", sans-serif;
         font-size: 0.9rem;
     }
 
@@ -117,15 +113,8 @@ export const diHttpExampleStyles = `
         color: var(--di-http-accent);
     }
 
-    .di-http-button {
-        cursor: pointer;
-        color: var(--di-http-ink);
-    }
-
     .di-http-button[data-selected="true"] {
-        background: var(--di-http-accent);
-        color: white;
-        border-color: var(--di-http-accent);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
     .di-http-grid {
@@ -147,8 +136,11 @@ export const diHttpExampleStyles = `
 
     .di-http-card h2,
     .di-http-card h3,
+    .di-http-card .tc-card-title,
     .di-http-panel h2,
-    .di-http-related h2 {
+    .di-http-panel .tc-card-title,
+    .di-http-related h2,
+    .di-http-related .tc-card-title {
         margin: 0;
         font-size: 1.4rem;
     }
@@ -156,7 +148,6 @@ export const diHttpExampleStyles = `
     .di-http-card-meta {
         justify-content: space-between;
         color: var(--di-http-muted);
-        font-family: "Trebuchet MS", sans-serif;
         font-size: 0.88rem;
     }
 
@@ -164,7 +155,6 @@ export const diHttpExampleStyles = `
     .di-http-story-nav a {
         color: var(--di-http-accent);
         text-decoration: none;
-        font-family: "Trebuchet MS", sans-serif;
         font-weight: 700;
     }
 
@@ -177,7 +167,6 @@ export const diHttpExampleStyles = `
         border-radius: 999px;
         padding: 8px 12px;
         background: rgba(31, 47, 58, 0.06);
-        font-family: "Trebuchet MS", sans-serif;
         font-size: 0.82rem;
         color: var(--di-http-muted);
     }
@@ -195,13 +184,11 @@ export const diHttpExampleStyles = `
 
     .di-http-panel--error {
         border-color: rgba(145, 48, 48, 0.18);
-        background:
-            linear-gradient(180deg, rgba(255, 249, 247, 0.98), rgba(255, 241, 236, 0.96));
+        background: rgba(255, 247, 247, 0.98);
     }
 
     .di-http-error-copy {
         color: #913030;
-        font-family: "Trebuchet MS", sans-serif;
         font-weight: 700;
     }
 

@@ -3,11 +3,11 @@ import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
 import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
 import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 import { activateSessionAndNavigate, listSessionPresets } from "../lib/session.ts";
+import { Button, Card } from "mainz/typecase";
 
 @Route("/login")
 @RenderMode("csr")
 export class LoginPage extends AuthorizeSitePage {
-    
     override async load(context: PageLoadContext) {
         return await buildAuthorizeSiteShellData({
             principal: context.principal,
@@ -39,23 +39,21 @@ export class LoginPage extends AuthorizeSitePage {
 
                 <section className="authorize-site-login-grid">
                     {listSessionPresets().map((preset) => (
-                        <article key={preset.id} className="authorize-site-login-card">
+                        <Card key={preset.id} className="authorize-site-login-card">
                             <div>
-                                <h3>{preset.label}</h3>
+                                <Card.Title>{preset.label}</Card.Title>
                                 <p>{preset.description}</p>
                             </div>
                             <span className="authorize-site-login-route">
                                 Default route: {preset.defaultPath}
                             </span>
-                            <button
-                                type="button"
-                                className="authorize-site-button authorize-site-button-primary"
+                            <Button
                                 onClick={() =>
                                     activateSessionAndNavigate(preset.id)}
                             >
                                 Continue as {preset.label}
-                            </button>
-                        </article>
+                            </Button>
+                        </Card>
                     ))}
                 </section>
             </AuthorizeSiteFrame>

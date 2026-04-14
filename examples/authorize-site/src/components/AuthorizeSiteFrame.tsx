@@ -1,5 +1,6 @@
 import type { AuthorizeSiteShellData } from "../lib/page-data.ts";
 import { signOutAndNavigate } from "../lib/session.ts";
+import { Button, Card, CodeBlock, Text, TypecaseRoot } from "mainz/typecase";
 
 interface AuthorizeSiteFrameProps {
     shell?: AuthorizeSiteShellData;
@@ -13,7 +14,7 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
     const shell = props.shell;
 
     return (
-        <div className="authorize-site-app">
+        <TypecaseRoot className="authorize-site-app">
             <div className="authorize-site-shell">
                 <header className="authorize-site-header">
                     <div className="authorize-site-topline">
@@ -39,13 +40,14 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
                                         <a className="authorize-site-link-chip" href="/login">
                                             Switch session
                                         </a>
-                                        <button
-                                            type="button"
+                                        <Button
                                             className="authorize-site-button"
                                             onClick={() => signOutAndNavigate("/")}
+                                            size="sm"
+                                            variant="secondary"
                                         >
                                             Sign out
-                                        </button>
+                                        </Button>
                                     </>
                                 )
                                 : (
@@ -60,7 +62,14 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
                     </div>
 
                     <div className="authorize-site-hero">
-                        <p className="authorize-site-eyebrow">{props.eyebrow}</p>
+                        <Text
+                            as="p"
+                            className="authorize-site-eyebrow"
+                            tone="muted"
+                            weight="semibold"
+                        >
+                            {props.eyebrow}
+                        </Text>
                         <h1 className="authorize-site-title">{props.title}</h1>
                         <p className="authorize-site-lead">{props.lead}</p>
                     </div>
@@ -93,34 +102,49 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
                     </nav>
 
                     <section className="authorize-site-runtime-panel">
-                        <article className="authorize-site-runtime-card">
-                            <div className="authorize-site-runtime-heading">
-                                <p className="authorize-site-eyebrow">
+                        <Card className="authorize-site-runtime-card" variant="subtle">
+                            <Card.Header className="authorize-site-runtime-heading">
+                                <Text
+                                    as="p"
+                                    className="authorize-site-eyebrow"
+                                    tone="muted"
+                                    weight="semibold"
+                                >
                                     Resolved Principal
-                                </p>
-                                <h2>Runtime object used by Mainz</h2>
-                            </div>
+                                </Text>
+                                <Card.Title>Runtime object used by Mainz</Card.Title>
+                            </Card.Header>
                             <p>
                                 This is the actual `Principal` shape after `auth.getPrincipal()`
                                 resolves. It is what page checks, policy checks, and component
                                 checks consume.
                             </p>
-                            <pre className="authorize-site-json-block">
-                                <code>{shell?.resolvedPrincipalJson ?? `{
+                            <CodeBlock className="authorize-site-json-block">
+                                <CodeBlock.Header>
+                                    <CodeBlock.Language>json</CodeBlock.Language>
+                                </CodeBlock.Header>
+                                <CodeBlock.Body>
+                                    {shell?.resolvedPrincipalJson ?? `{
   "authenticated": false,
   "roles": [],
   "claims": {}
-}`}</code>
-                            </pre>
-                        </article>
+}`}
+                                </CodeBlock.Body>
+                            </CodeBlock>
+                        </Card>
 
-                        <article className="authorize-site-runtime-card">
-                            <div className="authorize-site-runtime-heading">
-                                <p className="authorize-site-eyebrow">
+                        <Card className="authorize-site-runtime-card" variant="subtle">
+                            <Card.Header className="authorize-site-runtime-heading">
+                                <Text
+                                    as="p"
+                                    className="authorize-site-eyebrow"
+                                    tone="muted"
+                                    weight="semibold"
+                                >
                                     Access Matrix
-                                </p>
-                                <h2>Why checks pass or fail</h2>
-                            </div>
+                                </Text>
+                                <Card.Title>Why checks pass or fail</Card.Title>
+                            </Card.Header>
                             <div className="authorize-site-check-list">
                                 {shell?.accessChecks.map((check) => (
                                     <div key={check.label} className="authorize-site-check-row">
@@ -141,12 +165,12 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
                                     </div>
                                 ))}
                             </div>
-                        </article>
+                        </Card>
                     </section>
                 </header>
 
                 <main className="authorize-site-body">{props.children}</main>
             </div>
-        </div>
+        </TypecaseRoot>
     );
 }

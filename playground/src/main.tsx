@@ -6,18 +6,27 @@ import { ListIdentityScenario } from "./list-identity-scenario.tsx";
 import { ListenerLeakScenario } from "./listener-leak-scenario.tsx";
 import { StaleInlineHandlerCounter } from "./StaleInlineHandlerCounter.tsx";
 
-const app = document.getElementById("app")!;
+if (typeof document !== "undefined") {
+    bootstrapPlayground();
+}
 
-startNavigation({
-    mode: __MAINZ_NAVIGATION_MODE__,
-    basePath: __MAINZ_BASE_PATH__,
-});
+function bootstrapPlayground(): void {
+    const app = document.getElementById("app");
+    if (!app) {
+        throw new Error('Playground mount element "#app" was not found.');
+    }
 
-app.append(<Counter initial={10} />);
+    startNavigation({
+        mode: __MAINZ_NAVIGATION_MODE__,
+        basePath: __MAINZ_BASE_PATH__,
+    });
 
-app.append(<ListIdentityScenario />);
-app.append(<ListenerLeakScenario />);
-app.append(<InputValueScenario />);
-app.append(<CheckedScenario />);
+    app.append(<Counter initial={10} />);
 
-app.append(<StaleInlineHandlerCounter />);
+    app.append(<ListIdentityScenario />);
+    app.append(<ListenerLeakScenario />);
+    app.append(<InputValueScenario />);
+    app.append(<CheckedScenario />);
+
+    app.append(<StaleInlineHandlerCounter />);
+}

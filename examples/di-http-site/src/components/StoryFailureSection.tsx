@@ -1,5 +1,6 @@
 import { Component, type ComponentLoadContext, type NoState, RenderStrategy } from "mainz";
 import { inject } from "mainz/di";
+import { Card } from "mainz/typecase";
 import { StoriesApi } from "../lib/api.ts";
 import type { StoryDetail } from "../lib/story-data.ts";
 import { StoryFailureNotice } from "./StoryFailureNotice.tsx";
@@ -7,7 +8,6 @@ import { StoryFailureSkeleton } from "./StoryFailureSkeleton.tsx";
 
 @RenderStrategy("defer")
 export class StoryFailureSection extends Component<{ slug: string }, NoState, StoryDetail> {
-    
     private readonly api = inject(StoriesApi);
 
     override load(context: ComponentLoadContext) {
@@ -26,11 +26,11 @@ export class StoryFailureSection extends Component<{ slug: string }, NoState, St
 
     override render() {
         return (
-            <section className="di-http-panel">
+            <Card className="di-http-panel" variant="subtle">
                 <p className="di-http-eyebrow">Error lifecycle example</p>
-                <h2>{this.data.title}</h2>
+                <Card.Title>{this.data.title}</Card.Title>
                 <p>{this.data.summary}</p>
-            </section>
+            </Card>
         );
     }
 }

@@ -4,6 +4,7 @@ import {
     readBackendMode,
     switchBackendMode,
 } from "../lib/runtime.ts";
+import { Button, Text, TypecaseRoot } from "mainz/typecase";
 
 interface DiHttpFrameProps {
     eyebrow: string;
@@ -16,7 +17,7 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
     const backendMode = readBackendMode();
 
     return (
-        <div className="di-http-app">
+        <TypecaseRoot className="di-http-app">
             <div className="di-http-shell">
                 <header className="di-http-hero">
                     <div className="di-http-topline">
@@ -34,7 +35,9 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
                     </div>
 
                     <div>
-                        <p className="di-http-eyebrow">{props.eyebrow}</p>
+                        <Text as="p" className="di-http-eyebrow" tone="muted" weight="semibold">
+                            {props.eyebrow}
+                        </Text>
                         <h1 className="di-http-title">{props.title}</h1>
                     </div>
 
@@ -42,17 +45,18 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
 
                     <div className="di-http-actions">
                         {(["http", "mock"] as const).map((mode) => (
-                            <button
+                            <Button
                                 key={mode}
-                                type="button"
                                 className="di-http-button"
                                 data-selected={backendMode === mode ? "true" : "false"}
                                 onClick={() => applyBackendMode(mode)}
+                                size="sm"
+                                variant={backendMode === mode ? "primary" : "secondary"}
                             >
                                 {mode === "http"
                                     ? "Use HttpClient transport"
                                     : "Use mock replacement"}
-                            </button>
+                            </Button>
                         ))}
                         <a className="di-http-link-chip" href="/">
                             Featured stories
@@ -71,7 +75,7 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
 
                 {props.children}
             </div>
-        </div>
+        </TypecaseRoot>
     );
 }
 
