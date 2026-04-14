@@ -34,6 +34,14 @@ export function elementTagName(element: Element): string {
     return element.localName;
 }
 
+export function isElementNodeLike(
+    value: unknown,
+    ownerDocument?: Document,
+): value is Element {
+    const elementCtor = ownerDocument?.defaultView?.Element;
+    return !!elementCtor && value instanceof elementCtor;
+}
+
 export function resolveOwnerDocument(value: unknown): Document {
     const fromOwner = (value as { ownerDocument?: Document | null } | null | undefined)
         ?.ownerDocument;
@@ -54,8 +62,7 @@ export function isNodeLike(value: unknown, ownerDocument?: Document): value is N
 }
 
 export function isElementLike(value: unknown, ownerDocument?: Document): value is Element {
-    const elementCtor = ownerDocument?.defaultView?.Element;
-    return !!elementCtor && value instanceof elementCtor;
+    return isElementNodeLike(value, ownerDocument);
 }
 
 export function isHtmlElementLike(

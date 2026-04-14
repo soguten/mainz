@@ -328,3 +328,34 @@ export class KeyedListListenerComponent extends Component<
         );
     }
 }
+
+export class SvgSwapComponent extends Component<{}, { copied: boolean }> {
+    protected override initState() {
+        return { copied: false };
+    }
+
+    private handleToggle = () => {
+        this.setState({ copied: !this.state.copied });
+    };
+
+    override render(): HTMLElement {
+        return (
+            <div data-role="svg-swap-root">
+                <button type="button" data-role="toggle" onClick={this.handleToggle}>
+                    Toggle
+                </button>
+                {this.state.copied
+                    ? (
+                        <svg data-icon="success" viewBox="0 0 16 16">
+                            <polyline points="3 8 6.5 11.5 13 5" />
+                        </svg>
+                    )
+                    : (
+                        <svg data-icon="copy" viewBox="0 0 16 16">
+                            <path d="M5 3h7v9H5z" />
+                        </svg>
+                    )}
+            </div>
+        );
+    }
+}

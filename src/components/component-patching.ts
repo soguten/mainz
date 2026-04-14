@@ -1,8 +1,8 @@
 import {
     elementTagName,
     isDocumentFragmentLike,
+    isElementNodeLike,
     isElementLike,
-    isHtmlElementLike,
 } from "./component-dom.ts";
 
 export function toRenderedNodes(
@@ -17,7 +17,7 @@ export function toRenderedNodes(
 }
 
 export function patchChildNodeList(args: {
-    parent: HTMLElement;
+    parent: Element;
     currentChildren: Node[];
     nextChildren: Node[];
     getNodeKey: (node: Node) => string | null;
@@ -85,7 +85,7 @@ export function patchChildNodeList(args: {
     return orderedChildren;
 }
 
-export function syncAttributes(current: HTMLElement, next: HTMLElement): void {
+export function syncAttributes(current: Element, next: Element): void {
     for (const attr of Array.from(current.attributes)) {
         if (!next.hasAttribute(attr.name)) {
             current.removeAttribute(attr.name);
@@ -100,8 +100,8 @@ export function syncAttributes(current: HTMLElement, next: HTMLElement): void {
 }
 
 export function syncProperties(
-    current: HTMLElement,
-    next: HTMLElement,
+    current: Element,
+    next: Element,
     ownerDocument: Document,
 ): void {
     const ownerWindow = ownerDocument.defaultView;
@@ -187,17 +187,18 @@ export function isSameNodeType(
     }
 
     if (
-        isHtmlElementLike(current, ownerDocument) &&
-        isHtmlElementLike(next, ownerDocument)
+        isElementNodeLike(current, ownerDocument) &&
+        isElementNodeLike(next, ownerDocument)
     ) {
-        return current.tagName === next.tagName;
+        return current.namespaceURI === next.namespaceURI &&
+            elementTagName(current) === elementTagName(next);
     }
 
     return true;
 }
 
 function findManagedChildStartIndex(
-    parent: HTMLElement,
+    parent: Element,
     currentChildren: Node[],
 ): number {
     for (const currentChild of currentChildren) {

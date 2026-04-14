@@ -10,7 +10,7 @@ export interface ManagedDOMEventDescriptor {
 
 const MANAGED_DOM_EVENTS = Symbol.for("mainz.managedDomEvents");
 
-type ManagedEventsElement = HTMLElement & {
+type ManagedEventsElement = Element & {
     [MANAGED_DOM_EVENTS]?: ManagedDOMEventDescriptor[];
 };
 
@@ -72,13 +72,13 @@ export function h(tag: any, props: Record<string, any> | null, ...children: any[
 }
 
 export function getManagedDOMEvents(node: Node): ManagedDOMEventDescriptor[] {
-    if (!isHtmlElement(node)) return [];
+    if (!isElementNode(node)) return [];
     const element = node as ManagedEventsElement;
     return [...(element[MANAGED_DOM_EVENTS] ?? [])];
 }
 
 export function setManagedDOMEvents(node: Node, events: ManagedDOMEventDescriptor[]): void {
-    if (!isHtmlElement(node)) return;
+    if (!isElementNode(node)) return;
     const element = node as ManagedEventsElement;
 
     if (events.length === 0) {
@@ -97,7 +97,7 @@ export function Fragment(props: { children?: any[] }) {
 }
 
 // deno-lint-ignore no-explicit-any
-function appendChildren(parent: HTMLElement | DocumentFragment, kids: any) {
+function appendChildren(parent: Element | DocumentFragment, kids: any) {
     const ownerDocument = parent.ownerDocument ?? resolveCurrentRenderDocument();
     const flattenedChildren = (Array.isArray(kids) ? kids : [kids]).flat(Infinity);
 
@@ -111,7 +111,7 @@ function appendChildren(parent: HTMLElement | DocumentFragment, kids: any) {
     }
 }
 
-function applyAttributes(el: HTMLElement, props: Record<string, any>) {
+function applyAttributes(el: Element, props: Record<string, any>) {
     const owner = getCurrentRenderOwner();
     const ownerWindow = el.ownerDocument.defaultView;
     const inputCtor = ownerWindow?.HTMLInputElement;
@@ -130,19 +130,21 @@ function applyAttributes(el: HTMLElement, props: Record<string, any>) {
                 (textAreaCtor && el instanceof textAreaCtor) ||
                 (selectCtor && el instanceof selectCtor)
             ) {
-                el.value = value == null ? "" : String(value);
+                (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = value == null
+                    ? ""
+                    : String(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
             }
         } else if (key === "checked") {
             if (inputCtor && el instanceof inputCtor) {
-                el.checked = Boolean(value);
+                (el as HTMLInputElement).checked = Boolean(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
             }
         } else if (key === "selected") {
             if (optionCtor && el instanceof optionCtor) {
-                el.selected = Boolean(value);
+                (el as HTMLOptionElement).selected = Boolean(value);
             } else if (value != null) {
                 el.setAttribute(key, String(value));
             }
@@ -186,7 +188,7 @@ function resolveCurrentRenderDocument(): Document {
     throw new Error("Mainz JSX rendering requires an owner document.");
 }
 
-function isHtmlElement(value: unknown): value is HTMLElement {
+function isElementNode(value: unknown): value is Element {
     if (!value || typeof value !== "object") {
         return false;
     }
@@ -195,9 +197,9 @@ function isHtmlElement(value: unknown): value is HTMLElement {
         ? (value as { ownerDocument?: Document | null }).ownerDocument
         : undefined;
     const ownerWindow = ownerDocument?.defaultView;
-    const ownerHTMLElement = ownerWindow?.HTMLElement;
+    const ownerElement = ownerWindow?.Element;
 
-    return ownerHTMLElement ? value instanceof ownerHTMLElement : false;
+    return ownerElement ? value instanceof ownerElement : false;
 }
 
 function isNodeLike(value: unknown, ownerDocument: Document): value is Node {

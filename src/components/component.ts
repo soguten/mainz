@@ -32,7 +32,6 @@ import {
     elementTagName,
     isDocumentFragmentLike,
     isElementLike,
-    isHtmlElementLike,
     isNodeLike,
     normalizeComponentRenderValue,
 } from "./component-dom.ts";
@@ -872,8 +871,8 @@ export abstract class Component<
         }
 
         if (
-            isHtmlElementLike(current, this.ownerDocument) &&
-            isHtmlElementLike(next, this.ownerDocument)
+            isElementLike(current, this.ownerDocument) &&
+            isElementLike(next, this.ownerDocument)
         ) {
             this.syncAttributes(current, next);
             this.syncManagedDOMEvents(current, next);
@@ -884,7 +883,7 @@ export abstract class Component<
         return current;
     }
 
-    private patchChildren(current: HTMLElement, next: HTMLElement) {
+    private patchChildren(current: Element, next: Element) {
         this.patchChildNodeList(
             current,
             Array.from(current.childNodes),
@@ -893,7 +892,7 @@ export abstract class Component<
     }
 
     private patchChildNodeList(
-        parent: HTMLElement,
+        parent: Element,
         currentChildren: Node[],
         nextChildren: Node[],
     ): Node[] {
@@ -911,16 +910,16 @@ export abstract class Component<
         return toRenderedNodes(rendered, this.ownerDocument);
     }
 
-    private syncAttributes(current: HTMLElement, next: HTMLElement) {
+    private syncAttributes(current: Element, next: Element) {
         syncAttributes(current, next);
         this.syncProperties(current, next);
     }
 
-    private syncProperties(current: HTMLElement, next: HTMLElement) {
+    private syncProperties(current: Element, next: Element) {
         syncProperties(current, next, this.ownerDocument);
     }
 
-    private syncManagedDOMEvents(current: HTMLElement, next: HTMLElement) {
+    private syncManagedDOMEvents(current: Element, next: Element) {
         syncManagedDOMEvents({
             current,
             next,

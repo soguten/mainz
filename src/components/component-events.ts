@@ -13,8 +13,8 @@ export interface TrackedEventListener {
 }
 
 export function syncManagedDOMEvents(args: {
-    current: HTMLElement;
-    next: HTMLElement;
+    current: Element;
+    next: Element;
     registerEvent: (
         target: EventTarget,
         type: string,

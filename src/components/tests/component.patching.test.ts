@@ -371,3 +371,22 @@ Deno.test("listeners: removed keyed node should not keep a stale handler after r
         screen.cleanup();
     }
 });
+
+Deno.test("patchChildren: svg subtree should update when a sibling component swaps icons", () => {
+    const screen = renderMainzComponent(fixtures.SvgSwapComponent);
+
+    try {
+        const svgBefore = screen.getBySelector<SVGElement>("svg[data-icon='copy']");
+
+        screen.click("button[data-role='toggle']");
+
+        const svgAfter = screen.getBySelector<SVGElement>("svg[data-icon='success']");
+        const firstShapeAfter = svgAfter.firstElementChild;
+
+        assert(svgAfter === svgBefore, "Expected root svg node to preserve identity");
+        assertEquals(firstShapeAfter?.localName, "polyline");
+        assertEquals(svgAfter.querySelector("path"), null);
+    } finally {
+        screen.cleanup();
+    }
+});
