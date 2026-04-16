@@ -1,7 +1,7 @@
 import { Anchor } from "../../primitives/index.ts";
 import { joinClassNames } from "../../utils/class-name.ts";
 
-export interface CommandPaletteProps {
+export interface PaletteProps {
     children?: unknown;
     className?: string;
     open?: boolean;
@@ -9,7 +9,7 @@ export interface CommandPaletteProps {
     [key: string]: unknown;
 }
 
-export interface CommandPaletteDialogProps {
+export interface PaletteDialogProps {
     children?: unknown;
     className?: string;
     label?: string;
@@ -18,28 +18,28 @@ export interface CommandPaletteDialogProps {
     [key: string]: unknown;
 }
 
-export interface CommandPalettePanelProps {
+export interface PalettePanelProps {
     children?: unknown;
     className?: string;
     style?: string;
     [key: string]: unknown;
 }
 
-export interface CommandPaletteInputShellProps {
+export interface PaletteInputShellProps {
     children?: unknown;
     className?: string;
     style?: string;
     [key: string]: unknown;
 }
 
-export interface CommandPaletteResultsProps {
+export interface PaletteResultsProps {
     children?: unknown;
     className?: string;
     style?: string;
     [key: string]: unknown;
 }
 
-export interface CommandPaletteItemProps {
+export interface PaletteItemProps {
     active?: boolean;
     children?: unknown;
     className?: string;
@@ -49,7 +49,7 @@ export interface CommandPaletteItemProps {
     [key: string]: unknown;
 }
 
-export function CommandPalette(props: CommandPaletteProps) {
+export function Palette(props: PaletteProps) {
     const { children, className, open = false, style, ...rest } = props;
 
     return (
@@ -64,9 +64,8 @@ export function CommandPalette(props: CommandPaletteProps) {
     );
 }
 
-export function CommandPaletteDialog(props: CommandPaletteDialogProps) {
-    const { children, className, label = "Command palette", onBackdropClick, style, ...rest } =
-        props;
+export function PaletteDialog(props: PaletteDialogProps) {
+    const { children, className, label = "Palette", onBackdropClick, style, ...rest } = props;
 
     return (
         <div
@@ -83,7 +82,7 @@ export function CommandPaletteDialog(props: CommandPaletteDialogProps) {
     );
 }
 
-export function CommandPalettePanel(props: CommandPalettePanelProps) {
+export function PalettePanel(props: PalettePanelProps) {
     const { children, className, style, ...rest } = props;
 
     return (
@@ -97,7 +96,7 @@ export function CommandPalettePanel(props: CommandPalettePanelProps) {
     );
 }
 
-export function CommandPaletteInputShell(props: CommandPaletteInputShellProps) {
+export function PaletteInputShell(props: PaletteInputShellProps) {
     const { children, className, style, ...rest } = props;
 
     return (
@@ -111,7 +110,7 @@ export function CommandPaletteInputShell(props: CommandPaletteInputShellProps) {
     );
 }
 
-export function CommandPaletteResults(props: CommandPaletteResultsProps) {
+export function PaletteResults(props: PaletteResultsProps) {
     const { children, className, style, ...rest } = props;
 
     return (
@@ -125,7 +124,7 @@ export function CommandPaletteResults(props: CommandPaletteResultsProps) {
     );
 }
 
-export function CommandPaletteItem(props: CommandPaletteItemProps) {
+export function PaletteItem(props: PaletteItemProps) {
     const { active = false, children, className, href, onSelect, style, ...rest } = props;
 
     return (
@@ -142,8 +141,8 @@ export function CommandPaletteItem(props: CommandPaletteItemProps) {
     );
 }
 
-CommandPalette.Dialog = CommandPaletteDialog;
-CommandPalette.Panel = CommandPalettePanel;
-CommandPalette.InputShell = CommandPaletteInputShell;
-CommandPalette.Results = CommandPaletteResults;
-CommandPalette.Item = CommandPaletteItem;
+Palette.Dialog = PaletteDialog;
+Palette.Panel = PalettePanel;
+Palette.InputShell = PaletteInputShell;
+Palette.Results = PaletteResults;
+Palette.Item = PaletteItem;

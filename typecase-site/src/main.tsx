@@ -44,6 +44,7 @@ import { PaginationPage } from "./pages/components/Pagination.page.tsx";
 import { PopoverPage } from "./pages/components/Popover.page.tsx";
 import { PopoverTriggerPage } from "./pages/components/PopoverTrigger.page.tsx";
 import { ProgressPage } from "./pages/components/Progress.page.tsx";
+import { QuickMenuPage } from "./pages/components/QuickMenu.page.tsx";
 import { RadioPage } from "./pages/components/Radio.page.tsx";
 import { ScreenPage } from "./pages/components/Screen.page.tsx";
 import { ScrollAreaPage } from "./pages/components/ScrollArea.page.tsx";
@@ -67,6 +68,7 @@ import { TextPage } from "./pages/components/Text.page.tsx";
 import { TextareaPage } from "./pages/components/Textarea.page.tsx";
 import { ThemeSwitchPage } from "./pages/components/ThemeSwitch.page.tsx";
 import { ToastPage } from "./pages/components/Toast.page.tsx";
+import { ToolbarPage } from "./pages/components/Toolbar.page.tsx";
 import { TooltipPage } from "./pages/components/Tooltip.page.tsx";
 import { TopbarPage } from "./pages/components/Topbar.page.tsx";
 import { TitlePage } from "./pages/components/Title.page.tsx";
@@ -139,6 +141,8 @@ const app = defineApp({
         DialogPage,
         NavbarPage,
         TopbarPage,
+        ToolbarPage,
+        QuickMenuPage,
         OffcanvasPage,
         SnippetPage,
         OnThisPagePage,

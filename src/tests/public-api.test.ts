@@ -132,7 +132,7 @@ Deno.test("public-api/typecase: should expose the Typecase surface through mainz
     assertEquals(typeof typecase.Center, "function");
     assertEquals(typeof typecase.Cluster, "function");
     assertEquals(typeof typecase.CodeBlock, "function");
-    assertEquals(typeof typecase.CommandPalette, "function");
+    assertEquals(typeof typecase.Palette, "function");
     assertEquals(typeof typecase.Container, "function");
     assertEquals(typeof typecase.DescriptionList, "function");
     assertEquals(typeof typecase.Dialog, "function");
@@ -152,6 +152,7 @@ Deno.test("public-api/typecase: should expose the Typecase surface through mainz
     assertEquals(typeof typecase.Offcanvas, "function");
     assertEquals(typeof typecase.Pagination, "function");
     assertEquals(typeof typecase.Popover, "function");
+    assertEquals(typeof typecase.QuickMenu, "function");
     assertEquals(typeof typecase.ScrollArea, "function");
     assertEquals(typeof typecase.Screen, "function");
     assertEquals(typeof typecase.Section, "function");
@@ -165,13 +166,15 @@ Deno.test("public-api/typecase: should expose the Typecase surface through mainz
     assertEquals(typeof typecase.Tabs, "function");
     assertEquals(typeof typecase.Table, "function");
     assertEquals(typeof typecase.Toast, "function");
+    assertEquals(typeof typecase.Toolbar, "function");
     assertEquals(typeof typecase.Topbar, "function");
-    assertEquals(typeof typecase.CommandPaletteSearch, "function");
+    assertEquals(typeof typecase.CommandLauncher, "function");
     assertEquals(typeof typecase.Drawer, "function");
     assertEquals(typeof typecase.DropdownMenu, "function");
     assertEquals(typeof typecase.Modal, "function");
     assertEquals(typeof typecase.OnThisPage, "function");
     assertEquals(typeof typecase.PopoverTrigger, "function");
+    assertEquals(typeof typecase.SearchPalette, "function");
     assertEquals(typeof typecase.Snippet, "function");
     assertEquals(typeof typecase.ThemeSwitch, "function");
     assertEquals(typeof typecase.Tooltip, "function");

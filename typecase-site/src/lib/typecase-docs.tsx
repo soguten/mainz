@@ -71,6 +71,8 @@ import {
     ThemeSwitch,
     Title,
     Toast,
+    Toolbar,
+    QuickMenu,
     Tooltip,
     Topbar,
     TypecaseRoot,
@@ -450,7 +452,7 @@ document.addEventListener("keydown", (event) => {
         ],
         renderPreview: () => (
             <Stack gap="md">
-                <Inline gap="xl">
+                <Inline gap="md">
                     <Stack gap="sm">
                         <Text tone="muted" weight="semibold">Standard</Text>
                         <Shortcut chord="Mod+K" platform="standard" />
@@ -2251,6 +2253,148 @@ document.addEventListener("keydown", (event) => {
                     </Navbar>
                 </Container>
             </Topbar>
+        ),
+    },
+    {
+        slug: "toolbar",
+        title: "Toolbar",
+        summary:
+            "Floating action rail composite for dense controls such as formatting, inline editing, and compact editor utilities.",
+        sectionId: "composites",
+        order: 9.25,
+        usage: `<Stack gap="md">
+  <Toolbar>
+  <Toolbar.Group>
+    <Toolbar.Button active aria-label="Bold">B</Toolbar.Button>
+    <Toolbar.Button aria-label="Italic">I</Toolbar.Button>
+    <Toolbar.Button aria-label="Underline">U</Toolbar.Button>
+  </Toolbar.Group>
+  <Toolbar.Separator />
+  <Toolbar.Group>
+    <Toolbar.Button aria-label="Insert link">Link</Toolbar.Button>
+  </Toolbar.Group>
+</Toolbar>
+
+  <Toolbar size="sm">
+    <Toolbar.Group>
+      <Toolbar.Button aria-label="Code">{"</>"}</Toolbar.Button>
+      <Toolbar.Button aria-label="Comment">@</Toolbar.Button>
+    </Toolbar.Group>
+  </Toolbar>
+</Stack>`,
+        notes: [
+            "Toolbar is intentionally generic; formatting is just one common composition on top of it.",
+            "Use grouped buttons and separators to keep dense editor controls readable without reaching for local CSS.",
+            'Use `size="sm"` when the toolbar needs to feel tighter, like floating formatting controls in an editor.',
+            "The caller owns selection state, pressed state, and any editor-specific keyboard behavior.",
+        ],
+        renderPreview: () => (
+            <Stack gap="md" align="flex-start">
+                <Toolbar>
+                    <Toolbar.Group>
+                        <Toolbar.Button active aria-label="Bold">B</Toolbar.Button>
+                        <Toolbar.Button aria-label="Italic">I</Toolbar.Button>
+                        <Toolbar.Button aria-label="Underline">U</Toolbar.Button>
+                    </Toolbar.Group>
+                    <Toolbar.Separator />
+                    <Toolbar.Group>
+                        <Toolbar.Button aria-label="Insert link">Link</Toolbar.Button>
+                        <Toolbar.Button aria-label="Add comment">@</Toolbar.Button>
+                    </Toolbar.Group>
+                </Toolbar>
+
+                <Toolbar size="sm">
+                    <Toolbar.Group>
+                        <Toolbar.Button aria-label="Code">{"</>"}</Toolbar.Button>
+                        <Toolbar.Button aria-label="Comment">@</Toolbar.Button>
+                    </Toolbar.Group>
+                </Toolbar>
+            </Stack>
+        ),
+    },
+    {
+        slug: "quick-menu",
+        title: "QuickMenu",
+        summary:
+            "Action-oriented menu composite for slash menus, insert surfaces, and compact launchers with icon, description, and shortcut affordances.",
+        sectionId: "composites",
+        order: 9.3,
+        usage: `<Stack gap="md">
+  <QuickMenu>
+  <QuickMenu.Header>
+    <QuickMenu.Kicker>Insert</QuickMenu.Kicker>
+    <QuickMenu.Title>Quick menu</QuickMenu.Title>
+  </QuickMenu.Header>
+  <QuickMenu.List>
+    <QuickMenu.Group>
+      <QuickMenu.GroupLabel>Basic blocks</QuickMenu.GroupLabel>
+      <QuickMenu.Item
+        description="Start writing with a simple paragraph."
+        icon="P"
+        shortcut="Enter"
+      >
+        Paragraph
+      </QuickMenu.Item>
+    </QuickMenu.Group>
+  </QuickMenu.List>
+</QuickMenu>
+
+  <QuickMenu size="sm">
+    <QuickMenu.List>
+      <QuickMenu.Group>
+        <QuickMenu.Item icon="[]" shortcut="Enter">Callout</QuickMenu.Item>
+        <QuickMenu.Item icon="{}" trailing="...">Code</QuickMenu.Item>
+        <QuickMenu.Item icon="[]">Todo list</QuickMenu.Item>
+      </QuickMenu.Group>
+    </QuickMenu.List>
+  </QuickMenu>
+</Stack>`,
+        notes: [
+            "QuickMenu stays generic enough for slash menus, command launchers, and insert menus without taking ownership of filtering or positioning.",
+            "Use the header and group labels when the menu needs context, but omit them for tighter launchers.",
+            'Use `size="sm"` for compact slash-menu style lists where icon, title, and optional shortcut are the primary affordances.',
+            "Shortcuts and trailing content are optional so the same surface can scale from simple pickers to richer editor menus.",
+        ],
+        renderPreview: () => (
+            <Stack gap="md" align="flex-start">
+                <QuickMenu>
+                    <QuickMenu.Header>
+                        <QuickMenu.Kicker>Insert</QuickMenu.Kicker>
+                        <QuickMenu.Title>Quick menu</QuickMenu.Title>
+                    </QuickMenu.Header>
+                    <QuickMenu.List>
+                        <QuickMenu.Group>
+                            <QuickMenu.GroupLabel>Basic blocks</QuickMenu.GroupLabel>
+                            <QuickMenu.Item
+                                active
+                                description="Start writing with a simple paragraph."
+                                icon="P"
+                                shortcut="Enter"
+                            >
+                                Paragraph
+                            </QuickMenu.Item>
+                            <QuickMenu.Item
+                                description="Create a highlighted callout section."
+                                icon="!"
+                                trailing={<Badge tone="primary">New</Badge>}
+                            >
+                                Callout
+                            </QuickMenu.Item>
+                        </QuickMenu.Group>
+                    </QuickMenu.List>
+                </QuickMenu>
+
+                <QuickMenu size="sm">
+                    <QuickMenu.List>
+                        <QuickMenu.Group>
+                            <QuickMenu.Item icon="[]" shortcut="Enter">Callout</QuickMenu.Item>
+                            <QuickMenu.Item icon="{ }" trailing=">">Quotation</QuickMenu.Item>
+                            <QuickMenu.Item icon="{}" trailing="...">Code</QuickMenu.Item>
+                            <QuickMenu.Item icon="[]">Todo list</QuickMenu.Item>
+                        </QuickMenu.Group>
+                    </QuickMenu.List>
+                </QuickMenu>
+            </Stack>
         ),
     },
     {

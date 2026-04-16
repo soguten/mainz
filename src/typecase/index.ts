@@ -80,15 +80,14 @@ export type { TextProps, TextTone, TextWeight } from "./primitives/index.ts";
 export type { TextareaProps, TextareaResize, TextareaSize } from "./primitives/index.ts";
 export type { TitleProps, TitleSize } from "./primitives/index.ts";
 export {
-    Alert,
     Accordion,
+    Alert,
     Breadcrumb,
     Callout,
     Card,
     Center,
     Cluster,
     CodeBlock,
-    CommandPalette,
     Container,
     DescriptionList,
     Dialog,
@@ -107,7 +106,9 @@ export {
     Navbar,
     Offcanvas,
     Pagination,
+    Palette,
     Popover,
+    QuickMenu,
     Screen,
     ScrollArea,
     Section,
@@ -121,6 +122,7 @@ export {
     Table,
     Tabs,
     Toast,
+    Toolbar,
     Topbar,
 } from "./composites/index.ts";
 export type {
@@ -152,12 +154,12 @@ export type { CenterProps } from "./composites/index.ts";
 export type { ClusterProps } from "./composites/index.ts";
 export type { CodeBlockProps } from "./composites/index.ts";
 export type {
-    CommandPaletteDialogProps,
-    CommandPaletteInputShellProps,
-    CommandPaletteItemProps,
-    CommandPalettePanelProps,
-    CommandPaletteProps,
-    CommandPaletteResultsProps,
+    PaletteDialogProps,
+    PaletteInputShellProps,
+    PaletteItemProps,
+    PalettePanelProps,
+    PaletteProps,
+    PaletteResultsProps,
 } from "./composites/index.ts";
 export type { ContainerProps } from "./composites/index.ts";
 export type {
@@ -208,6 +210,7 @@ export type {
     PaginationProps,
     PaginationSize,
 } from "./composites/index.ts";
+export type { QuickMenuItemProps, QuickMenuProps, QuickMenuSize } from "./composites/index.ts";
 export type {
     PopoverAlign,
     PopoverAnchorProps,
@@ -256,21 +259,22 @@ export type {
     ToastTone,
     ToastVariant,
 } from "./composites/index.ts";
+export type { ToolbarButtonProps, ToolbarProps, ToolbarSize } from "./composites/index.ts";
 export type { TopbarProps, TopbarVariant } from "./composites/index.ts";
 export {
-    CommandPaletteSearch,
+    CommandLauncher,
     Drawer,
     DropdownMenu,
     Modal,
     OnThisPage,
     PopoverTrigger,
+    SearchPalette,
     Snippet,
     ThemeSwitch,
     Tooltip,
 } from "./patterns/index.ts";
 export type {
-    CommandPaletteSearchItem,
-    CommandPaletteSearchProps,
+    CommandLauncherProps,
     DrawerBodyProps,
     DrawerCloseProps,
     DrawerHeaderProps,
@@ -292,6 +296,8 @@ export type {
     PopoverTriggerContentProps,
     PopoverTriggerDefaultAnchorProps,
     PopoverTriggerProps,
+    SearchPaletteItem,
+    SearchPaletteProps,
     SnippetProps,
     ThemeSwitchProps,
     TooltipProps,

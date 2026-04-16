@@ -34,15 +34,15 @@ export { Cluster } from "./Cluster/index.ts";
 export type { ClusterProps } from "./Cluster/index.ts";
 export { CodeBlock } from "./CodeBlock/index.ts";
 export type { CodeBlockProps } from "./CodeBlock/index.ts";
-export { CommandPalette } from "./CommandPalette/index.ts";
+export { Palette } from "./Palette/index.ts";
 export type {
-    CommandPaletteDialogProps,
-    CommandPaletteInputShellProps,
-    CommandPaletteItemProps,
-    CommandPalettePanelProps,
-    CommandPaletteProps,
-    CommandPaletteResultsProps,
-} from "./CommandPalette/index.ts";
+    PaletteDialogProps,
+    PaletteInputShellProps,
+    PaletteItemProps,
+    PalettePanelProps,
+    PaletteProps,
+    PaletteResultsProps,
+} from "./Palette/index.ts";
 export { Container } from "./Container/index.ts";
 export type { ContainerProps } from "./Container/index.ts";
 export { Dialog } from "./Dialog/index.ts";
@@ -117,6 +117,12 @@ export type {
     PaginationProps,
     PaginationSize,
 } from "./Pagination/index.ts";
+export { QuickMenu } from "./QuickMenu/index.ts";
+export type {
+    QuickMenuItemProps,
+    QuickMenuProps,
+    QuickMenuSize,
+} from "./QuickMenu/index.ts";
 export { ScrollArea } from "./ScrollArea/index.ts";
 export type { ScrollAreaProps } from "./ScrollArea/index.ts";
 export { Screen } from "./Screen/index.ts";
@@ -171,5 +177,7 @@ export type {
     ToastTone,
     ToastVariant,
 } from "./Toast/index.ts";
+export { Toolbar } from "./Toolbar/index.ts";
+export type { ToolbarButtonProps, ToolbarProps, ToolbarSize } from "./Toolbar/index.ts";
 export { Topbar } from "./Topbar/index.ts";
 export type { TopbarProps, TopbarVariant } from "./Topbar/index.ts";

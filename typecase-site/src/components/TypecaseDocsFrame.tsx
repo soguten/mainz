@@ -2,8 +2,6 @@ import { Component } from "mainz";
 import {
     Anchor,
     Button,
-    CommandPaletteSearch,
-    type CommandPaletteSearchItem,
     Container,
     darkTheme,
     Drawer,
@@ -12,6 +10,8 @@ import {
     Navbar,
     Screen,
     ScrollArea,
+    SearchPalette,
+    type SearchPaletteItem,
     Show,
     Split,
     ThemeSwitch,
@@ -35,7 +35,7 @@ const TYPECASE_DOCS_SIDEBAR_SCROLL_KEY = "typecase-site:sidebar-scroll-top";
 export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
     static override styles = typecaseDocsStyles;
 
-    private getSearchItems(): CommandPaletteSearchItem[] {
+    private getSearchItems(): SearchPaletteItem[] {
         return listTypecaseDocs().map((doc) => ({
             href: buildTypecaseDocHref(doc.slug),
             keywords: [doc.slug, doc.sectionId],
@@ -148,7 +148,7 @@ export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
                                     </Anchor>
                                 </Navbar.Brand>
                                 <Navbar.Actions>
-                                    <CommandPaletteSearch
+                                    <SearchPalette
                                         emptyLabel="No components found."
                                         items={this.getSearchItems()}
                                         placeholder="Search Typecase components..."

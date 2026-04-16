@@ -36,6 +36,38 @@ Deno.test("typecase/render: should render composite subcomponents and pattern be
     assertEquals(screen.getBySelector(".tc-card-title").textContent, "Typecase Card");
     assertEquals(screen.getBySelector(".tc-code-block-language").textContent, "tsx");
     assertEquals(screen.getBySelector("[data-testid='copy-icon']").getAttribute("width"), "16");
+    assertStringIncludes(
+        screen.getBySelector("[data-testid='toolbar']").getAttribute("class") ?? "",
+        "tc-toolbar",
+    );
+    assertEquals(
+        screen.getBySelector("[data-testid='toolbar-bold']").getAttribute("data-active"),
+        "true",
+    );
+    assertEquals(
+        screen.getBySelector("[data-testid='toolbar-compact']").getAttribute("data-size"),
+        "sm",
+    );
+    assertStringIncludes(
+        screen.getBySelector("[data-testid='quick-menu']").getAttribute("class") ?? "",
+        "tc-quick-menu",
+    );
+    assertEquals(screen.getBySelector(".tc-quick-menu-title").textContent, "Quick menu");
+    assertEquals(
+        screen.getBySelector("[data-testid='quick-menu-item'] .tc-shortcut").getAttribute(
+            "data-chord",
+        ),
+        "Enter",
+    );
+    assertEquals(
+        screen.getBySelector("[data-testid='quick-menu-compact']").getAttribute("data-size"),
+        "sm",
+    );
+    assertEquals(
+        screen.getBySelector("[data-testid='quick-menu-compact-item'] .tc-quick-menu-item-title")
+            .textContent,
+        "Callout",
+    );
     assertEquals(
         screen.getBySelector("[data-testid='heading3-icon']").getAttribute("height"),
         "20",
@@ -432,16 +464,29 @@ Deno.test("typecase/render: should render composite subcomponents and pattern be
         "tc-theme-switch",
     );
     assertStringIncludes(
-        screen.getBySelector(".tc-command-palette-search").getAttribute("class") ?? "",
+        screen.getBySelector("[data-testid='search-palette'] .tc-command-palette-search")
+            .getAttribute("class") ?? "",
         "tc-command-palette-search",
     );
     assertEquals(
-        screen.getBySelector(".tc-command-palette-search .tc-shortcut").getAttribute("data-chord"),
+        screen.getBySelector("[data-testid='search-palette'] .tc-shortcut").getAttribute(
+            "data-chord",
+        ),
         "Ctrl+K",
     );
     assertStringIncludes(
-        screen.getBySelector(".tc-command-palette-search-trigger-main").getAttribute("class") ?? "",
+        screen.getBySelector(
+            "[data-testid='search-palette'] .tc-command-palette-search-trigger-main",
+        )
+            .getAttribute("class") ?? "",
         "tc-command-palette-search-trigger-main",
+    );
+    assertEquals(screen.getBySelector("[data-testid='command-run-count']").textContent, "0");
+    assertEquals(
+        screen.getBySelector("[data-testid='command-launcher'] .tc-shortcut").getAttribute(
+            "data-chord",
+        ),
+        "Ctrl+Shift+P",
     );
 
     screen.getBySelector("[data-testid='dropdown-menu-trigger']").dispatchEvent(
@@ -475,6 +520,34 @@ Deno.test("typecase/render: should render composite subcomponents and pattern be
         }),
     );
     assert(screen.host.querySelector(".tc-command-palette-backdrop") === null);
+
+    document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+            bubbles: true,
+            code: "KeyP",
+            ctrlKey: true,
+            key: "p",
+            shiftKey: true,
+        }),
+    );
+    const commandPaletteInput = screen.host.querySelector<HTMLInputElement>(
+        ".tc-command-palette-input",
+    );
+    assert(commandPaletteInput);
+    commandPaletteInput.value = "fixture";
+    commandPaletteInput.dispatchEvent(new Event("input", { bubbles: true }));
+    const updatedCommandPaletteInput = screen.host.querySelector<HTMLInputElement>(
+        ".tc-command-palette-input",
+    );
+    assert(updatedCommandPaletteInput);
+    updatedCommandPaletteInput.dispatchEvent(
+        new KeyboardEvent("keydown", {
+            bubbles: true,
+            key: "Enter",
+        }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(screen.getBySelector("[data-testid='command-run-count']").textContent, "1");
 
     const copyButton = screen.getBySelector("[data-slot='snippet-copy']");
     const iconMarkupBefore = copyButton.querySelector("svg")?.innerHTML;

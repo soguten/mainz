@@ -1,4 +1,8 @@
-import { Component } from "mainz";
+import { Component, defineCommand } from "mainz";
+import {
+    cleanupAppCommandRegistry,
+    ensureAppCommandRegistry,
+} from "../../commands/runtime.ts";
 import {
     Accordion,
     Alert,
@@ -14,7 +18,7 @@ import {
     ChevronDownIcon,
     Cluster,
     CodeBlock,
-    CommandPaletteSearch,
+    CommandLauncher,
     Container,
     CopyIcon,
     darkTheme,
@@ -47,10 +51,12 @@ import {
     Popover,
     PopoverTrigger,
     Progress,
+    QuickMenu,
     Radio,
     Screen,
     ScrollArea,
     SearchIcon,
+    SearchPalette,
     Section,
     Select,
     Shortcut,
@@ -73,12 +79,43 @@ import {
     ThemeSwitch,
     Title,
     Toast,
+    Toolbar,
     Tooltip,
     Topbar,
     TypecaseRoot,
 } from "mainz/typecase";
 
-export class TypecaseRenderFixture extends Component {
+export class TypecaseRenderFixture extends Component<unknown, { commandRuns: number }> {
+    protected override initState() {
+        return {
+            commandRuns: 0,
+        };
+    }
+
+    override onMount(): void {
+        ensureAppCommandRegistry({
+            appId: "typecase-fixture-app",
+            commands: [
+                defineCommand({
+                    id: "typecase.fixture.command",
+                    description: "Runs a fixture-level command action.",
+                    execute: () => {
+                        this.setState({
+                            commandRuns: this.state.commandRuns + 1,
+                        });
+                    },
+                    shortcuts: ["Alt+Shift+P"],
+                    title: "Run fixture command",
+                }),
+            ],
+            root: this,
+        });
+    }
+
+    override onUnmount(): void {
+        cleanupAppCommandRegistry(this);
+    }
+
     override render(): HTMLElement | DocumentFragment {
         return (
             <div style="display: grid; gap: 40px;">
@@ -141,6 +178,82 @@ export class TypecaseRenderFixture extends Component {
                                     {`<Button variant="primary">Save</Button>`}
                                 </CodeBlock.Body>
                             </CodeBlock>
+
+                            <Toolbar data-testid="toolbar">
+                                <Toolbar.Group>
+                                    <Toolbar.Button
+                                        active
+                                        aria-label="Bold"
+                                        data-testid="toolbar-bold"
+                                    >
+                                        B
+                                    </Toolbar.Button>
+                                    <Toolbar.Button aria-label="Italic">
+                                        I
+                                    </Toolbar.Button>
+                                    <Toolbar.Button aria-label="Underline">
+                                        U
+                                    </Toolbar.Button>
+                                </Toolbar.Group>
+                                <Toolbar.Separator />
+                                <Toolbar.Group>
+                                    <Toolbar.Button aria-label="Turn into link">
+                                        Link
+                                    </Toolbar.Button>
+                                </Toolbar.Group>
+                            </Toolbar>
+
+                            <Toolbar data-testid="toolbar-compact" size="sm">
+                                <Toolbar.Group>
+                                    <Toolbar.Button aria-label="Code">{"</>"}</Toolbar.Button>
+                                    <Toolbar.Button aria-label="Comment">@</Toolbar.Button>
+                                </Toolbar.Group>
+                            </Toolbar>
+
+                            <QuickMenu data-testid="quick-menu">
+                                <QuickMenu.Header>
+                                    <QuickMenu.Kicker>Insert</QuickMenu.Kicker>
+                                    <QuickMenu.Title>Quick menu</QuickMenu.Title>
+                                </QuickMenu.Header>
+                                <QuickMenu.List>
+                                    <QuickMenu.Group>
+                                        <QuickMenu.GroupLabel>Basic blocks</QuickMenu.GroupLabel>
+                                        <QuickMenu.Item
+                                            active
+                                            data-testid="quick-menu-item"
+                                            description="Start writing with a simple paragraph."
+                                            icon="P"
+                                            shortcut="Enter"
+                                        >
+                                            Paragraph
+                                        </QuickMenu.Item>
+                                        <QuickMenu.Item
+                                            description="Create a highlighted callout section."
+                                            icon="!"
+                                            trailing={<Badge tone="primary">New</Badge>}
+                                        >
+                                            Callout
+                                        </QuickMenu.Item>
+                                    </QuickMenu.Group>
+                                </QuickMenu.List>
+                            </QuickMenu>
+
+                            <QuickMenu data-testid="quick-menu-compact" size="sm">
+                                <QuickMenu.List>
+                                    <QuickMenu.Group>
+                                        <QuickMenu.Item
+                                            data-testid="quick-menu-compact-item"
+                                            icon="[]"
+                                            shortcut="Enter"
+                                        >
+                                            Callout
+                                        </QuickMenu.Item>
+                                        <QuickMenu.Item icon="{}" trailing="...">
+                                            Code
+                                        </QuickMenu.Item>
+                                    </QuickMenu.Group>
+                                </QuickMenu.List>
+                            </QuickMenu>
 
                             <Section data-testid="section" gap="md">
                                 <Title as="h3" size="sm">Section heading</Title>
@@ -509,8 +622,8 @@ export class TypecaseRenderFixture extends Component {
 
                             <Snippet language="ts">{`const greeting = "hello";`}</Snippet>
 
-                            <CommandPaletteSearch
-                                data-testid="command-palette-search"
+                            <SearchPalette
+                                data-testid="search-palette"
                                 items={[
                                     {
                                         href: "/components/button",
@@ -521,6 +634,13 @@ export class TypecaseRenderFixture extends Component {
                                 ]}
                                 shortcut="Mod+K"
                             />
+                            <CommandLauncher
+                                data-testid="command-launcher"
+                                shortcut="Mod+Shift+P"
+                            />
+                            <Text data-testid="command-run-count">
+                                {String(this.state.commandRuns)}
+                            </Text>
 
                             <DropdownMenu data-testid="dropdown-menu" align="start">
                                 <DropdownMenu.Trigger>
