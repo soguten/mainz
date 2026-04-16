@@ -220,6 +220,8 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
         "portal-rendering",
         "authorization",
         "dependency-injection",
+        "controllers-and-coordinators",
+        "app-scoped-commands",
     ]);
     assertEquals(sections[1].groups?.[1].title, "Testing");
     assertEquals(sections[1].groups?.[1].items.map((item) => item.slug), [
@@ -273,11 +275,24 @@ Deno.test("docs helpers compute previous and next article links", () => {
 
     assertEquals(docs.getPagerBySlug("dependency-injection"), {
         previous: { slug: "authorization", title: "Authorization" },
+        next: { slug: "controllers-and-coordinators", title: "Controllers And Coordinators" },
+    });
+
+    assertEquals(docs.getPagerBySlug("controllers-and-coordinators"), {
+        previous: { slug: "dependency-injection", title: "Dependency Injection" },
+        next: { slug: "app-scoped-commands", title: "App-Scoped Commands" },
+    });
+
+    assertEquals(docs.getPagerBySlug("app-scoped-commands"), {
+        previous: {
+            slug: "controllers-and-coordinators",
+            title: "Controllers And Coordinators",
+        },
         next: { slug: "testing-overview", title: "Testing Overview" },
     });
 
     assertEquals(docs.getPagerBySlug("testing-overview"), {
-        previous: { slug: "dependency-injection", title: "Dependency Injection" },
+        previous: { slug: "app-scoped-commands", title: "App-Scoped Commands" },
         next: { slug: "http-testing", title: "HTTP Testing" },
     });
 

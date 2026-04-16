@@ -1,12 +1,12 @@
 import {
     createPageLoadContext,
-    type PageHeadDefinition,
     type PageHeadContext,
+    type PageHeadDefinition,
     type PageLoadContext,
-    type RouteContext,
-    type RouteProfileContext,
     requirePageRoutePath,
     resolvePageLocales,
+    type RouteContext,
+    type RouteProfileContext,
 } from "../components/page.ts";
 import type { PageAuthorizationMetadata, Principal } from "../authorization/index.ts";
 import { resolvePageAuthorization } from "../authorization/index.ts";
@@ -49,6 +49,8 @@ import {
     ensureDefaultAppPortalLayer,
     markMainzAppPortalRoot,
 } from "../portal/index.ts";
+import { cleanupAppCommandRegistry, ensureAppCommandRegistry } from "../commands/runtime.ts";
+import type { MainzCommand } from "../commands/command.ts";
 
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
@@ -121,6 +123,8 @@ export interface SpaNavigationOptions {
 }
 
 export interface StartNavigationOptions {
+    appId?: string;
+    commands?: readonly MainzCommand<never>[];
     mode: NavigationMode;
     basePath?: string;
     mount?: string | Element;
@@ -138,6 +142,7 @@ export interface StartNavigationOptions {
 
 export interface RoutedAppDefinition {
     id: string;
+    commands?: readonly MainzCommand<never>[];
     navigation?: NavigationMode;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
@@ -151,6 +156,7 @@ type RootComponentConstructor = CustomElementConstructor & {
 
 export interface RootAppDefinition {
     id: string;
+    commands?: readonly MainzCommand<never>[];
     root: RootComponentConstructor;
     services?: readonly ServiceRegistration[];
 }
@@ -189,6 +195,8 @@ interface SpaRouteMatch {
 }
 
 interface ResolvedPageNavigationOptions {
+    appId?: string;
+    commands?: readonly MainzCommand<never>[];
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
@@ -326,6 +334,7 @@ export function startApp(
 ): NavigationController {
     if (isRootComponentConstructor(appOrRoot)) {
         return startRootApp({
+            id: appOrRoot.name || "root-app",
             root: appOrRoot,
         }, options);
     }
@@ -345,6 +354,8 @@ export function startApp(
     return startNavigation({
         mode: resolveMainzNavigationMode(),
         basePath: resolveMainzBasePath(),
+        appId: appOrRoot.id,
+        commands: appOrRoot.commands,
         mount: options?.mount,
         pages: appOrRoot.pages,
         notFound: appOrRoot.notFound,
@@ -355,7 +366,7 @@ export function startApp(
 }
 
 function startRootApp(
-    app: Pick<RootAppDefinition, "root" | "services">,
+    app: Pick<RootAppDefinition, "commands" | "id" | "root" | "services">,
     options?: StartDefinedAppOptions,
 ): NavigationController {
     const mode = resolveMainzNavigationMode();
@@ -371,9 +382,16 @@ function startRootApp(
 
     const mount = resolveSpaMount(options?.mount);
     markMainzAppPortalRoot(mount);
+    mount.setAttribute("data-mainz-app-id", app.id);
     const serviceContainer = app.services?.length
         ? createServiceContainer(app.services)
         : undefined;
+    ensureAppCommandRegistry({
+        root: mount,
+        appId: app.id,
+        commands: app.commands,
+        services: serviceContainer,
+    });
 
     ensureMainzCustomElementDefined(app.root);
     const rootElement = document.createElement(app.root.getTagName());
@@ -389,11 +407,13 @@ function startRootApp(
         cleanup() {
             if (rootElement.parentNode === mount) {
                 mount.removeChild(rootElement);
+                cleanupAppCommandRegistry(mount);
                 cleanupManagedAppPortalLayers(mount);
                 return;
             }
 
             rootElement.remove();
+            cleanupAppCommandRegistry(mount);
             cleanupManagedAppPortalLayers(mount);
         },
     };
@@ -512,6 +532,8 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
     const normalizedBasePath = normalizeNavigationBasePath(options.basePath);
     const pageOptions = resolvePageNavigationOptions(options);
     if (pageOptions) {
+        pageOptions.appId = options.appId;
+        pageOptions.commands = options.commands;
         pageOptions.serviceContainer = createServiceContainer(pageOptions.services);
         assertRegisteredNavigationPolicies(pageOptions);
     }
@@ -676,6 +698,12 @@ function startSpaNavigation(
     const routes = normalizeSpaRoutes(pageOptions.pages, pageOptions.notFound);
     const mount = resolveSpaMount(pageOptions.mount);
     ensureDefaultAppPortalLayer(mount);
+    ensureAppCommandRegistry({
+        root: mount,
+        appId: pageOptions.appId,
+        commands: pageOptions.commands,
+        services: pageOptions.serviceContainer,
+    });
     let activeSequence: NavigationSequenceState | undefined;
     const initialUrl = resolveSpaLocalizedDocumentUrl(
         new URL(window.location.href),
@@ -883,6 +911,7 @@ function startSpaNavigation(
             });
             document.removeEventListener("click", handleClick, { capture: true });
             window.removeEventListener("popstate", handlePopState);
+            cleanupAppCommandRegistry(mount);
         },
     };
 }
@@ -1360,17 +1389,20 @@ function resolveSpaPageModule(module: SpaPageModule): SpaPageConstructor {
 
 function applySpaRouteContext(element: HTMLElement, context: SpaNavigationRenderContext): void {
     const serviceContainer = readServiceContainer(context);
-    const routeContext = attachServiceContainer(createRouteContext({
-        path: context.path,
-        matchedPath: context.matchedPath,
-        params: context.params,
-        locale: context.locale,
-        url: context.url,
-        renderMode: resolveMainzRenderMode(),
-        navigationMode: resolveMainzNavigationMode(),
-        principal: context.principal,
-        profile: createRouteProfileContext(context.basePath),
-    }), serviceContainer);
+    const routeContext = attachServiceContainer(
+        createRouteContext({
+            path: context.path,
+            matchedPath: context.matchedPath,
+            params: context.params,
+            locale: context.locale,
+            url: context.url,
+            renderMode: resolveMainzRenderMode(),
+            navigationMode: resolveMainzNavigationMode(),
+            principal: context.principal,
+            profile: createRouteProfileContext(context.basePath),
+        }),
+        serviceContainer,
+    );
 
     const pageElement = element as RoutedPageElement;
     pageElement.data = context.data;
@@ -2781,17 +2813,20 @@ async function resolveMountedRouteContext(
                 locale: context.locale,
             });
             if (matchedSnapshot) {
-                const snapshotRouteContext = attachServiceContainer(createRouteContext({
-                    path: context.routeMatch?.route.path ?? context.currentPath,
-                    matchedPath: context.currentPath,
-                    params,
-                    locale: context.locale,
-                    url: context.url,
-                    renderMode: resolveMainzRenderMode(),
-                    navigationMode: context.mode,
-                    principal,
-                    profile: createRouteProfileContext(context.basePath),
-                }), context.serviceContainer);
+                const snapshotRouteContext = attachServiceContainer(
+                    createRouteContext({
+                        path: context.routeMatch?.route.path ?? context.currentPath,
+                        matchedPath: context.currentPath,
+                        params,
+                        locale: context.locale,
+                        url: context.url,
+                        renderMode: resolveMainzRenderMode(),
+                        navigationMode: context.mode,
+                        principal,
+                        profile: createRouteProfileContext(context.basePath),
+                    }),
+                    context.serviceContainer,
+                );
                 (mountedElement as RoutedPageElement).data = matchedSnapshot.data;
                 applyPageLifecycleProps(mountedElement as RoutedPageElement, {
                     route: snapshotRouteContext,
@@ -2799,22 +2834,20 @@ async function resolveMountedRouteContext(
                     head: matchedSnapshot.head,
                 });
             }
-            const data = matchedSnapshot
-                ? matchedSnapshot.data
-                : await resolvePageRouteData({
-                    page: matchedPage,
-                    pageElement: mountedElement as RoutedPageElement,
-                    path: context.routeMatch?.route.path ?? context.currentPath,
-                    matchedPath: context.currentPath,
-                    params,
-                    locale: context.locale,
-                    principal,
-                    url: context.url,
-                    signal: context.sequence.controller.signal,
-                    basePath: context.basePath,
-                    navigationMode: context.mode,
-                    serviceContainer: context.serviceContainer,
-                });
+            const data = matchedSnapshot ? matchedSnapshot.data : await resolvePageRouteData({
+                page: matchedPage,
+                pageElement: mountedElement as RoutedPageElement,
+                path: context.routeMatch?.route.path ?? context.currentPath,
+                matchedPath: context.currentPath,
+                params,
+                locale: context.locale,
+                principal,
+                url: context.url,
+                signal: context.sequence.controller.signal,
+                basePath: context.basePath,
+                navigationMode: context.mode,
+                serviceContainer: context.serviceContainer,
+            });
             const routeContext = {
                 page: matchedPage,
                 path: context.routeMatch?.route.path ?? context.currentPath,
@@ -2902,17 +2935,20 @@ async function resolveMountedRouteContext(
             locale: context.locale,
         });
         if (matchedSnapshot) {
-            const snapshotRouteContext = attachServiceContainer(createRouteContext({
-                path: route.path,
-                matchedPath: context.currentPath,
-                params,
-                locale: context.locale,
-                url: context.url,
-                renderMode: resolveMainzRenderMode(),
-                navigationMode: context.mode,
-                principal,
-                profile: createRouteProfileContext(context.basePath),
-            }), context.serviceContainer);
+            const snapshotRouteContext = attachServiceContainer(
+                createRouteContext({
+                    path: route.path,
+                    matchedPath: context.currentPath,
+                    params,
+                    locale: context.locale,
+                    url: context.url,
+                    renderMode: resolveMainzRenderMode(),
+                    navigationMode: context.mode,
+                    principal,
+                    profile: createRouteProfileContext(context.basePath),
+                }),
+                context.serviceContainer,
+            );
             (mountedElement as RoutedPageElement).data = matchedSnapshot.data;
             applyPageLifecycleProps(mountedElement as RoutedPageElement, {
                 route: snapshotRouteContext,
@@ -2920,22 +2956,20 @@ async function resolveMountedRouteContext(
                 head: matchedSnapshot.head,
             });
         }
-        const data = matchedSnapshot
-            ? matchedSnapshot.data
-            : await resolvePageRouteData({
-                page: route.page,
-                pageElement: mountedElement as RoutedPageElement,
-                path: route.path,
-                matchedPath: context.currentPath,
-                params,
-                locale: context.locale,
-                principal,
-                url: context.url,
-                signal: context.sequence.controller.signal,
-                basePath: context.basePath,
-                navigationMode: context.mode,
-                serviceContainer: context.serviceContainer,
-            });
+        const data = matchedSnapshot ? matchedSnapshot.data : await resolvePageRouteData({
+            page: route.page,
+            pageElement: mountedElement as RoutedPageElement,
+            path: route.path,
+            matchedPath: context.currentPath,
+            params,
+            locale: context.locale,
+            principal,
+            url: context.url,
+            signal: context.sequence.controller.signal,
+            basePath: context.basePath,
+            navigationMode: context.mode,
+            serviceContainer: context.serviceContainer,
+        });
         const routeContext = {
             page: route.page,
             path: route.path,

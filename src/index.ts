@@ -22,6 +22,7 @@ export {
 } from "./components/index.ts";
 export { defineApp, startApp, startNavigation } from "./navigation/index.ts";
 export { Portal } from "./portal/index.ts";
+export { defineCommand, listCommands, runCommand } from "./commands/index.ts";
 export {
     MAINZ_LOCALE_CHANGE_EVENT,
     MAINZ_NAVIGATION_ABORT_EVENT,
@@ -36,6 +37,11 @@ export {
     findMissingAuthorizationPolicies,
     isRouteVisible,
 } from "./authorization/runtime.ts";
+export type {
+    CommandExecutionContext,
+    ListedMainzCommand,
+    MainzCommand,
+} from "./commands/index.ts";
 export type {
     AuthorizationOptions,
     AuthorizationPolicy,

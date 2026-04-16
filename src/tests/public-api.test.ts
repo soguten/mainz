@@ -10,8 +10,11 @@ Deno.test("public-api/root: should expose the ownership-based surface without le
     assertEquals(typeof mainz.RenderStrategy, "function");
     assertEquals(typeof mainz.Authorize, "function");
     assertEquals(typeof mainz.AllowAnonymous, "function");
+    assertEquals(typeof mainz.defineCommand, "function");
     assertEquals(typeof mainz.defineApp, "function");
+    assertEquals(typeof mainz.listCommands, "function");
     assertEquals(typeof mainz.Portal, "function");
+    assertEquals(typeof mainz.runCommand, "function");
     assertEquals(typeof mainz.startApp, "function");
     assertEquals(typeof mainz.startApp, "function");
     assertEquals(typeof mainz.isRouteVisible, "function");
@@ -29,6 +32,11 @@ Deno.test("public-api/root: should expose the ownership-based surface without le
     assertEquals("ComponentResource" in mainz, false);
     assertEquals("ResourceBoundary" in mainz, false);
     assertEquals("ResourceComponent" in mainz, false);
+    assertEquals("detectShortcutPlatform" in mainz, false);
+    assertEquals("eventToShortcutChord" in mainz, false);
+    assertEquals("formatShortcutChord" in mainz, false);
+    assertEquals("matchesShortcut" in mainz, false);
+    assertEquals("normalizeShortcutChord" in mainz, false);
 });
 
 Deno.test("public-api/components: should keep the main components barrel ownership-first", async () => {

@@ -121,6 +121,7 @@ export function renderMainzComponent<T extends HTMLElement>(
     const host = document.createElement("div");
     host.setAttribute("data-testid", "mainz-host");
     host.setAttribute("data-mainz-app-root", "");
+    host.setAttribute("data-mainz-app-id", "test-app");
 
     const testRoot = ensureTestRoot();
     testRoot.appendChild(host);

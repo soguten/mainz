@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
+import { resolve } from "node:path";
 import { loadMainzConfig, normalizeMainzConfig } from "../../config/index.ts";
 import {
     collectDiagnosticsForConfig,
@@ -32,7 +33,9 @@ Deno.test("diagnostics/command: should collect route diagnostics for a fixture t
             true,
         );
         assertEquals(
-            diagnostics.some((diagnostic) => diagnostic.code === "component-load-missing-placeholder"),
+            diagnostics.some((diagnostic) =>
+                diagnostic.code === "component-load-missing-placeholder"
+            ),
             true,
         );
     } finally {
@@ -75,7 +78,10 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
             authorizationFixture.configPath,
             authorizationFixture.targetName,
         );
-        const diDiagnostics = await collectFixtureDiagnostics(diFixture.configPath, diFixture.targetName);
+        const diDiagnostics = await collectFixtureDiagnostics(
+            diFixture.configPath,
+            diFixture.targetName,
+        );
 
         assertEquals(
             authorizationDiagnostics.some((diagnostic) =>
@@ -83,7 +89,10 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
             ),
             true,
         );
-        assertEquals(diDiagnostics.some((diagnostic) => diagnostic.code === "di-token-not-registered"), true);
+        assertEquals(
+            diDiagnostics.some((diagnostic) => diagnostic.code === "di-token-not-registered"),
+            true,
+        );
         assertEquals(
             diDiagnostics.some((diagnostic) => diagnostic.code === "di-registration-cycle"),
             true,
@@ -91,6 +100,91 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
     } finally {
         await authorizationFixture.cleanup();
         await diFixture.cleanup();
+    }
+});
+
+Deno.test("diagnostics/command: should report duplicate stable command ids from app-scoped command registration", async () => {
+    const tempRoot = await Deno.makeTempDir({
+        prefix: ".mainz-command-diagnostics-",
+    });
+    const srcDir = resolve(tempRoot, "src");
+
+    try {
+        await Deno.mkdir(srcDir, { recursive: true });
+        await Deno.writeTextFile(
+            resolve(srcDir, "commands.ts"),
+            [
+                'import { defineCommand } from "../../../src/index.ts";',
+                "",
+                "export const primaryCommand = defineCommand({",
+                '  id: "docs.search.open",',
+                "  execute: () => true,",
+                "});",
+                "",
+                "export const duplicateCommand = defineCommand({",
+                '  id: "docs.search.open",',
+                "  execute: () => true,",
+                "});",
+                "",
+            ].join("\n"),
+        );
+        await Deno.writeTextFile(
+            resolve(srcDir, "main.tsx"),
+            [
+                'import { defineApp, startApp } from "../../../src/index.ts";',
+                'import { duplicateCommand, primaryCommand } from "./commands.ts";',
+                "",
+                "const app = defineApp({",
+                '  id: "docs-app",',
+                "  root: class DocsRoot extends HTMLElement {},",
+                "  commands: [primaryCommand, duplicateCommand],",
+                "});",
+                "",
+                "startApp(app, { mount: '#app' });",
+                "",
+            ].join("\n"),
+        );
+        await Deno.writeTextFile(resolve(tempRoot, "vite.config.ts"), "export default {};");
+
+        const configPath = resolve(tempRoot, "mainz.config.ts");
+        await Deno.writeTextFile(
+            configPath,
+            [
+                "export default {",
+                "  targets: [",
+                "    {",
+                '      name: "command-diagnostics",',
+                `      rootDir: ${JSON.stringify(tempRoot)},`,
+                `      viteConfig: ${JSON.stringify(resolve(tempRoot, "vite.config.ts"))},`,
+                `      appFile: ${JSON.stringify(resolve(srcDir, "main.tsx"))},`,
+                `      outDir: ${JSON.stringify(resolve(tempRoot, "dist"))}`,
+                "    }",
+                "  ]",
+                "};",
+                "",
+            ].join("\n"),
+        );
+
+        const diagnostics = await collectFixtureDiagnostics(configPath, "command-diagnostics");
+
+        assertEquals(
+            diagnostics.map((diagnostic) => ({
+                code: diagnostic.code,
+                appId: diagnostic.appId,
+            })),
+            [
+                {
+                    code: "app-command-duplicate-id",
+                    appId: "docs-app",
+                },
+                {
+                    code: "app-command-duplicate-id",
+                    appId: "docs-app",
+                },
+            ],
+        );
+    } finally {
+        await Deno.remove(tempRoot, { recursive: true }).catch(() => undefined);
     }
 });
 
@@ -199,14 +293,16 @@ Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id
         assertEquals(diagnostics.some((diagnostic) => diagnostic.appId === "alpha-root-app"), true);
         assertEquals(
             diagnostics.some((diagnostic) =>
-                diagnostic.appId === "alpha-root-app" && diagnostic.code === "di-token-not-registered"
+                diagnostic.appId === "alpha-root-app" &&
+                diagnostic.code === "di-token-not-registered"
             ),
             true,
         );
         assertEquals(betaDiagnostics, []);
         assertEquals(
             alphaDiagnostics.some((diagnostic) =>
-                diagnostic.appId === "alpha-root-app" && diagnostic.code === "di-token-not-registered"
+                diagnostic.appId === "alpha-root-app" &&
+                diagnostic.code === "di-token-not-registered"
             ),
             true,
         );

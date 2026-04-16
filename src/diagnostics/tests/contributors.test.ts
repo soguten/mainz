@@ -3,6 +3,7 @@
 import { assertEquals } from "@std/assert";
 import { join, resolve } from "node:path";
 import {
+    collectCommandDiagnostics,
     collectDiagnosticsFromModel,
     collectTargetDiagnostics,
     createDiagnosticsTargetModel,
@@ -27,6 +28,9 @@ Deno.test("diagnostics: central contributors registry should aggregate routing, 
             "\\",
             "/",
         );
+    const commandFile = resolve(
+        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+    ).replaceAll("\\", "/");
     const pages = await discoverPagesFromFile(routeFile);
     const diagnostics = await collectTargetDiagnostics({
         pages,
@@ -39,6 +43,10 @@ Deno.test("diagnostics: central contributors registry should aggregate routing, 
                 file: diFile,
                 source: await Deno.readTextFile(diFile),
             },
+            {
+                file: commandFile,
+                source: await Deno.readTextFile(commandFile),
+            },
         ],
         registeredPolicyNames: ["billing-admin"],
         routePathsByOwner: new Map([[`${diFile}::DiagnosticsDiFixturePage`, "/di"]]),
@@ -46,18 +54,24 @@ Deno.test("diagnostics: central contributors registry should aggregate routing, 
 
     assertEquals(
         diagnosticsContributors.map((contributor) => contributor.name),
-        ["routing", "components", "di"],
+        ["routing", "components", "di", "commands"],
     );
     assertEquals(
         diagnostics.some((diagnostics) => diagnostics.code === "dynamic-ssg-missing-entries"),
         true,
     );
     assertEquals(
-        diagnostics.some((diagnostics) => diagnostics.code === "component-placeholder-without-load"),
+        diagnostics.some((diagnostics) =>
+            diagnostics.code === "component-placeholder-without-load"
+        ),
         true,
     );
     assertEquals(
         diagnostics.some((diagnostics) => diagnostics.code === "di-token-not-registered"),
+        true,
+    );
+    assertEquals(
+        diagnostics.some((diagnostics) => diagnostics.code === "app-command-duplicate-id"),
         true,
     );
 });
@@ -77,6 +91,9 @@ Deno.test("diagnostics: contributors should collect from the shared target model
             "\\",
             "/",
         );
+    const commandFile = resolve(
+        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+    ).replaceAll("\\", "/");
     const model = createDiagnosticsTargetModel({
         pages: await discoverPagesFromFile(routeFile),
         sourceInputs: [
@@ -87,6 +104,10 @@ Deno.test("diagnostics: contributors should collect from the shared target model
             {
                 file: diFile,
                 source: await Deno.readTextFile(diFile),
+            },
+            {
+                file: commandFile,
+                source: await Deno.readTextFile(commandFile),
             },
         ],
         registeredPolicyNames: ["billing-admin"],
@@ -102,10 +123,25 @@ Deno.test("diagnostics: contributors should collect from the shared target model
 
     assertEquals(
         collectedDiagnostics.map((entry) => entry.name),
-        ["routing", "components", "di"],
+        ["routing", "components", "di", "commands"],
     );
     assertEquals(collectedDiagnostics.every((entry) => entry.diagnostics.length > 0), true);
     assertEquals(diagnostics.length > 0, true);
+});
+
+Deno.test("diagnostics: command diagnostics helper should collect duplicate ids from stable app commands", async () => {
+    const commandFile = resolve(
+        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+    ).replaceAll("\\", "/");
+    const diagnostics = await collectCommandDiagnostics([{
+        file: commandFile,
+        source: await Deno.readTextFile(commandFile),
+    }]);
+
+    assertEquals(
+        diagnostics.map((diagnostic) => diagnostic.code),
+        ["app-command-duplicate-id", "app-command-duplicate-id"],
+    );
 });
 
 Deno.test("diagnostics: central collection should apply declaration suppressions after contributor aggregation", async () => {

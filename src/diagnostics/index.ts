@@ -1,9 +1,21 @@
 export { collectRouteDiagnostics } from "../routing/diagnostics/index.ts";
 export { collectDiDiagnostics } from "../di/diagnostics/index.ts";
+export { collectCommandDiagnostics } from "../commands/diagnostics/index.ts";
 
 export type { DiDiagnostic, DiSourceDiagnosticsInput } from "../di/diagnostics/index.ts";
-export type { MainzDiagnosticCode, MainzDiagnosticSeverity, RouteDiagnosticsPageInput } from "../routing/diagnostics/index.ts";
-export type { ComponentDiagnostic, ComponentSourceDiagnosticsInput } from "../components/diagnostics/index.ts";
+export type {
+    CommandDiagnostic,
+    CommandSourceDiagnosticsInput,
+} from "../commands/diagnostics/index.ts";
+export type {
+    MainzDiagnosticCode,
+    MainzDiagnosticSeverity,
+    RouteDiagnosticsPageInput,
+} from "../routing/diagnostics/index.ts";
+export type {
+    ComponentDiagnostic,
+    ComponentSourceDiagnosticsInput,
+} from "../components/diagnostics/index.ts";
 export { collectComponentDiagnostics } from "../components/diagnostics/index.ts";
 export {
     collectDiagnosticsForTarget,
@@ -32,6 +44,7 @@ export type {
 export type { DiagnoseCommandOptions, TargetDiagnostic } from "./command.ts";
 export { createDiagnosticsTargetModel } from "./core/target-model.ts";
 export {
+    commandDiagnosticsContributor,
     componentDiagnosticsContributor,
     diagnosticsContributors,
     diDiagnosticsContributor,

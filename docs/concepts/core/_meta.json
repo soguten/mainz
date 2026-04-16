@@ -46,6 +46,14 @@
         "dependency-injection.md": {
             "slug": "dependency-injection",
             "order": 11
+        },
+        "controllers-and-coordinators.md": {
+            "slug": "controllers-and-coordinators",
+            "order": 12
+        },
+        "app-scoped-commands.md": {
+            "slug": "app-scoped-commands",
+            "order": 13
         }
     }
 }
