@@ -29,8 +29,8 @@ export const basePathHomeCase = matrixTest({
     run: async ({ combo, artifact, fixture }) => {
         const screen = await fixture.renderDocument({
             artifact,
-            documentHtmlPath: "en/index.html",
-            url: `${localBaseUrl}/en/`,
+            documentHtmlPath: "index.html",
+            url: `${localBaseUrl}/`,
             basePath: matrixBasePath,
             navigationReady: {
                 locale: "en",
@@ -44,15 +44,16 @@ export const basePathHomeCase = matrixTest({
                 locale: "en",
                 bodyIncludes: "Fixture home",
             });
-            assertEquals(window.location.pathname, `${matrixBasePath}en/`);
+            assertEquals(window.location.pathname, matrixBasePath);
             assertEquals(
-                document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]')?.getAttribute("href"),
+                document.querySelector<HTMLAnchorElement>('.locale-chip[data-locale="pt"]')
+                    ?.getAttribute("href"),
                 `${matrixBasePath}pt/`,
             );
-            assertEquals(readCanonicalHref(), `${matrixSiteUrl}/en/`);
+            assertEquals(readCanonicalHref(), `${matrixSiteUrl}/`);
             assertEquals(readAlternateHref("pt"), `${matrixSiteUrl}/pt/`);
             assertSeoState({
-                canonical: `${matrixSiteUrl}/en/`,
+                canonical: `${matrixSiteUrl}/`,
                 alternates: {
                     pt: `${matrixSiteUrl}/pt/`,
                 },

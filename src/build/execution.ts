@@ -3,8 +3,10 @@
 import { join, resolve } from "node:path";
 import type { NormalizedMainzConfig } from "../config/index.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 import {
     emitCsrRouteArtifacts,
+    emitCsrSpaAppShellMetadata,
     emitSsgArtifacts,
     resolveTargetI18nConfig,
 } from "./artifacts.ts";
@@ -29,7 +31,8 @@ export async function runSingleBuild(
     const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));
     const viteConfigPath = normalizePathSlashes(resolve(cwd, job.target.viteConfig));
     const navigationMode = await resolveEffectiveNavigationMode(job.target, job.profile, cwd);
-    const targetI18n = resolveTargetI18nConfig(job.target);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd);
+    const targetI18n = resolveTargetI18nConfig(appDefinition);
 
     await runViteBuild({
         cwd,
@@ -39,9 +42,10 @@ export async function runSingleBuild(
         navigationMode,
         targetName: job.target.name,
         basePath: resolveViteBasePath(job.profile.basePath, navigationMode),
-        targetLocales: job.target.locales ?? [],
+        appLocales: appDefinition?.i18n?.locales ??
+            (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
         defaultLocale: targetI18n?.defaultLocale,
-        localePrefix: targetI18n?.localePrefix ?? "auto",
+        localePrefix: targetI18n?.localePrefix ?? "except-default",
         siteUrl: job.profile.siteUrl,
     });
 
@@ -52,6 +56,15 @@ export async function runSingleBuild(
 
     if (job.mode === "csr" && navigationMode !== "spa") {
         await emitCsrRouteArtifacts(config, job, modeOutDir, cwd);
+        return;
+    }
+
+    if (job.mode === "csr" && navigationMode === "spa") {
+        await emitCsrSpaAppShellMetadata({
+            modeOutDir,
+            cwd,
+            documentLanguage: targetI18n?.defaultLocale,
+        });
     }
 }
 
@@ -63,9 +76,9 @@ async function runViteBuild(args: {
     navigationMode: NavigationMode;
     targetName: string;
     basePath: string;
-    targetLocales: readonly string[];
+    appLocales: readonly string[];
     defaultLocale?: string;
-    localePrefix: "auto" | "always";
+    localePrefix: "except-default" | "always";
     siteUrl?: string;
 }): Promise<void> {
     const command = new Deno.Command("deno", {
@@ -84,7 +97,7 @@ async function runViteBuild(args: {
             MAINZ_NAVIGATION_MODE: args.navigationMode,
             MAINZ_TARGET_NAME: args.targetName,
             MAINZ_BASE_PATH: args.basePath,
-            MAINZ_TARGET_LOCALES: JSON.stringify(args.targetLocales),
+            MAINZ_APP_LOCALES: JSON.stringify(args.appLocales),
             MAINZ_DEFAULT_LOCALE: args.defaultLocale ?? "",
             MAINZ_LOCALE_PREFIX: args.localePrefix,
             MAINZ_SITE_URL: args.siteUrl ?? "",

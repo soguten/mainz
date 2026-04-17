@@ -3,10 +3,12 @@
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import {
     applyRouteHead,
+    emitCsrSpaAppShellMetadata,
     formatSsgPrerenderError,
     formatSsgPrerenderWarning,
     injectAppHtml,
     injectRouteSnapshot,
+    resolveTargetI18nConfig,
     rewriteAssetPaths,
     setHtmlLang,
 } from "../artifacts.ts";
@@ -302,6 +304,28 @@ Deno.test("build/artifacts: sets lang for rendered locale", () => {
     assertStringIncludes(output, '<html lang="pt">');
 });
 
+Deno.test("build/artifacts: sets document language on CSR SPA app shell", async () => {
+    const tempDir = await Deno.makeTempDir();
+
+    try {
+        await Deno.writeTextFile(
+            `${tempDir}/index.html`,
+            "<html><head></head><body></body></html>",
+        );
+
+        await emitCsrSpaAppShellMetadata({
+            cwd: tempDir,
+            modeOutDir: ".",
+            documentLanguage: "pt-BR",
+        });
+
+        const output = await Deno.readTextFile(`${tempDir}/index.html`);
+        assertStringIncludes(output, '<html lang="pt-BR">');
+    } finally {
+        await Deno.remove(tempDir, { recursive: true });
+    }
+});
+
 Deno.test("build/artifacts: locale redirect should use navigator preferred locale when supported", () => {
     const output = resolveLocaleRedirectPath({
         supportedLocales: ["en", "pt"],
@@ -366,16 +390,16 @@ Deno.test("build/artifacts: generates canonical and alternate locale links for r
                 title: "Docs",
             },
             locale: "pt-BR",
-            localePrefix: "auto",
+            localePrefix: "except-default",
             defaultLocale: "en",
         },
     );
 
     assertEquals(head?.links, [
         { rel: "canonical", href: "/pt-br/docs" },
-        { rel: "alternate", href: "/en/docs", hreflang: "en" },
+        { rel: "alternate", href: "/docs", hreflang: "en" },
         { rel: "alternate", href: "/pt-br/docs", hreflang: "pt-BR" },
-        { rel: "alternate", href: "/en/docs", hreflang: "x-default" },
+        { rel: "alternate", href: "/docs", hreflang: "x-default" },
     ]);
 });
 
@@ -390,16 +414,16 @@ Deno.test("build/artifacts: should keep a single canonical when manual head also
                 ],
             },
             locale: "en",
-            localePrefix: "auto",
+            localePrefix: "except-default",
             defaultLocale: "en",
         },
     );
 
     assertEquals(head?.links, [
-        { rel: "canonical", href: "/en/docs" },
-        { rel: "alternate", href: "/en/docs", hreflang: "en" },
+        { rel: "canonical", href: "/docs" },
+        { rel: "alternate", href: "/docs", hreflang: "en" },
         { rel: "alternate", href: "/pt/docs", hreflang: "pt" },
-        { rel: "alternate", href: "/en/docs", hreflang: "x-default" },
+        { rel: "alternate", href: "/docs", hreflang: "x-default" },
     ]);
 });
 
@@ -416,16 +440,16 @@ Deno.test("build/artifacts: should keep generated alternates canonical per hrefl
                 ],
             },
             locale: "pt",
-            localePrefix: "auto",
+            localePrefix: "except-default",
             defaultLocale: "en",
         },
     );
 
     assertEquals(head?.links, [
         { rel: "canonical", href: "/pt/docs" },
-        { rel: "alternate", href: "/en/docs", hreflang: "en" },
+        { rel: "alternate", href: "/docs", hreflang: "en" },
         { rel: "alternate", href: "/pt/docs", hreflang: "pt" },
-        { rel: "alternate", href: "/en/docs", hreflang: "x-default" },
+        { rel: "alternate", href: "/docs", hreflang: "x-default" },
         { rel: "alternate", href: "/feed.xml" },
     ]);
 });
@@ -436,7 +460,7 @@ Deno.test("build/artifacts: should fallback x-default to first route locale when
             path: "/docs",
             locales: ["pt", "ja"],
             locale: "pt",
-            localePrefix: "auto",
+            localePrefix: "except-default",
             defaultLocale: "en",
         },
     );
@@ -455,7 +479,7 @@ Deno.test("build/artifacts: should emit absolute locale SEO links when siteUrl i
             path: "/docs",
             locales: ["en", "pt"],
             locale: "pt",
-            localePrefix: "auto",
+            localePrefix: "except-default",
             defaultLocale: "en",
             siteUrl: "https://mainz.dev",
         },
@@ -463,8 +487,36 @@ Deno.test("build/artifacts: should emit absolute locale SEO links when siteUrl i
 
     assertEquals(head?.links, [
         { rel: "canonical", href: "https://mainz.dev/pt/docs" },
-        { rel: "alternate", href: "https://mainz.dev/en/docs", hreflang: "en" },
+        { rel: "alternate", href: "https://mainz.dev/docs", hreflang: "en" },
         { rel: "alternate", href: "https://mainz.dev/pt/docs", hreflang: "pt" },
-        { rel: "alternate", href: "https://mainz.dev/en/docs", hreflang: "x-default" },
+        { rel: "alternate", href: "https://mainz.dev/docs", hreflang: "x-default" },
     ]);
+});
+
+Deno.test("build/artifacts: should resolve build i18n from app-owned i18n", () => {
+    const targetI18n = resolveTargetI18nConfig({
+        i18n: {
+            locales: ["en", "pt-BR"],
+            defaultLocale: "en",
+            localePrefix: "except-default",
+        },
+    });
+
+    assertEquals(targetI18n, {
+        defaultLocale: "en",
+        localePrefix: "except-default",
+        fallbackLocale: "en",
+    });
+});
+
+Deno.test("build/artifacts: should resolve build language from documentLanguage when app i18n is absent", () => {
+    const targetI18n = resolveTargetI18nConfig({
+        documentLanguage: "pt-BR",
+    });
+
+    assertEquals(targetI18n, {
+        defaultLocale: "pt-BR",
+        localePrefix: "except-default",
+        fallbackLocale: "pt-BR",
+    });
 });

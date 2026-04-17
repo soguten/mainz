@@ -65,7 +65,7 @@ That page now requires:
 ## Register principal resolution and policies at startup
 
 Runtime authorization lives in the app bootstrap through the `auth` option on
-`startApp(app, ...)` or `startNavigation(...)`.
+`startApp(app, ...)`.
 
 ```tsx title="main.tsx"
 import {
@@ -78,6 +78,7 @@ import { BillingPage } from "./pages/Billing.page.tsx";
 import { LoginPage } from "./pages/Login.page.tsx";
 
 const app = defineApp({
+    id: "site",
     pages: [AccountPage, BillingPage, LoginPage],
 });
 

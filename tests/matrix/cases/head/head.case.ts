@@ -35,9 +35,9 @@ export const headCase = matrixTest({
             assertSeoState({
                 canonical: "/pt/",
                 alternates: {
-                    en: "/en/",
+                    en: "/",
                     pt: "/pt/",
-                    "x-default": "/en/",
+                    "x-default": "/",
                 },
             });
         } finally {

@@ -6,6 +6,11 @@ import { AdminVaultPage } from "./pages/AdminVault.page.tsx";
 
 const app = defineApp({
     id: "routed-authorization-app",
+    i18n: {
+        locales: ["en", "pt"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [LoginPage, MemberDashboardPage, AdminVaultPage],
 });
 

@@ -6,12 +6,12 @@ import {
     buildTargetRouteManifest,
     isDynamicRoutePath,
     materializeRoutePath,
+    type RenderMode,
     type ResolvedSsgRouteEntry,
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
     validateRouteEntryParams,
-    type RenderMode,
 } from "../routing/index.ts";
 import {
     MAINZ_HEAD_MANAGED_ATTR,
@@ -29,10 +29,7 @@ import {
 } from "../routing/target-page-discovery.ts";
 import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 import { type RoutedAppDefinition } from "../navigation/index.ts";
-import {
-    resolveEffectiveNavigationMode,
-    type ResolvedBuildProfile,
-} from "./profiles.ts";
+import { type ResolvedBuildProfile, resolveEffectiveNavigationMode } from "./profiles.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 
 export interface ArtifactBuildJob {
@@ -272,6 +269,21 @@ export async function emitCsrRouteArtifacts(
     }
 }
 
+export async function emitCsrSpaAppShellMetadata(args: {
+    modeOutDir: string;
+    cwd: string;
+    documentLanguage?: string;
+}): Promise<void> {
+    const normalizedDocumentLanguage = args.documentLanguage?.trim();
+    if (!normalizedDocumentLanguage) {
+        return;
+    }
+
+    const indexHtmlPath = resolve(args.cwd, args.modeOutDir, "index.html");
+    const html = await Deno.readTextFile(indexHtmlPath);
+    await Deno.writeTextFile(indexHtmlPath, setHtmlLang(html, normalizedDocumentLanguage));
+}
+
 async function resolveStaticRouteBuildContext(
     config: NormalizedMainzConfig,
     job: ArtifactBuildJob,
@@ -286,8 +298,9 @@ async function resolveStaticRouteBuildContext(
     targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
 }> {
     const templateHtml = await readBuildTemplateHtml(modeOutDir, cwd, job.target.name, buildLabel);
-    const manifest = await resolveTargetRouteBuildContext(config, job, cwd);
-    const targetI18n = resolveTargetI18nConfig(job.target);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd);
+    const manifest = await resolveTargetRouteBuildContext(config, job, cwd, appDefinition);
+    const targetI18n = resolveTargetI18nConfig(appDefinition);
     const buildServiceContainer = await resolveTargetBuildServiceContainer(job.target, cwd);
     const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(
         manifest,
@@ -335,16 +348,17 @@ async function resolveSsgRouteEntriesByRouteId(
         for (const locale of route.locales) {
             const localizedEntries = await withServiceContainer(
                 buildServiceContainer,
-                () => pageCtor.entries!({
-                    locale,
-                    profile: profile
-                        ? {
-                            name: profile.name,
-                            basePath: profile.basePath,
-                            siteUrl: profile.siteUrl,
-                        }
-                        : undefined,
-                }),
+                () =>
+                    pageCtor.entries!({
+                        locale,
+                        profile: profile
+                            ? {
+                                name: profile.name,
+                                basePath: profile.basePath,
+                                siteUrl: profile.siteUrl,
+                            }
+                            : undefined,
+                    }),
             );
             for (const [entryIndex, entry] of localizedEntries.entries()) {
                 const normalizedParams = normalizeStaticEntryParams(entry.params, route.path);
@@ -451,6 +465,7 @@ async function resolveTargetRouteBuildContext(
     config: NormalizedMainzConfig,
     job: ArtifactBuildJob,
     cwd: string,
+    appDefinition?: RoutedAppDefinition,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
     const { filesystemPageFiles, discoveredPages, discoveryErrors } =
         await resolveTargetDiscoveredPagesForTarget(
@@ -466,6 +481,7 @@ async function resolveTargetRouteBuildContext(
     return buildTargetRouteManifest({
         ...resolveRouteManifestBuildInput({
             target: job.target,
+            appDefinition,
             filesystemPageFiles,
             discoveredPages,
         }),
@@ -473,33 +489,31 @@ async function resolveTargetRouteBuildContext(
 }
 
 export function resolveTargetI18nConfig(
-    target: {
-        locales?: readonly string[];
-        i18n?: {
-            defaultLocale?: string;
-            localePrefix?: "auto" | "always";
-            fallbackLocale?: string;
-        };
-    },
+    appDefinition?: Pick<RoutedAppDefinition, "documentLanguage" | "i18n">,
 ): {
     defaultLocale?: string;
-    localePrefix?: "auto" | "always";
+    localePrefix?: "except-default" | "always";
     fallbackLocale?: string;
 } | undefined {
-    const defaultLocale = target.i18n?.defaultLocale ??
-        target.locales?.[0];
-    const localePrefix = target.i18n?.localePrefix;
-    const fallbackLocale = target.i18n?.fallbackLocale ?? defaultLocale;
-
-    if (!defaultLocale && !localePrefix && !fallbackLocale) {
-        return undefined;
+    const appI18n = appDefinition?.i18n;
+    if (appI18n) {
+        return {
+            defaultLocale: appI18n.defaultLocale,
+            localePrefix: appI18n.localePrefix,
+            fallbackLocale: appI18n.defaultLocale,
+        };
     }
 
-    return {
-        defaultLocale,
-        localePrefix,
-        fallbackLocale,
-    };
+    const documentLanguage = appDefinition?.documentLanguage?.trim();
+    if (documentLanguage) {
+        return {
+            defaultLocale: documentLanguage,
+            localePrefix: "except-default",
+            fallbackLocale: documentLanguage,
+        };
+    }
+
+    return undefined;
 }
 
 function toViteBasePath(basePath: string): string {
@@ -927,14 +941,18 @@ export function setHtmlLang(html: string, locale: string): string {
 function buildDefaultLocaleRedirectHtml(
     manifest: { routes: Array<{ path: string; mode: RenderMode; locales: string[] }> },
     defaultLocale: string | undefined,
-    localePrefix: "auto" | "always" | undefined,
+    localePrefix: "except-default" | "always" | undefined,
     basePath: string,
     siteUrl?: string,
 ): string | null {
+    if (localePrefix !== "always") {
+        return null;
+    }
+
     const rootRoute = manifest.routes.find((route) => {
         return route.path === "/" &&
             route.mode === "ssg" &&
-            shouldPrefixLocaleForRoute(route.locales, localePrefix ?? "auto");
+            shouldPrefixLocaleForRoute(route.locales, localePrefix);
     });
 
     if (!rootRoute) {
@@ -956,10 +974,14 @@ function buildDefaultLocaleRedirectHtml(
     const canonicalTarget = siteUrl ? new URL(targetPath, `${siteUrl}/`).toString() : targetPath;
     const supportedLocaleSegmentsJson = JSON.stringify(supportedLocaleSegments);
     const fallbackPathJson = JSON.stringify(targetPath);
+    const redirectDocumentLanguage = defaultLocale?.trim() || rootRoute.locales[0]?.trim() || "";
+    const htmlOpenTag = redirectDocumentLanguage
+        ? `<html lang="${escapeHtmlAttribute(redirectDocumentLanguage)}">`
+        : "<html>";
 
     return [
         "<!doctype html>",
-        '<html lang="en">',
+        htmlOpenTag,
         "  <head>",
         '    <meta charset="UTF-8" />',
         '    <meta name="viewport" content="width=device-width, initial-scale=1.0" />',

@@ -128,12 +128,14 @@ async function resolveTargetSupportedRenderModes(
     cwd: string,
 ): Promise<ReadonlySet<RenderMode>> {
     const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd);
-    const hasAnyRouteInput = Boolean(discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length);
+    const hasAnyRouteInput = Boolean(
+        discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length,
+    );
 
     if (discovery.discoveryErrors?.length) {
-        return hasAnyRouteInput
-            ? new Set<RenderMode>(BUILD_RECIPE_RENDER_MODES)
-            : new Set<RenderMode>(["csr"]);
+        throw new Error(
+            discovery.discoveryErrors.map((entry) => `${entry.file}: ${entry.message}`).join("\n"),
+        );
     }
 
     if (!hasAnyRouteInput) {

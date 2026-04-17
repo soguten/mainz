@@ -21,10 +21,9 @@ async function assertLocalizedSeoOutput(args: {
     outputDir: string;
     expectedBaseUrl: "" | "https://fixtures.mainz.dev" | "https://mainz.dev";
 }): Promise<void> {
-    const enHtml = await Deno.readTextFile(`${args.outputDir}/en/index.html`);
+    const enHtml = await Deno.readTextFile(`${args.outputDir}/index.html`);
     const ptHtml = await Deno.readTextFile(`${args.outputDir}/pt/index.html`);
-    const rootHtml = await Deno.readTextFile(`${args.outputDir}/index.html`);
-    const enHref = `${args.expectedBaseUrl}/en/`;
+    const enHref = `${args.expectedBaseUrl}/`;
     const ptHref = `${args.expectedBaseUrl}/pt/`;
 
     assertEquals(extractCanonicalHrefs(enHtml), [enHref]);
@@ -40,9 +39,6 @@ async function assertLocalizedSeoOutput(args: {
         { href: ptHref, hreflang: "pt" },
         { href: enHref, hreflang: "x-default" },
     ]);
-
-    assertEquals(extractCanonicalHrefs(rootHtml), [enHref]);
-    assertStringIncludes(rootHtml, 'http-equiv="refresh" content="0; url=/en/"');
 }
 
 function extractCanonicalHrefs(html: string): string[] {

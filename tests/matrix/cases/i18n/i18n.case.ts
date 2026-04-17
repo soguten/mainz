@@ -5,10 +5,7 @@ import { nextTick } from "../../../../src/testing/async-testing.ts";
 import type { MatrixArtifact, MatrixFixture } from "../../harness.ts";
 import { matrixTest } from "../../harness.ts";
 import { withFixtureDom } from "../../render-fixture.ts";
-import {
-    extractModuleScriptSrc,
-    resolveOutputScriptPath,
-} from "../../../helpers/fixture-io.ts";
+import { extractModuleScriptSrc, resolveOutputScriptPath } from "../../../helpers/fixture-io.ts";
 import { pathToFileURL } from "node:url";
 
 export const i18nCase = matrixTest({
@@ -24,7 +21,7 @@ export const i18nCase = matrixTest({
             artifact,
             fixture,
             navigatorLocale: "pt-BR",
-            expectedPathname: "/pt/",
+            expectedPathname: combo.render === "csr" && combo.navigation === "spa" ? "/pt/" : "/",
         });
 
         await assertRootLocaleRedirect({
@@ -32,15 +29,17 @@ export const i18nCase = matrixTest({
             artifact,
             fixture,
             navigatorLocale: "es-ES",
-            expectedPathname: "/en/",
+            expectedPathname: "/",
         });
 
-        const englishScreen = await fixture.render(artifact, "/en/");
+        const englishScreen = await fixture.render(artifact, "/");
         try {
             assertEquals(document.documentElement.lang, "en");
             assertStringIncludes(document.body.textContent ?? "", "Start guided journey");
             assertEquals(
-                document.querySelector<HTMLAnchorElement>('a[data-locale="pt"]')?.getAttribute("href"),
+                document.querySelector<HTMLAnchorElement>('a[data-locale="pt"]')?.getAttribute(
+                    "href",
+                ),
                 "/pt/",
             );
         } finally {
@@ -52,8 +51,10 @@ export const i18nCase = matrixTest({
             assertEquals(document.documentElement.lang, "pt");
             assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
             assertEquals(
-                document.querySelector<HTMLAnchorElement>('a[data-locale="en"]')?.getAttribute("href"),
-                "/en/",
+                document.querySelector<HTMLAnchorElement>('a[data-locale="en"]')?.getAttribute(
+                    "href",
+                ),
+                "/",
             );
         } finally {
             portugueseScreen.cleanup();
@@ -110,7 +111,7 @@ async function assertRootLocaleRedirect(args: {
                 });
                 await import(`${pathToFileURL(scriptPath).href}?matrix-root=${Date.now()}`);
                 await nextTick();
-            } else {
+            } else if (args.expectedPathname !== "/") {
                 const redirectScript = extractInlineRedirectScript(html);
                 assert(redirectScript, "Could not find locale redirect script in root document.");
                 assertStringIncludes(html, "<title>Redirecting...</title>");
@@ -118,6 +119,8 @@ async function assertRootLocaleRedirect(args: {
 
                 globalThis.window.eval(redirectScript);
                 await nextTick();
+            } else {
+                assertStringIncludes(html, "<title>Mainz</title>");
             }
 
             assertEquals(globalThis.window.location.pathname, args.expectedPathname);

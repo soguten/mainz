@@ -5,9 +5,9 @@ const srcPath = normalizePath(fileURLToPath(new URL("./src/", import.meta.url)))
 const base = process.env.MAINZ_BASE_PATH ?? "./";
 const renderMode = process.env.MAINZ_RENDER_MODE ?? "csr";
 const navigationMode = process.env.MAINZ_NAVIGATION_MODE ?? "spa";
-const targetLocales = JSON.parse(process.env.MAINZ_TARGET_LOCALES ?? "[]") as string[];
+const appLocales = JSON.parse(process.env.MAINZ_APP_LOCALES ?? "[]") as string[];
 const defaultLocale = process.env.MAINZ_DEFAULT_LOCALE || undefined;
-const localePrefix = process.env.MAINZ_LOCALE_PREFIX === "always" ? "always" : "auto";
+const localePrefix = process.env.MAINZ_LOCALE_PREFIX === "always" ? "always" : "except-default";
 const siteUrl = process.env.MAINZ_SITE_URL || undefined;
 const outputDir = process.env.MAINZ_OUT_DIR ?? `dist/examples/di-http-site/${renderMode}`;
 
@@ -36,7 +36,7 @@ export default defineConfig({
         __MAINZ_NAVIGATION_MODE__: JSON.stringify(navigationMode),
         __MAINZ_TARGET_NAME__: JSON.stringify("di-http-site"),
         __MAINZ_BASE_PATH__: JSON.stringify(base),
-        __MAINZ_TARGET_LOCALES__: JSON.stringify(targetLocales),
+        __MAINZ_APP_LOCALES__: JSON.stringify(appLocales),
         __MAINZ_DEFAULT_LOCALE__: JSON.stringify(defaultLocale),
         __MAINZ_LOCALE_PREFIX__: JSON.stringify(localePrefix),
         __MAINZ_SITE_URL__: JSON.stringify(siteUrl),

@@ -38,12 +38,15 @@ export const basePathNotFoundCase = matrixTest({
             const localeLink = document.querySelector<HTMLAnchorElement>(
                 '.locale-chip[data-locale="en"]',
             );
-            assert(localeLink, "Expected the EN locale switcher link to exist on the localized 404 page.");
-            assertEquals(localeLink.getAttribute("href"), `${matrixBasePath}en/nao-existe`);
+            assert(
+                localeLink,
+                "Expected the EN locale switcher link to exist on the localized 404 page.",
+            );
+            assertEquals(localeLink.getAttribute("href"), `${matrixBasePath}nao-existe`);
             assertSeoState({
                 canonical: `${matrixSiteUrl}/pt/nao-existe`,
                 alternates: {
-                    en: `${matrixSiteUrl}/en/nao-existe`,
+                    en: `${matrixSiteUrl}/nao-existe`,
                     pt: `${matrixSiteUrl}/pt/nao-existe`,
                 },
             });

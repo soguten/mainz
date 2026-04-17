@@ -16,7 +16,7 @@ export const navigationCase = matrixTest({
         navigation: ["spa", "mpa", "enhanced-mpa"],
     },
     run: async ({ combo, artifact, fixture }) => {
-        const screen = await fixture.render(artifact, "/en/");
+        const screen = await fixture.render(artifact, "/");
 
         try {
             await waitFor(() =>

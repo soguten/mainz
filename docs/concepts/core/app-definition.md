@@ -56,6 +56,39 @@ CLI may still override it, but the baseline value now lives with the routed app 
 For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`.
 App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
 
+### Locale routing and document language
+
+Use `i18n` when the app has locale-aware routing:
+
+```tsx title="app.ts"
+export const app = defineApp({
+    id: "site",
+    i18n: {
+        locales: ["en", "pt-BR"],
+        defaultLocale: "en",
+        localePrefix: "always",
+    },
+    pages: [HomePage],
+});
+```
+
+Use `documentLanguage` when the app is monolingual and Mainz should set `<html lang>` without
+turning on locale routing:
+
+```tsx title="app.ts"
+export const app = defineApp({
+    id: "docs",
+    documentLanguage: "pt-BR",
+    pages: [HomePage],
+});
+```
+
+The rules are:
+
+- `i18n` present: routes are localized and `<html lang>` follows the resolved route locale
+- no `i18n`, `documentLanguage` present: routes stay unlocalized and `<html lang>` uses that value
+- neither present: Mainz does not invent a document language
+
 ## Root-only apps
 
 Root-only apps can also use `defineApp(...)` when they need a formal composition root:
@@ -108,6 +141,7 @@ They represent different responsibilities.
 
 - what pages or root belong to this app?
 - what default navigation intent belongs to this routed app?
+- does this routed app own locale routing or a fixed document language?
 - which services belong to this app composition?
 - what stable app `id` should tooling use?
 

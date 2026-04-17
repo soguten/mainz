@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest, type MatrixArtifact, type MatrixFixture } from "../../harness.ts";
+import { type MatrixArtifact, type MatrixFixture, matrixTest } from "../../harness.ts";
 
 export const routingCase = matrixTest({
     name: "routing preserves localized navigation",
@@ -14,7 +14,7 @@ export const routingCase = matrixTest({
         await assertRoute({
             artifact,
             fixture,
-            path: "/en/",
+            path: "/",
             expectedStatus: 200,
             expectedLocale: "en",
             expectedTitle: "Mainz",

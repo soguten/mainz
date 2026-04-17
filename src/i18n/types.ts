@@ -3,7 +3,7 @@ export type LocaleTag = string;
 export interface I18nConfig<Locale extends LocaleTag = LocaleTag> {
     defaultLocale: Locale;
     locales: readonly Locale[];
-    localePrefix?: "auto" | "always";
+    localePrefix?: "except-default" | "always";
     detectLocale?: "path-first" | "navigator";
     fallbackLocale?: Locale;
     siteUrl?: string;

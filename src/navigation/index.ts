@@ -33,9 +33,9 @@ import {
 import {
     buildRouteHead,
     resolveLocaleRedirectPath,
-    shouldPrefixLocaleForRoute,
     toLocalePathSegment,
 } from "../routing/index.ts";
+import { normalizeLocaleTag } from "../i18n/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 import { attachServiceContainer, readServiceContainer } from "../di/context.ts";
 import { withServiceContainer } from "../di/context.ts";
@@ -109,7 +109,7 @@ export interface SpaNavigationRenderContext {
     basePath: string;
 }
 
-export interface SpaNavigationOptions {
+interface SpaNavigationOptions {
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
@@ -122,11 +122,17 @@ export interface SpaNavigationOptions {
     onBeforeRender?(context: SpaNavigationRenderContext): void;
 }
 
-export interface StartNavigationOptions {
+/**
+ * Internal runtime bootstrap used by Mainz internals and focused framework tests.
+ *
+ * Application startup should prefer defineApp(...) + startApp(...).
+ */
+export interface InternalStartNavigationOptions {
     appId?: string;
     commands?: readonly MainzCommand<never>[];
     mode: NavigationMode;
     basePath?: string;
+    documentLanguage?: string;
     mount?: string | Element;
     pages?: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
@@ -140,10 +146,18 @@ export interface StartNavigationOptions {
     spa?: SpaNavigationOptions;
 }
 
+export interface RoutedAppI18nDefinition<Locale extends string = string> {
+    locales: readonly Locale[];
+    defaultLocale: Locale;
+    localePrefix?: "always" | "except-default";
+}
+
 export interface RoutedAppDefinition {
     id: string;
     commands?: readonly MainzCommand<never>[];
     navigation?: NavigationMode;
+    i18n?: RoutedAppI18nDefinition;
+    documentLanguage?: string;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     services?: readonly ServiceRegistration[];
@@ -197,6 +211,7 @@ interface SpaRouteMatch {
 interface ResolvedPageNavigationOptions {
     appId?: string;
     commands?: readonly MainzCommand<never>[];
+    documentLanguage?: string;
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
     mount?: string | Element;
@@ -273,6 +288,7 @@ export function defineApp(
     app: RoutedAppDefinition | RootAppDefinition,
 ): DefinedRoutedApp | DefinedRootApp {
     if (isRoutedAppDefinitionShape(app)) {
+        validateRoutedAppDefinition(app);
         const definedApp = brandDefinedApp(app, "routed") as DefinedRoutedApp;
         captureDefinedRoutedApp(definedApp);
         return definedApp;
@@ -307,13 +323,30 @@ export async function captureDefinedRoutedAppDuring<Value>(
 export function resolveRoutedAppDefinitionFromModuleExports(
     moduleExports: Record<string, unknown>,
 ): RoutedAppDefinition | undefined {
+    return resolveRoutedAppDefinitionsFromModuleExports(moduleExports)[0];
+}
+
+export function resolveRoutedAppDefinitionsFromModuleExports(
+    moduleExports: Record<string, unknown>,
+): RoutedAppDefinition[] {
     const candidates = [
         moduleExports.default,
         moduleExports.app,
         ...Object.values(moduleExports),
     ];
 
-    return candidates.find(isDefinedRoutedApp);
+    const resolved: RoutedAppDefinition[] = [];
+    const seen = new Set<RoutedAppDefinition>();
+    for (const candidate of candidates) {
+        if (!isDefinedRoutedApp(candidate) || seen.has(candidate)) {
+            continue;
+        }
+
+        seen.add(candidate);
+        resolved.push(candidate);
+    }
+
+    return resolved;
 }
 
 export function startApp(
@@ -351,17 +384,18 @@ export function startApp(
 
     captureDefinedRoutedApp(appOrRoot);
 
-    return startNavigation({
+    return __internalStartNavigation({
         mode: resolveMainzNavigationMode(),
         basePath: resolveMainzBasePath(),
         appId: appOrRoot.id,
         commands: appOrRoot.commands,
+        documentLanguage: appOrRoot.documentLanguage,
         mount: options?.mount,
         pages: appOrRoot.pages,
         notFound: appOrRoot.notFound,
         auth: options?.auth,
         services: appOrRoot.services,
-        locales: resolvePagesAppLocales(appOrRoot.pages, appOrRoot.notFound),
+        locales: appOrRoot.i18n?.locales,
     });
 }
 
@@ -482,6 +516,108 @@ function isRoutedPageEntry(value: unknown): boolean {
     return "page" in value || "load" in value;
 }
 
+function validateRoutedAppDefinition(app: RoutedAppDefinition): void {
+    validateRoutedAppI18nDefinition(app);
+    validateDocumentLanguage(app);
+    validateImmediatePageLocaleRestrictions(app);
+}
+
+function validateRoutedAppI18nDefinition(app: RoutedAppDefinition): void {
+    const i18n = app.i18n;
+    if (!i18n) {
+        return;
+    }
+
+    if (!Array.isArray(i18n.locales) || i18n.locales.length === 0) {
+        throw new Error(`App "${app.id}" i18n.locales must not be empty.`);
+    }
+
+    const normalizedLocales = i18n.locales.map((locale, index) => {
+        if (typeof locale !== "string") {
+            throw new Error(`App "${app.id}" i18n.locales[${index}] must be a string.`);
+        }
+
+        try {
+            return normalizeLocaleTag(locale);
+        } catch (error) {
+            throw new Error(
+                `App "${app.id}" i18n.locales[${index}] is not a valid locale tag: ${
+                    toErrorMessage(error)
+                }`,
+            );
+        }
+    });
+
+    if (typeof i18n.defaultLocale !== "string" || i18n.defaultLocale.trim().length === 0) {
+        throw new Error(`App "${app.id}" i18n.defaultLocale must be a string locale tag.`);
+    }
+
+    const normalizedDefaultLocale = normalizeLocaleTag(i18n.defaultLocale);
+    const localeSet = new Set(normalizedLocales.map((locale) => locale.toLowerCase()));
+    if (!localeSet.has(normalizedDefaultLocale.toLowerCase())) {
+        throw new Error(
+            `App "${app.id}" i18n.defaultLocale "${i18n.defaultLocale}" must be included in i18n.locales.`,
+        );
+    }
+
+    if (
+        i18n.localePrefix !== undefined &&
+        i18n.localePrefix !== "always" &&
+        i18n.localePrefix !== "except-default"
+    ) {
+        throw new Error(
+            `App "${app.id}" i18n.localePrefix must be "always" or "except-default".`,
+        );
+    }
+}
+
+function validateDocumentLanguage(app: RoutedAppDefinition): void {
+    if (app.documentLanguage === undefined) {
+        return;
+    }
+
+    if (typeof app.documentLanguage !== "string" || app.documentLanguage.trim().length === 0) {
+        throw new Error(`App "${app.id}" documentLanguage must be a string locale tag.`);
+    }
+
+    try {
+        normalizeLocaleTag(app.documentLanguage);
+    } catch (error) {
+        throw new Error(
+            `App "${app.id}" documentLanguage is not a valid locale tag: ${toErrorMessage(error)}`,
+        );
+    }
+}
+
+function validateImmediatePageLocaleRestrictions(app: RoutedAppDefinition): void {
+    const pageEntries = app.notFound ? [...app.pages, app.notFound] : [...app.pages];
+    const appLocaleKeys = app.i18n
+        ? new Set(app.i18n.locales.map((locale) => normalizeLocaleTag(locale).toLowerCase()))
+        : undefined;
+
+    for (const page of collectImmediateNavigationPages(pageEntries)) {
+        const pageLocales = resolvePageLocales(page);
+        if (!pageLocales?.length) {
+            continue;
+        }
+
+        if (!appLocaleKeys) {
+            throw new Error(
+                `App "${app.id}" page "${page.name}" declares @Locales(...) but the app does not define i18n.`,
+            );
+        }
+
+        for (const pageLocale of pageLocales) {
+            const normalizedPageLocale = normalizeLocaleTag(pageLocale);
+            if (!appLocaleKeys.has(normalizedPageLocale.toLowerCase())) {
+                throw new Error(
+                    `App "${app.id}" page "${page.name}" declares locale "${pageLocale}" outside app i18n.locales.`,
+                );
+            }
+        }
+    }
+}
+
 function isDefinedRoutedApp(value: unknown): value is DefinedRoutedApp {
     return isRoutedAppDefinitionShape(value) &&
         readAppDefinitionKind(value) === "routed";
@@ -519,7 +655,14 @@ function brandDefinedApp<TApp extends RoutedAppDefinition | RootAppDefinition>(
     return app;
 }
 
-export function startNavigation(options: StartNavigationOptions): NavigationController {
+/**
+ * Internal runtime bootstrap used by Mainz internals and focused framework tests.
+ *
+ * Application startup should prefer defineApp(...) + startApp(...).
+ */
+export function __internalStartNavigation(
+    options: InternalStartNavigationOptions,
+): NavigationController {
     if (typeof document === "undefined" || typeof window === "undefined") {
         return {
             mode: options.mode,
@@ -535,6 +678,9 @@ export function startNavigation(options: StartNavigationOptions): NavigationCont
         pageOptions.appId = options.appId;
         pageOptions.commands = options.commands;
         pageOptions.serviceContainer = createServiceContainer(pageOptions.services);
+        if (!pageOptions.locales?.length) {
+            applyDocumentLanguage(pageOptions.documentLanguage);
+        }
         assertRegisteredNavigationPolicies(pageOptions);
     }
 
@@ -756,11 +902,7 @@ function startSpaNavigation(
             return;
         }
 
-        const effectiveTargetUrl = resolveSpaLocalizedDocumentUrl(
-            targetUrl,
-            normalizedBasePath,
-            pageOptions.locales,
-        );
+        const effectiveTargetUrl = targetUrl;
 
         const targetPath = resolveRoutePath(
             effectiveTargetUrl,
@@ -834,11 +976,7 @@ function startSpaNavigation(
 
     const handlePopState = () => {
         const currentUrl = new URL(window.location.href);
-        const effectiveCurrentUrl = resolveSpaLocalizedDocumentUrl(
-            currentUrl,
-            normalizedBasePath,
-            pageOptions.locales,
-        );
+        const effectiveCurrentUrl = currentUrl;
         const currentPath = resolveRoutePath(
             effectiveCurrentUrl,
             normalizedBasePath,
@@ -1567,8 +1705,8 @@ function resolveSpaRouteLocales(
         return fallbackLocales;
     }
 
-    const targetLocales = readMainzTargetLocales();
-    return targetLocales.length > 0 ? targetLocales : [];
+    const appLocales = readMainzAppLocales();
+    return appLocales.length > 0 ? appLocales : [];
 }
 
 async function resolvePageRouteData(args: {
@@ -1819,7 +1957,7 @@ function buildLocalizedNavigationPath(
     const shouldPrefixLocale = Boolean(
         locale &&
             locales?.length &&
-            shouldPrefixLocaleForRoute(locales, resolveMainzLocalePrefix()),
+            shouldPrefixNavigationLocale(locale, locales),
     );
 
     if (!shouldPrefixLocale || !locale) {
@@ -2076,44 +2214,47 @@ function resolveSpaLocalizedDocumentUrl(
     basePath: string,
     locales?: readonly string[],
 ): URL {
-    if (!shouldRedirectSpaRootToLocalizedPath(url, basePath, locales)) {
+    const redirectLocale = resolveSpaRootRedirectLocale(url, basePath, locales);
+    if (!redirectLocale) {
         return url;
     }
 
-    const localizedPath = resolveLocaleRedirectPath({
-        supportedLocales: locales!,
-        defaultLocale: locales?.[0],
-        preferredLocales: readPreferredNavigationLocales(),
-    });
     const nextUrl = new URL(url.toString());
-    nextUrl.pathname = joinNavigationBasePath(basePath, localizedPath);
+    nextUrl.pathname = joinNavigationBasePath(
+        basePath,
+        buildLocalizedNavigationPath("/", redirectLocale, locales),
+    );
     return nextUrl;
 }
 
-function shouldRedirectSpaRootToLocalizedPath(
+function resolveSpaRootRedirectLocale(
     url: URL,
     basePath: string,
     locales?: readonly string[],
-): boolean {
+): string | undefined {
     if (!locales?.length) {
-        return false;
-    }
-
-    if (!shouldPrefixLocaleForRoute(locales, resolveMainzLocalePrefix())) {
-        return false;
+        return undefined;
     }
 
     const appPath = toAppRelativePath(url, basePath);
-    if (!appPath || appPath === "/") {
-        return true;
+    if (appPath && appPath !== "/") {
+        return undefined;
     }
 
-    const firstSegment = appPath.split("/").filter(Boolean)[0];
-    if (!firstSegment) {
-        return true;
+    const redirectPath = resolveLocaleRedirectPath({
+        supportedLocales: locales,
+        defaultLocale: resolveMainzDefaultLocale() ?? locales[0],
+        preferredLocales: readPreferredNavigationLocales(),
+    });
+    const localeSegment = redirectPath.split("/").filter(Boolean)[0];
+    const locale = localeSegment
+        ? locales.find((candidate) => toLocalePathSegment(candidate) === localeSegment)
+        : undefined;
+    if (!locale || !shouldPrefixNavigationLocale(locale, locales)) {
+        return undefined;
     }
 
-    return false;
+    return locale;
 }
 
 function joinNavigationBasePath(basePath: string, routePath: string): string {
@@ -2208,6 +2349,7 @@ function resolveNavigationLocale(
 
     const appPath = toAppRelativePath(url, basePath) ?? "/";
     const firstSegment = appPath.split("/").filter(Boolean)[0];
+    const defaultLocale = resolveDefaultNavigationLocale(locales);
 
     if (firstSegment) {
         const matchedLocale = locales.find((locale) =>
@@ -2216,17 +2358,58 @@ function resolveNavigationLocale(
         if (matchedLocale) {
             return matchedLocale;
         }
+
+        if (resolveMainzLocalePrefix() === "except-default") {
+            return defaultLocale;
+        }
+    }
+
+    if (resolveMainzLocalePrefix() === "except-default") {
+        return defaultLocale;
     }
 
     const documentLocale = typeof document === "undefined"
         ? ""
         : document.documentElement.lang.trim();
     if (!documentLocale) {
-        return locales[0];
+        return defaultLocale;
     }
 
     return locales.find((locale) => locale.toLowerCase() === documentLocale.toLowerCase()) ??
-        locales[0];
+        defaultLocale;
+}
+
+function shouldPrefixNavigationLocale(
+    locale: string,
+    locales: readonly string[] | undefined,
+): boolean {
+    if (!locales?.length) {
+        return false;
+    }
+
+    const localePrefix = resolveMainzLocalePrefix();
+    if (localePrefix === "always") {
+        return true;
+    }
+
+    const defaultLocale = resolveDefaultNavigationLocale(locales);
+    return normalizeLocaleTag(locale).toLowerCase() !==
+        normalizeLocaleTag(defaultLocale).toLowerCase();
+}
+
+function resolveDefaultNavigationLocale(locales: readonly string[]): string {
+    const configuredDefault = resolveMainzDefaultLocale();
+    if (configuredDefault) {
+        const matchedDefault = locales.find((locale) =>
+            normalizeLocaleTag(locale).toLowerCase() ===
+                normalizeLocaleTag(configuredDefault).toLowerCase()
+        );
+        if (matchedDefault) {
+            return matchedDefault;
+        }
+    }
+
+    return locales[0];
 }
 
 function stripLocalePrefixFromPath(pathname: string, locales?: readonly string[]): string {
@@ -2249,11 +2432,12 @@ function stripLocalePrefixFromPath(pathname: string, locales?: readonly string[]
 }
 
 function resolvePageNavigationOptions(
-    options: StartNavigationOptions,
+    options: InternalStartNavigationOptions,
 ): ResolvedPageNavigationOptions | undefined {
     const legacySpaOptions = options.spa;
     const pages = options.pages ?? legacySpaOptions?.pages;
     const notFound = options.notFound ?? legacySpaOptions?.notFound;
+    const documentLanguage = options.documentLanguage;
     const mount = options.mount ?? legacySpaOptions?.mount;
     const auth = options.auth ?? legacySpaOptions?.auth;
     const services = options.services ?? legacySpaOptions?.services;
@@ -2272,6 +2456,7 @@ function resolvePageNavigationOptions(
     return {
         pages: pages ?? [],
         notFound,
+        documentLanguage,
         mount,
         auth,
         services,
@@ -2280,6 +2465,15 @@ function resolvePageNavigationOptions(
         onLocaleChange,
         onRoute,
     };
+}
+
+function applyDocumentLanguage(documentLanguage: string | undefined): void {
+    const normalizedLanguage = documentLanguage?.trim();
+    if (!normalizedLanguage || typeof document === "undefined") {
+        return;
+    }
+
+    document.documentElement.lang = normalizedLanguage;
 }
 
 function assertRegisteredNavigationPolicies(options: ResolvedPageNavigationOptions): void {
@@ -2538,32 +2732,6 @@ function assertRegisteredPagePolicies(
     );
 }
 
-function resolvePagesAppLocales(
-    pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[],
-    notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition,
-): readonly string[] | undefined {
-    const inferredLocales = new Set<string>();
-    const pageEntries = notFound ? [...pages, notFound] : [...pages];
-
-    for (const entry of pageEntries) {
-        if (isSpaLazyPageDefinition(entry)) {
-            continue;
-        }
-
-        const page = isSpaPageDefinition(entry) ? entry.page : entry;
-        for (const locale of resolvePageLocales(page) ?? []) {
-            inferredLocales.add(locale);
-        }
-    }
-
-    if (inferredLocales.size > 0) {
-        return Array.from(inferredLocales);
-    }
-
-    const targetLocales = readMainzTargetLocales();
-    return targetLocales.length > 0 ? targetLocales : undefined;
-}
-
 function resolveMainzNavigationMode(): NavigationMode {
     if (typeof __MAINZ_NAVIGATION_MODE__ !== "undefined") {
         return __MAINZ_NAVIGATION_MODE__;
@@ -2604,13 +2772,13 @@ function resolveMainzDefaultLocale(): string | undefined {
     return typeof fromGlobal === "string" && fromGlobal.trim() ? fromGlobal : undefined;
 }
 
-function resolveMainzLocalePrefix(): "auto" | "always" {
+function resolveMainzLocalePrefix(): "except-default" | "always" {
     if (typeof __MAINZ_LOCALE_PREFIX__ !== "undefined") {
         return __MAINZ_LOCALE_PREFIX__;
     }
 
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__;
-    return fromGlobal === "always" ? "always" : "auto";
+    return fromGlobal === "always" ? "always" : "except-default";
 }
 
 function resolveMainzSiteUrl(): string | undefined {
@@ -2622,15 +2790,17 @@ function resolveMainzSiteUrl(): string | undefined {
     return typeof fromGlobal === "string" && fromGlobal.trim() ? fromGlobal : undefined;
 }
 
-function readMainzTargetLocales(): readonly string[] {
-    if (typeof __MAINZ_TARGET_LOCALES__ !== "undefined") {
-        return __MAINZ_TARGET_LOCALES__;
+function readMainzAppLocales(): readonly string[] {
+    if (typeof __MAINZ_APP_LOCALES__ !== "undefined") {
+        return __MAINZ_APP_LOCALES__;
     }
 
-    const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;
-    return Array.isArray(fromGlobal)
-        ? fromGlobal.filter((value): value is string => typeof value === "string")
-        : [];
+    const appLocalesFromGlobal = (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
+    if (Array.isArray(appLocalesFromGlobal)) {
+        return appLocalesFromGlobal.filter((value): value is string => typeof value === "string");
+    }
+
+    return [];
 }
 
 async function bootstrapDocumentNavigation(

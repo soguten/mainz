@@ -13,6 +13,11 @@ import { StoryPage } from "./pages/Story.page.tsx";
 export const app = defineApp({
     id: "site",
     navigation: "spa",
+    i18n: {
+        locales: ["en"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [HomePage, StoryPage],
     notFound: NotFoundPage,
     services: [

@@ -209,6 +209,60 @@ Deno.test("build/profiles: should let profile navigation override app navigation
     }
 });
 
+Deno.test("build/profiles: should resolve publication metadata from the app selected by target appId", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-build-profile-app-selection-" });
+    const siteDir = join(cwd, "site");
+
+    try {
+        await Deno.mkdir(join(siteDir, "src"), { recursive: true });
+        await Deno.writeTextFile(
+            join(siteDir, "src", "apps.ts"),
+            [
+                `import { defineApp } from ${
+                    JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
+                };`,
+                "",
+                "export const alphaApp = defineApp({",
+                '  id: "alpha-app",',
+                '  navigation: "spa",',
+                "  pages: [],",
+                "});",
+                "",
+                "export const betaApp = defineApp({",
+                '  id: "beta-app",',
+                '  navigation: "mpa",',
+                "  pages: [],",
+                "});",
+                "",
+            ].join("\n"),
+        );
+
+        const config = normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                    viteConfig: "./vite.config.site.ts",
+                    outDir: "dist/site",
+                    appFile: "./site/src/apps.ts",
+                    appId: "beta-app",
+                },
+            ],
+        });
+
+        const metadata = await resolvePublicationMetadata(
+            config.targets[0],
+            "production",
+            cwd,
+        );
+
+        assertEquals(metadata.navigation, "mpa");
+        assertEquals(metadata.outDir, "dist/site/ssg");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 Deno.test("build/profiles: should derive spa navigation defaults when no app or profile declares one", async () => {
     const fixture = await createTargetBuildFixture(
         `export default {
@@ -347,7 +401,9 @@ async function createTargetBuildFixture(
     await Deno.writeTextFile(
         join(siteDir, "src", "main.tsx"),
         [
-            `import { defineApp } from ${JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)};`,
+            `import { defineApp } from ${
+                JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
+            };`,
             "",
             "export const app = defineApp({",
             '  id: "site",',

@@ -9,16 +9,20 @@ export function buildLocaleHref(args: {
     nextLocale: "en" | "pt";
 }): string {
     const basePath = normalizeBasePath(args.route?.basePath ?? __MAINZ_BASE_PATH__);
-    const currentPathname = args.route?.url?.pathname ?? joinBasePath(basePath, "/en/");
+    const currentPathname = args.route?.url?.pathname ?? basePath;
     const pathnameWithoutBasePath = stripBasePath(currentPathname, basePath);
     const segments = pathnameWithoutBasePath.split("/").filter(Boolean);
+    const [, ...withoutLocale] = segments[0] === "en" || segments[0] === "pt"
+        ? segments
+        : ["", ...segments];
 
-    if (segments.length === 0) {
-        return joinBasePath(basePath, `/${args.nextLocale}/`);
+    const nextSegments = args.nextLocale === "en" ? withoutLocale : ["pt", ...withoutLocale];
+
+    if (nextSegments.length === 0) {
+        return basePath;
     }
 
-    segments[0] = args.nextLocale;
-    const nextPath = `/${segments.join("/")}${
+    const nextPath = `/${nextSegments.join("/")}${
         shouldKeepTrailingSlash(pathnameWithoutBasePath) ? "/" : ""
     }`;
 

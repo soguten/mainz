@@ -60,6 +60,10 @@ See:
 Use `prepareNavigationTest()` for tests that exercise the runtime itself, especially routing and
 navigation behavior.
 
+`prepareNavigationTest()` prepares the DOM and resets runtime globals. The app under test should
+still be composed with `defineApp(...)` and started with `startApp(...)`, just like normal
+application code.
+
 Good for:
 
 - SPA route resolution

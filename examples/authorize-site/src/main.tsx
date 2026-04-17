@@ -10,6 +10,11 @@ import { ReportsPage } from "./pages/Reports.page.tsx";
 const app = defineApp({
     id: "authorize-site",
     navigation: "spa",
+    i18n: {
+        locales: ["en"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [HomePage, LoginPage, AccountPage, BillingPage, ReportsPage],
     notFound: NotFoundPage,
 });

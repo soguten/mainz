@@ -27,7 +27,7 @@ Mainz keeps those contracts explicit:
 
 ## Register services at startup
 
-Service registration belongs at app startup through the official app definition. Routed apps should prefer `defineApp(...)`; `startNavigation(...)` remains the lower-level escape hatch when you need to wire navigation directly.
+Service registration belongs at app startup through the official app definition.
 
 ```ts title="main.ts"
 import { defineApp, startApp } from "mainz";

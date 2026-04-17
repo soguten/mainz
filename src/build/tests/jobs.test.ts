@@ -190,6 +190,7 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
                 name: "di-http-site",
                 rootDir: "./examples/di-http-site",
                 viteConfig: "./vite.config.di-http-site.ts",
+                appFile: "./examples/di-http-site/src/app.ts",
                 pagesDir: "./examples/di-http-site/src/pages",
             },
         ],
@@ -201,6 +202,25 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
         "di-http-site:csr",
         "di-http-site:ssg",
     ]);
+});
+
+Deno.test("build/jobs: should fail when routed app discovery is ambiguous without appId", async () => {
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "di-http-site",
+                rootDir: "./examples/di-http-site",
+                viteConfig: "./vite.config.di-http-site.ts",
+                pagesDir: "./examples/di-http-site/src/pages",
+            },
+        ],
+    });
+
+    await assertRejects(
+        () => resolveBuildJobs(config, {}),
+        Error,
+        "found multiple routed apps",
+    );
 });
 
 Deno.test("build/jobs: should keep imported routed app definitions on the default csr recipe when discovery finds only undecorated pages", async () => {

@@ -24,7 +24,7 @@ export class JourneyGuidePanel extends Component<JourneyGuidePanelProps, Journey
                 <p>{isPortuguese ? "Trilha guiada" : "Guided journey"}</p>
 
                 <nav>
-                    <a className="locale-chip" data-locale="en" href="/en/">English</a>
+                    <a className="locale-chip" data-locale="en" href="/">English</a>
                     <a className="locale-chip" data-locale="pt" href="/pt/">Portugues</a>
                 </nav>
 

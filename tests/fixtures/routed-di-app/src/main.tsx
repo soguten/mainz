@@ -9,6 +9,11 @@ import {
 
 const app = defineApp({
     id: "routed-di-app",
+    i18n: {
+        locales: ["en", "pt"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [RoutedDiStoryPage],
     services: [
         singleton(RouteAtlasConfigService),

@@ -91,7 +91,7 @@ export function resolvePortalTarget(
     if (!appRoot) {
         console.warn(
             `Mainz Portal could not find an app root for layer "${descriptor.layer}". ` +
-                "Call startApp(...) or startNavigation(...) before rendering app-scoped portals.",
+                "Call startApp(...) before rendering app-scoped portals.",
         );
         return undefined;
     }

@@ -45,14 +45,26 @@ function buildLocalizedPathname(pathname: string, nextLocale: SiteLocale): strin
     const segments = pathname.split("/").filter(Boolean);
     const nextLocaleSegment = toLocalePathSegment(nextLocale);
     const localeIndex = findLocaleSegmentIndex(segments);
+    const shouldPrefixNextLocale = nextLocale !== DEFAULT_LOCALE;
 
     if (localeIndex >= 0) {
+        if (!shouldPrefixNextLocale) {
+            segments.splice(localeIndex, 1);
+            return segments.length === 0
+                ? "/"
+                : `/${segments.join("/")}${shouldKeepTrailingSlash(pathname, segments) ? "/" : ""}`;
+        }
+
         segments[localeIndex] = nextLocaleSegment;
         return `/${segments.join("/")}${shouldKeepTrailingSlash(pathname, segments) ? "/" : ""}`;
     }
 
     if (segments.length === 0) {
-        return `/${nextLocaleSegment}/`;
+        return shouldPrefixNextLocale ? `/${nextLocaleSegment}/` : "/";
+    }
+
+    if (!shouldPrefixNextLocale) {
+        return `/${segments.join("/")}${pathname.endsWith("/") ? "/" : ""}`;
     }
 
     const nextSegments = [nextLocaleSegment, ...segments];

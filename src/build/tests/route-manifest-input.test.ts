@@ -4,7 +4,7 @@ import { assertEquals } from "@std/assert";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { resolveRouteManifestBuildInput } from "../route-manifest-input.ts";
 
-Deno.test("build/route-manifest-input: should preserve discovered page modes without inventing a filesystem fallback", () => {
+Deno.test("build/route-manifest-input: should preserve discovered page modes", () => {
     const config = normalizeMainzConfig({
         targets: [
             {
@@ -42,10 +42,9 @@ Deno.test("build/route-manifest-input: should preserve discovered page modes wit
             { path: "/docs", mode: "ssg" },
         ],
     );
-    assertEquals("filesystemDefaultMode" in manifestInput.target, false);
 });
 
-Deno.test("build/route-manifest-input: should keep filesystem routing free of config-level render fallback", () => {
+Deno.test("build/route-manifest-input: should treat documentLanguage as a single app locale when app i18n is absent", () => {
     const config = normalizeMainzConfig({
         targets: [
             {
@@ -59,10 +58,42 @@ Deno.test("build/route-manifest-input: should keep filesystem routing free of co
 
     const manifestInput = resolveRouteManifestBuildInput({
         target: config.targets[0],
-        filesystemPageFiles: [
-            "./docs-site/pages/index.page.tsx",
+        appDefinition: {
+            id: "docs-app",
+            documentLanguage: "pt-BR",
+            pages: [],
+        },
+    });
+
+    assertEquals(manifestInput.appLocales, ["pt-BR"]);
+    assertEquals(manifestInput.appLocaleSource, "documentLanguage");
+});
+
+Deno.test("build/route-manifest-input: should mark app locales sourced from app i18n", () => {
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "docs",
+                rootDir: "./docs-site",
+                viteConfig: "./vite.config.docs.ts",
+                pagesDir: "./docs-site/pages",
+            },
         ],
     });
 
-    assertEquals("filesystemDefaultMode" in manifestInput.target, false);
+    const manifestInput = resolveRouteManifestBuildInput({
+        target: config.targets[0],
+        appDefinition: {
+            id: "docs-app",
+            i18n: {
+                locales: ["en", "pt-BR"],
+                defaultLocale: "en",
+                localePrefix: "except-default",
+            },
+            pages: [],
+        },
+    });
+
+    assertEquals(manifestInput.appLocales, ["en", "pt-BR"]);
+    assertEquals(manifestInput.appLocaleSource, "i18n");
 });

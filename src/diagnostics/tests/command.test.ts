@@ -14,7 +14,6 @@ Deno.test("diagnostics/command: should collect route diagnostics for a fixture t
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-routes",
         targetName: "diagnostics-routes",
-        locales: ["en"],
     });
 
     try {
@@ -47,7 +46,6 @@ Deno.test("diagnostics/command: should report invalid locale tags declared in @L
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-invalid-locales",
         targetName: "diagnostics-invalid-locales",
-        locales: ["en"],
     });
 
     try {
@@ -65,12 +63,10 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
     const authorizationFixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-authorization-policies",
         targetName: "diagnostics-authorization-policies",
-        locales: ["en"],
     });
     const diFixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di",
         targetName: "diagnostics-di",
-        locales: ["en"],
     });
 
     try {
@@ -192,7 +188,6 @@ Deno.test("diagnostics/command: should accept named authorization policies decla
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-authorization-policies",
         targetName: "diagnostics-authorization-policies",
-        locales: ["en"],
         authorizationPolicyNames: ["org-member"],
     });
 
@@ -208,7 +203,6 @@ Deno.test("diagnostics/command: should support failure policies and human format
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-routes",
         targetName: "diagnostics-routes",
-        locales: ["en"],
     });
 
     try {
@@ -230,7 +224,6 @@ Deno.test("diagnostics/command: should evaluate multi-app targets by app id and 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        locales: ["en"],
         omitPagesDir: true,
     });
 

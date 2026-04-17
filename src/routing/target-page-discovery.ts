@@ -57,6 +57,7 @@ interface RoutedAppDefinitionResolution {
 export interface AppDiagnosticsCandidate {
     appId?: string;
     appFile: string;
+    routed: boolean;
     discoveredPages: readonly CliDiscoveredPage[];
     discoveryErrors?: readonly CliPageDiscoveryError[];
 }
@@ -125,18 +126,46 @@ export async function resolveTargetDiscoveredPagesForTarget(
             resolvedAppFile,
             target.appFile !== undefined,
         );
-        const validCandidates = (appDiscovery.appCandidates ?? [])
-            .filter((candidate) => !candidate.discoveryErrors?.length && candidate.appId)
-            .sort(compareAppDiagnosticsCandidates);
-        if (validCandidates.length > 0) {
+        if (!appDiscovery.foundAppDefinition && isRoutedTargetInput(target)) {
             return normalizeDiscoveredPagesResult({
-                filesystemPageFiles: validCandidates[0]?.discoveredPages.map((page) => page.file),
-                discoveredPages: [...(validCandidates[0]?.discoveredPages ?? [])],
+                filesystemPageFiles: undefined,
+                discoveredPages: undefined,
+                discoveryErrors: [{
+                    kind: pageDiscoveryFailedErrorKind,
+                    file: normalizePathSlashes(resolve(resolvedAppFile)),
+                    message:
+                        `Target "${target.name}" must define a routed app with defineApp(...) before pages can be discovered.`,
+                }],
+            });
+        }
+
+        const validCandidates = selectValidTargetAppCandidates(target, appDiscovery.appCandidates);
+        if (validCandidates.length === 1) {
+            const selectedCandidate = validCandidates[0];
+            return normalizeDiscoveredPagesResult({
+                filesystemPageFiles: selectedCandidate.discoveredPages.map((page) => page.file),
+                discoveredPages: [...selectedCandidate.discoveredPages],
                 discoveryErrors: undefined,
             });
         }
 
-        const discoveryErrors = flattenCandidateDiscoveryErrors(appDiscovery.appCandidates);
+        if (validCandidates.length > 1) {
+            return normalizeDiscoveredPagesResult({
+                filesystemPageFiles: undefined,
+                discoveredPages: undefined,
+                discoveryErrors: [{
+                    kind: pageDiscoveryFailedErrorKind,
+                    file: normalizePathSlashes(resolve(resolvedAppFile)),
+                    message:
+                        `Target "${target.name}" found multiple routed apps in "${resolvedAppFile}". Add appId to select one.`,
+                }],
+            });
+        }
+
+        const discoveryErrors = [
+            ...flattenCandidateDiscoveryErrors(appDiscovery.appCandidates),
+            ...buildTargetAppSelectionErrors(target, appDiscovery.appCandidates),
+        ];
         if (discoveryErrors.length > 0) {
             return normalizeDiscoveredPagesResult({
                 filesystemPageFiles: undefined,
@@ -144,6 +173,19 @@ export async function resolveTargetDiscoveredPagesForTarget(
                 discoveryErrors,
             });
         }
+    }
+
+    if (isRoutedTargetInput(target)) {
+        return normalizeDiscoveredPagesResult({
+            filesystemPageFiles: undefined,
+            discoveredPages: undefined,
+            discoveryErrors: [{
+                kind: pageDiscoveryFailedErrorKind,
+                file: normalizePathSlashes(resolve(cwd, target.rootDir)),
+                message:
+                    `Target "${target.name}" must define a routed app with defineApp(...) before pages can be discovered.`,
+            }],
+        });
     }
 
     return await resolveTargetDiscoveredPages(target.pagesDir, cwd);
@@ -161,30 +203,40 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
             target.appFile !== undefined,
         );
         if (appDiscovery.foundAppDefinition) {
-            const appCandidates = [...(appDiscovery.appCandidates ?? [])].sort(compareAppDiagnosticsCandidates);
+            const appCandidates = [...(appDiscovery.appCandidates ?? [])].sort(
+                compareAppDiagnosticsCandidates,
+            );
             if (selectedAppId) {
-                const selectedCandidates = appCandidates.filter((candidate) => candidate.appId === selectedAppId);
+                const selectedCandidates = appCandidates.filter((candidate) =>
+                    candidate.appId === selectedAppId
+                );
                 if (selectedCandidates.length === 0) {
                     const availableIds = appCandidates
                         .flatMap((candidate) => candidate.appId ? [candidate.appId] : [])
                         .sort((a, b) => a.localeCompare(b));
                     throw new Error(
                         availableIds.length > 0
-                            ? `No app candidates matched "${selectedAppId}" for target "${target.name}". Available apps: ${availableIds.join(", ")}`
+                            ? `No app candidates matched "${selectedAppId}" for target "${target.name}". Available apps: ${
+                                availableIds.join(", ")
+                            }`
                             : `Target "${target.name}" did not produce any selectable app ids.`,
                     );
                 }
 
                 return selectedCandidates.map((candidate) => ({
                     appId: candidate.appId,
-                    discoveredPages: candidate.discoveryErrors?.length ? [] : [...candidate.discoveredPages],
+                    discoveredPages: candidate.discoveryErrors?.length
+                        ? []
+                        : [...candidate.discoveredPages],
                     discoveryErrors: candidate.discoveryErrors,
                 }));
             }
 
             return appCandidates.map((candidate) => ({
                 appId: candidate.appId,
-                discoveredPages: candidate.discoveryErrors?.length ? [] : [...candidate.discoveredPages],
+                discoveredPages: candidate.discoveryErrors?.length
+                    ? []
+                    : [...candidate.discoveredPages],
                 discoveryErrors: candidate.discoveryErrors,
             }));
         }
@@ -193,7 +245,9 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
             throw new Error(`Target "${target.name}" did not produce any routed app candidates.`);
         }
     } else if (selectedAppId) {
-        throw new Error(`Target "${target.name}" does not define an app file for app-aware diagnostics.`);
+        throw new Error(
+            `Target "${target.name}" does not define an app file for app-aware diagnostics.`,
+        );
     }
 
     const fallbackDiscovery = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
@@ -241,6 +295,7 @@ async function resolveTargetAppCandidatesFromAppFile(
         return {
             appCandidates: [{
                 appFile: normalizedAppFile,
+                routed: false,
                 discoveredPages: [],
                 discoveryErrors: [{
                     kind: pageDiscoveryFailedErrorKind,
@@ -259,11 +314,14 @@ async function resolveTargetAppCandidatesFromAppFile(
         return {
             appCandidates: [{
                 appFile: normalizedAppFile,
+                routed: false,
                 discoveredPages: [],
                 discoveryErrors: [{
                     kind: pageDiscoveryFailedErrorKind,
                     file: normalizedAppFile,
-                    message: `Could not read app module "${normalizedAppFile}": ${toErrorMessage(error)}`,
+                    message: `Could not read app module "${normalizedAppFile}": ${
+                        toErrorMessage(error)
+                    }`,
                 }],
             }],
             foundAppDefinition: false,
@@ -430,12 +488,14 @@ async function resolveAppCandidate(
     appResolution: RoutedAppDefinitionResolution,
 ): Promise<AppDiagnosticsCandidate> {
     const appId = readAppDefinitionId(appResolution.appDefinition);
+    const routed = hasNamedProperty(appResolution.appDefinition, "pages");
     const discoveryErrors: CliPageDiscoveryError[] = [];
     if (!appId) {
         discoveryErrors.push({
             kind: pageDiscoveryFailedErrorKind,
             file: appResolution.context.file,
-            message: `App definition in "${appResolution.context.file}" must declare a unique string id.`,
+            message:
+                `App definition in "${appResolution.context.file}" must declare a unique string id.`,
         });
     }
 
@@ -493,6 +553,7 @@ async function resolveAppCandidate(
     return {
         appId,
         appFile: appResolution.context.file,
+        routed,
         discoveredPages: normalizeDiscoveredPages([...discoveredPages]),
         discoveryErrors: discoveryErrors.length > 0 ? discoveryErrors : undefined,
     };
@@ -522,7 +583,8 @@ function applyDuplicateAppIdErrors(
             errors.push({
                 kind: pageDiscoveryFailedErrorKind,
                 file: candidate.appFile,
-                message: `Discovered app id "${appId}" more than once for diagnostics. App ids must be unique per target.`,
+                message:
+                    `Discovered app id "${appId}" more than once for diagnostics. App ids must be unique per target.`,
             });
             candidate.discoveryErrors = errors;
         }
@@ -555,6 +617,60 @@ function flattenCandidateDiscoveryErrors(
     candidates: readonly AppDiagnosticsCandidate[] | undefined,
 ): readonly CliPageDiscoveryError[] {
     return (candidates ?? []).flatMap((candidate) => candidate.discoveryErrors ?? []);
+}
+
+function selectValidTargetAppCandidates(
+    target: Pick<NormalizedMainzTarget, "appId">,
+    candidates: readonly AppDiagnosticsCandidate[] | undefined,
+): AppDiagnosticsCandidate[] {
+    const validCandidates = (candidates ?? [])
+        .filter((candidate) =>
+            candidate.routed && !candidate.discoveryErrors?.length && candidate.appId
+        )
+        .sort(compareAppDiagnosticsCandidates);
+
+    if (!target.appId) {
+        return validCandidates;
+    }
+
+    return validCandidates.filter((candidate) => candidate.appId === target.appId);
+}
+
+function isRoutedTargetInput(target: Pick<NormalizedMainzTarget, "pagesDir">): boolean {
+    return Boolean(target.pagesDir);
+}
+
+function buildTargetAppSelectionErrors(
+    target: Pick<NormalizedMainzTarget, "appFile" | "appId" | "name">,
+    candidates: readonly AppDiagnosticsCandidate[] | undefined,
+): CliPageDiscoveryError[] {
+    if (!target.appId) {
+        return [];
+    }
+
+    const allCandidates = (candidates ?? []).filter((candidate) => candidate.routed);
+    const matchingCandidates = allCandidates.filter((candidate) =>
+        candidate.appId === target.appId
+    );
+    if (matchingCandidates.length === 1 && !matchingCandidates[0]?.discoveryErrors?.length) {
+        return [];
+    }
+
+    if (matchingCandidates.length > 1) {
+        return [{
+            kind: pageDiscoveryFailedErrorKind,
+            file: normalizePathSlashes(resolve(target.appFile ?? "")),
+            message:
+                `Target "${target.name}" selects appId "${target.appId}", but multiple apps with that id were found.`,
+        }];
+    }
+
+    return [{
+        kind: pageDiscoveryFailedErrorKind,
+        file: normalizePathSlashes(resolve(target.appFile ?? "")),
+        message:
+            `Target "${target.name}" selects appId "${target.appId}", but "${target.appFile}" exports no app with that id.`,
+    }];
 }
 
 function isAppDefinitionObjectLiteral(
@@ -907,7 +1023,9 @@ function normalizeDiscoveredPagesResult<
         discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
     },
 >(result: T): T {
-    const discoveredPages = result.discoveredPages ? normalizeDiscoveredPages(result.discoveredPages) : undefined;
+    const discoveredPages = result.discoveredPages
+        ? normalizeDiscoveredPages(result.discoveredPages)
+        : undefined;
 
     return {
         ...result,

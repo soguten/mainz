@@ -14,7 +14,7 @@ export const routedDiCase = matrixTest({
         await assertStoryRoute({
             artifact,
             fixture,
-            path: "/en/stories/signal-from-di/",
+            path: "/stories/signal-from-di/",
             expectedLocale: "en",
             expectedTitle: "DI Atlas",
             expectedSlug: "signal-from-di",

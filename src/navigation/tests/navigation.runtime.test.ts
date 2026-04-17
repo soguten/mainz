@@ -10,9 +10,10 @@ import {
     waitForNavigationReady,
     waitForNavigationStart,
 } from "../../testing/index.ts";
-import type { SpaNavigationRenderContext } from "../index.ts";
+import type { SpaNavigationRenderContext, SpaPageConstructor } from "../index.ts";
 import { inject, singleton } from "../../di/index.ts";
 import { ensureMainzCustomElementDefined } from "../../components/registry.ts";
+import { Locales } from "../../components/page-metadata.ts";
 
 let spaFixturesPromise: Promise<typeof import("./navigation.spa.fixture.ts")> | undefined;
 let snapshotFixturePromise: Promise<typeof import("./navigation.snapshot.fixture.ts")> | undefined;
@@ -49,6 +50,122 @@ async function withSuppressedSpaNavigationFailureLogs<T>(run: () => Promise<T>):
         console.error = originalConsoleError;
     }
 }
+
+function createValidationPages(): {
+    validationPage: SpaPageConstructor;
+    localizedValidationPage: SpaPageConstructor;
+} {
+    class ValidationPage extends HTMLElement {
+        static getTagName(): string {
+            return "x-mainz-navigation-validation-page";
+        }
+    }
+
+    class LocalizedValidationPage extends HTMLElement {
+        static getTagName(): string {
+            return "x-mainz-navigation-localized-validation-page";
+        }
+    }
+
+    (Locales("pt-BR") as (value: unknown) => void)(LocalizedValidationPage);
+
+    return {
+        validationPage: ValidationPage as unknown as SpaPageConstructor,
+        localizedValidationPage: LocalizedValidationPage as unknown as SpaPageConstructor,
+    };
+}
+
+Deno.test("navigation/runtime: defineApp should reject empty app i18n locales", async () => {
+    const { defineApp } = await prepareNavigationTest();
+    const { validationPage } = createValidationPages();
+
+    assertThrows(
+        () =>
+            defineApp({
+                id: "invalid-i18n-app",
+                pages: [validationPage],
+                i18n: {
+                    locales: [],
+                    defaultLocale: "en",
+                },
+            }),
+        Error,
+        "i18n.locales must not be empty",
+    );
+});
+
+Deno.test("navigation/runtime: defineApp should reject defaultLocale outside app i18n locales", async () => {
+    const { defineApp } = await prepareNavigationTest();
+    const { validationPage } = createValidationPages();
+
+    assertThrows(
+        () =>
+            defineApp({
+                id: "invalid-i18n-app",
+                pages: [validationPage],
+                i18n: {
+                    locales: ["pt-BR"],
+                    defaultLocale: "en",
+                },
+            }),
+        Error,
+        'i18n.defaultLocale "en" must be included in i18n.locales',
+    );
+});
+
+Deno.test("navigation/runtime: defineApp should reject legacy app i18n localePrefix auto", async () => {
+    const { defineApp } = await prepareNavigationTest();
+    const { validationPage } = createValidationPages();
+
+    assertThrows(
+        () =>
+            defineApp({
+                id: "invalid-i18n-app",
+                pages: [validationPage],
+                i18n: {
+                    locales: ["en"],
+                    defaultLocale: "en",
+                    localePrefix: "auto",
+                } as never,
+            }),
+        Error,
+        'i18n.localePrefix must be "always" or "except-default"',
+    );
+});
+
+Deno.test("navigation/runtime: defineApp should reject @Locales(...) without app i18n", async () => {
+    const { defineApp } = await prepareNavigationTest();
+    const { localizedValidationPage } = createValidationPages();
+
+    assertThrows(
+        () =>
+            defineApp({
+                id: "invalid-page-locales-app",
+                pages: [localizedValidationPage],
+            }),
+        Error,
+        "declares @Locales(...) but the app does not define i18n",
+    );
+});
+
+Deno.test("navigation/runtime: defineApp should reject @Locales(...) outside app i18n locales", async () => {
+    const { defineApp } = await prepareNavigationTest();
+    const { localizedValidationPage } = createValidationPages();
+
+    assertThrows(
+        () =>
+            defineApp({
+                id: "invalid-page-locales-app",
+                pages: [localizedValidationPage],
+                i18n: {
+                    locales: ["en"],
+                    defaultLocale: "en",
+                },
+            }),
+        Error,
+        'declares locale "pt-BR" outside app i18n.locales',
+    );
+});
 
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
     const { startNavigation } = await prepareNavigationTest();
@@ -967,7 +1084,7 @@ Deno.test("navigation/runtime: startApp should accept defineApp(...) composition
 
     (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
     (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/docs/";
-    (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__ = ["en", "pt"];
+    (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__ = ["en", "pt"];
 
     document.body.innerHTML =
         `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
@@ -975,6 +1092,11 @@ Deno.test("navigation/runtime: startApp should accept defineApp(...) composition
 
     const app = defineApp({
         id: "navigation-runtime-test",
+        i18n: {
+            locales: ["en", "pt"],
+            defaultLocale: "en",
+            localePrefix: "always",
+        },
         pages: [SpaHomePage],
         notFound: SpaNotFoundPage,
     });
@@ -993,6 +1115,75 @@ Deno.test("navigation/runtime: startApp should accept defineApp(...) composition
         document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
         "Home page",
     );
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: startApp should prefer app-owned i18n locales over inferred page locales", async () => {
+    const { defineApp, startApp } = await prepareNavigationTest();
+    const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
+
+    (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
+    (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/docs/";
+    delete (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
+
+    document.body.innerHTML =
+        `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
+    window.history.replaceState(null, "", "/docs/pt-BR/");
+
+    const app = defineApp({
+        id: "navigation-runtime-i18n-test",
+        i18n: {
+            locales: ["en", "pt-BR"],
+            defaultLocale: "en",
+            localePrefix: "always",
+        },
+        pages: [SpaHomePage],
+        notFound: SpaNotFoundPage,
+    });
+    const controller = startApp(app);
+
+    await waitForNavigationReady({
+        mode: "mpa",
+        locale: "pt-BR",
+        navigationType: "initial",
+        message: "Expected app-owned i18n locales to drive locale resolution.",
+    });
+
+    assertEquals(document.documentElement.lang, "pt-BR");
+
+    controller.cleanup();
+});
+
+Deno.test("navigation/runtime: startApp should apply documentLanguage for non-localized apps", async () => {
+    const { defineApp, startApp } = await prepareNavigationTest();
+    const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
+
+    (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
+    (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/";
+    delete (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
+
+    document.documentElement.lang = "";
+    document.body.innerHTML =
+        `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
+    window.history.replaceState(null, "", "/");
+
+    const app = defineApp({
+        id: "navigation-runtime-document-language-test",
+        documentLanguage: "pt-BR",
+        pages: [SpaHomePage],
+        notFound: SpaNotFoundPage,
+    });
+    const controller = startApp(app);
+
+    await waitForNavigationReady({
+        mode: "mpa",
+        locale: "pt-BR",
+        navigationType: "initial",
+        message: "Expected documentLanguage to set the document lang for non-localized apps.",
+    });
+
+    assertEquals(document.documentElement.lang, "pt-BR");
 
     controller.cleanup();
 });
@@ -1215,7 +1406,7 @@ Deno.test("navigation/runtime: should redirect the spa root to the preferred loc
     controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should fallback the spa root redirect to the primary locale when navigator locale is unsupported", async () => {
+Deno.test("navigation/runtime: should stay on the spa root when navigator falls back to the default locale", async () => {
     const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
@@ -1234,20 +1425,20 @@ Deno.test("navigation/runtime: should fallback the spa root redirect to the prim
         mode: "spa",
         locale: "en",
         navigationType: "initial",
-        message: "Expected the root locale fallback redirect to finish navigation for en.",
+        message: "Expected the root default locale fallback to finish navigation for en.",
     });
 
-    assertEquals(window.location.pathname, "/en/");
+    assertEquals(window.location.pathname, "/");
     assertEquals(document.documentElement.lang, "en");
 
     controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should not prefix the spa root for single-locale auto targets", async () => {
+Deno.test("navigation/runtime: should not prefix the spa root for single-locale except-default targets", async () => {
     const { startNavigation } = await prepareNavigationTest();
     const { SpaHomePage } = await loadSpaFixtures();
 
-    (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__ = "auto";
+    (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__ = "except-default";
 
     document.body.innerHTML = '<main id="app"></main>';
     window.history.replaceState(null, "", "/");
@@ -1280,7 +1471,7 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
     (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__ = "en";
     (globalThis as Record<string, unknown>).__MAINZ_SITE_URL__ = "https://mainz.dev";
 
-    document.body.innerHTML = '<main id="app"></main><a id="go-home" href="/en/">Home</a>';
+    document.body.innerHTML = '<main id="app"></main><a id="go-home" href="/">Home</a>';
     window.history.replaceState(null, "", "/pt/docs/intro");
 
     const controller = startNavigation({
@@ -1301,9 +1492,9 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
         document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
         "https://mainz.dev/pt/docs/intro",
     );
-    assertEquals(readAlternateHref("en"), "https://mainz.dev/en/docs/intro");
+    assertEquals(readAlternateHref("en"), "https://mainz.dev/docs/intro");
     assertEquals(readAlternateHref("pt"), "https://mainz.dev/pt/docs/intro");
-    assertEquals(readAlternateHref("x-default"), "https://mainz.dev/en/docs/intro");
+    assertEquals(readAlternateHref("x-default"), "https://mainz.dev/docs/intro");
 
     const homeLink = document.getElementById("go-home");
     assert(homeLink instanceof HTMLElement);
@@ -1316,14 +1507,14 @@ Deno.test("navigation/runtime: should apply generated canonical and hreflang lin
     homeLink.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
     await homeReady;
 
-    assertEquals(window.location.pathname, "/en/");
+    assertEquals(window.location.pathname, "/");
     assertEquals(
         document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
-        "https://mainz.dev/en/",
+        "https://mainz.dev/",
     );
-    assertEquals(readAlternateHref("en"), "https://mainz.dev/en/");
+    assertEquals(readAlternateHref("en"), "https://mainz.dev/");
     assertEquals(readAlternateHref("pt"), "https://mainz.dev/pt/");
-    assertEquals(readAlternateHref("x-default"), "https://mainz.dev/en/");
+    assertEquals(readAlternateHref("x-default"), "https://mainz.dev/");
 
     controller.cleanup();
 });

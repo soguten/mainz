@@ -35,7 +35,6 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
     const fixture = await createFixtureTargetConfig({
         fixtureName: "forbidden-in-ssg-build",
         targetName: "forbidden-in-ssg-build",
-        locales: ["en"],
     });
 
     try {
@@ -80,7 +79,6 @@ Deno.test("cli/build: should warn for ownership-based defer placeholders without
     const fixture = await createFixtureTargetConfig({
         fixtureName: "component-load-ssg-warnings-build",
         targetName: "component-load-ssg-warnings-build",
-        locales: ["en"],
     });
 
     try {
@@ -132,7 +130,6 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "entries-di-build",
         targetName: "entries-di-build",
-        locales: ["en"],
     });
 
     try {

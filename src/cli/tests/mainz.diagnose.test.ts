@@ -22,7 +22,6 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on errors", as
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-routes",
         targetName: "diagnostics-routes",
-        locales: ["en"],
     });
 
     try {
@@ -58,7 +57,6 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-routes",
         targetName: "diagnostics-routes",
-        locales: ["en"],
     });
 
     try {
@@ -94,7 +92,6 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-routes",
         targetName: "diagnostics-routes",
-        locales: ["en"],
     });
 
     try {
@@ -124,7 +121,6 @@ Deno.test("cli/mainz: diagnose should support selecting one app by id", async ()
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        locales: ["en"],
         omitPagesDir: true,
     });
 

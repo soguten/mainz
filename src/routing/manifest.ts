@@ -1,7 +1,11 @@
 import { inferFilesystemRoutes } from "./filesystem.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { I18nConfig } from "../i18n/index.ts";
-import type { PageEntryDefinition, PageHeadDefinition, PageHeadLinkDefinition } from "../components/page.ts";
+import type {
+    PageEntryDefinition,
+    PageHeadDefinition,
+    PageHeadLinkDefinition,
+} from "../components/page.ts";
 import {
     normalizeLocaleTag,
     toLocalePathSegment as toLocalePathSegmentFromI18n,
@@ -54,11 +58,15 @@ interface BuildSsgOutputEntriesOptions {
     routeEntriesByRouteId?: ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>;
 }
 
-export function buildTargetRouteManifest(input: BuildTargetRouteManifestInput): TargetRouteManifest {
+export function buildTargetRouteManifest(
+    input: BuildTargetRouteManifestInput,
+): TargetRouteManifest {
     const target = input.target;
     const targetName = target.name;
 
-    const filesystemConfigured = Boolean(target.pagesDir || input.filesystemPageFiles || input.discoveredPages);
+    const filesystemConfigured = Boolean(
+        target.pagesDir || input.filesystemPageFiles || input.discoveredPages,
+    );
 
     if (!filesystemConfigured) {
         return {
@@ -91,7 +99,7 @@ export function buildSsgOutputEntries(
     options: BuildSsgOutputEntriesOptions = {},
 ): SsgOutputEntry[] {
     const outputEntries: SsgOutputEntry[] = [];
-    const localePrefix = options.localePrefix ?? "auto";
+    const localePrefix = options.localePrefix ?? "except-default";
     const notFoundRoutes = manifest.routes.filter((route) => route.notFound === true);
 
     if (notFoundRoutes.length > 1) {
@@ -101,21 +109,31 @@ export function buildSsgOutputEntries(
     for (const route of manifest.routes) {
         if (route.mode !== "ssg") continue;
 
-        const shouldPrefixLocale = shouldPrefixLocaleForRoute(route.locales, localePrefix);
         const normalizedPath = normalizeRoutePath(route.path);
         const routeEntries = options.routeEntriesByRouteId?.get(route.id);
 
         if (isDynamicRoutePath(normalizedPath) && !routeEntries) {
-            throw new Error(`SSG route "${route.path}" requires entries() to resolve concrete static paths.`);
+            throw new Error(
+                `SSG route "${route.path}" requires entries() to resolve concrete static paths.`,
+            );
         }
 
         for (const locale of route.locales) {
             const localePathSegment = toLocalePathSegment(locale);
-            const localizedEntries = routeEntries?.filter((entry) => entry.locale === locale)
-                ?? [{ locale, params: {} as PageEntryDefinition["params"] }];
+            const shouldPrefixLocale = shouldPrefixLocaleForRouteLocale({
+                locales: route.locales,
+                locale,
+                defaultLocale: options.defaultLocale,
+                localePrefix,
+            });
+            const localizedEntries = routeEntries?.filter((entry) => entry.locale === locale) ??
+                [{ locale, params: {} as PageEntryDefinition["params"] }];
 
             for (const localizedEntry of localizedEntries) {
-                const concreteRoutePath = materializeRoutePath(normalizedPath, localizedEntry.params);
+                const concreteRoutePath = materializeRoutePath(
+                    normalizedPath,
+                    localizedEntry.params,
+                );
                 const renderPath = buildLocalizedRoutePath({
                     routePath: concreteRoutePath,
                     localeSegment: localePathSegment,
@@ -134,7 +152,9 @@ export function buildSsgOutputEntries(
                     locale,
                     outputHtmlPath,
                     renderPath,
-                    ...(Object.keys(localizedEntry.params).length > 0 ? { params: localizedEntry.params } : {}),
+                    ...(Object.keys(localizedEntry.params).length > 0
+                        ? { params: localizedEntry.params }
+                        : {}),
                     notFound: route.notFound === true ? true : undefined,
                 });
             }
@@ -145,7 +165,12 @@ export function buildSsgOutputEntries(
     if (notFoundRoute) {
         const locale = resolveNotFoundOutputLocale(notFoundRoute.locales, options.defaultLocale);
         const localePathSegment = toLocalePathSegment(locale);
-        const shouldPrefixLocale = shouldPrefixLocaleForRoute(notFoundRoute.locales, localePrefix);
+        const shouldPrefixLocale = shouldPrefixLocaleForRouteLocale({
+            locales: notFoundRoute.locales,
+            locale,
+            defaultLocale: options.defaultLocale,
+            localePrefix,
+        });
         const normalizedPath = normalizeRoutePath(notFoundRoute.path);
 
         outputEntries.push({
@@ -172,7 +197,8 @@ export function toLocalePathSegment(locale: string): string {
 export function isDynamicRoutePath(path: string): boolean {
     const normalizedPath = normalizeRoutePath(path);
     return getRouteSegments(normalizedPath).some((segment) =>
-        segment === "*" || segment.startsWith(":") || isBracketDynamicSegment(segment) || segment.startsWith("[...")
+        segment === "*" || segment.startsWith(":") || isBracketDynamicSegment(segment) ||
+        segment.startsWith("[...")
     );
 }
 
@@ -196,7 +222,9 @@ export function materializeRoutePath(path: string, params: PageEntryDefinition["
             const catchAllName = segment.slice(4, -1);
             const catchAll = params[catchAllName];
             if (!catchAll) {
-                throw new Error(`Missing "${catchAllName}" param while expanding dynamic route "${path}".`);
+                throw new Error(
+                    `Missing "${catchAllName}" param while expanding dynamic route "${path}".`,
+                );
             }
 
             return splitCatchAllParam(catchAll).map(encodeRouteParamSegment).join("/");
@@ -206,7 +234,9 @@ export function materializeRoutePath(path: string, params: PageEntryDefinition["
             const paramName = segment.slice(1);
             const value = params[paramName];
             if (!value) {
-                throw new Error(`Missing "${paramName}" param while expanding dynamic route "${path}".`);
+                throw new Error(
+                    `Missing "${paramName}" param while expanding dynamic route "${path}".`,
+                );
             }
 
             return encodeRouteParamSegment(value);
@@ -216,7 +246,9 @@ export function materializeRoutePath(path: string, params: PageEntryDefinition["
             const paramName = segment.slice(1, -1);
             const value = params[paramName];
             if (!value) {
-                throw new Error(`Missing "${paramName}" param while expanding dynamic route "${path}".`);
+                throw new Error(
+                    `Missing "${paramName}" param while expanding dynamic route "${path}".`,
+                );
             }
 
             return encodeRouteParamSegment(value);
@@ -228,7 +260,10 @@ export function materializeRoutePath(path: string, params: PageEntryDefinition["
     return `/${segments.filter(Boolean).join("/")}`;
 }
 
-export function validateRouteEntryParams(path: string, params: PageEntryDefinition["params"]): void {
+export function validateRouteEntryParams(
+    path: string,
+    params: PageEntryDefinition["params"],
+): void {
     const normalizedPath = normalizeRoutePath(path);
     const missingParams = getRequiredRouteParamNames(normalizedPath).filter((paramName) => {
         const value = params[paramName];
@@ -241,12 +276,14 @@ export function validateRouteEntryParams(path: string, params: PageEntryDefiniti
 
     const quotedParams = missingParams.map((paramName) => `"${paramName}"`).join(", ");
     const verb = missingParams.length > 1 ? "are" : "is";
-    throw new Error(`Dynamic route "${path}" requires ${quotedParams}; these params ${verb} missing from entries().`);
+    throw new Error(
+        `Dynamic route "${path}" requires ${quotedParams}; these params ${verb} missing from entries().`,
+    );
 }
 
 export function shouldPrefixLocaleForRoute(
     locales: readonly string[],
-    localePrefix: I18nConfig["localePrefix"] = "auto",
+    localePrefix: I18nConfig["localePrefix"] = "except-default",
 ): boolean {
     if (locales.length === 0) {
         return false;
@@ -257,6 +294,30 @@ export function shouldPrefixLocaleForRoute(
     }
 
     return locales.length > 1;
+}
+
+function shouldPrefixLocaleForRouteLocale(args: {
+    locales: readonly string[];
+    locale: string;
+    defaultLocale?: string;
+    localePrefix?: I18nConfig["localePrefix"];
+}): boolean {
+    if (args.locales.length === 0) {
+        return false;
+    }
+
+    if ((args.localePrefix ?? "except-default") === "always") {
+        return true;
+    }
+
+    const normalizedDefaultLocale = args.defaultLocale
+        ? normalizeLocaleTag(args.defaultLocale).toLowerCase()
+        : undefined;
+    if (!normalizedDefaultLocale) {
+        return args.locales.length > 1;
+    }
+
+    return normalizeLocaleTag(args.locale).toLowerCase() !== normalizedDefaultLocale;
 }
 
 export function resolveLocaleRedirectPath(args: {
@@ -309,7 +370,9 @@ export function resolveLocaleRedirectPath(args: {
         }
     }
 
-    const normalizedDefault = args.defaultLocale ? safeToLocalePathSegment(args.defaultLocale) : undefined;
+    const normalizedDefault = args.defaultLocale
+        ? safeToLocalePathSegment(args.defaultLocale)
+        : undefined;
     if (normalizedDefault && localeByExact.has(normalizedDefault)) {
         return `/${normalizedDefault}/`;
     }
@@ -392,7 +455,8 @@ function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): Candid
     return filesystemRoutes.map((route) => {
         const locales = resolveRouteLocales({
             routeLocales: undefined,
-            targetLocales: target.locales,
+            appLocales: input.appLocales,
+            appLocaleSource: input.appLocaleSource,
             targetName,
             routeLabel: route.path,
         });
@@ -418,7 +482,8 @@ function buildDiscoveredPageCandidate(
     const routeKey = canonicalizeRouteKey(path);
     const locales = resolveRouteLocales({
         routeLocales: page.locales,
-        targetLocales: input.target.locales,
+        appLocales: input.appLocales,
+        appLocaleSource: input.appLocaleSource,
         targetName,
         routeLabel: `${page.file}#${page.exportName}`,
     });
@@ -546,7 +611,9 @@ function validateManifestRoutes(routes: readonly RouteManifestEntry[], targetNam
 
     const notFoundRoute = notFoundRoutes[0];
     if (notFoundRoute && notFoundRoute.mode !== "ssg") {
-        throw new Error(`Target "${targetName}" notFound route "${notFoundRoute.path}" must use mode "ssg".`);
+        throw new Error(
+            `Target "${targetName}" notFound route "${notFoundRoute.path}" must use mode "ssg".`,
+        );
     }
 }
 
@@ -578,23 +645,51 @@ function assignStableRouteIds(routes: RouteManifestEntry[], targetName: string):
 
 function resolveRouteLocales(args: {
     routeLocales?: readonly string[];
-    targetLocales?: readonly string[];
+    appLocales?: readonly string[];
+    appLocaleSource?: "i18n" | "documentLanguage";
     targetName: string;
     routeLabel: string;
 }): string[] {
-    const effectiveLocales = args.routeLocales?.length
-        ? [...args.routeLocales]
-        : args.targetLocales?.length
-            ? [...args.targetLocales]
-            : [];
+    if (args.routeLocales?.length) {
+        validatePageLocalesAgainstAppLocales(args);
+        return dedupeLocales(args.routeLocales.map(normalizeLocaleTag));
+    }
+
+    const effectiveLocales = args.appLocales?.length ? [...args.appLocales] : [];
 
     if (effectiveLocales.length === 0) {
         throw new Error(
-            `Target "${args.targetName}" route "${args.routeLabel}" has no resolved locales (route > target).`,
+            `Target "${args.targetName}" route "${args.routeLabel}" has no resolved app locales.`,
         );
     }
 
     return dedupeLocales(effectiveLocales.map(normalizeLocaleTag));
+}
+
+function validatePageLocalesAgainstAppLocales(args: {
+    routeLocales?: readonly string[];
+    appLocales?: readonly string[];
+    appLocaleSource?: "i18n" | "documentLanguage";
+    targetName: string;
+    routeLabel: string;
+}): void {
+    if (args.appLocaleSource === "documentLanguage" || !args.appLocales?.length) {
+        throw new Error(
+            `Target "${args.targetName}" route "${args.routeLabel}" declares @Locales(...) but its app does not define i18n.`,
+        );
+    }
+
+    const appLocaleKeys = new Set(
+        args.appLocales.map((locale) => normalizeLocaleTag(locale).toLowerCase()),
+    );
+    for (const routeLocale of args.routeLocales ?? []) {
+        const normalizedRouteLocale = normalizeLocaleTag(routeLocale);
+        if (!appLocaleKeys.has(normalizedRouteLocale.toLowerCase())) {
+            throw new Error(
+                `Target "${args.targetName}" route "${args.routeLabel}" declares locale "${routeLocale}" outside app i18n.locales.`,
+            );
+        }
+    }
 }
 
 function dedupeLocales(locales: readonly string[]): string[] {
@@ -683,7 +778,9 @@ function canonicalizeRouteKey(path: string): string {
             catchAllCount += 1;
 
             if (catchAllCount > 1) {
-                throw new Error(`Invalid route path "${path}": multiple catch-all segments are not allowed.`);
+                throw new Error(
+                    `Invalid route path "${path}": multiple catch-all segments are not allowed.`,
+                );
             }
 
             if (index !== segments.length - 1) {
@@ -780,10 +877,15 @@ function buildLocalizedRoutePath(args: {
     return `/${pieces.join("/")}`;
 }
 
-function resolveNotFoundOutputLocale(locales: readonly string[], defaultLocale: string | undefined): string {
+function resolveNotFoundOutputLocale(
+    locales: readonly string[],
+    defaultLocale: string | undefined,
+): string {
     const normalizedDefaultLocale = defaultLocale ? normalizeLocaleTag(defaultLocale) : undefined;
     if (normalizedDefaultLocale) {
-        const matchingLocale = locales.find((locale) => normalizeLocaleTag(locale) === normalizedDefaultLocale);
+        const matchingLocale = locales.find((locale) =>
+            normalizeLocaleTag(locale) === normalizedDefaultLocale
+        );
         if (matchingLocale) {
             return matchingLocale;
         }
@@ -846,6 +948,7 @@ function generateRouteHeadLinks(args: {
             locale: args.locale,
             routeLocales: args.locales,
             localePrefix: args.localePrefix,
+            defaultLocale: args.defaultLocale,
             basePath: args.basePath,
             siteUrl: args.siteUrl,
         }),
@@ -860,6 +963,7 @@ function generateRouteHeadLinks(args: {
                     locale: alternateLocale,
                     routeLocales: args.locales,
                     localePrefix: args.localePrefix,
+                    defaultLocale: args.defaultLocale,
                     basePath: args.basePath,
                     siteUrl: args.siteUrl,
                 }),
@@ -877,6 +981,7 @@ function generateRouteHeadLinks(args: {
                 locale: xDefaultLocale,
                 routeLocales: args.locales,
                 localePrefix: args.localePrefix,
+                defaultLocale: args.defaultLocale,
                 basePath: args.basePath,
                 siteUrl: args.siteUrl,
             }),
@@ -892,17 +997,25 @@ function buildLocalizedRouteHref(args: {
     locale: string;
     routeLocales: readonly string[];
     localePrefix: I18nConfig["localePrefix"] | undefined;
+    defaultLocale: string | undefined;
     basePath?: string;
     siteUrl?: string;
 }): string {
     const normalizedRoutePath = normalizeRouteHeadPath(args.path);
-    const shouldPrefixLocale = shouldPrefixLocaleForRoute(args.routeLocales, args.localePrefix ?? "auto");
+    const shouldPrefixLocale = shouldPrefixLocaleForRouteLocale({
+        locales: args.routeLocales,
+        locale: args.locale,
+        defaultLocale: args.defaultLocale,
+        localePrefix: args.localePrefix,
+    });
     const localePrefixPath = shouldPrefixLocale ? `/${toLocalePathSegment(args.locale)}` : "";
     const href = `${localePrefixPath}${normalizedRoutePath || "/"}`;
     const isLocalizedRootRoute = normalizedRoutePath === "" && localePrefixPath !== "";
     const normalizedHref = isLocalizedRootRoute
         ? `${localePrefixPath}/`
-        : href !== "/" && href.endsWith("/") ? href.slice(0, -1) : href;
+        : href !== "/" && href.endsWith("/")
+        ? href.slice(0, -1)
+        : href;
     const basePathPrefixedHref = prependBasePathToRouteHref(normalizedHref, args.basePath);
 
     if (!args.siteUrl) {

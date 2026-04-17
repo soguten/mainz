@@ -2,6 +2,7 @@
 
 import {
     buildBasePathAppForCombination,
+    buildDocumentLanguageRoutedAppForCombination,
     buildGeneratedTagStabilityAppForCombination,
     buildHeadSeoAppForCombination,
     buildNavigationOverrideAppForCombination,
@@ -32,6 +33,7 @@ export type FixtureId =
     | "RoutedDIClientApp"
     | "RoutedAuthorizationApp"
     | "SingleLocaleRoutedApp"
+    | "DocumentLanguageRoutedApp"
     | "BasePathApp"
     | "HeadSeoApp"
     | "NavigationOverrideApp"
@@ -138,6 +140,22 @@ export const fixtures: Record<FixtureId, MatrixFixtureDefinition> = {
         },
         resolve() {
             return createResolvedFixture("SingleLocaleRoutedApp");
+        },
+    },
+    "DocumentLanguageRoutedApp": {
+        id: "DocumentLanguageRoutedApp",
+        async build(recipe) {
+            const context = await buildDocumentLanguageRoutedAppForCombination(
+                {
+                    mode: recipe.render,
+                    navigation: recipe.navigation,
+                } satisfies TestBuildCombination,
+            );
+
+            return createMatrixArtifact(recipe, context);
+        },
+        resolve() {
+            return createResolvedFixture("DocumentLanguageRoutedApp");
         },
     },
     "BasePathApp": {

@@ -87,28 +87,18 @@ function collectProjectServiceRegistrations(
             }
 
             const callee = readIdentifierLike(node.expression);
-            if (callee !== "startApp" && callee !== "startNavigation") {
+            if (callee !== "startApp") {
                 return;
             }
 
-            const servicesResolutions = callee === "startApp"
-                ? extractServicesExpressionsFromAppDefinition(
-                    node.arguments[0],
-                    fileContext,
-                    fileContexts,
-                    new Set<string>(),
-                    false,
-                    options?.appId,
-                )
-                : (() => {
-                    const servicesExpression = extractServicesExpression(node.arguments[0]);
-                    return servicesExpression
-                        ? {
-                            expression: servicesExpression,
-                            fileContext,
-                        }
-                        : undefined;
-                })();
+            const servicesResolutions = extractServicesExpressionsFromAppDefinition(
+                node.arguments[0],
+                fileContext,
+                fileContexts,
+                new Set<string>(),
+                false,
+                options?.appId,
+            );
             const resolvedExpressions = Array.isArray(servicesResolutions)
                 ? servicesResolutions
                 : servicesResolutions

@@ -16,7 +16,7 @@ Deno.test("public-api/root: should expose the ownership-based surface without le
     assertEquals(typeof mainz.Portal, "function");
     assertEquals(typeof mainz.runCommand, "function");
     assertEquals(typeof mainz.startApp, "function");
-    assertEquals(typeof mainz.startApp, "function");
+    assertEquals("startNavigation" in mainz, false);
     assertEquals(typeof mainz.isRouteVisible, "function");
     assertEquals(typeof mainz.filterVisibleRoutes, "function");
     assertEquals(typeof mainz.findMissingAuthorizationPolicies, "function");

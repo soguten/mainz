@@ -17,7 +17,6 @@ import type {
 import { cliTestsRepoRoot } from "./types.ts";
 
 const engineBuildLocks = new Map<string, Promise<void>>();
-const fixtureTempDirPrefix = ".mainz-fixture-";
 const fixtureCleanupRetryDelaysMs = [25, 75, 150] as const;
 
 export async function buildRoutedAppForCombination(
@@ -97,8 +96,6 @@ export async function buildNavigationOverrideAppForCombination(
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "navigation-override",
         targetName: "navigation-override-app",
-        locales: ["en"],
-        defaultLocale: "en",
     });
 
     const context = await buildFixtureForCombination({
@@ -119,8 +116,6 @@ export async function buildGeneratedTagStabilityAppForCombination(
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "custom-element-generated-tag-stability",
         targetName: "generated-tag-stability-app",
-        locales: ["en"],
-        defaultLocale: "en",
     });
 
     const context = await buildFixtureForCombination({
@@ -140,8 +135,25 @@ export async function buildSingleLocaleRoutedAppForCombination(
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "single-locale-routing",
         targetName: "single-locale-routed-app",
-        locales: ["en"],
-        defaultLocale: "en",
+    });
+
+    const context = await buildFixtureForCombination({
+        fixture,
+        combination,
+    });
+
+    return {
+        ...context,
+        cleanup: fixture.cleanup,
+    };
+}
+
+export async function buildDocumentLanguageRoutedAppForCombination(
+    combination: TestBuildCombination,
+): Promise<TestBuildContext> {
+    const fixture = await createFixtureTargetDefinition({
+        fixtureName: "document-language-routing",
+        targetName: "document-language-routed-app",
     });
 
     const context = await buildFixtureForCombination({
@@ -270,13 +282,8 @@ export async function createFixtureTargetDefinition(args: {
     targetName?: string;
     appFile?: string;
     omitPagesDir?: boolean;
-    locales?: readonly string[];
-    defaultLocale?: string;
-    localePrefix?: "auto" | "always";
     authorizationPolicyNames?: readonly string[];
 }): Promise<FixtureTargetDefinition> {
-    await cleanupStaleFixtureTempDirs(args.fixtureName);
-
     const fixtureRoot = resolve(
         cliTestsRepoRoot,
         "tests",
@@ -298,9 +305,6 @@ export async function createFixtureTargetDefinition(args: {
     const hasBuildConfig = await fileExists(buildConfigPath);
     const includeAppFile = args.appFile !== undefined || await fileExists(requestedAppFile);
 
-    const locales = args.locales ?? ["en", "pt"];
-    const defaultLocale = args.defaultLocale ?? locales[0];
-    const localePrefix = args.localePrefix ?? "auto";
     const authorizationPolicyNames = args.authorizationPolicyNames;
     const targetDefinition = {
         name: targetName,
@@ -310,12 +314,6 @@ export async function createFixtureTargetDefinition(args: {
         ...(includeAppFile ? { appFile: requestedAppFile } : {}),
         ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
         outDir: outputDir,
-        locales,
-        i18n: {
-            defaultLocale,
-            localePrefix,
-            fallbackLocale: defaultLocale,
-        },
         ...(authorizationPolicyNames?.length
             ? {
                 authorization: {
@@ -374,18 +372,6 @@ async function fileExists(path: string): Promise<boolean> {
         return true;
     } catch {
         return false;
-    }
-}
-
-async function cleanupStaleFixtureTempDirs(fixtureName: string): Promise<void> {
-    const stalePrefix = `${fixtureTempDirPrefix}${fixtureName}-`;
-
-    for await (const entry of Deno.readDir(cliTestsRepoRoot)) {
-        if (!entry.isDirectory || !entry.name.startsWith(stalePrefix)) {
-            continue;
-        }
-
-        await removeFixtureTempDir(resolve(cliTestsRepoRoot, entry.name));
     }
 }
 

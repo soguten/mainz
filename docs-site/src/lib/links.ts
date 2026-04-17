@@ -2,31 +2,37 @@ import { toLocalePathSegment } from "mainz/i18n";
 
 export function buildDocsHref(path: string): string {
     const normalizedPath = normalizeRoutePath(path);
-    const targetLocales = readTargetLocales();
-    const activeLocale = resolveActiveLocale(targetLocales);
+    const appLocales = readAppLocales();
+    const activeLocale = resolveActiveLocale(appLocales);
     const localePrefix = readLocalePrefix();
-    const shouldPrefixLocale = localePrefix === "always" || targetLocales.length > 1;
+    const defaultLocale = readDefaultLocale(appLocales);
+    const shouldPrefixLocale = localePrefix === "always" ||
+        (activeLocale !== undefined &&
+            defaultLocale !== undefined &&
+            activeLocale.toLowerCase() !== defaultLocale.toLowerCase());
     const localizedPath = shouldPrefixLocale && activeLocale
-        ? applyLocalePrefix(normalizedPath, activeLocale, targetLocales)
-        : stripLocalePrefix(normalizedPath, targetLocales);
+        ? applyLocalePrefix(normalizedPath, activeLocale, appLocales)
+        : stripLocalePrefix(normalizedPath, appLocales);
 
     return prependBasePath(localizedPath, readBasePath());
 }
 
-function resolveActiveLocale(targetLocales: readonly string[]): string | undefined {
+function resolveActiveLocale(appLocales: readonly string[]): string | undefined {
     const documentLocale = document.documentElement.lang.trim();
     if (documentLocale) {
-        const matchedLocale = targetLocales.find((locale) => locale.toLowerCase() === documentLocale.toLowerCase());
+        const matchedLocale = appLocales.find((locale) =>
+            locale.toLowerCase() === documentLocale.toLowerCase()
+        );
         if (matchedLocale) {
             return matchedLocale;
         }
     }
 
-    return targetLocales[0];
+    return appLocales[0];
 }
 
-function applyLocalePrefix(path: string, locale: string, targetLocales: readonly string[]): string {
-    const routePath = stripLocalePrefix(path, targetLocales);
+function applyLocalePrefix(path: string, locale: string, appLocales: readonly string[]): string {
+    const routePath = stripLocalePrefix(path, appLocales);
     const localeSegment = toLocalePathSegment(locale);
 
     if (routePath === "/") {
@@ -36,14 +42,16 @@ function applyLocalePrefix(path: string, locale: string, targetLocales: readonly
     return `/${localeSegment}${routePath.startsWith("/") ? routePath : `/${routePath}`}`;
 }
 
-function stripLocalePrefix(path: string, targetLocales: readonly string[]): string {
+function stripLocalePrefix(path: string, appLocales: readonly string[]): string {
     const segments = path.split("/").filter(Boolean);
     if (segments.length === 0) {
         return "/";
     }
 
     const [first, ...rest] = segments;
-    const hasLocalePrefix = targetLocales.some((locale) => locale.toLowerCase() === first.toLowerCase());
+    const hasLocalePrefix = appLocales.some((locale) =>
+        locale.toLowerCase() === first.toLowerCase()
+    );
     if (!hasLocalePrefix) {
         return path;
     }
@@ -84,21 +92,29 @@ function readBasePath(): string {
     return "/";
 }
 
-function readTargetLocales(): readonly string[] {
-    if (typeof __MAINZ_TARGET_LOCALES__ !== "undefined" && Array.isArray(__MAINZ_TARGET_LOCALES__)) {
-        return __MAINZ_TARGET_LOCALES__.filter((value): value is string => typeof value === "string");
+function readAppLocales(): readonly string[] {
+    if (typeof __MAINZ_APP_LOCALES__ !== "undefined" && Array.isArray(__MAINZ_APP_LOCALES__)) {
+        return __MAINZ_APP_LOCALES__.filter((value): value is string => typeof value === "string");
     }
 
     const documentLocale = document.documentElement.lang.trim();
     return documentLocale ? [documentLocale] : [];
 }
 
-function readLocalePrefix(): "auto" | "always" {
+function readDefaultLocale(appLocales: readonly string[]): string | undefined {
+    if (typeof __MAINZ_DEFAULT_LOCALE__ !== "undefined" && __MAINZ_DEFAULT_LOCALE__?.trim()) {
+        return __MAINZ_DEFAULT_LOCALE__;
+    }
+
+    return appLocales[0];
+}
+
+function readLocalePrefix(): "except-default" | "always" {
     if (typeof __MAINZ_LOCALE_PREFIX__ !== "undefined") {
         return __MAINZ_LOCALE_PREFIX__;
     }
 
-    return "auto";
+    return "except-default";
 }
 
 function normalizeBasePath(basePath: string): string {

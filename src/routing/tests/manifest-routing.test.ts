@@ -25,14 +25,15 @@ Deno.test("routing/manifest: should allow app-only targets with no routing input
     });
 });
 
-Deno.test("routing/manifest: should resolve locales with precedence page > target", () => {
+Deno.test("routing/manifest: should resolve locales with precedence page > app", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "site",
             rootDir: "./site",
             pagesDir: "./site/pages",
-            locales: ["pt-BR"],
         },
+        appLocales: ["en-US", "pt-BR"],
+        appLocaleSource: "i18n",
         discoveredPages: [
             {
                 file: "./site/pages/from-page.page.tsx",
@@ -53,17 +54,114 @@ Deno.test("routing/manifest: should resolve locales with precedence page > targe
     const byPath = new Map(manifest.routes.map((route) => [route.path, route]));
 
     assertEquals(byPath.get("/from-page")?.locales, ["en-US"]);
-    assertEquals(byPath.get("/from-target")?.locales, ["pt-BR"]);
+    assertEquals(byPath.get("/from-target")?.locales, ["en-US", "pt-BR"]);
 });
 
-Deno.test("routing/manifest: should emit no locale prefix when route locale is inferred from a single target locale", () => {
+Deno.test("routing/manifest: should reject @Locales(...) when app i18n is absent", () => {
+    assertThrows(
+        () =>
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                discoveredPages: [
+                    {
+                        file: "./site/pages/localized.page.tsx",
+                        exportName: "LocalizedPage",
+                        path: "/localized",
+                        mode: "ssg",
+                        locales: ["en"],
+                    },
+                ],
+            }),
+        Error,
+        "declares @Locales(...) but its app does not define i18n",
+    );
+});
+
+Deno.test("routing/manifest: should reject @Locales(...) when app only declares documentLanguage", () => {
+    assertThrows(
+        () =>
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                appLocales: ["pt-BR"],
+                appLocaleSource: "documentLanguage",
+                discoveredPages: [
+                    {
+                        file: "./site/pages/localized.page.tsx",
+                        exportName: "LocalizedPage",
+                        path: "/localized",
+                        mode: "ssg",
+                        locales: ["pt-BR"],
+                    },
+                ],
+            }),
+        Error,
+        "declares @Locales(...) but its app does not define i18n",
+    );
+});
+
+Deno.test("routing/manifest: should reject @Locales(...) outside app i18n locales", () => {
+    assertThrows(
+        () =>
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                appLocales: ["en"],
+                appLocaleSource: "i18n",
+                discoveredPages: [
+                    {
+                        file: "./site/pages/localized.page.tsx",
+                        exportName: "LocalizedPage",
+                        path: "/localized",
+                        mode: "ssg",
+                        locales: ["pt-BR"],
+                    },
+                ],
+            }),
+        Error,
+        'declares locale "pt-BR" outside app i18n.locales',
+    );
+});
+
+Deno.test("routing/manifest: should prefer app locales for pages without @Locales(...)", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "site",
+            rootDir: "./site",
+            pagesDir: "./site/pages",
+        },
+        appLocales: ["en", "pt-BR"],
+        discoveredPages: [
+            {
+                file: "./site/pages/from-app.page.tsx",
+                exportName: "FromApp",
+                path: "/from-app",
+                mode: "ssg",
+            },
+        ],
+    });
+
+    assertEquals(manifest.routes[0]?.locales, ["en", "pt-BR"]);
+});
+
+Deno.test("routing/manifest: should emit no locale prefix when route locale is inferred from a single app locale", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "playground",
             rootDir: "./playground",
             pagesDir: "./playground/pages",
-            locales: ["en"],
         },
+        appLocales: ["en"],
         discoveredPages: [
             {
                 file: "./playground/pages/index.page.tsx",
@@ -94,8 +192,8 @@ Deno.test("routing/manifest: should default filesystem pages to csr when no expl
             name: "playground",
             rootDir: "./playground",
             pagesDir: "./playground/pages",
-            locales: ["en"],
         },
+        appLocales: ["en"],
         filesystemPageFiles: [
             "./playground/pages/index.page.tsx",
         ],
@@ -110,8 +208,8 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
             name: "site",
             rootDir: "./site",
             pagesDir: "./site/pages",
-            locales: ["en"],
         },
+        appLocales: ["en", "pt-BR"],
         discoveredPages: [
             {
                 file: "./site/pages/live.page.tsx",
@@ -138,53 +236,93 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
 });
 
 Deno.test("routing/manifest: should fail when discovered pages conflict in the same locale scope", () => {
-    assertThrows(() => {
-        buildTargetRouteManifest({
-            target: {
-                name: "site",
-                rootDir: "./site",
-                pagesDir: "./site/pages",
-                locales: ["en"],
-            },
-            discoveredPages: [
-                { file: "./site/pages/blog-slug.page.tsx", exportName: "BlogSlugPage", path: "/blog/:slug", mode: "ssg" },
-                { file: "./site/pages/blog-id.page.tsx", exportName: "BlogIdPage", path: "/blog/:id", mode: "csr" },
-            ],
-        });
-    }, Error, "conflicting routes");
+    assertThrows(
+        () => {
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                appLocales: ["en"],
+                discoveredPages: [
+                    {
+                        file: "./site/pages/blog-slug.page.tsx",
+                        exportName: "BlogSlugPage",
+                        path: "/blog/:slug",
+                        mode: "ssg",
+                    },
+                    {
+                        file: "./site/pages/blog-id.page.tsx",
+                        exportName: "BlogIdPage",
+                        path: "/blog/:id",
+                        mode: "csr",
+                    },
+                ],
+            });
+        },
+        Error,
+        "conflicting routes",
+    );
 });
 
 Deno.test("routing/manifest: should reject multiple notFound pages", () => {
-    assertThrows(() => {
-        buildTargetRouteManifest({
-            target: {
-                name: "site",
-                rootDir: "./site",
-                pagesDir: "./site/pages",
-                locales: ["en"],
-            },
-            discoveredPages: [
-                { file: "./site/pages/not-found-a.page.tsx", exportName: "NotFoundA", path: "/404-a", mode: "ssg", notFound: true },
-                { file: "./site/pages/not-found-b.page.tsx", exportName: "NotFoundB", path: "/404-b", mode: "ssg", notFound: true },
-            ],
-        });
-    }, Error, "multiple notFound routes");
+    assertThrows(
+        () => {
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                appLocales: ["en"],
+                discoveredPages: [
+                    {
+                        file: "./site/pages/not-found-a.page.tsx",
+                        exportName: "NotFoundA",
+                        path: "/404-a",
+                        mode: "ssg",
+                        notFound: true,
+                    },
+                    {
+                        file: "./site/pages/not-found-b.page.tsx",
+                        exportName: "NotFoundB",
+                        path: "/404-b",
+                        mode: "ssg",
+                        notFound: true,
+                    },
+                ],
+            });
+        },
+        Error,
+        "multiple notFound routes",
+    );
 });
 
 Deno.test("routing/manifest: should require notFound pages to use ssg mode", () => {
-    assertThrows(() => {
-        buildTargetRouteManifest({
-            target: {
-                name: "site",
-                rootDir: "./site",
-                pagesDir: "./site/pages",
-                locales: ["en"],
-            },
-            discoveredPages: [
-                { file: "./site/pages/not-found.page.tsx", exportName: "NotFoundPage", path: "/404", mode: "csr", notFound: true },
-            ],
-        });
-    }, Error, 'must use mode "ssg"');
+    assertThrows(
+        () => {
+            buildTargetRouteManifest({
+                target: {
+                    name: "site",
+                    rootDir: "./site",
+                    pagesDir: "./site/pages",
+                },
+                appLocales: ["en"],
+                discoveredPages: [
+                    {
+                        file: "./site/pages/not-found.page.tsx",
+                        exportName: "NotFoundPage",
+                        path: "/404",
+                        mode: "csr",
+                        notFound: true,
+                    },
+                ],
+            });
+        },
+        Error,
+        'must use mode "ssg"',
+    );
 });
 
 Deno.test("routing/manifest: should default filesystem pages to csr when no explicit render signal exists", () => {
@@ -193,8 +331,8 @@ Deno.test("routing/manifest: should default filesystem pages to csr when no expl
             name: "docs",
             rootDir: "./docs-site",
             pagesDir: "./docs-site/pages",
-            locales: ["en"],
         },
+        appLocales: ["en"],
         filesystemPageFiles: ["./docs-site/pages/index.page.tsx"],
     });
 
@@ -209,8 +347,8 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             name: "site",
             rootDir: "./site",
             pagesDir: "./site/pages",
-            locales: ["en"],
         },
+        appLocales: ["en", "pt-BR"],
         discoveredPages: [
             {
                 file: "./site/pages/index.page.tsx",
@@ -247,7 +385,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             pattern: "/",
             mode: "csr",
             notFound: undefined,
-            locales: ["en"],
+            locales: ["en", "pt-BR"],
             head: {
                 title: "Home",
                 meta: undefined,
@@ -372,21 +510,35 @@ Deno.test("routing/manifest: should identify dynamic route patterns and material
     assertEquals(isDynamicRoutePath("/docs/[...parts]"), true);
     assertEquals(isDynamicRoutePath("/docs/install"), false);
 
-    assertEquals(materializeRoutePath("/docs/:slug", { slug: "intro guide" }), "/docs/intro%20guide");
-    assertEquals(materializeRoutePath("/docs/[...parts]", { parts: "guides/getting-started" }), "/docs/guides/getting-started");
+    assertEquals(
+        materializeRoutePath("/docs/:slug", { slug: "intro guide" }),
+        "/docs/intro%20guide",
+    );
+    assertEquals(
+        materializeRoutePath("/docs/[...parts]", { parts: "guides/getting-started" }),
+        "/docs/guides/getting-started",
+    );
 });
 
 Deno.test("routing/manifest: should validate required params for dynamic route entries", () => {
     validateRouteEntryParams("/docs/:slug", { slug: "intro" });
     validateRouteEntryParams("/docs/[...parts]", { parts: "guides/getting-started" });
 
-    assertThrows(() => {
-        validateRouteEntryParams("/docs/:slug", {});
-    }, Error, 'requires "slug"');
+    assertThrows(
+        () => {
+            validateRouteEntryParams("/docs/:slug", {});
+        },
+        Error,
+        'requires "slug"',
+    );
 
-    assertThrows(() => {
-        validateRouteEntryParams("/docs/[...parts]", {});
-    }, Error, 'requires "parts"');
+    assertThrows(
+        () => {
+            validateRouteEntryParams("/docs/[...parts]", {});
+        },
+        Error,
+        'requires "parts"',
+    );
 });
 
 Deno.test("routing/manifest: should require entries for dynamic ssg outputs", () => {
@@ -404,9 +556,13 @@ Deno.test("routing/manifest: should require entries for dynamic ssg outputs", ()
         ],
     };
 
-    assertThrows(() => {
-        buildSsgOutputEntries(manifest, "dist/site");
-    }, Error, "requires entries()");
+    assertThrows(
+        () => {
+            buildSsgOutputEntries(manifest, "dist/site");
+        },
+        Error,
+        "requires entries()",
+    );
 });
 
 Deno.test("routing/manifest: should expand dynamic ssg outputs from resolved entries", () => {
@@ -559,8 +715,8 @@ Deno.test("routing/manifest: should emit a root 404.html for notFound routes", (
             target: "site",
             routeId: "not-found",
             locale: "pt-BR",
-            outputHtmlPath: "dist/site/pt-br/404/index.html",
-            renderPath: "/pt-br/404",
+            outputHtmlPath: "dist/site/404/index.html",
+            renderPath: "/404",
             notFound: true,
         },
         {
@@ -568,7 +724,7 @@ Deno.test("routing/manifest: should emit a root 404.html for notFound routes", (
             routeId: "not-found",
             locale: "pt-BR",
             outputHtmlPath: "dist/site/404.html",
-            renderPath: "/pt-br/404",
+            renderPath: "/404",
             notFound: true,
         },
     ]);

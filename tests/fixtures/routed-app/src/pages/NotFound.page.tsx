@@ -38,7 +38,7 @@ function buildAlternateHref(pathname: string, targetLocale: "en" | "pt"): string
 
     if (firstSegment === "pt") {
         const [, ...rest] = segments;
-        return targetLocale === "pt" ? `/${segments.join("/")}` : `/en/${rest.join("/")}`;
+        return targetLocale === "pt" ? `/${segments.join("/")}` : `/${rest.join("/")}`;
     }
 
     if (targetLocale === "pt") {

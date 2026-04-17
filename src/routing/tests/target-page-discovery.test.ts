@@ -19,7 +19,6 @@ Deno.test("routing/target-page-discovery: should classify invalid locale discove
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-invalid-locales",
         targetName: "diagnostics-invalid-locales",
-        locales: ["en"],
     });
 
     try {
@@ -75,7 +74,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di",
         targetName: "diagnostics-di-app-file",
-        locales: ["en"],
         omitPagesDir: true,
     });
 
@@ -86,7 +84,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
                 rootDir: fixture.fixtureRoot,
                 viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                locales: ["en"],
                 outDir: fixture.outputDir,
             }],
         }).targets[0];
@@ -120,7 +117,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di-imported-app",
         targetName: "diagnostics-di-imported-app",
-        locales: ["en"],
         omitPagesDir: true,
     });
 
@@ -131,7 +127,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
                 rootDir: fixture.fixtureRoot,
                 viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                locales: ["en"],
                 outDir: fixture.outputDir,
             }],
         }).targets[0];
@@ -167,7 +162,6 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
     const fixture = await createFixtureTargetConfig({
         fixtureName: "base-path",
         targetName: "base-path-app-file",
-        locales: ["en", "pt"],
         omitPagesDir: true,
     });
 
@@ -178,7 +172,6 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
                 rootDir: fixture.fixtureRoot,
                 viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                locales: ["en", "pt"],
                 outDir: fixture.outputDir,
             }],
         }).targets[0];
@@ -219,7 +212,6 @@ Deno.test("routing/target-page-discovery: should collect all routed app candidat
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        locales: ["en"],
         omitPagesDir: true,
     });
 
@@ -230,7 +222,6 @@ Deno.test("routing/target-page-discovery: should collect all routed app candidat
                 rootDir: fixture.fixtureRoot,
                 viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                locales: ["en"],
                 outDir: fixture.outputDir,
             }],
         }).targets[0];
@@ -293,6 +284,108 @@ Deno.test("routing/target-page-discovery: should collect root-only app candidate
                     pages: 0,
                 },
             ],
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("routing/target-page-discovery: should select the configured appId when resolving discovered pages for a target", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-app",
+        targetName: "diagnostics-multi-app-selected",
+        omitPagesDir: true,
+    });
+
+    try {
+        const target = normalizeMainzConfig({
+            targets: [{
+                name: fixture.targetName,
+                rootDir: fixture.fixtureRoot,
+                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+                appId: "beta-app",
+                outDir: fixture.outputDir,
+            }],
+        }).targets[0];
+
+        const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
+            target,
+        );
+
+        assertEquals(discoveryErrors, undefined);
+        assertEquals(
+            discoveredPages?.map((page) => ({
+                exportName: page.exportName,
+                path: page.path,
+            })),
+            [{
+                exportName: "BetaPage",
+                path: "/beta",
+            }],
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("routing/target-page-discovery: should require appId when app discovery finds multiple routed apps", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-app",
+        targetName: "diagnostics-multi-app-ambiguous",
+        omitPagesDir: true,
+    });
+
+    try {
+        const target = normalizeMainzConfig({
+            targets: [{
+                name: fixture.targetName,
+                rootDir: fixture.fixtureRoot,
+                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+                outDir: fixture.outputDir,
+            }],
+        }).targets[0];
+
+        const { discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(target);
+
+        assertStringIncludes(
+            discoveryErrors?.[0]?.message ?? "",
+            "found multiple routed apps",
+        );
+        assertStringIncludes(
+            discoveryErrors?.[0]?.message ?? "",
+            "Add appId to select one",
+        );
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
+Deno.test("routing/target-page-discovery: should report an explicit error when target appId matches no discovered app", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-multi-app",
+        targetName: "diagnostics-multi-app-missing-selection",
+        omitPagesDir: true,
+    });
+
+    try {
+        const target = normalizeMainzConfig({
+            targets: [{
+                name: fixture.targetName,
+                rootDir: fixture.fixtureRoot,
+                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+                appId: "missing-app",
+                outDir: fixture.outputDir,
+            }],
+        }).targets[0];
+
+        const { discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(target);
+
+        assertStringIncludes(
+            discoveryErrors?.[0]?.message ?? "",
+            'selects appId "missing-app", but',
         );
     } finally {
         await fixture.cleanup();

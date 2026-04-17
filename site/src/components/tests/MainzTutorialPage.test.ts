@@ -44,7 +44,7 @@ Deno.test("site/layout: should render a locale switcher that preserves the curre
 
         assertEquals(activeLocale.textContent?.trim(), "PT");
         assertEquals(portugueseLocale.getAttribute("aria-current"), "true");
-        assertEquals(englishLocale.getAttribute("href"), "/en/");
+        assertEquals(englishLocale.getAttribute("href"), "/");
         assertEquals(portugueseLocale.getAttribute("href"), "/pt/");
     } finally {
         screen.cleanup();
@@ -66,7 +66,7 @@ Deno.test("site/layout: locale helper should preserve the active section when sw
         hash: "#journey",
     });
 
-    assertEquals(englishHref, "/en/#journey");
+    assertEquals(englishHref, "/#journey");
     assertEquals(portugueseHref, "/pt/#trilha");
 });
 
@@ -117,7 +117,7 @@ Deno.test("site/layout: checkpoint and workshop should coexist without cross-tal
 
         screen.input(
             ".sandbox textarea",
-            "import { Component } from \"mainz\";\n\nclass Todo extends Component {\n}\n",
+            'import { Component } from "mainz";\n\nclass Todo extends Component {\n}\n',
         );
         screen.click(".sandbox .button.button-primary");
 

@@ -6,10 +6,7 @@ import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../../src/ssg/happy-dom.ts";
 import { nextTick } from "../../../src/testing/async-testing.ts";
 import { buildTargetWithEngine } from "../../helpers/build.ts";
-import {
-    extractModuleScriptSrc,
-    resolveOutputScriptPath,
-} from "../../helpers/fixture-io.ts";
+import { extractModuleScriptSrc, resolveOutputScriptPath } from "../../helpers/fixture-io.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
 Deno.test("e2e/csr spa: build should emit a direct-load shell that works for localized routes and notFound routes", async () => {
@@ -54,9 +51,9 @@ Deno.test("e2e/csr spa: build should emit a direct-load shell that works for loc
             document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
             "/pt/",
         );
-        assertEquals(readAlternateHref("en"), "/en/");
+        assertEquals(readAlternateHref("en"), "/");
         assertEquals(readAlternateHref("pt"), "/pt/");
-        assertEquals(readAlternateHref("x-default"), "/en/");
+        assertEquals(readAlternateHref("x-default"), "/");
         assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
     }, { url: "https://mainz.local/pt/" });
 

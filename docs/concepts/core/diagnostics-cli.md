@@ -71,7 +71,7 @@ export default {
 ```
 
 That declaration powers diagnostics tooling only. Your real policy implementations still belong in
-`startApp(app, { auth: { policies } })` or `startNavigation({ auth: { policies } })`.
+`startApp(app, { auth: { policies } })`.
 
 ## Human output
 

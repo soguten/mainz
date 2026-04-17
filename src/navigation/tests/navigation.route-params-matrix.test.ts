@@ -21,7 +21,7 @@ const spaStartupCases = [
         expectedMatchedPath: "/docs/intro",
         expectedSlug: "intro",
         expectedLocale: "en",
-        expectedCanonical: "https://mainz.dev/en/docs/intro",
+        expectedCanonical: "https://mainz.dev/docs/intro",
     },
     {
         label: "localized dynamic route with decoded params",
@@ -267,7 +267,7 @@ for (const navigationMode of ["mpa", "enhanced-mpa"] as const satisfies readonly
                 document.head.querySelector('link[rel="canonical"]')?.getAttribute("href"),
                 "https://mainz.dev/pt/docs/intro",
             );
-            assertEquals(readAlternateHref("en"), "https://mainz.dev/en/docs/intro");
+            assertEquals(readAlternateHref("en"), "https://mainz.dev/docs/intro");
             assertEquals(readAlternateHref("pt"), "https://mainz.dev/pt/docs/intro");
 
             controller.cleanup();

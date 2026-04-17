@@ -11,13 +11,21 @@ import {
 } from "../runtime-events.ts";
 import { waitForCustomEvent } from "./async-testing.ts";
 
-let navigationRuntimePromise: Promise<typeof import("../navigation/index.ts")> | undefined;
+type NavigationTestRuntime =
+    & typeof import("../navigation/index.ts")
+    & typeof import("../navigation/internal.ts");
 
-export async function loadNavigationTestRuntime(): Promise<
-    typeof import("../navigation/index.ts")
-> {
+let navigationRuntimePromise: Promise<NavigationTestRuntime> | undefined;
+
+export async function loadNavigationTestRuntime(): Promise<NavigationTestRuntime> {
     if (!navigationRuntimePromise) {
-        navigationRuntimePromise = import("../navigation/index.ts");
+        navigationRuntimePromise = Promise.all([
+            import("../navigation/index.ts"),
+            import("../navigation/internal.ts"),
+        ]).then(([publicRuntime, internalRuntime]) => ({
+            ...publicRuntime,
+            ...internalRuntime,
+        }));
     }
 
     return await navigationRuntimePromise;
@@ -35,7 +43,7 @@ export function resetMainzNavigationTestDom(): void {
     delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     delete (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
     delete (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__;
-    delete (globalThis as Record<string, unknown>).__MAINZ_TARGET_LOCALES__;
+    delete (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
     delete (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__;
     delete (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__;
     delete (globalThis as Record<string, unknown>).__MAINZ_SITE_URL__;
@@ -43,7 +51,7 @@ export function resetMainzNavigationTestDom(): void {
     window.history.replaceState(null, "", "/");
 }
 
-export async function prepareNavigationTest(): Promise<typeof import("../navigation/index.ts")> {
+export async function prepareNavigationTest(): Promise<NavigationTestRuntime> {
     await setupMainzDom();
     resetMainzNavigationTestDom();
     return await loadNavigationTestRuntime();

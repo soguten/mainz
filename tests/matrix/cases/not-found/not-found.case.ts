@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest, type MatrixArtifact, type MatrixFixture } from "../../harness.ts";
+import { type MatrixArtifact, type MatrixFixture, matrixTest } from "../../harness.ts";
 
 export const notFoundCase = matrixTest({
     name: "notFound preserves localized 404 behavior",
@@ -28,7 +28,7 @@ export const notFoundCase = matrixTest({
             expectedLocale: "pt",
             expectedText: "Essa rota nao existe no Mainz.",
             alternateLocale: "en",
-            expectedAlternateHref: "/en/dfdfhsdfsdf",
+            expectedAlternateHref: "/dfdfhsdfsdf",
         });
     },
 });

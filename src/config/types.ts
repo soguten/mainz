@@ -1,5 +1,4 @@
 import { NavigationMode } from "../routing/index.ts";
-import { I18nConfig } from "../i18n/index.ts";
 
 export interface MainzTargetAuthorizationDefinition {
     policyNames?: readonly string[];
@@ -10,8 +9,7 @@ export interface MainzTargetDefinition {
     rootDir: string;
     pagesDir?: string;
     appFile?: string;
-    locales?: readonly string[];
-    i18n?: Omit<I18nConfig<string>, "locales" | "detectLocale">;
+    appId?: string;
     outDir?: string;
     authorization?: MainzTargetAuthorizationDefinition;
     viteConfig: string;

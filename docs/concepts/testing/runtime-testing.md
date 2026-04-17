@@ -20,10 +20,10 @@ For that layer, `mainz/testing` exposes helpers aimed at runtime tests.
 Use `prepareNavigationTest()` when testing navigation/runtime behavior.
 
 ```ts title="navigation.test.ts"
-import { prepareNavigationTest, waitForNavigationReady } from "mainz/testing";
+import { prepareNavigationTest } from "mainz/testing";
 
 Deno.test("spa route resolves docs page", async () => {
-    const { startNavigation } = await prepareNavigationTest();
+    await prepareNavigationTest();
     // ...
 });
 ```
@@ -35,14 +35,27 @@ Deno.test("spa route resolves docs page", async () => {
 
 That makes repeated runtime tests much safer.
 
+`prepareNavigationTest()` still returns the loaded navigation runtime for focused framework tests.
+Application-facing tests usually do not need that return value; they should compose the app with
+`defineApp(...)` and boot it with `startApp(...)`.
+
+For application-facing runtime tests, keep using normal app composition:
+
+- `defineApp(...)` defines the app under test
+- `startApp(app, ...)` boots that app in the prepared DOM
+
+Lower-level navigation bootstrap still exists for framework internals, but it is not the primary
+public testing story anymore.
+
 ## Example: test SPA startup
 
 ```ts title="navigation.test.ts"
 import { assertEquals } from "@std/assert";
+import { defineApp, startApp } from "mainz";
 import { prepareNavigationTest, waitForNavigationReady } from "mainz/testing";
 
 Deno.test("spa route resolves the current path", async () => {
-    const { startNavigation } = await prepareNavigationTest();
+    await prepareNavigationTest();
     const { HomePage, DocsPage } = await import("./fixtures.ts");
 
     document.body.innerHTML = '<main id="app"></main>';
@@ -55,10 +68,12 @@ Deno.test("spa route resolves the current path", async () => {
         navigationType: "initial",
     });
 
-    const controller = startNavigation({
-        mode: "spa",
-        mount: "#app",
+    const app = defineApp({
+        id: "docs-test",
         pages: [HomePage, DocsPage],
+    });
+    const controller = startApp(app, {
+        mount: "#app",
     });
 
     await ready;
@@ -76,10 +91,11 @@ When a page hosts more than one Mainz app, pass the app root as `target`.
 
 ```ts title="multi-app.test.ts"
 import { assertEquals } from "@std/assert";
+import { defineApp, startApp } from "mainz";
 import { prepareNavigationTest, waitForNavigationReady } from "mainz/testing";
 
 Deno.test("left app can be synchronized independently", async () => {
-    const { startNavigation } = await prepareNavigationTest();
+    await prepareNavigationTest();
     const { LeftHomePage, RightHomePage } = await import("./fixtures.ts");
 
     document.body.innerHTML = `
@@ -97,21 +113,26 @@ Deno.test("left app can be synchronized independently", async () => {
         navigationType: "initial",
     });
 
-    startNavigation({
-        mode: "spa",
-        mount: leftApp,
+    const leftController = startApp(defineApp({
+        id: "left-app-test",
         pages: [LeftHomePage],
+    }), {
+        mount: leftApp,
     });
 
-    startNavigation({
-        mode: "spa",
-        mount: rightApp,
+    const rightController = startApp(defineApp({
+        id: "right-app-test",
         pages: [RightHomePage],
+    }), {
+        mount: rightApp,
     });
 
     await leftReady;
 
     assertEquals(leftApp.textContent?.includes("Left"), true);
+
+    leftController.cleanup();
+    rightController.cleanup();
 });
 ```
 
@@ -122,6 +143,7 @@ failure from missing `ready` or a generic timeout.
 
 ```ts title="navigation-error.test.ts"
 import { assertEquals } from "@std/assert";
+import { defineApp, startApp } from "mainz";
 import {
     prepareNavigationTest,
     waitForNavigationError,
@@ -129,7 +151,7 @@ import {
 } from "mainz/testing";
 
 Deno.test("broken route emits navigationerror", async () => {
-    const { startNavigation } = await prepareNavigationTest();
+    await prepareNavigationTest();
     const { HomePage, BrokenPage } = await import("./fixtures.ts");
 
     document.body.innerHTML = '<main id="app"></main><a id="broken" href="/broken">Broken</a>';
@@ -140,10 +162,11 @@ Deno.test("broken route emits navigationerror", async () => {
         navigationType: "initial",
     });
 
-    const controller = startNavigation({
-        mode: "spa",
-        mount: "#app",
+    const controller = startApp(defineApp({
+        id: "broken-route-test",
         pages: [HomePage, BrokenPage],
+    }), {
+        mount: "#app",
     });
 
     await initialReady;
@@ -176,6 +199,7 @@ cancelation from missing `ready`.
 
 ```ts title="navigation-abort.test.ts"
 import { assertEquals } from "@std/assert";
+import { defineApp, startApp } from "mainz";
 import {
     prepareNavigationTest,
     waitForNavigationAbort,
@@ -183,7 +207,7 @@ import {
 } from "mainz/testing";
 
 Deno.test("slow navigation is superseded before costly work finishes", async () => {
-    const { startNavigation } = await prepareNavigationTest();
+    await prepareNavigationTest();
     const { HomePage, DocsPage, SlowPage, waitForSlowLoadStart } = await import("./fixtures.ts");
 
     document.body.innerHTML = `
@@ -200,10 +224,11 @@ Deno.test("slow navigation is superseded before costly work finishes", async () 
         navigationType: "initial",
     });
 
-    const controller = startNavigation({
-        mode: "spa",
-        mount: appRoot,
+    const controller = startApp(defineApp({
+        id: "superseded-navigation-test",
         pages: [HomePage, DocsPage, SlowPage],
+    }), {
+        mount: appRoot,
     });
 
     await initialReady;

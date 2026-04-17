@@ -9,6 +9,11 @@ import {
 
 const app = defineApp({
     id: "entries-di-build",
+    i18n: {
+        locales: ["en"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [EntriesDiStoryPage],
     services: [
         singleton(BuildEntriesConfigService),

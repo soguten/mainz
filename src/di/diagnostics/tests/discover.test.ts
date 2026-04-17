@@ -94,3 +94,26 @@ Deno.test("di/diagnostics: discover should resolve imported default app definiti
         },
     );
 });
+
+Deno.test("di/diagnostics: discover should ignore internal startNavigation bootstrap", async () => {
+    const file = "/virtual/internal-navigation-test.tsx";
+
+    const facts = await discoverDiFacts([
+        {
+            file,
+            source: `
+                import { singleton } from "../di/index.ts";
+                import { startNavigation } from "../navigation/internal.ts";
+
+                class InternalOnlyService {}
+
+                startNavigation({
+                    mode: "spa",
+                    services: [singleton(InternalOnlyService)],
+                });
+            `,
+        },
+    ]);
+
+    assertEquals(facts.registrations, []);
+});

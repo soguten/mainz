@@ -59,7 +59,7 @@ By default, `Portal` uses:
 </Portal>;
 ```
 
-`startApp(...)` and `startNavigation(...)` prepare the app boundary and the default `overlay` layer.
+`startApp(...)` prepares the app boundary and the default `overlay` layer.
 Application code does not need to create that layer manually.
 
 Layer names are scoped to the current Mainz app. That means two apps on the same document can both

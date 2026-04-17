@@ -35,12 +35,6 @@ export interface TargetDefinition {
     name: string;
     rootDir: string;
     pagesDir?: string;
-    locales?: readonly string[];
-    i18n?: {
-        defaultLocale?: string;
-        localePrefix?: "auto" | "always";
-        fallbackLocale?: string;
-    };
     outDir?: string;
 }
 
@@ -65,6 +59,8 @@ export interface TargetRouteManifest {
 
 export interface BuildTargetRouteManifestInput {
     target: TargetDefinition;
+    appLocales?: readonly string[];
+    appLocaleSource?: "i18n" | "documentLanguage";
     filesystemPageFiles?: readonly string[];
     discoveredPages?: readonly DiscoveredPageDefinition[];
 }

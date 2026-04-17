@@ -22,8 +22,7 @@ Deno.test("e2e/csr routing: mpa build should emit localized route shells and hyd
 
     const rootHtmlPath = resolve(repoRoot, "dist/site/csr/index.html");
     const rootHtml = await Deno.readTextFile(rootHtmlPath);
-    assertStringIncludes(rootHtml, 'http-equiv="refresh"');
-    assertStringIncludes(rootHtml, "url=/en/");
+    assertStringIncludes(rootHtml, '<html lang="en">');
 
     const ptRouteHtmlPath = resolve(repoRoot, "dist/site/csr/pt/index.html");
     const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
@@ -56,7 +55,7 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
 
     const handler = createArtifactPreviewHandler(resolve(repoRoot, "dist/site/csr"));
 
-    const enResponse = await handler(new Request("http://127.0.0.1:4173/en/"));
+    const enResponse = await handler(new Request("http://127.0.0.1:4173/"));
     const enHtml = await enResponse.text();
     assertEquals(enResponse.status, 200);
     assertStringIncludes(enHtml, '<html lang="en">');

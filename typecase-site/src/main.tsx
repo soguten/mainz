@@ -78,6 +78,11 @@ import { SwitchPage } from "./pages/components/Switch.page.tsx";
 const app = defineApp({
     id: "typecase-site",
     navigation: "spa",
+    i18n: {
+        locales: ["en"],
+        defaultLocale: "en",
+        localePrefix: "except-default",
+    },
     pages: [
         HomePage,
         TypecaseRootPage,

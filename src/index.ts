@@ -20,7 +20,7 @@ export {
     resolvePageAuthorization,
     Route,
 } from "./components/index.ts";
-export { defineApp, startApp, startNavigation } from "./navigation/index.ts";
+export { defineApp, startApp } from "./navigation/index.ts";
 export { Portal } from "./portal/index.ts";
 export { defineCommand, listCommands, runCommand } from "./commands/index.ts";
 export {
@@ -66,14 +66,12 @@ export type {
     RoutedAppDefinition,
     RoutePathResolver,
     SpaLazyPageDefinition,
-    SpaNavigationOptions,
     SpaNavigationRenderContext,
     SpaPageConstructor,
     SpaPageDefinition,
     SpaPageModule,
     SpaRouteParams,
     StartDefinedAppOptions,
-    StartNavigationOptions,
 } from "./navigation/index.ts";
 export type { PortalLayer, PortalProps, PortalScope } from "./portal/index.ts";
 export type {

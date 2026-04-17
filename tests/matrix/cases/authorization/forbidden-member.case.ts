@@ -10,13 +10,14 @@ export const forbiddenMemberCase = matrixTest({
         { render: "csr", navigation: "spa" },
     ],
     run: async ({ artifact, fixture }) => {
-        const screen = await fixture.render(artifact, "/en/admin");
+        const screen = await fixture.render(artifact, "/admin");
 
         try {
-            assertEquals(window.location.pathname, "/en/admin");
+            assertEquals(window.location.pathname, "/admin");
             assertEquals(document.documentElement.lang, "en");
             assertEquals(
-                document.querySelector("[data-mainz-authorization='forbidden']")?.textContent?.trim(),
+                document.querySelector("[data-mainz-authorization='forbidden']")?.textContent
+                    ?.trim(),
                 "403 Forbidden",
             );
             assertStringIncludes(document.body.textContent ?? "", "403 Forbidden");
