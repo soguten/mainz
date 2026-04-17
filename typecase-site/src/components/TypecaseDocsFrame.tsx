@@ -5,6 +5,7 @@ import {
     Container,
     darkTheme,
     Drawer,
+    GitHubIcon,
     ListIcon,
     MainzIcon,
     Navbar,
@@ -24,6 +25,7 @@ import { buildTypecaseDocHref } from "../lib/links.ts";
 import { getTypecaseSectionTitle, listTypecaseDocs } from "../lib/typecase-docs.tsx";
 import { TypecaseDocsSidebar } from "./TypecaseDocsSidebar.tsx";
 import { typecaseDocsStyles } from "../styles/typecaseDocsStyles.ts";
+import { draculaTheme } from "../lib/dracula-theme.ts";
 
 interface TypecaseDocsFrameProps {
     activeSlug?: string;
@@ -94,7 +96,7 @@ export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
             <TypecaseRoot
                 defaultPreference="auto"
                 storageKey="typecase-site:theme-preference"
-                themes={[editorialTheme, darkTheme]}
+                themes={[editorialTheme, draculaTheme]}
             >
                 <Screen>
                     <Topbar
@@ -149,6 +151,7 @@ export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
                                 </Navbar.Brand>
                                 <Navbar.Actions>
                                     <SearchPalette
+                                        affordance="prominent"
                                         emptyLabel="No components found."
                                         items={this.getSearchItems()}
                                         placeholder="Search Typecase components..."
@@ -157,6 +160,9 @@ export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
                                         triggerLabel="Search docs..."
                                     />
                                     <ThemeSwitch />
+                                    <Anchor href="https://github.com/soguten/mainz">
+                                        <GitHubIcon size={22} />
+                                    </Anchor>
                                 </Navbar.Actions>
                             </Navbar>
                         </Container>

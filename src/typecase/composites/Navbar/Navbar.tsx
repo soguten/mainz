@@ -83,12 +83,65 @@ function renderNavbarSection(baseClassName: string, props: NavbarSectionProps) {
     } = props;
 
     const Tag = as;
+    const responsiveChildAttributes = getResponsiveChildAttributes(children);
 
     return (
-        <Tag {...rest} className={joinClassNames(baseClassName, className)}>
+        <Tag
+            {...rest}
+            className={joinClassNames(baseClassName, className)}
+            {...responsiveChildAttributes}
+        >
             {children}
         </Tag>
     );
+}
+
+function getResponsiveChildAttributes(children: unknown): Record<string, string> {
+    const child = getOnlyElementChild(children);
+
+    if (!child?.classList?.contains("tc-show")) {
+        return {};
+    }
+
+    const attributes: Record<string, string> = {};
+    const below = child.getAttribute("data-below");
+    const above = child.getAttribute("data-above");
+    const betweenStart = child.getAttribute("data-between-start");
+    const betweenEnd = child.getAttribute("data-between-end");
+
+    if (below) {
+        attributes["data-responsive-child-below"] = below;
+    }
+
+    if (above) {
+        attributes["data-responsive-child-above"] = above;
+    }
+
+    if (betweenStart && betweenEnd) {
+        attributes["data-responsive-child-between-start"] = betweenStart;
+        attributes["data-responsive-child-between-end"] = betweenEnd;
+    }
+
+    return attributes;
+}
+
+function getOnlyElementChild(children: unknown): Element | null {
+    const normalizedChildren = Array.isArray(children)
+        ? children.filter((child) => child != null && child !== false)
+        : [children];
+
+    if (normalizedChildren.length !== 1) {
+        return null;
+    }
+
+    const [child] = normalizedChildren;
+    return isElementLike(child) ? child : null;
+}
+
+function isElementLike(value: unknown): value is Element {
+    return typeof value === "object" && value !== null && "nodeType" in value &&
+        (value as { nodeType?: number }).nodeType === 1 && "classList" in value &&
+        "getAttribute" in value;
 }
 
 export const Navbar = Object.assign(NavbarRoot, {

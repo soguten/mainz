@@ -7,11 +7,15 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
     .typecase-root {
         --tc-root-color-text: var(--tc-color-text);
         --tc-root-color-text-muted: var(--tc-color-text-muted);
+        --tc-root-color-link: var(--tc-color-link);
+        --tc-root-color-link-hover: var(--tc-color-link-hover);
         --tc-root-color-surface: var(--tc-color-surface);
         --tc-root-color-surface-subtle: var(--tc-color-surface-subtle);
         --tc-root-color-border: var(--tc-color-border);
         --tc-root-button-primary-bg: var(--tc-button-primary-bg);
         --tc-root-button-primary-text: var(--tc-button-primary-text);
+        --tc-root-button-ghost-text: var(--tc-button-ghost-text);
+        --tc-root-button-ghost-bg-hover: var(--tc-button-ghost-bg-hover);
         color: var(--tc-color-text);
         font-family: var(--tc-font-family);
         font-size: var(--tc-font-size-md);
@@ -514,6 +518,14 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
         justify-content: space-between;
         gap: 0.75rem;
         color: currentColor;
+    }
+
+    .typecase-root .tc-button.tc-command-palette-search-trigger[data-affordance="prominent"] {
+        background: var(--tc-button-ghost-bg-hover);
+    }
+
+    .typecase-root .tc-button.tc-command-palette-search-trigger[data-affordance="prominent"]:hover {
+        background: color-mix(in srgb, var(--tc-button-ghost-bg-hover) 88%, currentColor);
     }
 
     .typecase-root .tc-command-palette-search-trigger-main {
@@ -2466,6 +2478,31 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
         display: none;
     }
 
+    .typecase-root .tc-navbar-start[data-responsive-child-above],
+    .typecase-root .tc-navbar-brand[data-responsive-child-above],
+    .typecase-root .tc-navbar-nav[data-responsive-child-above],
+    .typecase-root .tc-navbar-actions[data-responsive-child-above],
+    .typecase-root .tc-navbar-start[data-responsive-child-between-start][data-responsive-child-between-end],
+    .typecase-root .tc-navbar-brand[data-responsive-child-between-start][data-responsive-child-between-end],
+    .typecase-root .tc-navbar-nav[data-responsive-child-between-start][data-responsive-child-between-end],
+    .typecase-root .tc-navbar-actions[data-responsive-child-between-start][data-responsive-child-between-end] {
+        display: none;
+    }
+
+    .typecase-root :is(
+        .tc-navbar-start,
+        .tc-navbar-brand,
+        .tc-navbar-nav
+    )[data-responsive-child-above] + :is(.tc-navbar-brand, .tc-navbar-nav),
+    .typecase-root :is(
+        .tc-navbar-start,
+        .tc-navbar-brand,
+        .tc-navbar-nav
+    )[data-responsive-child-between-start][data-responsive-child-between-end]
+        + :is(.tc-navbar-brand, .tc-navbar-nav) {
+        margin-left: 0;
+    }
+
     .typecase-root .tc-split {
         display: grid;
         align-items: start;
@@ -2529,8 +2566,48 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
     }
 
     @media (min-width: 768px) {
-        .typecase-root .tc-navbar-start:has(> .tc-show:only-child[data-below="sm"]) {
+        .typecase-root .tc-navbar-start[data-responsive-child-below="sm"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-below="sm"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-below="sm"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-below="sm"] {
             display: none;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        )[data-responsive-child-below="sm"] + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: 0;
+        }
+
+        .typecase-root .tc-navbar-start[data-responsive-child-above="sm"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-above="sm"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-above="sm"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-above="sm"],
+        .typecase-root .tc-navbar-start[data-responsive-child-between-start="sm"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-brand[data-responsive-child-between-start="sm"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-nav[data-responsive-child-between-start="sm"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-actions[data-responsive-child-between-start="sm"][data-responsive-child-between-end] {
+            display: flex;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        ):is(
+            [data-responsive-child-above="sm"],
+            [data-responsive-child-between-start="sm"][data-responsive-child-between-end]
+        ) + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: var(--tc-navbar-gap, var(--tc-space-4));
+        }
+
+        .typecase-root .tc-navbar-start:is(
+            [data-responsive-child-above="sm"],
+            [data-responsive-child-between-start="sm"][data-responsive-child-between-end]
+        ) + .tc-navbar-brand {
+            margin-left: var(--tc-navbar-leading-gap, var(--tc-space-2));
         }
 
         .typecase-root .tc-show[data-below="sm"] {
@@ -2558,8 +2635,55 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
     }
 
     @media (min-width: 960px) {
-        .typecase-root .tc-navbar-start:has(> .tc-show:only-child[data-below="md"]) {
+        .typecase-root .tc-navbar-start[data-responsive-child-below="md"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-below="md"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-below="md"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-below="md"],
+        .typecase-root .tc-navbar-start[data-responsive-child-between-end="sm"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-between-end="sm"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-between-end="sm"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-between-end="sm"] {
             display: none;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        ):is(
+            [data-responsive-child-below="md"],
+            [data-responsive-child-between-end="sm"]
+        ) + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: 0;
+        }
+
+        .typecase-root .tc-navbar-start[data-responsive-child-above="md"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-above="md"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-above="md"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-above="md"],
+        .typecase-root .tc-navbar-start[data-responsive-child-between-start="md"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-brand[data-responsive-child-between-start="md"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-nav[data-responsive-child-between-start="md"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-actions[data-responsive-child-between-start="md"][data-responsive-child-between-end] {
+            display: flex;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        ):is(
+            [data-responsive-child-above="md"],
+            [data-responsive-child-between-start="md"][data-responsive-child-between-end]
+        ) + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: var(--tc-navbar-gap, var(--tc-space-4));
+        }
+
+        .typecase-root .tc-navbar-start:is(
+            [data-responsive-child-above="md"],
+            [data-responsive-child-between-start="md"][data-responsive-child-between-end]
+        ) + .tc-navbar-brand {
+            margin-left: var(--tc-navbar-leading-gap, var(--tc-space-2));
         }
 
         .typecase-root .tc-show[data-below="md"] {
@@ -2591,8 +2715,55 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
     }
 
     @media (min-width: 1200px) {
-        .typecase-root .tc-navbar-start:has(> .tc-show:only-child[data-below="lg"]) {
+        .typecase-root .tc-navbar-start[data-responsive-child-below="lg"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-below="lg"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-below="lg"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-below="lg"],
+        .typecase-root .tc-navbar-start[data-responsive-child-between-end="md"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-between-end="md"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-between-end="md"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-between-end="md"] {
             display: none;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        ):is(
+            [data-responsive-child-below="lg"],
+            [data-responsive-child-between-end="md"]
+        ) + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: 0;
+        }
+
+        .typecase-root .tc-navbar-start[data-responsive-child-above="lg"],
+        .typecase-root .tc-navbar-brand[data-responsive-child-above="lg"],
+        .typecase-root .tc-navbar-nav[data-responsive-child-above="lg"],
+        .typecase-root .tc-navbar-actions[data-responsive-child-above="lg"],
+        .typecase-root .tc-navbar-start[data-responsive-child-between-start="lg"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-brand[data-responsive-child-between-start="lg"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-nav[data-responsive-child-between-start="lg"][data-responsive-child-between-end],
+        .typecase-root .tc-navbar-actions[data-responsive-child-between-start="lg"][data-responsive-child-between-end] {
+            display: flex;
+        }
+
+        .typecase-root :is(
+            .tc-navbar-start,
+            .tc-navbar-brand,
+            .tc-navbar-nav
+        ):is(
+            [data-responsive-child-above="lg"],
+            [data-responsive-child-between-start="lg"][data-responsive-child-between-end]
+        ) + :is(.tc-navbar-brand, .tc-navbar-nav) {
+            margin-left: var(--tc-navbar-gap, var(--tc-space-4));
+        }
+
+        .typecase-root .tc-navbar-start:is(
+            [data-responsive-child-above="lg"],
+            [data-responsive-child-between-start="lg"][data-responsive-child-between-end]
+        ) + .tc-navbar-brand {
+            margin-left: var(--tc-navbar-leading-gap, var(--tc-space-2));
         }
 
         .typecase-root .tc-show[data-below="lg"] {
@@ -2927,61 +3098,61 @@ export const TYPECASE_BASE_STYLES = /*css*/ `
     }
 
     .typecase-root .tc-topbar {
-        --tc-color-text: var(--tc-topbar-text, var(--tc-color-text));
-        --tc-color-link: var(--tc-topbar-link, var(--tc-color-link));
-        --tc-color-link-hover: var(--tc-topbar-link-hover, var(--tc-color-link-hover));
-        --tc-button-ghost-text: var(--tc-topbar-ghost-text, var(--tc-button-ghost-text));
+        --tc-color-text: var(--tc-topbar-text, var(--tc-root-color-text));
+        --tc-color-link: var(--tc-topbar-link, var(--tc-root-color-link));
+        --tc-color-link-hover: var(--tc-topbar-link-hover, var(--tc-root-color-link-hover));
+        --tc-button-ghost-text: var(--tc-topbar-ghost-text, var(--tc-root-button-ghost-text));
         --tc-button-ghost-bg-hover: var(
             --tc-topbar-ghost-bg-hover,
-            var(--tc-button-ghost-bg-hover)
+            var(--tc-root-button-ghost-bg-hover)
         );
-        border-bottom: 1px solid var(--tc-topbar-border, var(--tc-color-border));
-        background: var(--tc-topbar-bg, var(--tc-color-surface));
-        color: var(--tc-topbar-text, var(--tc-color-text));
+        border-bottom: 1px solid var(--tc-topbar-border, var(--tc-root-color-border));
+        background: var(--tc-topbar-bg, var(--tc-root-color-surface));
+        color: var(--tc-topbar-text, var(--tc-root-color-text));
     }
 
     .typecase-root .tc-topbar[data-variant="default"] {
-        --tc-topbar-bg: var(--tc-topbar-default-bg, var(--tc-color-surface));
-        --tc-topbar-border: var(--tc-topbar-default-border, var(--tc-color-border));
-        --tc-topbar-text: var(--tc-topbar-default-text, var(--tc-color-text));
-        --tc-topbar-link: var(--tc-topbar-default-link, var(--tc-color-link));
+        --tc-topbar-bg: var(--tc-topbar-default-bg, var(--tc-root-color-surface));
+        --tc-topbar-border: var(--tc-topbar-default-border, var(--tc-root-color-border));
+        --tc-topbar-text: var(--tc-topbar-default-text, var(--tc-root-color-text));
+        --tc-topbar-link: var(--tc-topbar-default-link, var(--tc-root-color-link));
         --tc-topbar-link-hover: var(
             --tc-topbar-default-link-hover,
-            var(--tc-color-link-hover)
+            var(--tc-root-color-link-hover)
         );
         --tc-topbar-ghost-text: var(
             --tc-topbar-default-ghost-text,
-            var(--tc-button-ghost-text)
+            var(--tc-root-button-ghost-text)
         );
         --tc-topbar-ghost-bg-hover: var(
             --tc-topbar-default-ghost-bg-hover,
-            var(--tc-button-ghost-bg-hover)
+            var(--tc-root-button-ghost-bg-hover)
         );
     }
 
     .typecase-root .tc-topbar[data-variant="subtle"] {
-        --tc-topbar-bg: var(--tc-topbar-subtle-bg, var(--tc-color-surface-subtle));
-        --tc-topbar-border: var(--tc-topbar-subtle-border, var(--tc-color-border));
-        --tc-topbar-text: var(--tc-topbar-subtle-text, var(--tc-color-text));
-        --tc-topbar-link: var(--tc-topbar-subtle-link, var(--tc-color-link));
+        --tc-topbar-bg: var(--tc-topbar-subtle-bg, var(--tc-root-color-surface-subtle));
+        --tc-topbar-border: var(--tc-topbar-subtle-border, var(--tc-root-color-border));
+        --tc-topbar-text: var(--tc-topbar-subtle-text, var(--tc-root-color-text));
+        --tc-topbar-link: var(--tc-topbar-subtle-link, var(--tc-root-color-link));
         --tc-topbar-link-hover: var(
             --tc-topbar-subtle-link-hover,
-            var(--tc-color-link-hover)
+            var(--tc-root-color-link-hover)
         );
         --tc-topbar-ghost-text: var(
             --tc-topbar-subtle-ghost-text,
-            var(--tc-button-ghost-text)
+            var(--tc-root-button-ghost-text)
         );
         --tc-topbar-ghost-bg-hover: var(
             --tc-topbar-subtle-ghost-bg-hover,
-            var(--tc-button-ghost-bg-hover)
+            var(--tc-root-button-ghost-bg-hover)
         );
     }
 
     .typecase-root .tc-topbar[data-variant="strong"] {
-        --tc-topbar-bg: var(--tc-topbar-strong-bg, var(--tc-color-text));
-        --tc-topbar-border: var(--tc-topbar-strong-border, var(--tc-color-text));
-        --tc-topbar-text: var(--tc-topbar-strong-text, var(--tc-color-surface));
+        --tc-topbar-bg: var(--tc-topbar-strong-bg, var(--tc-root-color-text));
+        --tc-topbar-border: var(--tc-topbar-strong-border, var(--tc-root-color-text));
+        --tc-topbar-text: var(--tc-topbar-strong-text, var(--tc-root-color-surface));
         --tc-topbar-link: var(--tc-topbar-strong-link, var(--tc-topbar-strong-text));
         --tc-topbar-link-hover: var(
             --tc-topbar-strong-link-hover,

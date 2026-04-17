@@ -1,8 +1,5 @@
 import { Component, defineCommand } from "mainz";
-import {
-    cleanupAppCommandRegistry,
-    ensureAppCommandRegistry,
-} from "../../commands/runtime.ts";
+import { cleanupAppCommandRegistry, ensureAppCommandRegistry } from "../../commands/runtime.ts";
 import {
     Accordion,
     Alert,
@@ -130,6 +127,11 @@ export class TypecaseRenderFixture extends Component<unknown, { commandRuns: num
                             zIndex={30}
                         >
                             <Navbar minHeight="3.5rem">
+                                <Navbar.Start data-testid="responsive-navbar-start">
+                                    <Show below="md">
+                                        <Button size="sm" variant="ghost">Menu</Button>
+                                    </Show>
+                                </Navbar.Start>
                                 <Navbar.Brand>
                                     <Anchor href="/">Typecase</Anchor>
                                 </Navbar.Brand>
@@ -623,6 +625,7 @@ export class TypecaseRenderFixture extends Component<unknown, { commandRuns: num
                             <Snippet language="ts">{`const greeting = "hello";`}</Snippet>
 
                             <SearchPalette
+                                affordance="prominent"
                                 data-testid="search-palette"
                                 items={[
                                     {

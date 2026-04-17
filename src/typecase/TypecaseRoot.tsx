@@ -127,7 +127,8 @@ export class TypecaseRoot extends Component<TypecaseRootProps, TypecaseRootState
 
     protected override initState(): TypecaseRootState {
         return {
-            preference: readStoredPreference(this.props.storageKey) ?? resolveDefaultPreference(this.props),
+            preference: readStoredPreference(this.props.storageKey) ??
+                resolveDefaultPreference(this.props),
         };
     }
 
@@ -273,7 +274,11 @@ export class TypecaseRoot extends Component<TypecaseRootProps, TypecaseRootState
                 data-typecase-theme-available={availableSchemes.join(",")}
                 data-typecase-theme-preference={preference}
                 data-typecase-theme-scheme={resolvedScheme}
-                style={mergeStyleAttributes(toThemeStyleAttribute(theme), style)}
+                style={mergeStyleAttributes(
+                    toThemeStyleAttribute(theme),
+                    `color-scheme: ${resolvedScheme}`,
+                    style,
+                )}
             >
                 {children}
             </div>

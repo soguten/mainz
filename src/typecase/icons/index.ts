@@ -11,3 +11,4 @@ export { CaretDownFillIcon } from "./CaretDownFill.tsx";
 export type { IconProps } from "./types.ts";
 export { TypecaseIcon } from "./TypecaseIcon.tsx";
 export { MainzIcon } from "./MainzIcon.tsx";
+export { GitHubIcon } from "./GitHubIcon.tsx";

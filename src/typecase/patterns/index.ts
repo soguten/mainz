@@ -36,7 +36,11 @@ export type {
 export { Snippet } from "./Snippet/index.ts";
 export type { SnippetProps } from "./Snippet/index.ts";
 export { SearchPalette } from "./SearchPalette/index.ts";
-export type { SearchPaletteItem, SearchPaletteProps } from "./SearchPalette/index.ts";
+export type {
+    SearchPaletteAffordance,
+    SearchPaletteItem,
+    SearchPaletteProps,
+} from "./SearchPalette/index.ts";
 export { ThemeSwitch } from "./ThemeSwitch/index.ts";
 export type { ThemeSwitchProps } from "./ThemeSwitch/index.ts";
 export { Tooltip } from "./Tooltip/index.ts";

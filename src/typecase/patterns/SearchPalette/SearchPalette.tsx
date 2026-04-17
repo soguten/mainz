@@ -19,7 +19,10 @@ export interface SearchPaletteItem {
     title: string;
 }
 
+export type SearchPaletteAffordance = "default" | "prominent";
+
 export interface SearchPaletteProps {
+    affordance?: SearchPaletteAffordance;
     className?: string;
     emptyLabel?: string;
     items?: readonly SearchPaletteItem[];
@@ -200,6 +203,7 @@ export class SearchPalette extends Component<SearchPaletteProps, SearchPaletteSt
 
     override render(): HTMLElement | DocumentFragment {
         const {
+            affordance = "default",
             className,
             emptyLabel = "No results found.",
             items: _items,
@@ -223,6 +227,7 @@ export class SearchPalette extends Component<SearchPaletteProps, SearchPaletteSt
                 <Button
                     aria-haspopup="dialog"
                     className="tc-command-palette-search-trigger"
+                    data-affordance={affordance}
                     onClick={this.open}
                     size="sm"
                     type="button"

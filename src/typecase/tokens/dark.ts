@@ -23,6 +23,7 @@ export const darkThemeVars = {
     "--tc-space-5": "1.25rem",
     "--tc-space-6": "1.5rem",
     "--tc-space-8": "2rem",
+    "--tc-radius-sm": "0.375rem",
     "--tc-radius-md": "0.625rem",
     "--tc-radius-lg": "0.875rem",
     "--tc-control-height-sm": "2.125rem",

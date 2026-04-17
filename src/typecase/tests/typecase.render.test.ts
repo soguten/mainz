@@ -15,6 +15,7 @@ Deno.test("typecase/render: should render the light theme root and primitives", 
     const root = screen.getBySelector("[data-typecase-theme='light']");
     assertEquals(root.getAttribute("data-typecase-theme"), "light");
     assertStringIncludes(root.getAttribute("style") ?? "", "--tc-color-text");
+    assertStringIncludes(root.getAttribute("style") ?? "", "color-scheme: light");
 
     const button = screen.getBySelector("[data-testid='primary-action']");
     assertStringIncludes(button.getAttribute("class") ?? "", "tc-button");
@@ -22,6 +23,12 @@ Deno.test("typecase/render: should render the light theme root and primitives", 
     assertStringIncludes(
         screen.getBySelector("[data-testid='screen']").getAttribute("class") ?? "",
         "tc-screen",
+    );
+    assertEquals(
+        screen.getBySelector("[data-testid='responsive-navbar-start']").getAttribute(
+            "data-responsive-child-below",
+        ),
+        "md",
     );
 
     const input = screen.getBySelector("[data-testid='typecase-input']");
@@ -481,6 +488,11 @@ Deno.test("typecase/render: should render composite subcomponents and pattern be
             .getAttribute("class") ?? "",
         "tc-command-palette-search-trigger-main",
     );
+    assertEquals(
+        screen.getBySelector("[data-testid='search-palette'] .tc-command-palette-search-trigger")
+            .getAttribute("data-affordance"),
+        "prominent",
+    );
     assertEquals(screen.getBySelector("[data-testid='command-run-count']").textContent, "0");
     assertEquals(
         screen.getBySelector("[data-testid='command-launcher'] .tc-shortcut").getAttribute(
@@ -646,6 +658,7 @@ Deno.test("typecase/render: should support the dark theme and layout components"
     const darkRoot = screen.getBySelector(".typecase-root[data-testid='dark-preview-root']");
     assertEquals(darkRoot.getAttribute("data-typecase-theme"), "dark");
     assertStringIncludes(darkRoot.getAttribute("style") ?? "", "--tc-card-bg: #111b2e");
+    assertStringIncludes(darkRoot.getAttribute("style") ?? "", "color-scheme: dark");
 
     assertEquals(
         screen.getBySelector("[data-testid='dark-preview-title']").textContent,

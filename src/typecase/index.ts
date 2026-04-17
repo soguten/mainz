@@ -19,6 +19,7 @@ export {
     SearchIcon,
     SunIcon,
     TypecaseIcon,
+    GitHubIcon,
 } from "./icons/index.ts";
 export type { IconProps } from "./icons/index.ts";
 export {

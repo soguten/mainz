@@ -25,6 +25,7 @@ export const editorialThemeVars = {
     "--tc-space-5": "1.5rem",
     "--tc-space-6": "1.75rem",
     "--tc-space-8": "2.5rem",
+    "--tc-radius-sm": "0.5rem",
     "--tc-radius-md": "1rem",
     "--tc-radius-lg": "1.6rem",
     "--tc-control-height-sm": "2.2rem",
