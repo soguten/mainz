@@ -89,6 +89,33 @@ Deno.test("diagnostics/routing: target evaluation should collect root-only app c
     }
 });
 
+Deno.test("diagnostics/routing: target evaluation should read app-owned authorization policy names", async () => {
+    const fixture = await createFixtureTargetConfig({
+        fixtureName: "diagnostics-authorization-policies",
+        targetName: "diagnostics-authorization-policies",
+    });
+
+    try {
+        const target = normalizeMainzConfig({
+            targets: [{
+                name: fixture.targetName,
+                rootDir: fixture.fixtureRoot,
+                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+                outDir: fixture.outputDir,
+            }],
+        }).targets[0];
+
+        const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(target);
+
+        assertEquals(evaluations.length, 1);
+        assertEquals(evaluations[0]?.appId, "diagnostics-authorization-policies");
+        assertEquals(evaluations[0]?.authorizationPolicyNames, ["org-member"]);
+    } finally {
+        await fixture.cleanup();
+    }
+});
+
 Deno.test("diagnostics/routing: target evaluation should report when a discovered routed app is missing id", async () => {
     const tempRoot = await Deno.makeTempDir({
         dir: cliTestsRepoRoot,

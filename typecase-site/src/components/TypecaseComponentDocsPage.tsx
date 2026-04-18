@@ -9,6 +9,9 @@ import {
     Text,
     Title,
     Surface,
+    Inline,
+    Button,
+    Spacer,
 } from "mainz/typecase";
 import { getTypecaseDocBySlug, getTypecaseSectionTitle } from "../lib/typecase-docs.tsx";
 import { TypecaseDocsFrame } from "./TypecaseDocsFrame.tsx";
@@ -51,9 +54,11 @@ export function TypecaseComponentDocsPage(props: TypecaseComponentDocsPageProps)
                 <Split.Main>
                     <Stack className="typecase-docs-content-flow" gap="xl">
                         <div class="typecase-docs-hero">
+
                             <Text as="p" tone="muted" weight="semibold">
                                 {getTypecaseSectionTitle(doc.sectionId)}
                             </Text>
+
                             <Title as="h1" size="xl">{doc.title}</Title>
                             <Text as="p" tone="muted" style="max-width: 68ch;">
                                 {doc.summary}

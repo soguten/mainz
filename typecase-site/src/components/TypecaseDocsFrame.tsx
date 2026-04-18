@@ -19,6 +19,11 @@ import {
     Topbar,
     TypecaseIcon,
     TypecaseRoot,
+    Text,
+    Spacer,
+    Inline,
+    Divider,
+    Stack,
 } from "mainz/typecase";
 import { editorialTheme } from "../lib/editorial-theme.ts";
 import { buildTypecaseDocHref } from "../lib/links.ts";
@@ -195,7 +200,7 @@ export class TypecaseDocsFrame extends Component<TypecaseDocsFrameProps> {
                                 {this.props.children}
                             </Split.Main>
                         </Split>
-                    </Container>
+                    </Container>                    
                 </Screen>
             </TypecaseRoot>
         );

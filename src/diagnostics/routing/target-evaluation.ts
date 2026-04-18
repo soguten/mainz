@@ -6,6 +6,7 @@ import {
     resolveTargetAppDiscoveryForTarget,
     resolveTargetDiscoveredPages,
 } from "../../routing/target-page-discovery.ts";
+import { readStaticAppAuthorizationPolicyNames } from "./app-authorization-facts.ts";
 
 export interface TargetDiagnosticsEvaluation {
     appId?: string;
@@ -42,10 +43,12 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
                     );
                 }
 
-                return selectedCandidates.map(toTargetDiagnosticsEvaluation);
+                return await Promise.all(
+                    selectedCandidates.map(toTargetDiagnosticsEvaluation),
+                );
             }
 
-            return appCandidates.map(toTargetDiagnosticsEvaluation);
+            return await Promise.all(appCandidates.map(toTargetDiagnosticsEvaluation));
         }
 
         if (selectedAppId) {
@@ -64,12 +67,15 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
     }];
 }
 
-function toTargetDiagnosticsEvaluation(
+async function toTargetDiagnosticsEvaluation(
     candidate: AppDiscoveryCandidate,
-): TargetDiagnosticsEvaluation {
+): Promise<TargetDiagnosticsEvaluation> {
     return {
         appId: candidate.appId,
-        authorizationPolicyNames: candidate.authorizationPolicyNames,
+        authorizationPolicyNames: await readStaticAppAuthorizationPolicyNames({
+            appFile: candidate.appFile,
+            appId: candidate.appId,
+        }),
         discoveredPages: candidate.discoveryErrors?.length ? [] : [...candidate.discoveredPages],
         discoveryErrors: candidate.discoveryErrors,
     };
