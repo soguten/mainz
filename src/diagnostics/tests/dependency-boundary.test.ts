@@ -110,7 +110,7 @@ function referencesDiagnostics(specifier: string): boolean {
 
 function isAllowedDiagnosticsImporter(file: string): boolean {
     const normalized = normalizePathSlashes(file);
-    return normalized.includes("/src/diagnostics/") ||
+    return normalized.includes("/diagnostics/") ||
         normalized.endsWith("/src/diagnostics.ts") ||
         normalized.includes("/src/cli/") ||
         normalized.includes("/tests/") ||

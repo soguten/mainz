@@ -1,27 +1,27 @@
 import { ts } from "@/compiler/typescript.ts";
-import { authorizationPolicyNotRegisteredComponentRuleCode } from "../../components/diagnostics/rules/authorization-policy-not-registered.rule.ts";
-import { componentAllowAnonymousNotSupportedRuleCode } from "../../components/diagnostics/rules/component-allow-anonymous-not-supported.rule.ts";
-import { componentAuthorizationSsgWarningRuleCode } from "../../components/diagnostics/rules/component-authorization-ssg-warning.rule.ts";
-import { componentBlockingPlaceholderConflictRuleCode } from "../../components/diagnostics/rules/component-blocking-placeholder-conflict.rule.ts";
-import { componentErrorWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-error-without-load.rule.ts";
-import { componentLoadMissingPlaceholderRuleCode } from "../../components/diagnostics/rules/component-load-missing-placeholder.rule.ts";
-import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "../../components/diagnostics/rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
-import { componentPlaceholderWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-placeholder-without-load.rule.ts";
-import { componentRenderStrategyWithoutLoadRuleCode } from "../../components/diagnostics/rules/component-render-strategy-without-load.rule.ts";
-import { diRegistrationCycleRuleCode } from "../../di/diagnostics/rules/di-registration-cycle.rule.ts";
-import { diServiceDependencyNotRegisteredRuleCode } from "../../di/diagnostics/rules/di-service-dependency-not-registered.rule.ts";
-import { diTokenNotRegisteredRuleCode } from "../../di/diagnostics/rules/di-token-not-registered.rule.ts";
-import { authorizationPolicyNotRegisteredPageDiagnosticCode } from "../../routing/diagnostics/rules/authorization-policy-not-registered.rule.ts";
-import { dynamicSsgInvalidEntriesDiagnosticCode } from "../../routing/diagnostics/rules/dynamic-ssg-invalid-entries.rule.ts";
-import { dynamicSsgMissingEntriesDiagnosticCode } from "../../routing/diagnostics/rules/dynamic-ssg-missing-entries.rule.ts";
-import { dynamicSsgMissingLoadDiagnosticCode } from "../../routing/diagnostics/rules/dynamic-ssg-missing-load.rule.ts";
-import { invalidLocaleTagDiagnosticCode } from "../../routing/diagnostics/rules/invalid-locale-tag.rule.ts";
-import { multipleNotFoundPagesDiagnosticCode } from "../../routing/diagnostics/rules/multiple-not-found-pages.rule.ts";
-import { notFoundMustNotDefineRouteDiagnosticCode } from "../../routing/diagnostics/rules/not-found-must-not-define-route.rule.ts";
-import { notFoundMustUseSsgDiagnosticCode } from "../../routing/diagnostics/rules/not-found-must-use-ssg.rule.ts";
-import { pageAuthorizationAnonymousConflictDiagnosticCode } from "../../routing/diagnostics/rules/page-authorization-anonymous-conflict.rule.ts";
-import { pageAuthorizationSsgWarningDiagnosticCode } from "../../routing/diagnostics/rules/page-authorization-ssg-warning.rule.ts";
-import { pageStaticLoadUnsupportedDiagnosticCode } from "../../routing/diagnostics/rules/page-static-load-unsupported.rule.ts";
+import { authorizationPolicyNotRegisteredComponentRuleCode } from "../components/rules/authorization-policy-not-registered.rule.ts";
+import { componentAllowAnonymousNotSupportedRuleCode } from "../components/rules/component-allow-anonymous-not-supported.rule.ts";
+import { componentAuthorizationSsgWarningRuleCode } from "../components/rules/component-authorization-ssg-warning.rule.ts";
+import { componentBlockingPlaceholderConflictRuleCode } from "../components/rules/component-blocking-placeholder-conflict.rule.ts";
+import { componentErrorWithoutLoadRuleCode } from "../components/rules/component-error-without-load.rule.ts";
+import { componentLoadMissingPlaceholderRuleCode } from "../components/rules/component-load-missing-placeholder.rule.ts";
+import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "../components/rules/component-placeholder-in-ssg-missing-placeholder.rule.ts";
+import { componentPlaceholderWithoutLoadRuleCode } from "../components/rules/component-placeholder-without-load.rule.ts";
+import { componentRenderStrategyWithoutLoadRuleCode } from "../components/rules/component-render-strategy-without-load.rule.ts";
+import { diRegistrationCycleRuleCode } from "../di/rules/di-registration-cycle.rule.ts";
+import { diServiceDependencyNotRegisteredRuleCode } from "../di/rules/di-service-dependency-not-registered.rule.ts";
+import { diTokenNotRegisteredRuleCode } from "../di/rules/di-token-not-registered.rule.ts";
+import { authorizationPolicyNotRegisteredPageDiagnosticCode } from "../routing/rules/authorization-policy-not-registered.rule.ts";
+import { dynamicSsgInvalidEntriesDiagnosticCode } from "../routing/rules/dynamic-ssg-invalid-entries.rule.ts";
+import { dynamicSsgMissingEntriesDiagnosticCode } from "../routing/rules/dynamic-ssg-missing-entries.rule.ts";
+import { dynamicSsgMissingLoadDiagnosticCode } from "../routing/rules/dynamic-ssg-missing-load.rule.ts";
+import { invalidLocaleTagDiagnosticCode } from "../routing/rules/invalid-locale-tag.rule.ts";
+import { multipleNotFoundPagesDiagnosticCode } from "../routing/rules/multiple-not-found-pages.rule.ts";
+import { notFoundMustNotDefineRouteDiagnosticCode } from "../routing/rules/not-found-must-not-define-route.rule.ts";
+import { notFoundMustUseSsgDiagnosticCode } from "../routing/rules/not-found-must-use-ssg.rule.ts";
+import { pageAuthorizationAnonymousConflictDiagnosticCode } from "../routing/rules/page-authorization-anonymous-conflict.rule.ts";
+import { pageAuthorizationSsgWarningDiagnosticCode } from "../routing/rules/page-authorization-ssg-warning.rule.ts";
+import { pageStaticLoadUnsupportedDiagnosticCode } from "../routing/rules/page-static-load-unsupported.rule.ts";
 import type { DiagnosticsSourceInput, MainzDiagnostic } from "./target-model.ts";
 
 export const invalidDiagnosticSuppressionCode = "invalid-diagnostic-suppression" as const;
@@ -161,7 +161,10 @@ function collectParsedSuppressionOwners(
         );
 
         for (const statement of sourceFile.statements) {
-            if (!ts.isClassDeclaration(statement) || !statement.name || !hasExportModifier(statement)) {
+            if (
+                !ts.isClassDeclaration(statement) || !statement.name ||
+                !hasExportModifier(statement)
+            ) {
                 continue;
             }
 
@@ -321,7 +324,9 @@ function parseSuppressionBlock(
         if (seen.has(key)) {
             validationDiagnostics.push(createInvalidSuppressionDiagnostic(
                 owner,
-                `Duplicate diagnostic suppression "${formatSuppressionReference({ code, subject, reason })}" on "${owner.exportName}".`,
+                `Duplicate diagnostic suppression "${
+                    formatSuppressionReference({ code, subject, reason })
+                }" on "${owner.exportName}".`,
             ));
             continue;
         }
@@ -361,8 +366,9 @@ function createUnusedSuppressionDiagnostic(
     return {
         code: unusedDiagnosticSuppressionCode,
         severity: "warning",
-        message:
-            `Diagnostic suppression "${formatSuppressionReference(suppression)}" on "${owner.exportName}" was not used.`,
+        message: `Diagnostic suppression "${
+            formatSuppressionReference(suppression)
+        }" on "${owner.exportName}" was not used.`,
         file: owner.file,
         exportName: owner.exportName,
         routePath: owner.routePath,
@@ -370,9 +376,7 @@ function createUnusedSuppressionDiagnostic(
 }
 
 function formatSuppressionReference(suppression: DiagnosticSuppression): string {
-    return suppression.subject
-        ? `${suppression.code}[${suppression.subject}]`
-        : suppression.code;
+    return suppression.subject ? `${suppression.code}[${suppression.subject}]` : suppression.code;
 }
 
 function createSuppressionKey(

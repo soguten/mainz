@@ -1,9 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
-import {
-    collectDiagnosticsForTarget,
-} from "./collect.ts";
+import { collectDiagnosticsForTarget } from "./collect.ts";
 import type { MainzDiagnostic } from "./core/target-model.ts";
 
 export interface DiagnoseCommandOptions {
@@ -66,23 +64,25 @@ export function formatDiagnosticsHuman(
         const groupedByApp = groupDiagnosticsByApp(targetDiagnostics);
         sections.push([
             `Target: ${target}`,
-            ...[...groupedByApp.entries()].map(([appId, appDiagnostics]) => [
-                ...(appId ? [`App: ${appId}`] : []),
-                ...appDiagnostics.map((diagnostic) =>
-                    [
-                        `${diagnostic.severity} ${diagnostic.code}`,
-                        `  export: ${diagnostic.exportName}`,
-                        `  file: ${diagnostic.file}`,
-                        ...(readDiagnosticRoutePath(diagnostic)
-                            ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`]
-                            : []),
-                        ...((diagnostic.subject?.length ?? 0) > 0
-                            ? [`  subject: ${diagnostic.subject}`]
-                            : []),
-                        `  ${diagnostic.message}`,
-                    ].join("\n")
-                ),
-            ].join("\n\n")),
+            ...[...groupedByApp.entries()].map(([appId, appDiagnostics]) =>
+                [
+                    ...(appId ? [`App: ${appId}`] : []),
+                    ...appDiagnostics.map((diagnostic) =>
+                        [
+                            `${diagnostic.severity} ${diagnostic.code}`,
+                            `  export: ${diagnostic.exportName}`,
+                            `  file: ${diagnostic.file}`,
+                            ...(readDiagnosticRoutePath(diagnostic)
+                                ? [`  route: ${readDiagnosticRoutePath(diagnostic)}`]
+                                : []),
+                            ...((diagnostic.subject?.length ?? 0) > 0
+                                ? [`  subject: ${diagnostic.subject}`]
+                                : []),
+                            `  ${diagnostic.message}`,
+                        ].join("\n")
+                    ),
+                ].join("\n\n")
+            ),
         ].join("\n\n"));
     }
 

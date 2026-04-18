@@ -10,7 +10,7 @@ import {
 import {
     invalidLocaleTagDiagnosticCode,
     pageDiscoveryFailedDiagnosticCode,
-} from "../routing/diagnostics/index.ts";
+} from "./routing/index.ts";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
     collectFilesystemFiles,

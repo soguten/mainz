@@ -1,5 +1,5 @@
-import type { ComponentSourceDiagnosticsInput } from "../../components/diagnostics/index.ts";
-import type { RouteDiagnosticsPageInput } from "../../routing/diagnostics/index.ts";
+import type { ComponentSourceDiagnosticsInput } from ".././components/index.ts";
+import type { RouteDiagnosticsPageInput } from ".././routing/index.ts";
 
 export interface MainzDiagnostic {
     code: string;

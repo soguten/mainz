@@ -5,7 +5,11 @@ export interface DiagnosticsRule<TFact, TContext, TDiagnostic> {
     run(fact: TFact, context: TContext): readonly TDiagnostic[];
 }
 
-export function runDiagnosticsRules<TFact, TContext, TDiagnostic>(facts: readonly TFact[], rules: readonly DiagnosticsRule<TFact, TContext, TDiagnostic>[], context: TContext): TDiagnostic[] {
+export function runDiagnosticsRules<TFact, TContext, TDiagnostic>(
+    facts: readonly TFact[],
+    rules: readonly DiagnosticsRule<TFact, TContext, TDiagnostic>[],
+    context: TContext,
+): TDiagnostic[] {
     const diagnostics: TDiagnostic[] = [];
 
     for (const fact of facts) {

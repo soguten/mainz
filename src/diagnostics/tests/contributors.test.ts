@@ -17,19 +17,19 @@ Deno.test("diagnostics: central contributors registry should aggregate routing, 
     await setupMainzDom();
 
     const routeFile = resolve(
-        join(Deno.cwd(), "src/routing/diagnostics/tests/route-diagnostics.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/routing/tests/route-diagnostics.fixture.tsx"),
     );
     const componentFile = resolve(
-        join(Deno.cwd(), "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/components/tests/component-load-diagnostics.fixture.tsx"),
     )
         .replaceAll("\\", "/");
-    const diFile = resolve(join(Deno.cwd(), "src/di/diagnostics/tests/di-diagnostics.fixture.tsx"))
+    const diFile = resolve(join(Deno.cwd(), "src/diagnostics/di/tests/di-diagnostics.fixture.tsx"))
         .replaceAll(
             "\\",
             "/",
         );
     const commandFile = resolve(
-        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+        join(Deno.cwd(), "src/diagnostics/commands/tests/command-diagnostics.fixture.ts"),
     ).replaceAll("\\", "/");
     const pages = await discoverPagesFromFile(routeFile);
     const diagnostics = await collectTargetDiagnostics({
@@ -80,19 +80,19 @@ Deno.test("diagnostics: contributors should collect from the shared target model
     await setupMainzDom();
 
     const routeFile = resolve(
-        join(Deno.cwd(), "src/routing/diagnostics/tests/route-diagnostics.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/routing/tests/route-diagnostics.fixture.tsx"),
     );
     const componentFile = resolve(
-        join(Deno.cwd(), "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/components/tests/component-load-diagnostics.fixture.tsx"),
     )
         .replaceAll("\\", "/");
-    const diFile = resolve(join(Deno.cwd(), "src/di/diagnostics/tests/di-diagnostics.fixture.tsx"))
+    const diFile = resolve(join(Deno.cwd(), "src/diagnostics/di/tests/di-diagnostics.fixture.tsx"))
         .replaceAll(
             "\\",
             "/",
         );
     const commandFile = resolve(
-        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+        join(Deno.cwd(), "src/diagnostics/commands/tests/command-diagnostics.fixture.ts"),
     ).replaceAll("\\", "/");
     const model = createDiagnosticsTargetModel({
         pages: await discoverPagesFromFile(routeFile),
@@ -131,7 +131,7 @@ Deno.test("diagnostics: contributors should collect from the shared target model
 
 Deno.test("diagnostics: command diagnostics helper should collect duplicate ids from stable app commands", async () => {
     const commandFile = resolve(
-        join(Deno.cwd(), "src/commands/diagnostics/tests/command-diagnostics.fixture.ts"),
+        join(Deno.cwd(), "src/diagnostics/commands/tests/command-diagnostics.fixture.ts"),
     ).replaceAll("\\", "/");
     const diagnostics = await collectCommandDiagnostics([{
         file: commandFile,
@@ -146,10 +146,10 @@ Deno.test("diagnostics: command diagnostics helper should collect duplicate ids 
 
 Deno.test("diagnostics: central collection should apply declaration suppressions after contributor aggregation", async () => {
     const componentFile = resolve(
-        join(Deno.cwd(), "src/components/diagnostics/tests/component-suppression.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/components/tests/component-suppression.fixture.tsx"),
     ).replaceAll("\\", "/");
     const routeFile = resolve(
-        join(Deno.cwd(), "src/routing/diagnostics/tests/route-suppression.fixture.tsx"),
+        join(Deno.cwd(), "src/diagnostics/routing/tests/route-suppression.fixture.tsx"),
     ).replaceAll("\\", "/");
     const model = createDiagnosticsTargetModel({
         pages: [],

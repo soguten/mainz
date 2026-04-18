@@ -1,22 +1,16 @@
-export { collectRouteDiagnostics } from "../routing/diagnostics/index.ts";
-export { collectDiDiagnostics } from "../di/diagnostics/index.ts";
-export { collectCommandDiagnostics } from "../commands/diagnostics/index.ts";
+export { collectRouteDiagnostics } from "./routing/index.ts";
+export { collectDiDiagnostics } from "./di/index.ts";
+export { collectCommandDiagnostics } from "./commands/index.ts";
 
-export type { DiDiagnostic, DiSourceDiagnosticsInput } from "../di/diagnostics/index.ts";
-export type {
-    CommandDiagnostic,
-    CommandSourceDiagnosticsInput,
-} from "../commands/diagnostics/index.ts";
+export type { DiDiagnostic, DiSourceDiagnosticsInput } from "./di/index.ts";
+export type { CommandDiagnostic, CommandSourceDiagnosticsInput } from "./commands/index.ts";
 export type {
     MainzDiagnosticCode,
     MainzDiagnosticSeverity,
     RouteDiagnosticsPageInput,
-} from "../routing/diagnostics/index.ts";
-export type {
-    ComponentDiagnostic,
-    ComponentSourceDiagnosticsInput,
-} from "../components/diagnostics/index.ts";
-export { collectComponentDiagnostics } from "../components/diagnostics/index.ts";
+} from "./routing/index.ts";
+export type { ComponentDiagnostic, ComponentSourceDiagnosticsInput } from "./components/index.ts";
+export { collectComponentDiagnostics } from "./components/index.ts";
 export {
     collectDiagnosticsForTarget,
     collectDiagnosticsFromInput,
