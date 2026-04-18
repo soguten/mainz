@@ -92,24 +92,7 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
         ...target,
         appFile: target.appFile?.trim() || undefined,
         appId: target.appId?.trim() || undefined,
-        authorization: normalizeTargetAuthorization(target.authorization),
         outDir,
-    };
-}
-
-function normalizeTargetAuthorization(
-    authorization: MainzTargetDefinition["authorization"],
-): NormalizedMainzTarget["authorization"] {
-    const policyNames = authorization?.policyNames
-        ?.map((policyName) => policyName.trim())
-        .filter((policyName) => policyName.length > 0);
-
-    if (!policyNames?.length) {
-        return undefined;
-    }
-
-    return {
-        policyNames: [...new Set(policyNames)].sort((left, right) => left.localeCompare(right)),
     };
 }
 

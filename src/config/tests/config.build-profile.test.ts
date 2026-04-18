@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { normalizeMainzConfig, normalizeTargetBuildConfig } from "../index.ts";
+import { normalizeTargetBuildConfig } from "../index.ts";
 
 Deno.test("config/build-profile: should normalize siteUrl for SEO publication metadata", () => {
     const config = normalizeTargetBuildConfig({
@@ -45,24 +45,4 @@ Deno.test("config/build-profile: should reject invalid navigation values", () =>
         Error,
         "Unsupported navigation mode",
     );
-});
-
-Deno.test("config/mainz: should normalize authorization policy names per target", () => {
-    const config = normalizeMainzConfig({
-        targets: [
-            {
-                name: "site",
-                rootDir: "./site",
-                viteConfig: "./vite.config.site.ts",
-                authorization: {
-                    policyNames: [" org-member ", "", "billing-admin", "org-member"],
-                },
-            },
-        ],
-    });
-
-    assertEquals(config.targets[0]?.authorization?.policyNames, [
-        "billing-admin",
-        "org-member",
-    ]);
 });

@@ -152,8 +152,13 @@ export interface RoutedAppI18nDefinition<Locale extends string = string> {
     localePrefix?: "always" | "except-default";
 }
 
+export interface RoutedAppAuthorizationDefinition {
+    policyNames?: readonly string[];
+}
+
 export interface RoutedAppDefinition {
     id: string;
+    authorization?: RoutedAppAuthorizationDefinition;
     commands?: readonly MainzCommand<never>[];
     navigation?: NavigationMode;
     i18n?: RoutedAppI18nDefinition;
@@ -517,9 +522,29 @@ function isRoutedPageEntry(value: unknown): boolean {
 }
 
 function validateRoutedAppDefinition(app: RoutedAppDefinition): void {
+    validateRoutedAppAuthorizationDefinition(app);
     validateRoutedAppI18nDefinition(app);
     validateDocumentLanguage(app);
     validateImmediatePageLocaleRestrictions(app);
+}
+
+function validateRoutedAppAuthorizationDefinition(app: RoutedAppDefinition): void {
+    const authorization = app.authorization;
+    if (!authorization?.policyNames) {
+        return;
+    }
+
+    if (!Array.isArray(authorization.policyNames)) {
+        throw new Error(`App "${app.id}" authorization.policyNames must be an array.`);
+    }
+
+    authorization.policyNames.forEach((policyName, index) => {
+        if (typeof policyName !== "string") {
+            throw new Error(
+                `App "${app.id}" authorization.policyNames[${index}] must be a string.`,
+            );
+        }
+    });
 }
 
 function validateRoutedAppI18nDefinition(app: RoutedAppDefinition): void {

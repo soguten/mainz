@@ -1,9 +1,5 @@
 import { NavigationMode } from "../routing/index.ts";
 
-export interface MainzTargetAuthorizationDefinition {
-    policyNames?: readonly string[];
-}
-
 export interface MainzTargetDefinition {
     name: string;
     rootDir: string;
@@ -11,7 +7,6 @@ export interface MainzTargetDefinition {
     appFile?: string;
     appId?: string;
     outDir?: string;
-    authorization?: MainzTargetAuthorizationDefinition;
     viteConfig: string;
     buildConfig?: string;
 }
@@ -37,9 +32,6 @@ export interface LoadedMainzConfig {
 
 export interface NormalizedMainzTarget extends MainzTargetDefinition {
     outDir: string;
-    authorization?: {
-        policyNames: string[];
-    };
 }
 
 export interface NormalizedTargetBuildProfile {

@@ -61,8 +61,8 @@ Deno.test("diagnostics/command: should report invalid locale tags declared in @L
 
 Deno.test("diagnostics/command: should report authorization and DI diagnostics from fixture targets", async () => {
     const authorizationFixture = await createFixtureTargetConfig({
-        fixtureName: "diagnostics-authorization-policies",
-        targetName: "diagnostics-authorization-policies",
+        fixtureName: "diagnostics-authorization-missing-policy",
+        targetName: "diagnostics-authorization-missing-policy",
     });
     const diFixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di",
@@ -184,11 +184,10 @@ Deno.test("diagnostics/command: should report duplicate stable command ids from 
     }
 });
 
-Deno.test("diagnostics/command: should accept named authorization policies declared in target config", async () => {
+Deno.test("diagnostics/command: should accept named authorization policies declared in app config", async () => {
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-authorization-policies",
         targetName: "diagnostics-authorization-policies",
-        authorizationPolicyNames: ["org-member"],
     });
 
     try {

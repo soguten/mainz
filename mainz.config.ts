@@ -25,9 +25,6 @@ export default defineMainzConfig({
             appFile: "./examples/authorize-site/src/main.tsx",
             appId: "authorize-site",
             pagesDir: "./examples/authorize-site/src/pages",
-            authorization: {
-                policyNames: ["org-member"],
-            },
             outDir: "dist/examples/authorize-site",
         },
         {

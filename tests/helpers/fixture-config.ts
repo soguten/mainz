@@ -7,7 +7,6 @@ export async function createFixtureTargetConfig(args: {
     targetName?: string;
     appFile?: string;
     omitPagesDir?: boolean;
-    authorizationPolicyNames?: readonly string[];
 }): Promise<FixtureTargetConfig> {
     const fixture = await createFixtureTargetDefinition(args);
     const configPath = resolve(dirname(dirname(fixture.outputDir)), "mainz.fixture.config.ts");
@@ -39,15 +38,10 @@ function renderFixtureTargetDefinition(
         `      viteConfig: ${JSON.stringify(target.viteConfig)},`,
         ...(target.pagesDir ? [`      pagesDir: ${JSON.stringify(target.pagesDir)},`] : []),
         ...(target.appFile ? [`      appFile: ${JSON.stringify(target.appFile)},`] : []),
-        ...(target.buildConfig ? [`      buildConfig: ${JSON.stringify(target.buildConfig)},`] : []),
-        `      outDir: ${JSON.stringify(target.outDir)},`,
-        ...(target.authorization?.policyNames?.length
-            ? [
-                "      authorization: {",
-                `        policyNames: ${JSON.stringify(target.authorization.policyNames)}`,
-                "      },",
-            ]
+        ...(target.buildConfig
+            ? [`      buildConfig: ${JSON.stringify(target.buildConfig)},`]
             : []),
+        `      outDir: ${JSON.stringify(target.outDir)},`,
         "    }",
     ].join("\n");
 }

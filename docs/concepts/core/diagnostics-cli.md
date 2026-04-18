@@ -36,42 +36,52 @@ Today `mainz diagnose` can report checks such as:
 - `notFound` pages that are not `ssg`
 - app-level `notFound` pages that still define `@Route(...)`
 - multiple `notFound` pages in the same routing set
-- pages that reference named authorization policies not declared in
-  `target.authorization.policyNames`
+- pages that reference named authorization policies not declared in `app.authorization.policyNames`
 - `Component` declarations with `@RenderStrategy("defer")` but no `load()`
 - `Component` declarations with `load()` using `defer` without `placeholder()`
-- `Component` declarations using `blocking` together with `placeholder()`, which is usually misleading
+- `Component` declarations using `blocking` together with `placeholder()`, which is usually
+  misleading
 - `Component` declarations using `@RenderPolicy("placeholder-in-ssg")` without `placeholder()`
 - components that reference named authorization policies not declared in
-  `target.authorization.policyNames`
+  `app.authorization.policyNames`
 - DI registrations and injections that refer to missing services
 - service registration cycles
 
 ## Declarative policy names for diagnostics
 
-Named authorization policies are registered at runtime through `auth.policies`, but the CLI does
-not execute your app during `mainz diagnose`.
+Named authorization policies are implemented at runtime through `auth.policies`, but the CLI does
+not execute those runtime policy functions during `mainz diagnose`.
 
-When you use `@Authorize({ policy: "..." })`, declare the allowed policy names in
-`mainz.config.ts` so diagnostics can validate them statically:
+When you use `@Authorize({ policy: "..." })`, declare the allowed policy names in `defineApp(...)`
+so diagnostics can validate them statically:
 
-```ts title="mainz.config.ts"
-export default {
-    targets: [
-        {
-            name: "site",
-            rootDir: "./site",
-            viteConfig: "./vite.config.ts",
-            authorization: {
-                policyNames: ["org-member", "billing-admin"],
-            },
+```tsx title="main.tsx"
+import { defineApp, startApp } from "mainz";
+
+const app = defineApp({
+    id: "site",
+    authorization: {
+        policyNames: ["org-member", "billing-admin"],
+    },
+    pages: [HomePage, BillingPage],
+});
+
+startApp(app, {
+    auth: {
+        policies: {
+            "org-member": (principal) => principal.claims.orgId === "mainz",
+            "billing-admin": (principal) => principal.roles.includes("billing-admin"),
         },
-    ],
-};
+    },
+});
 ```
 
-That declaration powers diagnostics tooling only. Your real policy implementations still belong in
-`startApp(app, { auth: { policies } })`.
+The app declaration is names-only and powers static diagnostics. The executable policy
+implementations still belong in `startApp(app, { auth: { policies } })`.
+
+`mainz diagnose` expects a literal `authorization.policyNames` array on the selected app. Dynamic
+policy-name declarations are not statically resolved. Runtime authorization still fails fast if a
+protected page or component references a policy that is not registered in `auth.policies`.
 
 ## Human output
 
@@ -126,9 +136,9 @@ To diagnose only one app within the target, pass its app id explicitly:
 mainz diagnose --target di-http-site --app site --format human
 ```
 
-If no app candidate is discovered, diagnostics fall back to conventional `pagesDir`
-discovery. If an app candidate is discovered but cannot be resolved completely, diagnostics
-report an app discovery error instead of silently falling back for that same candidate.
+If no app candidate is discovered, diagnostics fall back to conventional `pagesDir` discovery. If an
+app candidate is discovered but cannot be resolved completely, diagnostics report an app discovery
+error instead of silently falling back for that same candidate.
 
 ## JSON output
 
@@ -241,7 +251,5 @@ Mainz intentionally starts with the CLI because it gives you:
 - one rule engine
 - one place to use in local development and CI
 
-If Mainz adds VS Code or LSP integration later, those should reuse the same diagnostics core
-instead of inventing a separate rule model.
-
-
+If Mainz adds VS Code or LSP integration later, those should reuse the same diagnostics core instead
+of inventing a separate rule model.

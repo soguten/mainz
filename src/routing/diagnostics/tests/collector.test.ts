@@ -213,7 +213,7 @@ Deno.test("routing/diagnostics: collector should report dynamic ssg, notFound, a
     );
 });
 
-Deno.test("routing/diagnostics: collector should report missing named authorization policies when diagnostics know the target policy names", async () => {
+Deno.test("routing/diagnostics: collector should report missing named authorization policies when diagnostics know the app policy names", async () => {
     await setupMainzDom();
 
     const file = resolve(
@@ -234,7 +234,7 @@ Deno.test("routing/diagnostics: collector should report missing named authorizat
             severity: "error",
             message:
                 'Page "PolicyProtectedPage" references @Authorize({ policy: "org-member" }), ' +
-                "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                "but that policy name is not declared in app.authorization.policyNames.",
             file: file.replaceAll("\\", "/"),
             exportName: "PolicyProtectedPage",
             routePath: "/org",

@@ -18,8 +18,7 @@ The repository also includes a small end-to-end example in `examples/authorize-s
 
 ## Protect a page
 
-Use `@Authorize()` when the route requires an authenticated principal, even if you do not need
-roles or a named policy yet.
+Use `@Authorize()` when the route requires an authenticated principal, even if you do not need roles or a named policy yet.
 
 ```tsx title="Account.page.tsx"
 import { Authorize, Page, RenderMode, Route } from "mainz";
@@ -64,15 +63,10 @@ That page now requires:
 
 ## Register principal resolution and policies at startup
 
-Runtime authorization lives in the app bootstrap through the `auth` option on
-`startApp(app, ...)`.
+Runtime authorization lives in the app bootstrap through the `auth` option on `startApp(app, ...)`.
 
 ```tsx title="main.tsx"
-import {
-    createAnonymousPrincipal,
-    defineApp,
-    startApp,
-} from "mainz";
+import { createAnonymousPrincipal, defineApp, startApp } from "mainz";
 import { AccountPage } from "./pages/Account.page.tsx";
 import { BillingPage } from "./pages/Billing.page.tsx";
 import { LoginPage } from "./pages/Login.page.tsx";
@@ -157,26 +151,22 @@ For one-off checks, use `isRouteVisible(...)`. For startup diagnostics or custom
 The CLI can read `@Authorize({ policy: "..." })` statically, but runtime policy implementations are
 registered later during app startup.
 
-Declare policy names in `mainz.config.ts` so diagnostics can validate them without executing the
-app:
+Declare policy names on the app definition so diagnostics can validate them without executing the
+runtime policy functions:
 
-```ts title="mainz.config.ts"
-export default {
-    targets: [
-        {
-            name: "site",
-            rootDir: "./site",
-            viteConfig: "./vite.config.ts",
-            authorization: {
-                policyNames: ["org-member", "billing-admin"],
-            },
-        },
-    ],
-};
+```tsx title="main.tsx"
+const app = defineApp({
+    id: "site",
+    authorization: {
+        policyNames: ["org-member", "billing-admin"],
+    },
+    pages: [AccountPage, BillingPage, LoginPage],
+});
 ```
 
-That declaration is for diagnostics and tooling only. The actual policy functions still belong in
-`auth.policies` at runtime. See [diagnostics CLI](./diagnostics-cli.md) for the terminal workflow.
+That declaration is names-only for diagnostics and tooling. The actual policy functions still belong
+in `auth.policies` at runtime. See [diagnostics CLI](./diagnostics-cli.md) for the terminal
+workflow.
 
 ## SSG must keep private state out of shared HTML
 
@@ -188,5 +178,3 @@ Protected content and shared prerendered HTML do not mix cleanly.
 When the route shell is public but a personalized area is not, prefer the
 [Public Shell, Private Island](./public-shell-private-island.md) pattern instead of prerendering
 protected content.
-
-

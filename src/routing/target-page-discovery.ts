@@ -58,12 +58,14 @@ export interface AppDiagnosticsCandidate {
     appId?: string;
     appFile: string;
     routed: boolean;
+    authorizationPolicyNames?: readonly string[];
     discoveredPages: readonly CliDiscoveredPage[];
     discoveryErrors?: readonly CliPageDiscoveryError[];
 }
 
 export interface TargetDiagnosticsEvaluation {
     appId?: string;
+    authorizationPolicyNames?: readonly string[];
     discoveredPages: readonly CliDiscoveredPage[];
     discoveryErrors?: readonly CliPageDiscoveryError[];
 }
@@ -225,6 +227,7 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
 
                 return selectedCandidates.map((candidate) => ({
                     appId: candidate.appId,
+                    authorizationPolicyNames: candidate.authorizationPolicyNames,
                     discoveredPages: candidate.discoveryErrors?.length
                         ? []
                         : [...candidate.discoveredPages],
@@ -234,6 +237,7 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
 
             return appCandidates.map((candidate) => ({
                 appId: candidate.appId,
+                authorizationPolicyNames: candidate.authorizationPolicyNames,
                 discoveredPages: candidate.discoveryErrors?.length
                     ? []
                     : [...candidate.discoveredPages],
@@ -554,6 +558,7 @@ async function resolveAppCandidate(
         appId,
         appFile: appResolution.context.file,
         routed,
+        authorizationPolicyNames: readAppAuthorizationPolicyNames(appResolution.appDefinition),
         discoveredPages: normalizeDiscoveredPages([...discoveredPages]),
         discoveryErrors: discoveryErrors.length > 0 ? discoveryErrors : undefined,
     };
@@ -600,6 +605,39 @@ function readAppDefinitionId(appDefinition: ts.ObjectLiteralExpression): string 
 
     const appId = normalizedIdExpression.text.trim();
     return appId.length > 0 ? appId : undefined;
+}
+
+function readAppAuthorizationPolicyNames(
+    appDefinition: ts.ObjectLiteralExpression,
+): readonly string[] | undefined {
+    const authorizationExpression = readNamedPropertyInitializer(appDefinition, "authorization");
+    const authorization = authorizationExpression
+        ? unwrapExpression(authorizationExpression)
+        : undefined;
+    if (!authorization || !ts.isObjectLiteralExpression(authorization)) {
+        return undefined;
+    }
+
+    const policyNamesExpression = readNamedPropertyInitializer(authorization, "policyNames");
+    const policyNames = policyNamesExpression ? unwrapExpression(policyNamesExpression) : undefined;
+    if (!policyNames || !ts.isArrayLiteralExpression(policyNames)) {
+        return undefined;
+    }
+
+    const names = policyNames.elements.flatMap((element) => {
+        if (!ts.isStringLiteralLike(element)) {
+            return [];
+        }
+
+        const policyName = element.text.trim();
+        return policyName.length > 0 ? [policyName] : [];
+    });
+
+    if (names.length === 0) {
+        return undefined;
+    }
+
+    return [...new Set(names)].sort((left, right) => left.localeCompare(right));
 }
 
 function compareAppDiagnosticsCandidates(

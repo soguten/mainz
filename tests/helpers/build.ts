@@ -204,7 +204,9 @@ export async function buildTargetWithEngine(args: {
         try {
             const loadedConfig = await loadMainzConfig(args.configPath);
             const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-            const selectedTarget = normalizedConfig.targets.find((target) => target.name === args.targetName);
+            const selectedTarget = normalizedConfig.targets.find((target) =>
+                target.name === args.targetName
+            );
             if (!selectedTarget) {
                 throw new Error(
                     `No targets matched "${args.targetName}". Available targets: ${
@@ -282,7 +284,6 @@ export async function createFixtureTargetDefinition(args: {
     targetName?: string;
     appFile?: string;
     omitPagesDir?: boolean;
-    authorizationPolicyNames?: readonly string[];
 }): Promise<FixtureTargetDefinition> {
     const fixtureRoot = resolve(
         cliTestsRepoRoot,
@@ -305,7 +306,6 @@ export async function createFixtureTargetDefinition(args: {
     const hasBuildConfig = await fileExists(buildConfigPath);
     const includeAppFile = args.appFile !== undefined || await fileExists(requestedAppFile);
 
-    const authorizationPolicyNames = args.authorizationPolicyNames;
     const targetDefinition = {
         name: targetName,
         rootDir: fixtureRoot,
@@ -314,13 +314,6 @@ export async function createFixtureTargetDefinition(args: {
         ...(includeAppFile ? { appFile: requestedAppFile } : {}),
         ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
         outDir: outputDir,
-        ...(authorizationPolicyNames?.length
-            ? {
-                authorization: {
-                    policyNames: [...authorizationPolicyNames],
-                },
-            }
-            : {}),
     };
     const target = normalizeMainzConfig({
         targets: [targetDefinition],
@@ -382,7 +375,9 @@ async function removeFixtureTempDir(path: string): Promise<void> {
             return;
         } catch (error) {
             if (!(error instanceof Deno.errors.NotFound)) {
-                if (delayMs === fixtureCleanupRetryDelaysMs[fixtureCleanupRetryDelaysMs.length - 1]) {
+                if (
+                    delayMs === fixtureCleanupRetryDelaysMs[fixtureCleanupRetryDelaysMs.length - 1]
+                ) {
                     throw error;
                 }
 

@@ -63,6 +63,7 @@ export type {
     DefinedRoutedApp,
     NavigationLocaleContext,
     RootAppDefinition,
+    RoutedAppAuthorizationDefinition,
     RoutedAppDefinition,
     RoutePathResolver,
     SpaLazyPageDefinition,

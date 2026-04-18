@@ -116,7 +116,7 @@ Deno.test("components/diagnostics: collector should report Component.load strate
     ]);
 });
 
-Deno.test("components/diagnostics: collector should report missing named authorization policies when diagnostics know the target policy names", async () => {
+Deno.test("components/diagnostics: collector should report missing named authorization policies when diagnostics know the app policy names", async () => {
     const file = resolve(
         Deno.cwd(),
         "src/components/diagnostics/tests/component-load-diagnostics.fixture.tsx",
@@ -143,7 +143,7 @@ Deno.test("components/diagnostics: collector should report missing named authori
             severity: "error",
             message:
                 'Component "PolicyProtectedComponent" references @Authorize({ policy: "org-member" }), ' +
-                "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                "but that policy name is not declared in app.authorization.policyNames.",
             file,
             exportName: "PolicyProtectedComponent",
         },

@@ -36,7 +36,8 @@ export async function collectDiagnosticsFromModel(
     model: DiagnosticsTargetModel,
     contributors?: readonly DiagnosticsContributor[],
 ): Promise<readonly MainzDiagnostic[]> {
-    const resolvedContributors = contributors ?? (await import("./contributors.ts")).diagnosticsContributors;
+    const resolvedContributors = contributors ??
+        (await import("./contributors.ts")).diagnosticsContributors;
     const diagnostics = await Promise.all(
         resolvedContributors.map((contributor) => contributor.collect(model)),
     );
@@ -50,17 +51,20 @@ export async function collectDiagnosticsForTarget(
     target: NormalizedMainzTarget,
     cwd = Deno.cwd(),
     selectedAppId?: string,
-): Promise<readonly {
-    appId?: string;
-    diagnostics: readonly MainzDiagnostic[];
-}[]> {
+): Promise<
+    readonly {
+        appId?: string;
+        diagnostics: readonly MainzDiagnostic[];
+    }[]
+> {
     const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(
         target,
         cwd,
         selectedAppId,
     );
     const sourceInputs = await discoverTargetSourceInputs(target, cwd);
-    const collectedDiagnostics: Array<{ appId?: string; diagnostics: readonly MainzDiagnostic[] }> = [];
+    const collectedDiagnostics: Array<{ appId?: string; diagnostics: readonly MainzDiagnostic[] }> =
+        [];
 
     for (const evaluation of evaluations) {
         const pages = evaluation.discoveredPages.map((page) => ({
@@ -77,14 +81,16 @@ export async function collectDiagnosticsForTarget(
             },
         }));
         const routePathsByOwner = new Map(
-            evaluation.discoveredPages.map((page) => [`${page.file}::${page.exportName}`, page.path]),
+            evaluation.discoveredPages.map((
+                page,
+            ) => [`${page.file}::${page.exportName}`, page.path]),
         );
         const diagnostics = evaluation.discoveryErrors?.length
             ? []
             : await collectDiagnosticsFromModel(createDiagnosticsTargetModel({
                 pages,
                 sourceInputs,
-                registeredPolicyNames: target.authorization?.policyNames ?? [],
+                registeredPolicyNames: evaluation.authorizationPolicyNames ?? [],
                 routePathsByOwner,
                 appId: evaluation.appId,
             }));

@@ -24,7 +24,7 @@ export const authorizationPolicyNotRegisteredComponentRule: DiagnosticsRule<
             severity: "error",
             message:
                 `Component "${component.exportName}" references @Authorize({ policy: "${policyName}" }), ` +
-                "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+                "but that policy name is not declared in app.authorization.policyNames.",
             file: component.file,
             exportName: component.exportName,
         }];

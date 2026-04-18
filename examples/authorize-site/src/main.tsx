@@ -9,6 +9,9 @@ import { ReportsPage } from "./pages/Reports.page.tsx";
 
 const app = defineApp({
     id: "authorize-site",
+    authorization: {
+        policyNames: ["org-member"],
+    },
     navigation: "spa",
     i18n: {
         locales: ["en"],

@@ -21,7 +21,7 @@ export function collectPageAuthorizationPolicyDiagnostics(
         severity: "error",
         message:
             `Page "${page.exportName}" references @Authorize({ policy: "${requiredPolicy}" }), ` +
-            "but that policy name is not declared in target.authorization.policyNames for diagnostics.",
+            "but that policy name is not declared in app.authorization.policyNames.",
         file: page.file,
         exportName: page.exportName,
         routePath: page.page.path,
