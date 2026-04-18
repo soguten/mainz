@@ -31,6 +31,32 @@ Deno.test("cli/build: should reject legacy public --mode overrides", async () =>
     assertStringIncludes(stderr, 'Command "build" no longer accepts --mode.');
 });
 
+Deno.test("cli/build: should reject legacy public --navigation overrides", async () => {
+    const command = new Deno.Command("deno", {
+        args: [
+            "run",
+            "-A",
+            "./src/cli/mainz.ts",
+            "build",
+            "--target",
+            "site",
+            "--navigation",
+            "spa",
+        ],
+        cwd: cliTestsRepoRoot,
+        stdout: "piped",
+        stderr: "piped",
+    });
+
+    const result = await command.output();
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
+
+    assertEquals(result.code, 1);
+    assertEquals(stdout, "");
+    assertStringIncludes(stderr, 'Command "build" no longer accepts --navigation.');
+});
+
 Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is prerendered", async () => {
     const fixture = await createFixtureTargetConfig({
         fixtureName: "forbidden-in-ssg-build",
@@ -48,8 +74,6 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
                 fixture.configPath,
                 "--target",
                 fixture.targetName,
-                "--navigation",
-                "enhanced-mpa",
             ],
             cwd: cliTestsRepoRoot,
             stdout: "piped",
@@ -92,8 +116,6 @@ Deno.test("cli/build: should warn for ownership-based defer placeholders without
                 fixture.configPath,
                 "--target",
                 fixture.targetName,
-                "--navigation",
-                "enhanced-mpa",
             ],
             cwd: cliTestsRepoRoot,
             stdout: "piped",
@@ -143,8 +165,6 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
                 fixture.configPath,
                 "--target",
                 fixture.targetName,
-                "--navigation",
-                "enhanced-mpa",
             ],
             cwd: cliTestsRepoRoot,
             stdout: "piped",

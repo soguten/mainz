@@ -14,11 +14,11 @@ import {
 } from "../../helpers/fixture-io.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
-Deno.test("e2e/csr routing: mpa build should emit localized route shells and hydrate direct document loads", async () => {
-    await buildSiteCsrMpa();
+Deno.test("e2e/csr routing: enhanced-mpa build should emit localized route shells and hydrate direct document loads", async () => {
+    await buildSiteCsrEnhancedMpa();
 
     const hydrationManifest = await readHydrationManifest();
-    assertEquals(hydrationManifest.navigation, "mpa");
+    assertEquals(hydrationManifest.navigation, "enhanced-mpa");
 
     const rootHtmlPath = resolve(repoRoot, "dist/site/csr/index.html");
     const rootHtml = await Deno.readTextFile(rootHtmlPath);
@@ -45,13 +45,13 @@ Deno.test("e2e/csr routing: mpa build should emit localized route shells and hyd
         await import(`${pathToFileURL(scriptPath).href}?e2e=${Date.now()}-csr-mpa-pt`);
         await nextTick();
 
-        assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
+        assertEquals(document.documentElement.dataset.mainzNavigation, "enhanced-mpa");
         assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
     }, { url: "https://mainz.local/pt/" });
 });
 
-Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 404 page", async () => {
-    await buildSiteCsrMpa();
+Deno.test("e2e/csr preview: enhanced-mpa build should serve localized routes and custom 404 page", async () => {
+    await buildSiteCsrEnhancedMpa();
 
     const handler = createArtifactPreviewHandler(resolve(repoRoot, "dist/site/csr"));
 
@@ -84,7 +84,7 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
         await import(`${pathToFileURL(notFoundScriptPath).href}?e2e=${Date.now()}-csr-mpa-404`);
         await nextTick();
 
-        assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
+        assertEquals(document.documentElement.dataset.mainzNavigation, "enhanced-mpa");
         assertStringIncludes(
             document.body.textContent ?? "",
             "That route does not exist in Mainz.",
@@ -122,11 +122,10 @@ Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 4
     }, { url: "https://mainz.local/pt/dfdfhsdfsdf" });
 });
 
-async function buildSiteCsrMpa(): Promise<void> {
+async function buildSiteCsrEnhancedMpa(): Promise<void> {
     await buildTargetWithEngine({
         targetName: "site",
         mode: "csr",
-        navigation: "mpa",
     });
 }
 

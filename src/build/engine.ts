@@ -1,17 +1,12 @@
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
-import { runBuildJobs, runSingleBuild } from "./execution.ts";
+import { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
+import { type BuildJob, type BuildRequestOptions, resolveBuildJobs } from "./jobs.ts";
 import {
-    type BuildRequestOptions,
-    type BuildJob,
-    resolveBuildJobs,
-} from "./jobs.ts";
-import {
-    applyBuildProfileOverrides,
     type PublicationMetadata,
+    type ResolvedBuildProfile,
     resolvePublicationMetadata,
     resolveTargetBuildProfile,
-    type ResolvedBuildProfile,
 } from "./profiles.ts";
 export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 
@@ -38,20 +33,12 @@ export async function resolveEngineBuildProfile(
     return await resolveTargetBuildProfile(target, requestedProfile, cwd);
 }
 
-export function applyEngineBuildOverrides(
-    profile: BuildEngineProfile,
-    options: Pick<BuildEngineOptions, "navigation"> | undefined,
-): BuildEngineProfile {
-    return applyBuildProfileOverrides(profile, options);
-}
-
 export async function resolveEnginePublicationMetadata(
     target: NormalizedMainzTarget,
     requestedProfile: string | undefined,
     cwd = Deno.cwd(),
-    overrides?: Pick<BuildEngineOptions, "navigation">,
 ): Promise<BuildEnginePublicationMetadata> {
-    return await resolvePublicationMetadata(target, requestedProfile, cwd, overrides);
+    return await resolvePublicationMetadata(target, requestedProfile, cwd);
 }
 
 export async function runEngineBuildJobs(
@@ -68,4 +55,18 @@ export async function runEngineBuildJob(
     cwd = Deno.cwd(),
 ): Promise<void> {
     await runSingleBuild(config, job, cwd);
+}
+
+export async function runEngineDevServer(
+    config: NormalizedMainzConfig,
+    target: NormalizedMainzTarget,
+    profile: BuildEngineProfile,
+    cwd = Deno.cwd(),
+): Promise<void> {
+    await runDevServer({
+        config,
+        targetName: target.name,
+        profile,
+        cwd,
+    });
 }

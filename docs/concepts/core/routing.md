@@ -17,12 +17,12 @@ The page app should not parse URLs, define custom elements, or manually resolve 
 
 The runtime already knows mode, basePath, locales, and hydration strategy from the build context.
 
-> That is why Mainz now prefers `startApp()` over leaking infrastructure details into
-> application bootstrap.
+> That is why Mainz now prefers `startApp()` over leaking infrastructure details into application
+> bootstrap.
 
 ## Profiles versus combinations
 
-Profiles like `dev`, `production`, and `gh-pages` still matter, but render selection is page-owned. Routed apps should declare their default navigation in `defineApp({ navigation })`, and profiles only override that intent when a publication needs a different mode.
+Profiles like `dev`, `production`, and `gh-pages` still matter, but render selection is page-owned and navigation is app-owned. Routed apps declare navigation in `defineApp({ navigation })`; when an app omits it, Mainz falls back to `spa`.
 
 ```bash title="CLI"
 deno run -A ./src/cli/mainz.ts build --target site --profile production
@@ -35,5 +35,4 @@ In production builds:
 - `@RenderMode(...)` on the page is the source of truth
 - undecorated pages default to `csr`
 - routed app navigation starts from `defineApp({ navigation })`
-- build profiles may override navigation with `navigation`
-- CLI `--navigation` remains the highest-priority override
+- apps that omit navigation use `spa`

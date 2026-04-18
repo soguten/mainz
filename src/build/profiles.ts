@@ -9,14 +9,9 @@ import { NavigationMode } from "../routing/index.ts";
 import { resolveTargetDiscoveredPagesForTarget } from "../routing/target-page-discovery.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 
-export interface BuildProfileOverrides {
-    navigation?: string;
-}
-
 export interface ResolvedBuildProfile {
     name: string;
     basePath: string;
-    navigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -62,7 +57,6 @@ export async function resolveTargetBuildProfile(
     return {
         name: profileName,
         basePath: profile.basePath ?? "/",
-        navigation: profile.navigation,
         siteUrl: profile.siteUrl,
     };
 }
@@ -71,12 +65,8 @@ export async function resolvePublicationMetadata(
     target: NormalizedMainzTarget,
     requestedProfile: string | undefined,
     cwd = Deno.cwd(),
-    overrides?: BuildProfileOverrides,
 ): Promise<PublicationMetadata> {
-    const profile = applyBuildProfileOverrides(
-        await resolveTargetBuildProfile(target, requestedProfile, cwd),
-        overrides,
-    );
+    const profile = await resolveTargetBuildProfile(target, requestedProfile, cwd);
     const navigationMode = await resolveEffectiveNavigationMode(target, profile, cwd);
 
     return {
@@ -89,30 +79,11 @@ export async function resolvePublicationMetadata(
     };
 }
 
-export function applyBuildProfileOverrides(
-    profile: ResolvedBuildProfile,
-    options: BuildProfileOverrides | undefined,
-): ResolvedBuildProfile {
-    const explicitNavigation = resolveExplicitNavigationMode(options?.navigation);
-    if (!explicitNavigation) {
-        return profile;
-    }
-
-    return {
-        ...profile,
-        navigation: explicitNavigation,
-    };
-}
-
 export async function resolveEffectiveNavigationMode(
     target: NormalizedMainzTarget,
     profile: ResolvedBuildProfile,
     cwd = Deno.cwd(),
 ): Promise<NavigationMode> {
-    if (profile.navigation) {
-        return profile.navigation;
-    }
-
     const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd);
     if (appDefinition?.navigation) {
         return appDefinition.navigation;
@@ -186,19 +157,6 @@ async function hasRoutingInput(
     }
 
     return Boolean(discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length);
-}
-
-function resolveExplicitNavigationMode(mode: string | undefined): NavigationMode | undefined {
-    const normalizedMode = mode?.trim();
-    if (!normalizedMode) {
-        return undefined;
-    }
-
-    if (normalizedMode === "spa" || normalizedMode === "mpa" || normalizedMode === "enhanced-mpa") {
-        return normalizedMode;
-    }
-
-    throw new Error(`Invalid navigation mode "${mode}". Expected one of: spa, mpa, enhanced-mpa.`);
 }
 
 function normalizePathSlashes(path: string): string {

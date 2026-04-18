@@ -45,12 +45,11 @@ The declarative suite in `tests/matrix/suite.test.ts` is the core matrix entrypo
 - fixture-family naming through `RoutedApp` and `RootApp`
 - lower-boilerplate route rendering through the resolved fixture API
 
-The default `test:e2e:core` task runs the declarative suite plus dedicated core fixture suites such as `single-locale`, `base-path`, `head-seo`, `navigation-override`,
-`generated-tag-stability`, `routed-di-entries`, `routed-di-client`, and `routed-authorization`.
+The default `test:e2e:core` task runs the declarative suite plus dedicated core fixture suites such as `single-locale`, `base-path`, `head-seo`, `generated-tag-stability`, `routed-di-entries`, `routed-di-client`, and `routed-authorization`.
 
-The declarative suite expands the supported `testCombinations` from
-`tests/helpers/build.ts`, `tests/helpers/fixture-config.ts`, `tests/helpers/fixture-io.ts`,
-`tests/helpers/document.ts`, and `tests/helpers/navigation.ts`:
+The declarative suite expands the supported `testCombinations` from `tests/helpers/build.ts`,
+`tests/helpers/fixture-config.ts`, `tests/helpers/fixture-io.ts`, `tests/helpers/document.ts`, and
+`tests/helpers/navigation.ts`:
 
 - `ssg + spa`
 - `ssg + mpa`
@@ -127,9 +126,9 @@ Real apps are the default for smoke coverage because they answer a different que
 Use a real app outside `smoke` only when the published target behavior is itself the contract being
 protected.
 
-Current `site`-specific publication checks now live under
-[site/tests](../../site/tests) with non-discovery filenames, so they
-stay close to the target without remaining part of the framework's default auto-discovered suite.
+Current `site`-specific publication checks now live under [site/tests](../../site/tests) with
+non-discovery filenames, so they stay close to the target without remaining part of the framework's
+default auto-discovered suite.
 
 Examples:
 
@@ -193,8 +192,8 @@ which keeps the CLI closer to a thin command adapter over the build engine.
 The SSG/CSR document emission path and HTML prerender helpers now also live under
 `src/build/artifacts.ts`, which removes another large block of engine semantics from the CLI layer.
 
-Build job selection now also lives under `src/build/jobs.ts`, so production job derivation,
-forced test recipes, and routed target eligibility are no longer implemented in the CLI namespace.
+Build job selection now also lives under `src/build/jobs.ts`, so production job derivation, forced
+test recipes, and routed target eligibility are no longer implemented in the CLI namespace.
 
 The render-recipe list used for job expansion now also lives inside `src/build/jobs.ts`, instead of
 remaining part of the normalized config shape.
@@ -208,30 +207,29 @@ routes instead of treating `csr + ssg` as a public build matrix:
 
 The matrix and smoke helper layer still intentionally bypasses that production recipe filter when a
 test explicitly asks for a combination, so RFC-style forced `csr`/`ssg` coverage stays confined to
-test infrastructure and the explicit internal `src/build/testing.ts` path rather than reappearing
-in public config or CLI surfaces.
+test infrastructure and the explicit internal `src/build/testing.ts` path rather than reappearing in
+public config or CLI surfaces.
 
 The harness now also exposes structured recipe diagnostics through
-`formatMatrixRecipeDiagnostics(...)` in [harness.ts](../matrix/harness.ts#L1).
-That output is still available in verbose mode through `MAINZ_MATRIX_VERBOSE=1`, and the same recipe
-summary is appended to build/case failures so grouping behavior is visible when a matrix slice breaks.
-When the artifact has already been built, the same diagnostics also include the resolved
-`outputDir`, which keeps build sharing inspectable at the artifact level rather than only at the
-recipe-key level.
+`formatMatrixRecipeDiagnostics(...)` in [harness.ts](../matrix/harness.ts#L1). That output is still
+available in verbose mode through `MAINZ_MATRIX_VERBOSE=1`, and the same recipe summary is appended
+to build/case failures so grouping behavior is visible when a matrix slice breaks. When the artifact
+has already been built, the same diagnostics also include the resolved `outputDir`, which keeps
+build sharing inspectable at the artifact level rather than only at the recipe-key level.
 
 Build execution now also lives under `src/build/execution.ts`, so serial job execution, per-job Vite
 invocation, and CSR/SSG artifact dispatch are no longer implemented in the CLI namespace.
 
-Target page discovery now also lives under `src/routing/target-page-discovery.ts`, so the engine
-and diagnostics no longer depend on any CLI module for route/page discovery.
+Target page discovery now also lives under `src/routing/target-page-discovery.ts`, so the engine and
+diagnostics no longer depend on any CLI module for route/page discovery.
 
 Diagnose command collection, formatting, and fail-policy evaluation now also live under
 `src/diagnostics/command.ts`, so `src/cli/mainz.ts` only dispatches the command instead of owning
 diagnostics presentation logic.
 
 The same engine-backed helper path is now also used by smoke coverage and by the target-specific
-tests under [site/tests](../../site/tests) when they only need build
-artifacts rather than CLI contract coverage.
+tests under [site/tests](../../site/tests) when they only need build artifacts rather than CLI
+contract coverage.
 
 CLI-specific process helpers now live in `tests/helpers/cli.ts` and are consumed directly by the CLI
 test files, instead of being re-exported as part of the default helper barrel.
@@ -258,9 +256,9 @@ These files own the new RFC-shaped matrix layer:
 - `tests/matrix/cases/base-path/base-path-matrix-cases.ts`: composition of the base-path case
   cluster so localized home/navigation behavior and localized notFound/SEO behavior stay split as
   separate case intents
-- `tests/matrix/cases/single-locale/single-locale-matrix-cases.ts`: composition of the
-  single-locale case cluster so home-route navigation behavior and child-route publication behavior
-  stay split as separate case intents
+- `tests/matrix/cases/single-locale/single-locale-matrix-cases.ts`: composition of the single-locale
+  case cluster so home-route navigation behavior and child-route publication behavior stay split as
+  separate case intents
 - `tests/matrix/cases/*`: modular case files organized by protected behavior
 
 ### `tests/fixtures/*`
@@ -272,7 +270,6 @@ The first fixture wave includes:
 - `core-contracts`
 - `base-path`
 - `head-seo`
-- `navigation-override`
 - `single-locale-routing`
 
 The goal of these fixtures is to keep framework coverage explicit and narrow instead of depending
@@ -283,7 +280,6 @@ Current fixture responsibilities:
 - `core-contracts`: shared routing, notFound, i18n, navigation, hydration, and head contracts
 - `base-path`: localized routing, navigation, and SEO behavior under a publication base path
 - `head-seo`: canonical and hreflang emission for localized document routes
-- `navigation-override`: profile-driven navigation override reaching the final runtime semantics
 - `single-locale-routing`: unprefixed route emission and navigation for single-locale targets
 
 The new matrix layer is starting to map these build fixtures into RFC-style fixture families:
@@ -313,9 +309,6 @@ The new matrix layer is starting to map these build fixtures into RFC-style fixt
   - basePath-aware locale switching and SEO
 - `HeadSeoApp`
   - localized canonical and hreflang output for CSR document routes
-- `NavigationOverrideApp`
-  - profile-driven plain-static navigation override
-  - forced MPA runtime semantics without enhanced hooks
 - `GeneratedTagStabilityApp`
   - generated page/component tag stability across prerendered HTML and client registration
 
@@ -328,7 +321,6 @@ Those fixture families now have their own dedicated backing fixtures:
 - `tests/fixtures/single-locale-routing`
 - `tests/fixtures/base-path`
 - `tests/fixtures/head-seo`
-- `tests/fixtures/navigation-override`
 - `tests/fixtures/custom-element-generated-tag-stability`
 
 That means the matrix cases already point at both the intended conceptual family and a distinct
@@ -443,8 +435,8 @@ Good for:
 - localized page HTML
 - head state after boot
 - hydration behavior from a known page
-- basePath scenarios where a specific emitted document such as `en/index.html` or `404.html` must
-  be paired with an explicit URL
+- basePath scenarios where a specific emitted document such as `en/index.html` or `404.html` must be
+  paired with an explicit URL
 
 ### Preview-style resolution
 
@@ -758,7 +750,7 @@ When adding a new case:
 5. otherwise create a new check with one clear responsibility
 6. add the new `t.step(...)` or new suite
 7. update this document if the matrix shape or responsibilities changed
-8. run the smallest relevant task first, then run `deno task test`
+8. run the smallest relevant suite first, then run `deno task test`
 
 ## Conventions
 

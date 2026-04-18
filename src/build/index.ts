@@ -1,10 +1,10 @@
 export {
-    applyEngineBuildOverrides,
     resolveEngineBuildJobs,
     resolveEngineBuildProfile,
     resolveEnginePublicationMetadata,
     runEngineBuildJob,
     runEngineBuildJobs,
+    runEngineDevServer,
 } from "./engine.ts";
 export type {
     BuildEngineJob,
@@ -14,10 +14,11 @@ export type {
     BuildEnginePublicationMetadata,
     BuildEngineRenderMode,
 } from "./engine.ts";
-export { runBuildJobs, runSingleBuild } from "./execution.ts";
+export { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
 export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
+export { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./vite-config.ts";
+export type { GeneratedViteAlias, GeneratedViteConfig } from "./vite-config.ts";
 export {
-    applyBuildProfileOverrides,
     resolveEffectiveNavigationMode,
     resolvePublicationMetadata,
     resolveTargetBuildProfile,

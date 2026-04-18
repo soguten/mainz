@@ -29,6 +29,29 @@ Deno.test("cli/mainz: publish-info should reject legacy render overrides", async
             "site",
             "--mode",
             "csr",
+        ],
+        cwd: cliTestsRepoRoot,
+        stdout: "piped",
+        stderr: "piped",
+    });
+    const result = await command.output();
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
+
+    assertEquals(result.code, 1);
+    assertEquals(stdout, "");
+    assertEquals(stderr.includes('Command "publish-info" no longer accepts --mode.'), true);
+});
+
+Deno.test("cli/mainz: publish-info should reject navigation overrides", async () => {
+    const command = new Deno.Command("deno", {
+        args: [
+            "run",
+            "-A",
+            "./src/cli/mainz.ts",
+            "publish-info",
+            "--target",
+            "site",
             "--navigation",
             "spa",
         ],
@@ -42,5 +65,8 @@ Deno.test("cli/mainz: publish-info should reject legacy render overrides", async
 
     assertEquals(result.code, 1);
     assertEquals(stdout, "");
-    assertEquals(stderr.includes('Command "publish-info" no longer accepts --mode.'), true);
+    assertEquals(
+        stderr.includes('Command "publish-info" no longer accepts --navigation.'),
+        true,
+    );
 });

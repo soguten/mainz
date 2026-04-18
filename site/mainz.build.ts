@@ -2,13 +2,9 @@ import { defineTargetBuild } from "mainz/config";
 
 export default defineTargetBuild({
     profiles: {
-        dev: {
-            navigation: "spa",
-        },
+        dev: {},
         production: {},
-        "plain-static": {
-            navigation: "mpa",
-        },
+        "plain-static": {},
         "gh-pages": {
             // Published at the domain root.
             basePath: "/",

@@ -1,6 +1,6 @@
 ---
 title: E2E and Smoke Testing
-summary: Use explicit targets, profiles, and navigation modes to drive predictable smoke and browser-level testing.
+summary: Use explicit targets and profiles to drive predictable smoke and browser-level testing.
 ---
 
 ## Mainz helps E2E by making build inputs explicit
@@ -11,7 +11,6 @@ Instead, it tries to make E2E and smoke testing predictable by exposing the dime
 through the CLI:
 
 - `--target`
-- `--navigation`
 - `--profile`
 
 That makes it easier to run external tools like Playwright or Cypress against meaningful
@@ -41,7 +40,7 @@ These commands make the target and publication profile obvious in CI logs and lo
 
 Even without shipping a browser runner, the framework helps with common E2E pain points:
 
-- navigation mode is explicit
+- navigation mode is app-owned
 - targets are explicit
 - profile-specific output is explicit
 - localized routes and route shells are generated deterministically
@@ -102,14 +101,15 @@ Use booted-runtime checks for things like:
 - interactive route behavior after boot
 
 For booted-runtime checks, prefer synchronizing on `waitForNavigationReady(...)` from
-`mainz/testing` or on the bubbled `mainz:navigationready` event before asserting title, locale, body, or head behavior.
+`mainz/testing` or on the bubbled `mainz:navigationready` event before asserting title, locale,
+body, or head behavior.
 
 ## Public surface versus internal test architecture
 
 As a framework user, the public part you rely on is:
 
 - the `mainz/testing` helpers for unit and runtime tests
-- the CLI target/profile/navigation inputs that make E2E scenarios explicit
+- the CLI target/profile inputs that make E2E scenarios explicit
 
 For DOM-based smoke checks that execute the built runtime directly, prefer synchronizing on
 `waitForNavigationReady(...)` from `mainz/testing` or on the bubbled `mainz:navigationready` event

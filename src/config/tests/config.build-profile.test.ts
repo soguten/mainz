@@ -30,19 +30,3 @@ Deno.test("config/build-profile: should reject non-absolute siteUrl", () => {
         "Invalid build profile siteUrl",
     );
 });
-
-Deno.test("config/build-profile: should reject invalid navigation values", () => {
-    assertThrows(
-        () => {
-            normalizeTargetBuildConfig({
-                profiles: {
-                    production: {
-                        navigation: "turbo" as never,
-                    },
-                },
-            });
-        },
-        Error,
-        "Unsupported navigation mode",
-    );
-});

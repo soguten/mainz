@@ -5,12 +5,11 @@ import {
     buildDocumentLanguageRoutedAppForCombination,
     buildGeneratedTagStabilityAppForCombination,
     buildHeadSeoAppForCombination,
-    buildNavigationOverrideAppForCombination,
     buildRootAppForCombination,
     buildRoutedAppForCombination,
     buildRoutedAuthorizationAppForCombination,
-    buildRoutedDiEntriesAppForCombination,
     buildRoutedDiClientAppForCombination,
+    buildRoutedDiEntriesAppForCombination,
     buildSingleLocaleRoutedAppForCombination,
 } from "../helpers/build.ts";
 import type { TestBuildCombination, TestBuildContext } from "../helpers/types.ts";
@@ -36,7 +35,6 @@ export type FixtureId =
     | "DocumentLanguageRoutedApp"
     | "BasePathApp"
     | "HeadSeoApp"
-    | "NavigationOverrideApp"
     | "GeneratedTagStabilityApp";
 
 type MatrixFixtureDefinition = {
@@ -188,22 +186,6 @@ export const fixtures: Record<FixtureId, MatrixFixtureDefinition> = {
         },
         resolve() {
             return createResolvedFixture("HeadSeoApp");
-        },
-    },
-    "NavigationOverrideApp": {
-        id: "NavigationOverrideApp",
-        async build(recipe) {
-            const context = await buildNavigationOverrideAppForCombination(
-                {
-                    mode: recipe.render,
-                    navigation: recipe.navigation,
-                } satisfies TestBuildCombination,
-            );
-
-            return createMatrixArtifact(recipe, context);
-        },
-        resolve() {
-            return createResolvedFixture("NavigationOverrideApp");
         },
     },
     "GeneratedTagStabilityApp": {

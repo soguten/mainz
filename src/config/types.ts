@@ -1,5 +1,3 @@
-import { NavigationMode } from "../routing/index.ts";
-
 export interface MainzTargetDefinition {
     name: string;
     rootDir: string;
@@ -7,13 +5,23 @@ export interface MainzTargetDefinition {
     appFile?: string;
     appId?: string;
     outDir?: string;
-    viteConfig: string;
+    viteConfig?: string;
+    vite?: MainzTargetViteOptions;
     buildConfig?: string;
+}
+
+export interface MainzTargetViteAlias {
+    find: string;
+    replacement: string;
+}
+
+export interface MainzTargetViteOptions {
+    alias?: Record<string, string> | readonly MainzTargetViteAlias[];
+    define?: Record<string, string>;
 }
 
 export interface TargetBuildProfileDefinition {
     basePath?: string;
-    navigation?: NavigationMode;
     siteUrl?: string;
 }
 
@@ -36,7 +44,6 @@ export interface NormalizedMainzTarget extends MainzTargetDefinition {
 
 export interface NormalizedTargetBuildProfile {
     basePath?: string;
-    navigation?: NavigationMode;
     siteUrl?: string;
 }
 

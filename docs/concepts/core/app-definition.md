@@ -50,11 +50,9 @@ startApp(app, {
 This keeps the app definition readable and reusable without tying static tooling to bootstrap code
 in `main.tsx`.
 
-For routed apps, `navigation` is the app-owned default publication intent. Build profiles and the
-CLI may still override it, but the baseline value now lives with the routed app definition itself.
+For routed apps, `navigation` is the app-owned navigation intent. Build profiles and the CLI do no override it. When an app omits `navigation`, Mainz falls back to `spa`.
 
-For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`.
-App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
+For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`. App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
 
 ### Locale routing and document language
 

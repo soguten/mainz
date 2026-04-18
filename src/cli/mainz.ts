@@ -1,5 +1,6 @@
 /// <reference lib="deno.ns" />
 
+import { resolve } from "node:path";
 import type {
     LoadedMainzConfig,
     NormalizedMainzConfig,
@@ -7,11 +8,11 @@ import type {
 } from "../config/index.ts";
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
 import {
-    applyEngineBuildOverrides,
     resolveEngineBuildJobs,
     resolveEngineBuildProfile,
     resolveEnginePublicationMetadata,
     runEngineBuildJobs,
+    runEngineDevServer,
 } from "../build/index.ts";
 import {
     collectDiagnosticsForConfig,
@@ -19,16 +20,30 @@ import {
     formatDiagnosticsJson,
     shouldFailDiagnostics,
 } from "../diagnostics/index.ts";
+import { serveArtifactPreview } from "../preview/artifact-server.ts";
 
 type SharedCliOptions = {
     target?: string;
-    navigation?: string;
     profile?: string;
     configPath?: string;
 };
 
 type BuildCommandOptions = SharedCliOptions & {
     command: "build";
+};
+
+type DevCommandOptions = SharedCliOptions & {
+    command: "dev";
+};
+
+type PreviewCommandOptions = SharedCliOptions & {
+    command: "preview";
+    host?: string;
+    port?: number;
+};
+
+type TestCommandOptions = SharedCliOptions & {
+    command: "test";
 };
 
 type PublishInfoCommandOptions = SharedCliOptions & {
@@ -44,6 +59,9 @@ type DiagnoseCommandOptions = SharedCliOptions & {
 
 type MainzCliCommand =
     | BuildCommandOptions
+    | DevCommandOptions
+    | PreviewCommandOptions
+    | TestCommandOptions
     | PublishInfoCommandOptions
     | DiagnoseCommandOptions;
 
@@ -68,6 +86,15 @@ export async function main(args: string[]): Promise<void> {
         case "diagnose":
             await runDiagnoseCommand(command, normalizedConfig);
             return;
+        case "dev":
+            await runDevCommand(command, loadedConfig, normalizedConfig);
+            return;
+        case "preview":
+            await runPreviewCommand(command, loadedConfig, normalizedConfig);
+            return;
+        case "test":
+            await runTestCommand(command, normalizedConfig);
+            return;
         case "build":
             await runBuildCommand(command, loadedConfig, normalizedConfig);
             return;
@@ -81,8 +108,14 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         return undefined;
     }
 
-    if (command !== "build" && command !== "publish-info" && command !== "diagnose") {
-        throw new Error(`Unknown command "${command}". Use "build", "publish-info", or "diagnose".`);
+    if (
+        command !== "build" && command !== "dev" && command !== "preview" && command !== "test" &&
+        command !== "publish-info" &&
+        command !== "diagnose"
+    ) {
+        throw new Error(
+            `Unknown command "${command}". Use "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
+        );
     }
 
     const options = parseCommandOptions(command, rest);
@@ -92,6 +125,18 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     }
 
     if (command === "publish-info") {
+        return { command, ...options };
+    }
+
+    if (command === "dev") {
+        return { command, ...options };
+    }
+
+    if (command === "preview") {
+        return { command, ...options };
+    }
+
+    if (command === "test") {
         return { command, ...options };
     }
 
@@ -106,8 +151,14 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 function parseCommandOptions(
     command: MainzCliCommand["command"],
     args: string[],
-): SharedCliOptions & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn"> {
-    const options: SharedCliOptions & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn"> = {};
+):
+    & SharedCliOptions
+    & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
+    & Pick<PreviewCommandOptions, "host" | "port"> {
+    const options:
+        & SharedCliOptions
+        & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
+        & Pick<PreviewCommandOptions, "host" | "port"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -133,9 +184,12 @@ function parseCommandOptions(
         }
 
         if (current === "--navigation") {
-            options.navigation = args[index + 1];
-            index += 1;
-            continue;
+            throw new Error(
+                command === "build" || command === "dev" || command === "preview" ||
+                    command === "publish-info"
+                    ? `Command "${command}" no longer accepts --navigation. Navigation is now app-owned in defineApp(...) and falls back to spa.`
+                    : `Unknown option "${current}".`,
+            );
         }
 
         if (current === "--config") {
@@ -162,6 +216,38 @@ function parseCommandOptions(
             continue;
         }
 
+        if (current === "--host") {
+            if (command !== "preview") {
+                throw new Error(`Unknown option "${current}".`);
+            }
+
+            options.host = args[index + 1];
+            index += 1;
+            continue;
+        }
+
+        if (current === "--port") {
+            if (command !== "preview") {
+                throw new Error(`Unknown option "${current}".`);
+            }
+
+            const nextValue = args[index + 1];
+            const parsedPort = Number(nextValue);
+            if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
+                throw new Error(`Invalid --port value "${nextValue ?? ""}".`);
+            }
+
+            options.port = parsedPort;
+            index += 1;
+            continue;
+        }
+
+        if (current === "--suite") {
+            throw new Error(
+                `Unknown option "${current}". Test suites are project-specific; keep them in deno.json tasks.`,
+            );
+        }
+
         throw new Error(`Unknown option "${current}".`);
     }
 
@@ -175,14 +261,14 @@ async function runBuildCommand(
 ): Promise<void> {
     const jobs = await resolveEngineBuildJobs(normalizedConfig, options);
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
-    const resolvedProfileByTarget = new Map<string, Awaited<ReturnType<typeof resolveEngineBuildProfile>>>();
+    const resolvedProfileByTarget = new Map<
+        string,
+        Awaited<ReturnType<typeof resolveEngineBuildProfile>>
+    >();
     for (const target of selectedTargets.values()) {
         resolvedProfileByTarget.set(
             target.name,
-            applyEngineBuildOverrides(
-                await resolveEngineBuildProfile(target, options.profile),
-                options,
-            ),
+            await resolveEngineBuildProfile(target, options.profile),
         );
     }
 
@@ -205,10 +291,56 @@ async function runPublishInfoCommand(
     normalizedConfig: NormalizedMainzConfig,
 ): Promise<void> {
     const target = resolveRequiredTarget(normalizedConfig, options.target, "publish-info");
-    const metadata = await resolveEnginePublicationMetadata(target, options.profile, Deno.cwd(), {
-        navigation: options.navigation,
-    });
+    const metadata = await resolveEnginePublicationMetadata(target, options.profile, Deno.cwd());
     console.log(JSON.stringify(metadata, null, 2));
+}
+
+async function runDevCommand(
+    options: DevCommandOptions,
+    loadedConfig: LoadedMainzConfig,
+    normalizedConfig: NormalizedMainzConfig,
+): Promise<void> {
+    const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
+    const profile = await resolveEngineBuildProfile(target, options.profile);
+
+    console.log(
+        `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
+    );
+
+    await runEngineDevServer(normalizedConfig, target, profile);
+}
+
+async function runPreviewCommand(
+    options: PreviewCommandOptions,
+    loadedConfig: LoadedMainzConfig,
+    normalizedConfig: NormalizedMainzConfig,
+): Promise<void> {
+    const target = resolveRequiredTarget(normalizedConfig, options.target, "preview");
+
+    await runBuildCommand(
+        {
+            command: "build",
+            target: target.name,
+            profile: options.profile,
+            configPath: options.configPath,
+        },
+        loadedConfig,
+        normalizedConfig,
+    );
+
+    const metadata = await resolveEnginePublicationMetadata(
+        target,
+        options.profile,
+        Deno.cwd(),
+    );
+
+    serveArtifactPreview({
+        rootDir: metadata.outDir,
+        host: options.host,
+        port: options.port,
+    });
+
+    await new Promise(() => undefined);
 }
 
 async function runDiagnoseCommand(
@@ -227,10 +359,34 @@ async function runDiagnoseCommand(
     }
 }
 
+async function runTestCommand(
+    options: TestCommandOptions,
+    normalizedConfig: NormalizedMainzConfig,
+): Promise<void> {
+    const testPaths = resolveTestPathsForTarget(normalizedConfig, options.target);
+    const command = new Deno.Command("deno", {
+        cwd: Deno.cwd(),
+        args: [
+            "test",
+            "-A",
+            ...testPaths,
+        ],
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+    });
+
+    const child = command.spawn();
+    const status = await child.status;
+    if (!status.success) {
+        Deno.exit(status.code);
+    }
+}
+
 function resolveRequiredTarget(
     config: NormalizedMainzConfig,
     targetName: string | undefined,
-    command: "publish-info",
+    command: "dev" | "preview" | "publish-info",
 ): NormalizedMainzTarget {
     const normalizedTargetName = targetName?.trim();
     if (!normalizedTargetName || normalizedTargetName === "all") {
@@ -255,17 +411,21 @@ function printHelp(): void {
             "Mainz CLI",
             "",
             "Usage:",
-            "  mainz build [--target <name|all>] [--profile <name>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "  mainz publish-info --target <name> [--profile <name>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
+            "  mainz dev --target <name> [--profile <name>] [--config <path>]",
+            "  mainz preview --target <name> [--profile <name>] [--host <host>] [--port <port>] [--config <path>]",
+            "  mainz test [--target <name|all>] [--config <path>]",
+            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
             "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
             "Examples:",
             "  mainz build",
             "  mainz build --target site --profile gh-pages",
-            "  mainz build --target site --navigation spa",
             "  mainz build --target playground",
+            "  mainz dev --target playground",
+            "  mainz preview --target site --profile production",
+            "  mainz test --target site",
             "  mainz publish-info --target site --profile gh-pages",
-            "  mainz publish-info --target site --navigation mpa",
             "  mainz diagnose",
             "  mainz diagnose --target docs",
             "  mainz diagnose --target docs --app site",
@@ -286,6 +446,41 @@ function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
     }
 
     throw new Error(`Unsupported diagnose format "${format}". Use "json" or "human".`);
+}
+
+function resolveTestPathsForTarget(
+    config: NormalizedMainzConfig,
+    targetName: string | undefined,
+): string[] {
+    const normalizedTargetName = targetName?.trim();
+    if (!normalizedTargetName) {
+        return [];
+    }
+
+    if (normalizedTargetName === "all") {
+        return Array.from(
+            new Set(
+                config.targets.map((target) =>
+                    normalizePathSlashes(resolve(Deno.cwd(), target.rootDir))
+                ),
+            ),
+        );
+    }
+
+    const target = config.targets.find((entry) => entry.name === normalizedTargetName);
+    if (!target) {
+        throw new Error(
+            `No targets matched "${normalizedTargetName}". Available targets: ${
+                config.targets.map((entry) => entry.name).join(", ")
+            }`,
+        );
+    }
+
+    return [normalizePathSlashes(resolve(Deno.cwd(), target.rootDir))];
+}
+
+function normalizePathSlashes(path: string): string {
+    return path.replaceAll("\\", "/");
 }
 
 function resolveDiagnoseFailOn(

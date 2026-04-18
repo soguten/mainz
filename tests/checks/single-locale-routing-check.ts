@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
 import { nextTick, waitFor } from "../../src/testing/async-testing.ts";
-import { buildTargetWithEngine } from "../helpers/build.ts";
+import { buildSingleLocaleRoutedAppForCombination } from "../helpers/build.ts";
 import {
     extractModuleScriptSrc,
     resolveOutputHtmlPath,
@@ -13,28 +13,25 @@ import {
     resolvePreviewFixture,
 } from "../helpers/fixture-io.ts";
 import { waitForNextNavigationReady } from "../helpers/navigation.ts";
-import { cliTestsRepoRoot as repoRoot } from "../helpers/types.ts";
+import type { TestBuildContext } from "../helpers/types.ts";
 
 export async function runSingleLocaleRoutingCheck(args: {
     mode: "csr" | "ssg";
     navigation: "spa" | "mpa" | "enhanced-mpa";
 }): Promise<void> {
-    await buildTargetWithEngine({
-        targetName: "docs",
-        mode: args.mode,
-        navigation: args.navigation,
-    });
+    const context = await buildSingleLocaleRoutedAppForCombination(args);
 
-    await assertRootRoute(args);
-    await assertHomeLinks(args);
-    await assertDocsRoute(args);
+    try {
+        await assertRootRoute(context);
+        await assertHomeLinks(context);
+        await assertDocsRoute(context);
+    } finally {
+        await context.cleanup?.();
+    }
 }
 
-async function assertRootRoute(args: {
-    mode: "csr" | "ssg";
-    navigation: "spa" | "mpa" | "enhanced-mpa";
-}): Promise<void> {
-    const outputDir = resolve(repoRoot, `dist/docs/${args.mode}`);
+async function assertRootRoute(args: TestBuildContext): Promise<void> {
+    const outputDir = args.outputDir;
     const rootHtmlPath = resolve(outputDir, "index.html");
     const html = await Deno.readTextFile(rootHtmlPath);
 
@@ -85,11 +82,8 @@ async function assertRootRoute(args: {
     }, { url: "https://mainz.local/" });
 }
 
-async function assertHomeLinks(args: {
-    mode: "csr" | "ssg";
-    navigation: "spa" | "mpa" | "enhanced-mpa";
-}): Promise<void> {
-    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/");
+async function assertHomeLinks(args: TestBuildContext): Promise<void> {
+    const fixture = await resolveRouteFixture(args.outputDir, args.mode, args.navigation, "/");
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(
         scriptSrc,
@@ -124,14 +118,14 @@ async function assertHomeLinks(args: {
                 document.documentElement.lang === "en" &&
                 readAnchorHref("Overview") === "/" &&
                 readAnchorHref("Guides") === "/quickstart" &&
-                readAnchorHref("Reference") === "/data-loading",
+                readAnchorHref("Reference") === "/reference",
             `Expected ${args.mode} + ${args.navigation} single-locale home links to stay unprefixed.`,
         );
 
         assertEquals(document.documentElement.lang, "en");
         assertEquals(readAnchorHref("Overview"), "/");
         assertEquals(readAnchorHref("Guides"), "/quickstart");
-        assertEquals(readAnchorHref("Reference"), "/data-loading");
+        assertEquals(readAnchorHref("Reference"), "/reference");
         assert(document.querySelector('a[href="/quickstart"]'));
 
         if (args.navigation === "spa") {
@@ -150,11 +144,13 @@ async function assertHomeLinks(args: {
     }, { url: "https://mainz.local/" });
 }
 
-async function assertDocsRoute(args: {
-    mode: "csr" | "ssg";
-    navigation: "spa" | "mpa" | "enhanced-mpa";
-}): Promise<void> {
-    const fixture = await resolveRouteFixture(args.mode, args.navigation, "/quickstart");
+async function assertDocsRoute(args: TestBuildContext): Promise<void> {
+    const fixture = await resolveRouteFixture(
+        args.outputDir,
+        args.mode,
+        args.navigation,
+        "/quickstart",
+    );
     const scriptSrc = extractModuleScriptSrc(fixture.html);
     assert(
         scriptSrc,
@@ -206,11 +202,11 @@ async function assertDocsRoute(args: {
 }
 
 async function resolveRouteFixture(
+    outputDir: string,
     renderMode: "csr" | "ssg",
     navigationMode: "spa" | "mpa" | "enhanced-mpa",
     routePath: string,
 ): Promise<{ html: string; htmlPath: string; outputDir: string; responseStatus?: number }> {
-    const outputDir = resolve(repoRoot, `dist/docs/${renderMode}`);
     return await resolvePreviewFixture({
         outputDir,
         renderMode,

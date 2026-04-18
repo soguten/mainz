@@ -8,7 +8,6 @@ import type { ResolvedBuildProfile } from "./profiles.ts";
 
 export interface BuildRequestOptions {
     target?: string;
-    navigation?: string;
     profile?: string;
     configPath?: string;
 }

@@ -4,11 +4,7 @@ import { assertEquals, assertRejects } from "@std/assert";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { normalizeMainzConfig } from "../../config/index.ts";
-import {
-    applyBuildProfileOverrides,
-    resolvePublicationMetadata,
-    resolveTargetBuildProfile,
-} from "../profiles.ts";
+import { resolvePublicationMetadata, resolveTargetBuildProfile } from "../profiles.ts";
 
 Deno.test("build/profiles: should load explicit target build config profiles", async () => {
     const fixture = await createTargetBuildFixture(
@@ -16,12 +12,9 @@ Deno.test("build/profiles: should load explicit target build config profiles", a
 
          export default defineTargetBuild({
              profiles: {
-                 dev: {
-                     navigation: "spa",
-                 },
+                 dev: {},
                  "gh-pages": {
                      basePath: "/mainz",
-                     navigation: "enhanced-mpa",
                      siteUrl: "https://mainz.dev",
                  },
              },
@@ -47,7 +40,6 @@ Deno.test("build/profiles: should load explicit target build config profiles", a
         assertEquals(profile, {
             name: "gh-pages",
             basePath: "/mainz/",
-            navigation: "enhanced-mpa",
             siteUrl: "https://mainz.dev",
         });
     } finally {
@@ -59,9 +51,7 @@ Deno.test("build/profiles: should discover rootDir mainz.build.ts automatically"
     const fixture = await createTargetBuildFixture(
         `export default {
              profiles: {
-                 dev: {
-                     navigation: "spa",
-                 },
+                 dev: {},
              },
          };
         `,
@@ -84,7 +74,6 @@ Deno.test("build/profiles: should discover rootDir mainz.build.ts automatically"
         assertEquals(profile, {
             name: "dev",
             basePath: "/",
-            navigation: "spa",
             siteUrl: undefined,
         });
     } finally {
@@ -171,44 +160,6 @@ Deno.test("build/profiles: should fail for unknown custom profile", async () => 
     }
 });
 
-Deno.test("build/profiles: should let profile navigation override app navigation intent", async () => {
-    const fixture = await createTargetBuildFixture(
-        `export default {
-             profiles: {
-                 production: {
-                     navigation: "mpa",
-                 },
-             },
-         };
-        `,
-    );
-
-    try {
-        const config = normalizeMainzConfig({
-            targets: [
-                {
-                    name: "site",
-                    rootDir: "./site",
-                    viteConfig: "./vite.config.site.ts",
-                    buildConfig: fixture.relativeConfigPath,
-                    outDir: "dist/site",
-                    appFile: "./site/src/main.tsx",
-                },
-            ],
-        });
-
-        const metadata = await resolvePublicationMetadata(
-            config.targets[0],
-            "production",
-            fixture.cwd,
-        );
-
-        assertEquals(metadata.navigation, "mpa");
-    } finally {
-        await Deno.remove(fixture.cwd, { recursive: true });
-    }
-});
-
 Deno.test("build/profiles: should resolve publication metadata from the app selected by target appId", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-build-profile-app-selection-" });
     const siteDir = join(cwd, "site");
@@ -263,7 +214,7 @@ Deno.test("build/profiles: should resolve publication metadata from the app sele
     }
 });
 
-Deno.test("build/profiles: should derive spa navigation defaults when no app or profile declares one", async () => {
+Deno.test("build/profiles: should derive spa navigation defaults when no app declares one", async () => {
     const fixture = await createTargetBuildFixture(
         `export default {
              profiles: {
@@ -306,55 +257,6 @@ Deno.test("build/profiles: should derive spa navigation defaults when no app or 
 
         assertEquals(siteMetadata.navigation, "spa");
         assertEquals(playgroundMetadata.navigation, "spa");
-    } finally {
-        await Deno.remove(fixture.cwd, { recursive: true });
-    }
-});
-
-Deno.test("build/profiles: should allow explicit CLI navigation override without changing publication metadata shape", async () => {
-    const fixture = await createTargetBuildFixture(
-        `export default {
-             profiles: {
-                 production: {
-                     basePath: "/docs/",
-                 },
-             },
-         };
-        `,
-    );
-
-    try {
-        const config = normalizeMainzConfig({
-            targets: [
-                {
-                    name: "site",
-                    rootDir: "./site",
-                    viteConfig: "./vite.config.site.ts",
-                    buildConfig: fixture.relativeConfigPath,
-                    outDir: "dist/site",
-                    appFile: "./site/src/main.tsx",
-                },
-            ],
-        });
-
-        const profile = applyBuildProfileOverrides(
-            await resolveTargetBuildProfile(config.targets[0], undefined, fixture.cwd),
-            { navigation: "spa" },
-        );
-        const metadata = await resolvePublicationMetadata(
-            config.targets[0],
-            undefined,
-            fixture.cwd,
-            {
-                navigation: "spa",
-            },
-        );
-
-        assertEquals(profile.navigation, "spa");
-        assertEquals(profile.basePath, "/docs/");
-        assertEquals(metadata.navigation, "spa");
-        assertEquals(metadata.outDir, "dist/site/csr");
-        assertEquals(metadata.basePath, "/docs/");
     } finally {
         await Deno.remove(fixture.cwd, { recursive: true });
     }

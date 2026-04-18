@@ -1,7 +1,6 @@
 import { resolve } from "node:path";
 import { loadMainzConfig, normalizeMainzConfig } from "../../src/config/index.ts";
 import {
-    applyEngineBuildOverrides,
     resolveEngineBuildJobs,
     resolveEngineBuildProfile,
     runEngineBuildJobs,
@@ -36,6 +35,7 @@ export async function buildRootAppForCombination(
         fixtureName: "root-app",
         targetName: "root-app",
         combination,
+        omitViteConfig: true,
     });
 }
 
@@ -90,32 +90,13 @@ export async function buildHeadSeoAppForCombination(
     });
 }
 
-export async function buildNavigationOverrideAppForCombination(
-    combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-    const fixture = await createFixtureTargetDefinition({
-        fixtureName: "navigation-override",
-        targetName: "navigation-override-app",
-    });
-
-    const context = await buildFixtureForCombination({
-        fixture,
-        combination,
-        profile: "plain-static",
-    });
-
-    return {
-        ...context,
-        cleanup: fixture.cleanup,
-    };
-}
-
 export async function buildGeneratedTagStabilityAppForCombination(
     combination: TestBuildCombination,
 ): Promise<TestBuildContext> {
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "custom-element-generated-tag-stability",
         targetName: "generated-tag-stability-app",
+        appNavigation: combination.navigation,
     });
 
     const context = await buildFixtureForCombination({
@@ -135,6 +116,7 @@ export async function buildSingleLocaleRoutedAppForCombination(
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "single-locale-routing",
         targetName: "single-locale-routed-app",
+        appNavigation: combination.navigation,
     });
 
     const context = await buildFixtureForCombination({
@@ -154,6 +136,7 @@ export async function buildDocumentLanguageRoutedAppForCombination(
     const fixture = await createFixtureTargetDefinition({
         fixtureName: "document-language-routing",
         targetName: "document-language-routed-app",
+        appNavigation: combination.navigation,
     });
 
     const context = await buildFixtureForCombination({
@@ -188,7 +171,6 @@ export async function buildFixtureForCombination(args: {
 export async function buildTargetWithEngine(args: {
     targetName: string;
     mode?: TestRenderMode;
-    navigation?: TestNavigationMode;
     profile?: string;
     configPath?: string;
     cwd?: string;
@@ -215,9 +197,10 @@ export async function buildTargetWithEngine(args: {
                 );
             }
 
-            const resolvedProfile = applyEngineBuildOverrides(
-                await resolveEngineBuildProfile(selectedTarget, args.profile, cwd),
-                { navigation: args.navigation },
+            const resolvedProfile = await resolveEngineBuildProfile(
+                selectedTarget,
+                args.profile,
+                cwd,
             );
 
             const resolvedJobs = args.mode
@@ -227,7 +210,6 @@ export async function buildTargetWithEngine(args: {
                         configPath: args.configPath,
                         target: args.targetName,
                         profile: args.profile,
-                        navigation: args.navigation,
                         mode: args.mode,
                     },
                     cwd,
@@ -243,7 +225,6 @@ export async function buildTargetWithEngine(args: {
                         configPath: args.configPath,
                         target: args.targetName,
                         profile: args.profile,
-                        navigation: args.navigation,
                     },
                     cwd,
                 )).map((job) => ({
@@ -257,8 +238,8 @@ export async function buildTargetWithEngine(args: {
         } catch (error) {
             const details = error instanceof Error ? error.message : String(error);
             throw new Error(
-                `Failed to build ${args.targetName}${args.mode ? ` for ${args.mode}` : ""}${
-                    args.navigation ? ` + ${args.navigation}` : ""
+                `Failed to build ${args.targetName}${
+                    args.mode ? ` for ${args.mode}` : ""
                 }: ${details}`,
             );
         }
@@ -273,7 +254,6 @@ async function runFixtureBuildForCombination(args: {
     await buildFixtureTargetWithEngine({
         target: args.fixture.target,
         mode: args.combination.mode,
-        navigation: args.combination.navigation,
         profile: args.profile,
         cwd: cliTestsRepoRoot,
     });
@@ -283,9 +263,11 @@ export async function createFixtureTargetDefinition(args: {
     fixtureName: string;
     targetName?: string;
     appFile?: string;
+    appNavigation?: TestNavigationMode;
     omitPagesDir?: boolean;
+    omitViteConfig?: boolean;
 }): Promise<FixtureTargetDefinition> {
-    const fixtureRoot = resolve(
+    const sourceFixtureRoot = resolve(
         cliTestsRepoRoot,
         "tests",
         "fixtures",
@@ -296,6 +278,13 @@ export async function createFixtureTargetDefinition(args: {
         dir: cliTestsRepoRoot,
         prefix: `.mainz-fixture-${args.fixtureName}-`,
     });
+    const fixtureRoot = args.appNavigation
+        ? await createNavigationFixtureCopy({
+            sourceFixtureRoot,
+            tempRoot,
+            navigation: args.appNavigation,
+        })
+        : sourceFixtureRoot;
     const outputDir = resolve(tempRoot, "dist", targetName);
     const pagesDir = resolve(fixtureRoot, "src", "pages");
     const requestedAppFile = args.appFile
@@ -309,7 +298,7 @@ export async function createFixtureTargetDefinition(args: {
     const targetDefinition = {
         name: targetName,
         rootDir: fixtureRoot,
-        viteConfig,
+        ...(args.omitViteConfig || args.appNavigation ? {} : { viteConfig }),
         ...(args.omitPagesDir ? {} : { pagesDir }),
         ...(includeAppFile ? { appFile: requestedAppFile } : {}),
         ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
@@ -336,10 +325,13 @@ async function buildNamedFixtureForCombination(args: {
     targetName: string;
     combination: TestBuildCombination;
     profile?: string;
+    omitViteConfig?: boolean;
 }): Promise<TestBuildContext> {
     const fixture = await createFixtureTargetDefinition({
         fixtureName: args.fixtureName,
         targetName: args.targetName,
+        appNavigation: args.combination.navigation,
+        omitViteConfig: args.omitViteConfig,
     });
 
     try {
@@ -397,7 +389,6 @@ function delay(ms: number): Promise<void> {
 async function buildFixtureTargetWithEngine(args: {
     target: FixtureTargetDefinition["target"];
     mode?: TestRenderMode;
-    navigation?: TestNavigationMode;
     profile?: string;
     cwd?: string;
 }): Promise<void> {
@@ -411,10 +402,7 @@ async function buildFixtureTargetWithEngine(args: {
 
     await withEngineBuildLock(buildKey, async () => {
         try {
-            const resolvedProfile = applyEngineBuildOverrides(
-                await resolveEngineBuildProfile(args.target, args.profile, cwd),
-                { navigation: args.navigation },
-            );
+            const resolvedProfile = await resolveEngineBuildProfile(args.target, args.profile, cwd);
 
             const resolvedJobs = args.mode
                 ? (await resolveForcedBuildJobs(
@@ -422,7 +410,6 @@ async function buildFixtureTargetWithEngine(args: {
                     {
                         target: args.target.name,
                         profile: args.profile,
-                        navigation: args.navigation,
                         mode: args.mode,
                     },
                     cwd,
@@ -435,7 +422,6 @@ async function buildFixtureTargetWithEngine(args: {
                     {
                         target: args.target.name,
                         profile: args.profile,
-                        navigation: args.navigation,
                     },
                     cwd,
                 )).map((job) => ({
@@ -447,12 +433,64 @@ async function buildFixtureTargetWithEngine(args: {
         } catch (error) {
             const details = error instanceof Error ? error.message : String(error);
             throw new Error(
-                `Failed to build ${args.target.name}${args.mode ? ` for ${args.mode}` : ""}${
-                    args.navigation ? ` + ${args.navigation}` : ""
+                `Failed to build ${args.target.name}${
+                    args.mode ? ` for ${args.mode}` : ""
                 }: ${details}`,
             );
         }
     });
+}
+
+async function createNavigationFixtureCopy(args: {
+    sourceFixtureRoot: string;
+    tempRoot: string;
+    navigation: TestNavigationMode;
+}): Promise<string> {
+    const fixtureRoot = resolve(args.tempRoot, "fixture");
+    await copyDirectory(args.sourceFixtureRoot, fixtureRoot);
+    await applyAppNavigationToFixture(fixtureRoot, args.navigation);
+    return fixtureRoot;
+}
+
+async function copyDirectory(sourceDir: string, destinationDir: string): Promise<void> {
+    await Deno.mkdir(destinationDir, { recursive: true });
+    for await (const entry of Deno.readDir(sourceDir)) {
+        const sourcePath = resolve(sourceDir, entry.name);
+        const destinationPath = resolve(destinationDir, entry.name);
+
+        if (entry.isDirectory) {
+            await copyDirectory(sourcePath, destinationPath);
+            continue;
+        }
+
+        await Deno.copyFile(sourcePath, destinationPath);
+    }
+}
+
+async function applyAppNavigationToFixture(
+    fixtureRoot: string,
+    navigation: TestNavigationMode,
+): Promise<void> {
+    const mainPath = resolve(fixtureRoot, "src", "main.tsx");
+    if (!await fileExists(mainPath)) {
+        return;
+    }
+
+    const source = await Deno.readTextFile(mainPath);
+    const withoutExistingNavigation = source.replace(
+        /^(\s*)navigation:\s*"(spa|mpa|enhanced-mpa)",\r?\n/m,
+        "",
+    );
+    const updated = withoutExistingNavigation.replace(
+        /^(\s*id:\s*"[^"]+",\r?\n)/m,
+        `$1    navigation: ${JSON.stringify(navigation)},\n`,
+    );
+
+    if (updated === withoutExistingNavigation) {
+        throw new Error(`Could not apply app navigation to fixture at ${mainPath}.`);
+    }
+
+    await Deno.writeTextFile(mainPath, updated);
 }
 
 async function withEngineBuildLock(
