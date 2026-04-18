@@ -8,7 +8,6 @@ import {
     pageDiscoveryFailedErrorKind,
 } from "../page-discovery-errors.ts";
 import {
-    resolveTargetDiagnosticsEvaluationsForTarget,
     resolveTargetDiscoveredPages,
     resolveTargetDiscoveredPagesForTarget,
 } from "../target-page-discovery.ts";
@@ -186,102 +185,17 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
                 exportName: page.exportName,
                 path: page.path,
                 notFound: page.notFound,
-                declaredRoutePath: page.declaredRoutePath,
             })),
             [
                 {
                     exportName: "FixtureBasePathHomePage",
                     path: "/",
                     notFound: undefined,
-                    declaredRoutePath: "/",
                 },
                 {
                     exportName: "FixtureBasePathNotFoundPage",
                     path: "/404",
                     notFound: true,
-                    declaredRoutePath: undefined,
-                },
-            ],
-        );
-    } finally {
-        await fixture.cleanup();
-    }
-});
-
-Deno.test("routing/target-page-discovery: should collect all routed app candidates in lexicographic app id order", async () => {
-    const fixture = await createFixtureTargetConfig({
-        fixtureName: "diagnostics-multi-app",
-        targetName: "diagnostics-multi-app",
-        omitPagesDir: true,
-    });
-
-    try {
-        const target = normalizeMainzConfig({
-            targets: [{
-                name: fixture.targetName,
-                rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
-                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                outDir: fixture.outputDir,
-            }],
-        }).targets[0];
-
-        const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(target);
-
-        assertEquals(
-            evaluations.map((evaluation) => ({
-                appId: evaluation.appId,
-                paths: evaluation.discoveredPages.map((page) => page.path),
-            })),
-            [
-                {
-                    appId: "alpha-app",
-                    paths: ["/alpha"],
-                },
-                {
-                    appId: "beta-app",
-                    paths: ["/beta"],
-                },
-            ],
-        );
-    } finally {
-        await fixture.cleanup();
-    }
-});
-
-Deno.test("routing/target-page-discovery: should collect root-only app candidates in lexicographic app id order", async () => {
-    const fixture = await createFixtureTargetConfig({
-        fixtureName: "diagnostics-multi-root-app",
-        targetName: "diagnostics-multi-root-app",
-        omitPagesDir: true,
-    });
-
-    try {
-        const target = normalizeMainzConfig({
-            targets: [{
-                name: fixture.targetName,
-                rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
-                appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-                outDir: fixture.outputDir,
-            }],
-        }).targets[0];
-
-        const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(target);
-
-        assertEquals(
-            evaluations.map((evaluation) => ({
-                appId: evaluation.appId,
-                pages: evaluation.discoveredPages.length,
-            })),
-            [
-                {
-                    appId: "alpha-root-app",
-                    pages: 0,
-                },
-                {
-                    appId: "beta-root-app",
-                    pages: 0,
                 },
             ],
         );
@@ -389,68 +303,5 @@ Deno.test("routing/target-page-discovery: should report an explicit error when t
         );
     } finally {
         await fixture.cleanup();
-    }
-});
-
-Deno.test("routing/target-page-discovery: should report an explicit discovery error when a discovered routed app is missing id", async () => {
-    const tempRoot = await Deno.makeTempDir({
-        dir: cliTestsRepoRoot,
-        prefix: ".mainz-route-app-id-",
-    });
-    const srcDir = resolve(tempRoot, "src");
-    const pagesDir = resolve(srcDir, "pages");
-
-    try {
-        await Deno.mkdir(pagesDir, { recursive: true });
-        await Deno.writeTextFile(
-            resolve(srcDir, "main.tsx"),
-            [
-                'import { defineApp, startApp } from "../../../src/index.ts";',
-                'import { MissingIdPage } from "./pages/MissingId.page.tsx";',
-                "",
-                "const app = defineApp({",
-                "  // @ts-ignore test fixture intentionally omits id",
-                "  pages: [MissingIdPage],",
-                "});",
-                "",
-                "startApp(app, { mount: '#app' });",
-                "",
-            ].join("\n"),
-        );
-        await Deno.writeTextFile(
-            resolve(pagesDir, "MissingId.page.tsx"),
-            [
-                'import { Page, Route } from "../../../../src/index.ts";',
-                "",
-                '@Route("/")',
-                "export class MissingIdPage extends Page {",
-                "  override render() {",
-                "    return <div>Missing id</div>;",
-                "  }",
-                "}",
-                "",
-            ].join("\n"),
-        );
-
-        const target = normalizeMainzConfig({
-            targets: [{
-                name: "missing-id-app",
-                rootDir: tempRoot,
-                viteConfig: resolve(tempRoot, "vite.config.ts"),
-                appFile: resolve(srcDir, "main.tsx"),
-                outDir: resolve(tempRoot, "dist"),
-            }],
-        }).targets[0];
-
-        const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(target);
-
-        assertEquals(evaluations.length, 1);
-        assertEquals(evaluations[0]?.appId, undefined);
-        assertStringIncludes(
-            evaluations[0]?.discoveryErrors?.[0]?.message ?? "",
-            "must declare a unique string id",
-        );
-    } finally {
-        await Deno.remove(tempRoot, { recursive: true }).catch(() => undefined);
     }
 });

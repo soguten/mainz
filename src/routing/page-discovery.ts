@@ -9,9 +9,9 @@ import {
     type PageConstructor,
     type PageHeadDefinition,
     requirePageRoutePath,
-    resolvePageRoutePath,
     resolvePageLocales,
     resolvePageRenderMode,
+    resolvePageRoutePath,
 } from "../components/page.ts";
 import type { RenderMode } from "./types.ts";
 import { isFilesystemPageFile } from "./filesystem.ts";
@@ -22,8 +22,6 @@ export interface DiscoveredPage {
     page: {
         path: string;
         mode: RenderMode;
-        hasExplicitRenderMode?: boolean;
-        declaredRoutePath?: string;
         locales?: readonly string[];
         head?: PageHeadDefinition;
         authorization?: PageAuthorizationMetadata;
@@ -119,13 +117,13 @@ function normalizePageDefinition(
 ): DiscoveredPage["page"] {
     const locales = resolvePageLocales(ctor);
     const authorization = resolvePageAuthorization(ctor);
-    const declaredRoutePath = resolvePageRoutePath(ctor);
-    const path = declaredRoutePath ?? options.fallbackPath ?? requirePageRoutePath(
+    const routePath = resolvePageRoutePath(ctor);
+    const path = routePath ?? options.fallbackPath ?? requirePageRoutePath(
         ctor,
         `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
     );
 
-    if (!declaredRoutePath && !options.allowMissingRoute) {
+    if (!routePath && !options.allowMissingRoute) {
         requirePageRoutePath(
             ctor,
             `Page export "${exportName}" in "${filePath}" must define a route with @Route(...).`,
@@ -135,7 +133,6 @@ function normalizePageDefinition(
     return {
         path,
         ...resolveDiscoveryMode(ctor, {}, filePath, exportName),
-        declaredRoutePath,
         locales: locales ? [...locales] : undefined,
         head: undefined,
         authorization: authorization ? cloneAuthorization(authorization) : undefined,
@@ -147,12 +144,11 @@ function resolveDiscoveryMode(
     _page: Record<string, unknown>,
     filePath: string,
     exportName: string,
-): { mode: RenderMode; hasExplicitRenderMode?: boolean } {
+): { mode: RenderMode } {
     const decoratorMode = resolvePageRenderMode(ctor);
 
     return {
         mode: normalizeMode(decoratorMode),
-        hasExplicitRenderMode: decoratorMode !== undefined ? true : undefined,
     };
 }
 

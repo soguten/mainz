@@ -18,8 +18,6 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/",
                 mode: "csr",
-                hasExplicitRenderMode: undefined,
-                declaredRoutePath: "/",
                 head: undefined,
                 locales: undefined,
                 authorization: undefined,
@@ -31,8 +29,6 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/search",
                 mode: "ssg",
-                hasExplicitRenderMode: true,
-                declaredRoutePath: "/search",
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
                 authorization: undefined,
@@ -44,7 +40,9 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
 Deno.test("routing/page-discovery: should discover route metadata declared with decorators", async () => {
     await setupMainzDom();
 
-    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.decorator.fixture.tsx"));
+    const file = resolve(
+        join(Deno.cwd(), "src/routing/tests/page-discovery.decorator.fixture.tsx"),
+    );
     const pages = await discoverPagesFromFile(file);
 
     assertEquals(pages, [
@@ -54,8 +52,6 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/",
                 mode: "csr",
-                hasExplicitRenderMode: undefined,
-                declaredRoutePath: "/",
                 locales: undefined,
                 head: undefined,
                 authorization: undefined,
@@ -67,8 +63,6 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/search",
                 mode: "ssg",
-                hasExplicitRenderMode: true,
-                declaredRoutePath: "/search",
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
                 authorization: undefined,
@@ -80,7 +74,9 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
 Deno.test("routing/page-discovery: should discover authorization metadata declared on pages", async () => {
     await setupMainzDom();
 
-    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.authorization.fixture.tsx"));
+    const file = resolve(
+        join(Deno.cwd(), "src/routing/tests/page-discovery.authorization.fixture.tsx"),
+    );
     const pages = await discoverPagesFromFile(file);
 
     assertEquals(pages, [
@@ -90,8 +86,6 @@ Deno.test("routing/page-discovery: should discover authorization metadata declar
             page: {
                 path: "/admin",
                 mode: "csr",
-                hasExplicitRenderMode: true,
-                declaredRoutePath: "/admin",
                 locales: undefined,
                 head: undefined,
                 authorization: {
@@ -110,8 +104,6 @@ Deno.test("routing/page-discovery: should discover authorization metadata declar
             page: {
                 path: "/signin",
                 mode: "ssg",
-                hasExplicitRenderMode: true,
-                declaredRoutePath: "/signin",
                 locales: undefined,
                 head: undefined,
                 authorization: {
@@ -139,7 +131,9 @@ Deno.test("routing/page-discovery: should ignore non-page exports across multipl
 Deno.test("routing/page-discovery: should fail when a Page export omits a route annotation", async () => {
     await setupMainzDom();
 
-    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.missing-metadata.fixture.tsx"));
+    const file = resolve(
+        join(Deno.cwd(), "src/routing/tests/page-discovery.missing-metadata.fixture.tsx"),
+    );
 
     await assertRejects(
         () => discoverPagesFromFile(file),
@@ -151,7 +145,9 @@ Deno.test("routing/page-discovery: should fail when a Page export omits a route 
 Deno.test("routing/page-discovery: should fail when @Locales(...) declares an invalid locale tag", async () => {
     await setupMainzDom();
 
-    const file = resolve(join(Deno.cwd(), "src/routing/tests/page-discovery.invalid-locale.fixture.tsx"));
+    const file = resolve(
+        join(Deno.cwd(), "src/routing/tests/page-discovery.invalid-locale.fixture.tsx"),
+    );
 
     await assertRejects(
         () => discoverPagesFromFile(file),
@@ -173,8 +169,6 @@ Deno.test("routing/page-discovery: should discover decorator-only render mode de
             page: {
                 path: "/conflict",
                 mode: "csr",
-                hasExplicitRenderMode: true,
-                declaredRoutePath: "/conflict",
                 locales: undefined,
                 head: undefined,
                 authorization: undefined,

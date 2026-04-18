@@ -34,7 +34,6 @@ Today `mainz diagnose` can report checks such as:
 - dynamic SSG routes with `entries()` but no `load()`
 - invalid `entries()` for dynamic SSG params
 - `notFound` pages that are not `ssg`
-- app-level `notFound` pages that still define `@Route(...)`
 - multiple `notFound` pages in the same routing set
 - pages that reference named authorization policies not declared in `app.authorization.policyNames`
 - `Component` declarations with `@RenderStrategy("defer")` but no `load()`
@@ -82,6 +81,18 @@ implementations still belong in `startApp(app, { auth: { policies } })`.
 `mainz diagnose` expects a literal `authorization.policyNames` array on the selected app. Dynamic
 policy-name declarations are not statically resolved. Runtime authorization still fails fast if a
 protected page or component references a policy that is not registered in `auth.policies`.
+
+## Static-analysis limits
+
+Diagnostics intentionally avoid adding public or routing-core metadata only to power extra static
+checks.
+
+Today this means:
+
+- dynamic `authorization.policyNames` values are not statically resolved
+- app-level `notFound` pages are not checked for a redundant `@Route(...)` declaration
+
+Runtime and build behavior still use the resolved page path and app-owned `notFound` registration.
 
 ## Human output
 

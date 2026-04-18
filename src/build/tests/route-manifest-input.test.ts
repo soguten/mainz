@@ -24,7 +24,6 @@ Deno.test("build/route-manifest-input: should preserve discovered page modes", (
                 exportName: "LivePage",
                 path: "/live",
                 mode: "csr",
-                hasExplicitRenderMode: true,
             },
             {
                 file: "./site/pages/docs.page.tsx",

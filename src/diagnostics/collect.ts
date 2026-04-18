@@ -12,10 +12,8 @@ import {
     pageDiscoveryFailedDiagnosticCode,
 } from "./routing/index.ts";
 import type { NormalizedMainzTarget } from "../config/index.ts";
-import {
-    collectFilesystemFiles,
-    resolveTargetDiagnosticsEvaluationsForTarget,
-} from "../routing/target-page-discovery.ts";
+import { collectFilesystemFiles } from "../routing/target-page-discovery.ts";
+import { resolveTargetDiagnosticsEvaluationsForTarget } from "./routing/target-evaluation.ts";
 import {
     createDiagnosticsTargetModel,
     type DiagnosticsContributor,
@@ -73,9 +71,7 @@ export async function collectDiagnosticsForTarget(
             page: {
                 path: page.path,
                 mode: page.mode,
-                hasExplicitRenderMode: page.hasExplicitRenderMode,
                 notFound: page.notFound,
-                declaredRoutePath: page.declaredRoutePath,
                 locales: page.locales,
                 authorization: page.authorization,
             },

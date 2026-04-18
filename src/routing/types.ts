@@ -23,9 +23,7 @@ export interface DiscoveredPageDefinition {
     exportName: string;
     path: string;
     mode: RenderMode;
-    hasExplicitRenderMode?: boolean;
     notFound?: boolean;
-    declaredRoutePath?: string;
     head?: PageHeadDefinition;
     locales?: readonly string[];
     authorization?: PageAuthorizationMetadata;
