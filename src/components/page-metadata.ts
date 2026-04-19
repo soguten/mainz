@@ -5,6 +5,10 @@ import type { PageConstructor } from "./page.ts";
 const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
 const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
 const PAGE_LOCALES = Symbol("mainz.page.locales");
+type PageDecorator = <T extends PageConstructor>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void;
 
 /**
  * Declares the application route served by a page class.
@@ -15,7 +19,7 @@ const PAGE_LOCALES = Symbol("mainz.page.locales");
  * - `"/login"`
  * - `"/stories/:slug"`
  */
-export function Route(path: string) {
+export function Route(path: string): PageDecorator {
     return function <T extends PageConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -35,7 +39,7 @@ export function Route(path: string) {
  *
  * Use `@RenderMode(...)` to describe the page-level render contract.
  */
-export function RenderMode(mode: RenderMode) {
+export function RenderMode(mode: RenderMode): PageDecorator {
     return function <T extends PageConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -44,7 +48,7 @@ export function RenderMode(mode: RenderMode) {
     };
 }
 
-export function Locales(...locales: string[]) {
+export function Locales(...locales: string[]): PageDecorator {
     return function <T extends PageConstructor>(
         value: T,
         context?: ClassDecoratorContext<T>,

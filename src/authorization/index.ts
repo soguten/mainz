@@ -39,8 +39,12 @@ type AuthorizationOwner = {
     [AUTHORIZATION_ALLOW_ANONYMOUS]?: boolean;
 };
 type AuthorizationDecoratedClass = abstract new (...args: unknown[]) => unknown;
+type AuthorizationDecorator = <T extends AuthorizationDecoratedClass>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void;
 
-export function Authorize(options: AuthorizationOptions = {}) {
+export function Authorize(options: AuthorizationOptions = {}): AuthorizationDecorator {
     const requirement = normalizeAuthorizationRequirement(options);
 
     return function <T extends AuthorizationDecoratedClass>(
@@ -52,7 +56,7 @@ export function Authorize(options: AuthorizationOptions = {}) {
     };
 }
 
-export function AllowAnonymous() {
+export function AllowAnonymous(): AuthorizationDecorator {
     return function <T extends AuthorizationDecoratedClass>(
         value: T,
         _context?: ClassDecoratorContext<T>,

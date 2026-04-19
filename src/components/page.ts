@@ -65,6 +65,16 @@ type PageLoadByParamsResolver<Names extends readonly string[], Value> = (
     params: { readonly [K in Names[number]]: string },
     context: PageLoadContext,
 ) => Value | Promise<Value>;
+export interface PageLoadHelpers {
+    byParam<Value>(
+        name: string,
+        resolver: PageLoadByParamResolver<Value>,
+    ): (context: PageLoadContext) => Value | Promise<Value>;
+    byParams<const Names extends readonly string[], Value>(
+        names: Names,
+        resolver: PageLoadByParamsResolver<Names, Value>,
+    ): (context: PageLoadContext) => Value | Promise<Value>;
+}
 
 export interface PageLoadContext {
     path: string;
@@ -205,7 +215,7 @@ export interface PageConstructor {
     ): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
 }
 
-export const load = {
+export const load: PageLoadHelpers = {
     byParam<Value>(
         name: string,
         resolver: PageLoadByParamResolver<Value>,

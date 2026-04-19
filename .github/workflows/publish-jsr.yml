@@ -1,0 +1,28 @@
+name: Publish JSR package
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    id-token: write
+
+concurrency:
+    group: jsr-publish
+    cancel-in-progress: false
+
+jobs:
+    publish-mainz:
+        name: Publish @mainz/mainz
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+
+            - name: Publish package
+              run: deno publish --config jsr.json

@@ -90,7 +90,7 @@ export function setManagedDOMEvents(node: Node, events: ManagedDOMEventDescripto
 }
 
 // deno-lint-ignore no-explicit-any
-export function Fragment(props: { children?: any[] }) {
+export function Fragment(props: { children?: any[] }): DocumentFragment {
     const frag = resolveCurrentRenderDocument().createDocumentFragment();
     appendChildren(frag, props.children || []);
     return frag;

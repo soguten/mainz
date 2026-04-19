@@ -23,6 +23,10 @@ const COMPONENT_RENDER_STRATEGY = Symbol(
 const COMPONENT_RENDER_POLICY = Symbol(
     "mainz.component.render-policy",
 );
+type MainzComponentDecorator = <T extends MainzComponentConstructor>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void;
 
 /**
  * Declares the custom element tag name for a Mainz component class.
@@ -30,7 +34,7 @@ const COMPONENT_RENDER_POLICY = Symbol(
  * Use `@CustomElement(...)` when the component needs a stable public tag name in rendered output
  * or direct DOM usage.
  */
-export function CustomElement(tagName: string) {
+export function CustomElement(tagName: string): MainzComponentDecorator {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -52,7 +56,7 @@ export function CustomElement(tagName: string) {
  */
 export function RenderStrategy(
     strategy: RenderStrategy,
-) {
+): MainzComponentDecorator {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -73,7 +77,7 @@ export function RenderStrategy(
  */
 export function RenderPolicy(
     policy: RenderPolicy,
-) {
+): MainzComponentDecorator {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
