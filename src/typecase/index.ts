@@ -1,3 +1,5 @@
+/// <reference path="../types/jsx.d.ts" />
+
 export { TypecaseRoot } from "./TypecaseRoot.tsx";
 export { darkTheme, lightTheme } from "./themes/index.ts";
 export type {

@@ -1,3 +1,5 @@
+/// <reference path="./types/mainz-env.d.ts" />
+
 export {
     Component,
     CustomElement,

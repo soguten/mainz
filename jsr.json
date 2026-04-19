@@ -1,0 +1,61 @@
+{
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@mainz/mainz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "esnext"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "@mainz/mainz",
+    "strict": true,
+    "types": [
+      "./src/types/jsx.d.ts",
+      "./src/types/mainz-env.d.ts"
+    ]
+  },
+  "imports": {
+    "happy-dom": "npm:happy-dom@20.1.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./jsx-runtime": "./src/jsx-runtime.ts",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
+    "./di": "./src/di/index.ts",
+    "./http": "./src/http/index.ts",
+    "./http/testing": "./src/http/testing.ts",
+    "./i18n": "./src/i18n/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "publish": {
+    "include": [
+      "LICENSE",
+      "README.md",
+      "src/index.ts",
+      "src/jsx-runtime.ts",
+      "src/jsx-dev-runtime.ts",
+      "src/runtime-events.ts",
+      "src/authorization/**",
+      "src/commands/**",
+      "src/components/**",
+      "src/compiler/**",
+      "src/di/**",
+      "src/http/**",
+      "src/i18n/**",
+      "src/jsx/**",
+      "src/navigation/**",
+      "src/portal/**",
+      "src/resources/**",
+      "src/routing/**",
+      "src/ssg/**",
+      "src/testing/**",
+      "src/types/**"
+    ],
+    "exclude": [
+      "**/tests/**",
+      "src/tests/**"
+    ]
+  }
+}

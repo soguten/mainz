@@ -44,7 +44,55 @@ declare module "mainz/jsx-runtime" {
   }
 }
 
+declare module "@mainz/mainz/jsx-runtime" {
+  export namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+
+    interface IntrinsicAttributes {
+      key?: string | number;
+    }
+
+    interface ElementAttributesProperty {
+      props: {};
+    }
+
+    interface ElementChildrenAttribute {
+      children: {};
+    }
+
+    interface ElementClass {
+      props: unknown;
+    }
+  }
+}
+
 declare module "mainz/jsx-dev-runtime" {
+  export namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+
+    interface IntrinsicAttributes {
+      key?: string | number;
+    }
+
+    interface ElementAttributesProperty {
+      props: {};
+    }
+
+    interface ElementChildrenAttribute {
+      children: {};
+    }
+
+    interface ElementClass {
+      props: unknown;
+    }
+  }
+}
+
+declare module "@mainz/mainz/jsx-dev-runtime" {
   export namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
