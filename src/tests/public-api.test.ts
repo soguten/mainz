@@ -2,7 +2,7 @@
 
 import { assertEquals } from "@std/assert";
 
-Deno.test("public-api/root: should expose the ownership-based surface without legacy resource exports", async () => {
+Deno.test("public-api/root: should expose the ownership-based surface without resource exports", async () => {
     const mainz = await import("mainz");
 
     assertEquals(typeof mainz.Component, "function");

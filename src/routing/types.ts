@@ -32,7 +32,6 @@ export interface DiscoveredPageDefinition {
 export interface TargetDefinition {
     name: string;
     rootDir: string;
-    pagesDir?: string;
     outDir?: string;
 }
 
@@ -59,7 +58,6 @@ export interface BuildTargetRouteManifestInput {
     target: TargetDefinition;
     appLocales?: readonly string[];
     appLocaleSource?: "i18n" | "documentLanguage";
-    filesystemPageFiles?: readonly string[];
     discoveredPages?: readonly DiscoveredPageDefinition[];
 }
 

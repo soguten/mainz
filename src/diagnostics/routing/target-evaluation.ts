@@ -3,8 +3,8 @@ import {
     type AppDiscoveryCandidate,
     type CliDiscoveredPage,
     type CliPageDiscoveryError,
+    compareAppDiscoveryCandidates,
     resolveTargetAppDiscoveryForTarget,
-    resolveTargetDiscoveredPages,
 } from "../../routing/target-page-discovery.ts";
 import { readStaticAppAuthorizationPolicyNames } from "./app-authorization-facts.ts";
 
@@ -21,50 +21,44 @@ export async function resolveTargetDiagnosticsEvaluationsForTarget(
     selectedAppId?: string,
 ): Promise<readonly TargetDiagnosticsEvaluation[]> {
     const appDiscovery = await resolveTargetAppDiscoveryForTarget(target, cwd);
-    if (appDiscovery.resolvedAppFile) {
-        if (appDiscovery.foundAppDefinition) {
-            const appCandidates = [...(appDiscovery.appCandidates ?? [])].sort(
-                compareAppDiscoveryCandidates,
-            );
-            if (selectedAppId) {
-                const selectedCandidates = appCandidates.filter((candidate) =>
-                    candidate.appId === selectedAppId
-                );
-                if (selectedCandidates.length === 0) {
-                    const availableIds = appCandidates
-                        .flatMap((candidate) => candidate.appId ? [candidate.appId] : [])
-                        .sort((a, b) => a.localeCompare(b));
-                    throw new Error(
-                        availableIds.length > 0
-                            ? `No app candidates matched "${selectedAppId}" for target "${target.name}". Available apps: ${
-                                availableIds.join(", ")
-                            }`
-                            : `Target "${target.name}" did not produce any selectable app ids.`,
-                    );
-                }
-
-                return await Promise.all(
-                    selectedCandidates.map(toTargetDiagnosticsEvaluation),
-                );
-            }
-
-            return await Promise.all(appCandidates.map(toTargetDiagnosticsEvaluation));
+    if (!appDiscovery.resolvedAppFile) {
+        if (!selectedAppId) {
+            return [emptyTargetDiagnosticsEvaluation()];
         }
 
-        if (selectedAppId) {
-            throw new Error(`Target "${target.name}" did not produce any routed app candidates.`);
-        }
-    } else if (selectedAppId) {
         throw new Error(
             `Target "${target.name}" does not define an app file for app-aware diagnostics.`,
         );
     }
 
-    const fallbackDiscovery = await resolveTargetDiscoveredPages(target.pagesDir, cwd);
-    return [{
-        discoveredPages: [...(fallbackDiscovery.discoveredPages ?? [])],
-        discoveryErrors: fallbackDiscovery.discoveryErrors,
-    }];
+    if (!appDiscovery.foundAppDefinition) {
+        if (!selectedAppId) {
+            return [emptyTargetDiagnosticsEvaluation()];
+        }
+
+        throw new Error(`Target "${target.name}" did not produce any routed app candidates.`);
+    }
+
+    const appCandidates = [...(appDiscovery.appCandidates ?? [])].sort(compareAppDiscoveryCandidates);
+    if (!selectedAppId) {
+        return await Promise.all(appCandidates.map(toTargetDiagnosticsEvaluation));
+    }
+
+    const selectedCandidates = appCandidates.filter((candidate) => candidate.appId === selectedAppId);
+    if (selectedCandidates.length > 0) {
+        return await Promise.all(selectedCandidates.map(toTargetDiagnosticsEvaluation));
+    }
+
+    const availableIds = appCandidates
+        .flatMap((candidate) => candidate.appId ? [candidate.appId] : [])
+        .sort((a, b) => a.localeCompare(b));
+    throw new Error(
+        availableIds.length > 0
+            ? `No app candidates matched "${selectedAppId}" for target "${target.name}". Available apps: ${
+                availableIds.join(", ")
+            }`
+            : `Target "${target.name}" did not produce any selectable app ids.`,
+    );
 }
 
 async function toTargetDiagnosticsEvaluation(
@@ -81,13 +75,9 @@ async function toTargetDiagnosticsEvaluation(
     };
 }
 
-function compareAppDiscoveryCandidates(
-    a: Pick<AppDiscoveryCandidate, "appId" | "appFile">,
-    b: Pick<AppDiscoveryCandidate, "appId" | "appFile">,
-): number {
-    if ((a.appId ?? "") !== (b.appId ?? "")) {
-        return (a.appId ?? "").localeCompare(b.appId ?? "");
-    }
-
-    return a.appFile.localeCompare(b.appFile);
+function emptyTargetDiagnosticsEvaluation(): TargetDiagnosticsEvaluation {
+    return {
+        discoveredPages: [],
+        discoveryErrors: undefined,
+    };
 }

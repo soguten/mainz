@@ -121,7 +121,6 @@ Deno.test("cli/mainz: diagnose should support selecting one app by id", async ()
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        omitPagesDir: true,
     });
 
     try {
@@ -171,7 +170,6 @@ Deno.test("cli/mainz: diagnose should support selecting one root-only app by id"
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-root-app",
         targetName: "diagnostics-multi-root-app",
-        omitPagesDir: true,
     });
 
     try {

@@ -3,9 +3,9 @@ title: Resource Model
 summary: Extract reusable data contracts without hiding whether the page or component owns the async work.
 ---
 
-## Reusable data contracts after the ownership shift
+## Reusable data contracts
 
-Mainz no longer teaches async loading through special resource-backed component primitives.
+Mainz teaches async loading through ownership.
 
 The main model is now:
 

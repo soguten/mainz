@@ -8,7 +8,7 @@ import {
     pageDiscoveryFailedErrorKind,
 } from "../page-discovery-errors.ts";
 import {
-    resolveTargetDiscoveredPages,
+    resolveDiscoveredPagesFromDirectory,
     resolveTargetDiscoveredPagesForTarget,
 } from "../target-page-discovery.ts";
 import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
@@ -21,7 +21,7 @@ Deno.test("routing/target-page-discovery: should classify invalid locale discove
     });
 
     try {
-        const { discoveryErrors } = await resolveTargetDiscoveredPages(
+        const { discoveryErrors } = await resolveDiscoveredPagesFromDirectory(
             resolve(fixture.fixtureRoot, "src", "pages"),
         );
 
@@ -56,7 +56,7 @@ Deno.test("routing/target-page-discovery: should classify generic page discovery
             ].join("\n"),
         );
 
-        const { discoveryErrors } = await resolveTargetDiscoveredPages(pagesDir);
+        const { discoveryErrors } = await resolveDiscoveredPagesFromDirectory(pagesDir);
 
         assertEquals(discoveryErrors?.length, 1);
         assertEquals(discoveryErrors?.[0]?.kind, pageDiscoveryFailedErrorKind);
@@ -69,11 +69,10 @@ Deno.test("routing/target-page-discovery: should classify generic page discovery
     }
 });
 
-Deno.test("routing/target-page-discovery: should discover routed pages from the conventional app module when pagesDir is omitted", async () => {
+Deno.test("routing/target-page-discovery: should discover routed pages from the conventional app module", async () => {
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di",
         targetName: "diagnostics-di-app-file",
-        omitPagesDir: true,
     });
 
     try {
@@ -116,7 +115,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-di-imported-app",
         targetName: "diagnostics-di-imported-app",
-        omitPagesDir: true,
     });
 
     try {
@@ -161,7 +159,6 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
     const fixture = await createFixtureTargetConfig({
         fixtureName: "base-path",
         targetName: "base-path-app-file",
-        omitPagesDir: true,
     });
 
     try {
@@ -208,7 +205,6 @@ Deno.test("routing/target-page-discovery: should select the configured appId whe
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app-selected",
-        omitPagesDir: true,
     });
 
     try {
@@ -247,7 +243,6 @@ Deno.test("routing/target-page-discovery: should require appId when app discover
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app-ambiguous",
-        omitPagesDir: true,
     });
 
     try {
@@ -280,7 +275,6 @@ Deno.test("routing/target-page-discovery: should report an explicit error when t
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app-missing-selection",
-        omitPagesDir: true,
     });
 
     try {

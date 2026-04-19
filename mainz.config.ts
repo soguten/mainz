@@ -7,7 +7,6 @@ export default defineMainzConfig({
             rootDir: "./site",
             appFile: "./site/src/main.tsx",
             appId: "site",
-            pagesDir: "./site/src/pages",
             buildConfig: "./site/mainz.build.ts",
             outDir: "dist/site",
         },
@@ -21,7 +20,6 @@ export default defineMainzConfig({
             rootDir: "./examples/authorize-site",
             appFile: "./examples/authorize-site/src/main.tsx",
             appId: "authorize-site",
-            pagesDir: "./examples/authorize-site/src/pages",
             outDir: "dist/examples/authorize-site",
         },
         {
@@ -29,7 +27,6 @@ export default defineMainzConfig({
             rootDir: "./examples/di-http-site",
             appFile: "./examples/di-http-site/src/app.ts",
             appId: "site",
-            pagesDir: "./examples/di-http-site/src/pages",
             outDir: "dist/examples/di-http-site",
         },
         {
@@ -37,7 +34,6 @@ export default defineMainzConfig({
             rootDir: "./typecase-site",
             appFile: "./typecase-site/src/main.tsx",
             appId: "typecase-site",
-            pagesDir: "./typecase-site/src/pages",
             outDir: "dist/typecase-site",
         },
         {
@@ -45,7 +41,6 @@ export default defineMainzConfig({
             rootDir: "./docs-site",
             appFile: "./docs-site/src/main.tsx",
             appId: "docs-site",
-            pagesDir: "./docs-site/src/pages",
             buildConfig: "./docs-site/mainz.build.ts",
             outDir: "dist/docs",
         },

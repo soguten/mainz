@@ -467,7 +467,7 @@ async function resolveTargetRouteBuildContext(
     cwd: string,
     appDefinition?: RoutedAppDefinition,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const { filesystemPageFiles, discoveredPages, discoveryErrors } =
+    const { discoveredPages, discoveryErrors } =
         await resolveTargetDiscoveredPagesForTarget(
             job.target,
             cwd,
@@ -482,7 +482,6 @@ async function resolveTargetRouteBuildContext(
         ...resolveRouteManifestBuildInput({
             target: job.target,
             appDefinition,
-            filesystemPageFiles,
             discoveredPages,
         }),
     });

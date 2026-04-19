@@ -58,7 +58,7 @@ export class DuplicateSuppressionComponent extends Component<NoProps, NoState, {
 
 /**
  * @mainz-diagnostics-ignore
- * component-load-missing-placeholder: no longer needed
+ * component-load-missing-placeholder: stale suppression kept for collector coverage
  */
 @CustomElement("x-mainz-unused-suppression-component")
 @RenderPolicy("placeholder-in-ssg")

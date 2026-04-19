@@ -1,9 +1,6 @@
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import type { RenderMode } from "../routing/index.ts";
-import {
-    resolveTargetAppFile,
-    resolveTargetDiscoveredPagesForTarget,
-} from "../routing/target-page-discovery.ts";
+import { resolveTargetDiscoveredPagesForTarget } from "../routing/target-page-discovery.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 
 export interface BuildRequestOptions {
@@ -127,9 +124,7 @@ async function resolveTargetSupportedRenderModes(
     cwd: string,
 ): Promise<ReadonlySet<RenderMode>> {
     const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd);
-    const hasAnyRouteInput = Boolean(
-        discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length,
-    );
+    const hasAnyRouteInput = Boolean(discovery.discoveredPages?.length);
 
     if (discovery.discoveryErrors?.length) {
         throw new Error(
@@ -138,12 +133,7 @@ async function resolveTargetSupportedRenderModes(
     }
 
     if (!hasAnyRouteInput) {
-        if (target.pagesDir) {
-            return new Set<RenderMode>(["csr"]);
-        }
-
-        const appFile = resolveTargetAppFile(target, cwd);
-        return appFile ? new Set<RenderMode>(["csr"]) : new Set<RenderMode>(["csr"]);
+        return new Set<RenderMode>(["csr"]);
     }
 
     const discoveredModes = new Set<RenderMode>(

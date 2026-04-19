@@ -264,7 +264,6 @@ export async function createFixtureTargetDefinition(args: {
     targetName?: string;
     appFile?: string;
     appNavigation?: TestNavigationMode;
-    omitPagesDir?: boolean;
     omitViteConfig?: boolean;
 }): Promise<FixtureTargetDefinition> {
     const sourceFixtureRoot = resolve(
@@ -286,7 +285,6 @@ export async function createFixtureTargetDefinition(args: {
         })
         : sourceFixtureRoot;
     const outputDir = resolve(tempRoot, "dist", targetName);
-    const pagesDir = resolve(fixtureRoot, "src", "pages");
     const requestedAppFile = args.appFile
         ? resolve(fixtureRoot, args.appFile)
         : resolve(fixtureRoot, "src", "main.tsx");
@@ -299,7 +297,6 @@ export async function createFixtureTargetDefinition(args: {
         name: targetName,
         rootDir: fixtureRoot,
         ...(args.omitViteConfig || args.appNavigation ? {} : { viteConfig }),
-        ...(args.omitPagesDir ? {} : { pagesDir }),
         ...(includeAppFile ? { appFile: requestedAppFile } : {}),
         ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
         outDir: outputDir,

@@ -25,7 +25,6 @@ Deno.test("cli/mainz app: create should scaffold an app workspace and target", a
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, 'appFile: "./docs/src/app.ts"');
         assertStringIncludes(config, 'appId: "docs"');
-        assertStringIncludes(config, 'pagesDir: "./docs/src/pages"');
         assertStringIncludes(config, 'outDir: "dist/docs"');
         assert(!config.includes("viteConfig"));
 

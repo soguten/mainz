@@ -147,9 +147,7 @@ To diagnose only one app within the target, pass its app id explicitly:
 mainz diagnose --target di-http-site --app site --format human
 ```
 
-If no app candidate is discovered, diagnostics fall back to conventional `pagesDir` discovery. If an
-app candidate is discovered but cannot be resolved completely, diagnostics report an app discovery
-error instead of silently falling back for that same candidate.
+`mainz diagnose` evaluates the app selected by the target and optional `--app` filter. If app discovery fails, it reports an app discovery error.
 
 ## JSON output
 
@@ -195,7 +193,7 @@ Subject-specific suppression:
 ```ts
 /**
  * @mainz-diagnostics-ignore
- * invalid-locale-tag[locale=pt_BR]: legacy locale value kept for migration coverage
+ * invalid-locale-tag[locale=pt_BR]: this fixture keeps locale validation coverage visible
  */
 @Locales("pt_BR", "en_US")
 export class SearchPage extends Page {
@@ -209,8 +207,8 @@ When you need more than one subject, repeat the diagnostic code once per subject
 ```ts
 /**
  * @mainz-diagnostics-ignore
- * di-token-not-registered[token=StoriesApi]: fixture keeps this legacy token unresolved on purpose
- * di-token-not-registered[token=HttpClient]: external mock wiring still depends on this token shape
+ * di-token-not-registered[token=StoriesApi]: this fixture leaves the token unresolved on purpose
+ * di-token-not-registered[token=HttpClient]: this fixture isolates external mock wiring
  */
 export class StoriesPage extends Page {
 }

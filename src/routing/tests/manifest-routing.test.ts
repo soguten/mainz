@@ -30,7 +30,6 @@ Deno.test("routing/manifest: should resolve locales with precedence page > app",
         target: {
             name: "site",
             rootDir: "./site",
-            pagesDir: "./site/pages",
         },
         appLocales: ["en-US", "pt-BR"],
         appLocaleSource: "i18n",
@@ -64,7 +63,6 @@ Deno.test("routing/manifest: should reject @Locales(...) when app i18n is absent
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 discoveredPages: [
                     {
@@ -88,7 +86,6 @@ Deno.test("routing/manifest: should reject @Locales(...) when app only declares 
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 appLocales: ["pt-BR"],
                 appLocaleSource: "documentLanguage",
@@ -114,7 +111,6 @@ Deno.test("routing/manifest: should reject @Locales(...) outside app i18n locale
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 appLocales: ["en"],
                 appLocaleSource: "i18n",
@@ -138,7 +134,6 @@ Deno.test("routing/manifest: should prefer app locales for pages without @Locale
         target: {
             name: "site",
             rootDir: "./site",
-            pagesDir: "./site/pages",
         },
         appLocales: ["en", "pt-BR"],
         discoveredPages: [
@@ -159,7 +154,6 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
         target: {
             name: "playground",
             rootDir: "./playground",
-            pagesDir: "./playground/pages",
         },
         appLocales: ["en"],
         discoveredPages: [
@@ -186,28 +180,11 @@ Deno.test("routing/manifest: should emit no locale prefix when route locale is i
     ]);
 });
 
-Deno.test("routing/manifest: should default filesystem pages to csr when no explicit render signal exists", () => {
-    const manifest = buildTargetRouteManifest({
-        target: {
-            name: "playground",
-            rootDir: "./playground",
-            pagesDir: "./playground/pages",
-        },
-        appLocales: ["en"],
-        filesystemPageFiles: [
-            "./playground/pages/index.page.tsx",
-        ],
-    });
-
-    assertEquals(manifest.routes[0].mode, "csr");
-});
-
 Deno.test("routing/manifest: should preserve discovered page modes even when filesystem fallback differs", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "site",
             rootDir: "./site",
-            pagesDir: "./site/pages",
         },
         appLocales: ["en", "pt-BR"],
         discoveredPages: [
@@ -242,7 +219,6 @@ Deno.test("routing/manifest: should fail when discovered pages conflict in the s
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 appLocales: ["en"],
                 discoveredPages: [
@@ -273,7 +249,6 @@ Deno.test("routing/manifest: should reject multiple notFound pages", () => {
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 appLocales: ["en"],
                 discoveredPages: [
@@ -306,7 +281,6 @@ Deno.test("routing/manifest: should require notFound pages to use ssg mode", () 
                 target: {
                     name: "site",
                     rootDir: "./site",
-                    pagesDir: "./site/pages",
                 },
                 appLocales: ["en"],
                 discoveredPages: [
@@ -325,28 +299,11 @@ Deno.test("routing/manifest: should require notFound pages to use ssg mode", () 
     );
 });
 
-Deno.test("routing/manifest: should default filesystem pages to csr when no explicit render signal exists", () => {
-    const manifest = buildTargetRouteManifest({
-        target: {
-            name: "docs",
-            rootDir: "./docs-site",
-            pagesDir: "./docs-site/pages",
-        },
-        appLocales: ["en"],
-        filesystemPageFiles: ["./docs-site/pages/index.page.tsx"],
-    });
-
-    assertEquals(manifest.routes.map((route) => ({ path: route.path, mode: route.mode })), [
-        { path: "/", mode: "csr" },
-    ]);
-});
-
 Deno.test("routing/manifest: should build routes from discovered page metadata", () => {
     const manifest = buildTargetRouteManifest({
         target: {
             name: "site",
             rootDir: "./site",
-            pagesDir: "./site/pages",
         },
         appLocales: ["en", "pt-BR"],
         discoveredPages: [

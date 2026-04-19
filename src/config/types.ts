@@ -1,7 +1,6 @@
 export interface MainzTargetDefinition {
     name: string;
     rootDir: string;
-    pagesDir?: string;
     appFile?: string;
     appId?: string;
     outDir?: string;

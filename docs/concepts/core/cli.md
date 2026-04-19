@@ -44,7 +44,6 @@ export default defineMainzConfig({
             rootDir: "./site",
             appFile: "./site/src/app.ts",
             appId: "site",
-            pagesDir: "./site/src/pages",
             outDir: "dist/site",
         },
     ],
@@ -80,7 +79,6 @@ export default defineMainzConfig({
             rootDir: "./site",
             appFile: "./site/src/app.ts",
             appId: "site",
-            pagesDir: "./site/src/pages",
             outDir: "dist/site",
         },
     ],
@@ -182,5 +180,6 @@ That means:
 - page render mode comes from `@RenderMode(...)`, with `csr` as the fallback
 - navigation comes from `defineApp({ navigation })`, with `spa` as the fallback
 - app ids, i18n, authorization policy names, services, commands, and pages live in `defineApp(...)`
+- the selected app defines routed pages and `notFound`
 
 The CLI does not expose navigation or render-mode override flags for normal use.

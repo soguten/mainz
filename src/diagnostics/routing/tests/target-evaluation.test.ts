@@ -11,7 +11,6 @@ Deno.test("diagnostics/routing: target evaluation should collect all routed app 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        omitPagesDir: true,
     });
 
     try {
@@ -52,7 +51,6 @@ Deno.test("diagnostics/routing: target evaluation should collect root-only app c
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-root-app",
         targetName: "diagnostics-multi-root-app",
-        omitPagesDir: true,
     });
 
     try {

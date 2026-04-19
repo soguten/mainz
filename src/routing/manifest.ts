@@ -1,4 +1,3 @@
-import { inferFilesystemRoutes } from "./filesystem.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { I18nConfig } from "../i18n/index.ts";
 import type {
@@ -64,11 +63,7 @@ export function buildTargetRouteManifest(
     const target = input.target;
     const targetName = target.name;
 
-    const filesystemConfigured = Boolean(
-        target.pagesDir || input.filesystemPageFiles || input.discoveredPages,
-    );
-
-    if (!filesystemConfigured) {
+    if (!input.discoveredPages?.length) {
         return {
             target: targetName,
             routes: [],
@@ -418,59 +413,7 @@ export function buildRouteHead(args: {
 }
 
 function buildFilesystemCandidates(input: BuildTargetRouteManifestInput): CandidateRoute[] {
-    const target = input.target;
-    const targetName = target.name;
-
-    if (input.discoveredPages) {
-        return input.discoveredPages.map((page) => buildDiscoveredPageCandidate(page, input));
-    }
-
-    if (!target.pagesDir && !input.filesystemPageFiles) {
-        return [];
-    }
-
-    if (!target.pagesDir) {
-        throw new Error(
-            `Target "${targetName}" received filesystemPageFiles but pagesDir is missing.`,
-        );
-    }
-
-    if (!input.filesystemPageFiles) {
-        throw new Error(
-            `Target "${targetName}" defines pagesDir="${target.pagesDir}" but filesystem files were not loaded.`,
-        );
-    }
-
-    let filesystemRoutes: FilesystemRoute[];
-    try {
-        filesystemRoutes = inferFilesystemRoutes([...input.filesystemPageFiles], {
-            pagesDir: target.pagesDir,
-        });
-    } catch (error) {
-        throw new Error(
-            `Target "${targetName}" filesystem routing failed: ${toErrorMessage(error)}`,
-        );
-    }
-
-    return filesystemRoutes.map((route) => {
-        const locales = resolveRouteLocales({
-            routeLocales: undefined,
-            appLocales: input.appLocales,
-            appLocaleSource: input.appLocaleSource,
-            targetName,
-            routeLabel: route.path,
-        });
-
-        return {
-            source: "filesystem",
-            file: route.file,
-            mode: route.mode,
-            path: route.path,
-            pattern: route.pattern,
-            routeKey: route.routeKey,
-            locales,
-        };
-    });
+    return (input.discoveredPages ?? []).map((page) => buildDiscoveredPageCandidate(page, input));
 }
 
 function buildDiscoveredPageCandidate(
@@ -1126,12 +1069,4 @@ function safeToLocalePathSegment(locale: string): string | undefined {
     } catch {
         return undefined;
     }
-}
-
-function toErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    return String(error);
 }

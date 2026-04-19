@@ -31,7 +31,6 @@ export default defineMainzConfig({
             rootDir: "./site",
             appFile: "./site/src/main.tsx",
             appId: "site",
-            pagesDir: "./site/src/pages",
             outDir: "dist/site",
             vite: {
                 alias: {
@@ -64,7 +63,6 @@ export default defineMainzConfig({
             rootDir: "./site",
             appFile: "./site/src/main.tsx",
             appId: "site",
-            pagesDir: "./site/src/pages",
             outDir: "dist/site",
             viteConfig: "./site/vite.config.ts",
         },

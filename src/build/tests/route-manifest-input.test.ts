@@ -11,7 +11,6 @@ Deno.test("build/route-manifest-input: should preserve discovered page modes", (
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                pagesDir: "./site/pages",
             },
         ],
     });
@@ -50,7 +49,6 @@ Deno.test("build/route-manifest-input: should treat documentLanguage as a single
                 name: "docs",
                 rootDir: "./docs-site",
                 viteConfig: "./vite.config.docs.ts",
-                pagesDir: "./docs-site/pages",
             },
         ],
     });
@@ -75,7 +73,6 @@ Deno.test("build/route-manifest-input: should mark app locales sourced from app 
                 name: "docs",
                 rootDir: "./docs-site",
                 viteConfig: "./vite.config.docs.ts",
-                pagesDir: "./docs-site/pages",
             },
         ],
     });

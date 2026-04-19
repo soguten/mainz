@@ -66,26 +66,32 @@ export interface TargetAppDiscovery {
     foundAppDefinition: boolean;
 }
 
+export interface TargetPageDiscoveryResult {
+    discoveredPages: CliDiscoveredPage[] | undefined;
+    discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
+}
+
+const EMPTY_TARGET_PAGE_DISCOVERY_RESULT: TargetPageDiscoveryResult = {
+    discoveredPages: undefined,
+    discoveryErrors: undefined,
+};
+
 interface ResolvedAppExpression {
     expression: ts.Expression;
     context: AppFileContext;
 }
 
-export async function resolveTargetDiscoveredPages(
+export async function resolveDiscoveredPagesFromDirectory(
     pagesDir: string | undefined,
     cwd = Deno.cwd(),
-): Promise<{
-    filesystemPageFiles: string[] | undefined;
-    discoveredPages: CliDiscoveredPage[] | undefined;
-    discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
-}> {
-    const filesystemPageFiles = pagesDir
-        ? await collectFilesystemPageFiles(resolve(cwd, pagesDir))
+): Promise<TargetPageDiscoveryResult> {
+    const pageFiles = pagesDir
+        ? await collectPageFilesInDirectory(resolve(cwd, pagesDir))
         : undefined;
     const discoveredPages: CliDiscoveredPage[] = [];
     const discoveryErrors: CliPageDiscoveryError[] = [];
 
-    for (const filePath of filesystemPageFiles ?? []) {
+    for (const filePath of pageFiles ?? []) {
         try {
             const entries = await discoverPagesFromFile(filePath);
             discoveredPages.push(...entries.map((entry) => ({
@@ -104,7 +110,6 @@ export async function resolveTargetDiscoveredPages(
     }
 
     return normalizeDiscoveredPagesResult({
-        filesystemPageFiles,
         discoveredPages,
         discoveryErrors,
     });
@@ -113,35 +118,18 @@ export async function resolveTargetDiscoveredPages(
 export async function resolveTargetDiscoveredPagesForTarget(
     target: NormalizedMainzTarget,
     cwd = Deno.cwd(),
-): Promise<{
-    filesystemPageFiles: string[] | undefined;
-    discoveredPages: CliDiscoveredPage[] | undefined;
-    discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
-}> {
+): Promise<TargetPageDiscoveryResult> {
     const resolvedAppFile = resolveTargetAppFile(target, cwd);
     if (resolvedAppFile) {
         const appDiscovery = await resolveTargetAppCandidatesFromAppFile(
             resolvedAppFile,
             target.appFile !== undefined,
         );
-        if (!appDiscovery.foundAppDefinition && isRoutedTargetInput(target)) {
-            return normalizeDiscoveredPagesResult({
-                filesystemPageFiles: undefined,
-                discoveredPages: undefined,
-                discoveryErrors: [{
-                    kind: pageDiscoveryFailedErrorKind,
-                    file: normalizePathSlashes(resolve(resolvedAppFile)),
-                    message:
-                        `Target "${target.name}" must define a routed app with defineApp(...) before pages can be discovered.`,
-                }],
-            });
-        }
 
         const validCandidates = selectValidTargetAppCandidates(target, appDiscovery.appCandidates);
         if (validCandidates.length === 1) {
             const selectedCandidate = validCandidates[0];
             return normalizeDiscoveredPagesResult({
-                filesystemPageFiles: selectedCandidate.discoveredPages.map((page) => page.file),
                 discoveredPages: [...selectedCandidate.discoveredPages],
                 discoveryErrors: undefined,
             });
@@ -149,7 +137,6 @@ export async function resolveTargetDiscoveredPagesForTarget(
 
         if (validCandidates.length > 1) {
             return normalizeDiscoveredPagesResult({
-                filesystemPageFiles: undefined,
                 discoveredPages: undefined,
                 discoveryErrors: [{
                     kind: pageDiscoveryFailedErrorKind,
@@ -160,33 +147,23 @@ export async function resolveTargetDiscoveredPagesForTarget(
             });
         }
 
+        if (!appDiscovery.foundAppDefinition) {
+            return EMPTY_TARGET_PAGE_DISCOVERY_RESULT;
+        }
+
         const discoveryErrors = [
             ...flattenCandidateDiscoveryErrors(appDiscovery.appCandidates),
             ...buildTargetAppSelectionErrors(target, appDiscovery.appCandidates),
         ];
         if (discoveryErrors.length > 0) {
             return normalizeDiscoveredPagesResult({
-                filesystemPageFiles: undefined,
                 discoveredPages: undefined,
                 discoveryErrors,
             });
         }
     }
 
-    if (isRoutedTargetInput(target)) {
-        return normalizeDiscoveredPagesResult({
-            filesystemPageFiles: undefined,
-            discoveredPages: undefined,
-            discoveryErrors: [{
-                kind: pageDiscoveryFailedErrorKind,
-                file: normalizePathSlashes(resolve(cwd, target.rootDir)),
-                message:
-                    `Target "${target.name}" must define a routed app with defineApp(...) before pages can be discovered.`,
-            }],
-        });
-    }
-
-    return await resolveTargetDiscoveredPages(target.pagesDir, cwd);
+    return EMPTY_TARGET_PAGE_DISCOVERY_RESULT;
 }
 
 export async function resolveTargetAppDiscoveryForTarget(
@@ -556,7 +533,7 @@ function readAppDefinitionId(appDefinition: ts.ObjectLiteralExpression): string 
     return appId.length > 0 ? appId : undefined;
 }
 
-function compareAppDiscoveryCandidates(
+export function compareAppDiscoveryCandidates(
     a: Pick<AppDiscoveryCandidate, "appId" | "appFile">,
     b: Pick<AppDiscoveryCandidate, "appId" | "appFile">,
 ): number {
@@ -588,10 +565,6 @@ function selectValidTargetAppCandidates(
     }
 
     return validCandidates.filter((candidate) => candidate.appId === target.appId);
-}
-
-function isRoutedTargetInput(target: Pick<NormalizedMainzTarget, "pagesDir">): boolean {
-    return Boolean(target.pagesDir);
 }
 
 function buildTargetAppSelectionErrors(
@@ -954,7 +927,7 @@ function hasExportModifier(node: ts.Node): boolean {
             false);
 }
 
-async function collectFilesystemPageFiles(pagesDir: string): Promise<string[]> {
+async function collectPageFilesInDirectory(pagesDir: string): Promise<string[]> {
     return await collectFilesystemFiles(pagesDir);
 }
 
@@ -972,7 +945,6 @@ export function resolveTargetAppFile(
 
 function normalizeDiscoveredPagesResult<
     T extends {
-        filesystemPageFiles: string[] | undefined;
         discoveredPages: CliDiscoveredPage[] | undefined;
         discoveryErrors: readonly CliPageDiscoveryError[] | undefined;
     },
@@ -985,9 +957,6 @@ function normalizeDiscoveredPagesResult<
         ...result,
         discoveredPages: discoveredPages?.length ? discoveredPages : undefined,
         discoveryErrors: result.discoveryErrors?.length ? result.discoveryErrors : undefined,
-        filesystemPageFiles: result.filesystemPageFiles?.length
-            ? [...result.filesystemPageFiles].sort((a, b) => a.localeCompare(b))
-            : undefined,
     };
 }
 

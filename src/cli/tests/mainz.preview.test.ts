@@ -11,19 +11,6 @@ Deno.test("cli/mainz: preview should require a target", async () => {
     assertStringIncludes(result.stderr, 'Command "preview" requires a single --target <name>.');
 });
 
-Deno.test("cli/mainz: preview should reject navigation overrides", async () => {
-    const result = await runMainzPreviewCommand([
-        "--target",
-        "site",
-        "--navigation",
-        "spa",
-    ]);
-
-    assertEquals(result.code, 1);
-    assertEquals(result.stdout, "");
-    assertStringIncludes(result.stderr, 'Command "preview" no longer accepts --navigation.');
-});
-
 Deno.test("cli/mainz: preview should validate port", async () => {
     const result = await runMainzPreviewCommand([
         "--target",

@@ -322,27 +322,10 @@ function parseCommandOptions(
             continue;
         }
 
-        if (current === "--mode") {
-            throw new Error(
-                command === "build" || command === "publish-info"
-                    ? `Command "${command}" no longer accepts --mode. Render mode is now page-owned in production builds.`
-                    : `Unknown option "${current}".`,
-            );
-        }
-
         if (current === "--profile") {
             options.profile = args[index + 1];
             index += 1;
             continue;
-        }
-
-        if (current === "--navigation") {
-            throw new Error(
-                command === "build" || command === "dev" || command === "preview" ||
-                    command === "publish-info"
-                    ? `Command "${command}" no longer accepts --navigation. Navigation is now app-owned in defineApp(...) and falls back to spa.`
-                    : `Unknown option "${current}".`,
-            );
         }
 
         if (current === "--config") {
@@ -990,7 +973,6 @@ function renderConfigTarget(target: AppScaffoldTarget): string {
         `            rootDir: ${JSON.stringify(target.rootDir)},`,
         `            appFile: ${JSON.stringify(target.appFile)},`,
         `            appId: ${JSON.stringify(target.appId)},`,
-        ...(target.pagesDir ? [`            pagesDir: ${JSON.stringify(target.pagesDir)},`] : []),
         `            outDir: ${JSON.stringify(target.outDir)},`,
         "        },",
     ].join("\n");

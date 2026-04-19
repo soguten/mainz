@@ -14,7 +14,8 @@ Deno.test("build/jobs: should derive production jobs from target discovery when 
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                pagesDir: "./site/src/pages",
+                appFile: "./site/src/main.tsx",
+                appId: "site",
             },
             {
                 name: "playground",
@@ -42,7 +43,8 @@ Deno.test("build/jobs: should filter forced jobs by target and mode", async () =
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                pagesDir: "./site/src/pages",
+                appFile: "./site/src/main.tsx",
+                appId: "site",
             },
             {
                 name: "playground",
@@ -69,7 +71,8 @@ Deno.test("build/jobs: should reject unknown forced render mode filters", async 
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                pagesDir: "./site/src/pages",
+                appFile: "./site/src/main.tsx",
+                appId: "site",
             },
         ],
     });
@@ -93,7 +96,8 @@ Deno.test("build/jobs: should fail for unknown target", async () => {
                 name: "site",
                 rootDir: "./site",
                 viteConfig: "./vite.config.site.ts",
-                pagesDir: "./site/src/pages",
+                appFile: "./site/src/main.tsx",
+                appId: "site",
             },
         ],
     });
@@ -146,7 +150,7 @@ Deno.test("build/jobs: should allow internal forced ssg jobs for an app-only tar
     ]);
 });
 
-Deno.test("build/jobs: should include ssg jobs for routed app targets discovered from main.tsx without pagesDir", async () => {
+Deno.test("build/jobs: should include ssg jobs for routed app targets discovered from the conventional app module", async () => {
     const fixtureRoot = resolve(cliTestsRepoRoot, "tests", "fixtures", "entries-di-build");
     const config = normalizeMainzConfig({
         targets: [
@@ -191,7 +195,7 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
                 rootDir: "./examples/di-http-site",
                 viteConfig: "./vite.config.di-http-site.ts",
                 appFile: "./examples/di-http-site/src/app.ts",
-                pagesDir: "./examples/di-http-site/src/pages",
+                appId: "site",
             },
         ],
     });
@@ -205,13 +209,14 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
 });
 
 Deno.test("build/jobs: should fail when routed app discovery is ambiguous without appId", async () => {
+    const fixtureRoot = resolve(cliTestsRepoRoot, "tests", "fixtures", "diagnostics-multi-app");
     const config = normalizeMainzConfig({
         targets: [
             {
-                name: "di-http-site",
-                rootDir: "./examples/di-http-site",
-                viteConfig: "./vite.config.di-http-site.ts",
-                pagesDir: "./examples/di-http-site/src/pages",
+                name: "diagnostics-multi-app",
+                rootDir: fixtureRoot,
+                viteConfig: resolve(fixtureRoot, "vite.config.ts"),
+                appFile: resolve(fixtureRoot, "src", "main.tsx"),
             },
         ],
     });
@@ -254,7 +259,8 @@ Deno.test("build/jobs: should keep mixed routed targets on both build recipes wh
                 name: "authorize-site",
                 rootDir: "./examples/authorize-site",
                 viteConfig: "./vite.config.authorize-site.ts",
-                pagesDir: "./examples/authorize-site/src/pages",
+                appFile: "./examples/authorize-site/src/main.tsx",
+                appId: "authorize-site",
             },
         ],
     });

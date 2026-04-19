@@ -143,10 +143,6 @@ async function hasRoutingInput(
     target: NormalizedMainzTarget,
     cwd: string,
 ): Promise<boolean> {
-    if (target.pagesDir) {
-        return true;
-    }
-
     if (!target.appFile?.trim()) {
         return false;
     }
@@ -156,7 +152,7 @@ async function hasRoutingInput(
         return true;
     }
 
-    return Boolean(discovery.discoveredPages?.length || discovery.filesystemPageFiles?.length);
+    return Boolean(discovery.discoveredPages?.length);
 }
 
 function normalizePathSlashes(path: string): string {

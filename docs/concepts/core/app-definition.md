@@ -54,6 +54,8 @@ For routed apps, `navigation` is the app-owned navigation intent. Build profiles
 
 For routed apps, `startApp(...)` expects a definition created by `defineApp(...)`. App definitions must provide a unique `id`. Mainz uses that `id` for app-aware diagnostics selection and reporting, including commands such as `mainz diagnose --target <name> --app <id>`.
 
+The selected target points at the app with `appFile` and, when needed, `appId`. Routed pages and `notFound` belong to the app definition.
+
 ### Locale routing and document language
 
 Use `i18n` when the app has locale-aware routing:

@@ -223,7 +223,6 @@ Deno.test("diagnostics/command: should evaluate multi-app targets by app id and 
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-app",
         targetName: "diagnostics-multi-app",
-        omitPagesDir: true,
     });
 
     try {
@@ -263,7 +262,6 @@ Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id
     const fixture = await createFixtureTargetConfig({
         fixtureName: "diagnostics-multi-root-app",
         targetName: "diagnostics-multi-root-app",
-        omitPagesDir: true,
     });
 
     try {

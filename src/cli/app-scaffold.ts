@@ -6,7 +6,6 @@ export type AppScaffoldTarget = {
     rootDir: string;
     appFile: string;
     appId: string;
-    pagesDir?: string;
     outDir: string;
 };
 
@@ -40,7 +39,6 @@ function createRoutedAppScaffold(options: CreateAppScaffoldOptions): AppScaffold
             rootDir: options.rootDir,
             appFile: `${options.rootDir}/src/app.ts`,
             appId: options.name,
-            pagesDir: `${options.rootDir}/src/pages`,
             outDir: options.outDir,
         },
         directories: ["src/pages"],
