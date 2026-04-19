@@ -106,7 +106,7 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     });
     const moduleSource = renderGeneratedViteConfigModule(generated);
 
-    assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
+    assertStringIncludes(moduleSource, `import { defineConfig } from "npm:vite";`);
     assertStringIncludes(moduleSource, `appType: "spa"`);
     assertStringIncludes(moduleSource, `{ find: /^mainz$/, replacement:`);
     assertStringIncludes(moduleSource, `{ find: /^mainz\\/jsx-runtime$/, replacement:`);

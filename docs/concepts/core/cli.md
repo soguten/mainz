@@ -3,6 +3,67 @@ title: CLI
 summary: Run Mainz targets through build, dev, preview, test, publish-info, and diagnose commands.
 ---
 
+## App scaffolding
+
+Use `mainz app create --name <name>` to create an app workspace and register a target for it.
+`mainz app create <name>` is also accepted as a short form.
+
+```bash
+mainz app create --name site
+mainz app create site
+mainz app create docs --navigation enhanced-mpa
+mainz app create portal --type root
+mainz app create admin --root ./apps/admin
+mainz app create docs --out-dir public/docs
+```
+
+By default, Mainz creates one source tree for the app:
+
+```txt
+site/
+  index.html
+  src/
+    app.ts
+    main.tsx
+    pages/
+      Home.page.tsx
+      NotFound.page.tsx
+```
+
+`--type routed` is the default. Routed apps include `defineApp(...)`, `startApp(...)`, a pages directory, a home page, and a not-found page. Use `--type root` for a root-mounted app without routing pages.
+
+The command also creates or updates `mainz.config.ts`:
+
+```ts title="mainz.config.ts"
+import { defineMainzConfig } from "mainz/config";
+
+export default defineMainzConfig({
+    targets: [
+        {
+            name: "site",
+            rootDir: "./site",
+            appFile: "./site/src/app.ts",
+            appId: "site",
+            pagesDir: "./site/src/pages",
+            outDir: "dist/site",
+        },
+    ],
+});
+```
+
+Use `mainz app remove --target <target>` to remove the matching target from `mainz.config.ts`.
+`mainz app remove <target>` is also accepted as a short form.
+
+```bash
+mainz app remove --target site
+mainz app remove site
+mainz app remove site --delete-files
+```
+
+`remove` does not delete app files. It only removes the Mainz target wiring, so the app directory stays available for manual cleanup or reuse. Add `--delete-files` when you also want to delete the target's `rootDir`.
+
+Use `--out-dir <path>` when the app should build somewhere other than `dist/<name>`.
+
 ## Targets are the public CLI unit
 
 Mainz CLI commands work from `mainz.config.ts`.
@@ -17,7 +78,7 @@ export default defineMainzConfig({
         {
             name: "site",
             rootDir: "./site",
-            appFile: "./site/src/main.tsx",
+            appFile: "./site/src/app.ts",
             appId: "site",
             pagesDir: "./site/src/pages",
             outDir: "dist/site",
@@ -26,8 +87,7 @@ export default defineMainzConfig({
 });
 ```
 
-Use `--target <name>` when you want one target. Use `--target all` on commands that support running
-across every target.
+Use `--target <name>` when you want one target. Use `--target all` on commands that support running across every target.
 
 ```bash
 mainz build --target site --profile production

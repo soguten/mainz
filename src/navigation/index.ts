@@ -57,7 +57,7 @@ const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol("mainz.appDefinitionKind");
-const ROUTED_APP_CAPTURE_STACK: Array<(app: RoutedAppDefinition) => void> = [];
+const ROUTED_APP_CAPTURE_STACK: Array<(app: DefinedRoutedApp) => void> = [];
 
 export type SpaRouteParams = Readonly<Record<string, string>>;
 export type RoutePathResolver = (context: { url: URL; basePath: string }) => string | null;
@@ -188,6 +188,8 @@ export interface DefinedRootApp extends RootAppDefinition {
     readonly [MAINZ_APP_DEFINITION_KIND]: "root";
 }
 
+export type DefinedApp = DefinedRoutedApp | DefinedRootApp;
+
 export interface StartDefinedAppOptions {
     mount?: string | Element;
     auth?: AuthorizationRuntimeOptions;
@@ -308,8 +310,8 @@ export function defineApp(
 
 export async function captureDefinedRoutedAppDuring<Value>(
     action: () => Value | Promise<Value>,
-): Promise<{ value: Value; app?: RoutedAppDefinition }> {
-    let capturedApp: RoutedAppDefinition | undefined;
+): Promise<{ value: Value; app?: DefinedRoutedApp }> {
+    let capturedApp: DefinedRoutedApp | undefined;
     ROUTED_APP_CAPTURE_STACK.push((app) => {
         capturedApp ??= app;
     });
@@ -344,6 +346,31 @@ export function resolveRoutedAppDefinitionsFromModuleExports(
     const seen = new Set<RoutedAppDefinition>();
     for (const candidate of candidates) {
         if (!isDefinedRoutedApp(candidate) || seen.has(candidate)) {
+            continue;
+        }
+
+        seen.add(candidate);
+        resolved.push(candidate);
+    }
+
+    return resolved;
+}
+
+export function resolveDefinedAppDefinitionsFromModuleExports(
+    moduleExports: Record<string, unknown>,
+): DefinedApp[] {
+    const candidates = [
+        moduleExports.default,
+        moduleExports.app,
+        ...Object.values(moduleExports),
+    ];
+
+    const resolved: DefinedApp[] = [];
+    const seen = new Set<DefinedApp>();
+    for (const candidate of candidates) {
+        if (
+            (!isDefinedRoutedApp(candidate) && !isDefinedRootApp(candidate)) || seen.has(candidate)
+        ) {
             continue;
         }
 
@@ -458,7 +485,7 @@ function startRootApp(
     };
 }
 
-function captureDefinedRoutedApp(app: RoutedAppDefinition): void {
+function captureDefinedRoutedApp(app: DefinedRoutedApp): void {
     ROUTED_APP_CAPTURE_STACK.at(-1)?.(app);
 }
 

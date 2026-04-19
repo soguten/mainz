@@ -184,8 +184,7 @@ async function resolveViteConfigPathForTarget(args: {
     }
 
     const tempDir = await Deno.makeTempDir({
-        dir: args.cwd,
-        prefix: ".mainz-vite-config-",
+        prefix: "mainz-vite-config-",
     });
     const viteConfigPath = normalizePathSlashes(resolve(tempDir, "vite.config.generated.mjs"));
     const generatedConfig = resolveGeneratedViteConfig({

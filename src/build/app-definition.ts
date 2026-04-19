@@ -3,26 +3,32 @@ import { pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
     captureDefinedRoutedAppDuring,
+    type DefinedApp,
+    resolveDefinedAppDefinitionsFromModuleExports,
     resolveRoutedAppDefinitionsFromModuleExports,
     type RoutedAppDefinition,
 } from "../navigation/index.ts";
 import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
 
-export async function loadTargetBuildRoutedAppDefinition(target: NormalizedMainzTarget, cwd: string): Promise<RoutedAppDefinition | undefined> {
+export async function loadTargetBuildAppDefinition(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<DefinedApp | undefined> {
     const appFile = resolveTargetAppFile(target, cwd);
     if (!appFile) {
         return undefined;
     }
 
     const resolvedAppFile = normalizePathSlashes(resolve(cwd, appFile));
-    const moduleUrl = `${pathToFileURL(resolvedAppFile).href}?build-app=${Date.now()}-${Math.random().toString(36).slice(2)
-        }`;
+    const moduleUrl = `${pathToFileURL(resolvedAppFile).href}?build-app=${Date.now()}-${
+        Math.random().toString(36).slice(2)
+    }`;
 
     try {
         const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
             return await import(moduleUrl) as Record<string, unknown>;
         });
-        const candidates = resolveRoutedAppDefinitionsFromModuleExports(moduleExports);
+        const candidates = resolveDefinedAppDefinitionsFromModuleExports(moduleExports);
         if (app && !candidates.includes(app)) {
             candidates.push(app);
         }
@@ -37,7 +43,7 @@ export async function loadTargetBuildRoutedAppDefinition(target: NormalizedMainz
             }
 
             throw new Error(
-                `Target "${target.name}" found multiple routed apps in "${resolvedAppFile}". Add appId to select one.`,
+                `Target "${target.name}" found multiple apps in "${resolvedAppFile}". Add appId to select one.`,
             );
         }
 
@@ -60,6 +66,14 @@ export async function loadTargetBuildRoutedAppDefinition(target: NormalizedMainz
             `Could not load app definition from "${resolvedAppFile}": ${toErrorMessage(error)}`,
         );
     }
+}
+
+export async function loadTargetBuildRoutedAppDefinition(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): Promise<RoutedAppDefinition | undefined> {
+    const appDefinition = await loadTargetBuildAppDefinition(target, cwd);
+    return appDefinition && "pages" in appDefinition ? appDefinition : undefined;
 }
 
 function normalizePathSlashes(path: string): string {

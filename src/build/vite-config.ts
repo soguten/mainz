@@ -69,7 +69,7 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
     });
 
     return [
-        `import { defineConfig } from "vite";`,
+        `import { defineConfig } from "npm:vite";`,
         ``,
         `export default defineConfig({`,
         `    appType: ${JSON.stringify(config.appType)},`,
