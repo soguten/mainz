@@ -113,19 +113,11 @@ export function stableSerializeForLoadKey(
 }
 
 function resolveMainzRenderMode(): RenderMode {
-    if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
-        return __MAINZ_RENDER_MODE__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
     return fromGlobal === "ssg" ? "ssg" : "csr";
 }
 
 function resolveMainzRuntime(): ResourceRuntime {
-    if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
-        return __MAINZ_RUNTIME_ENV__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     return fromGlobal === "build" ? "build" : "client";
 }

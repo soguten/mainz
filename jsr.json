@@ -12,8 +12,7 @@
     "jsxImportSource": "@mainz/mainz",
     "strict": true,
     "types": [
-      "./src/types/jsx.d.ts",
-      "./src/types/mainz-env.d.ts"
+      "./src/types/jsx.d.ts"
     ]
   },
   "imports": {

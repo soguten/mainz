@@ -2785,10 +2785,6 @@ function assertRegisteredPagePolicies(
 }
 
 function resolveMainzNavigationMode(): NavigationMode {
-    if (typeof __MAINZ_NAVIGATION_MODE__ !== "undefined") {
-        return __MAINZ_NAVIGATION_MODE__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
     if (fromGlobal === "spa" || fromGlobal === "mpa" || fromGlobal === "enhanced-mpa") {
         return fromGlobal;
@@ -2798,55 +2794,31 @@ function resolveMainzNavigationMode(): NavigationMode {
 }
 
 function resolveMainzRenderMode(): "csr" | "ssg" {
-    if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
-        return __MAINZ_RENDER_MODE__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
     return fromGlobal === "ssg" ? "ssg" : "csr";
 }
 
 function resolveMainzBasePath(): string {
-    if (typeof __MAINZ_BASE_PATH__ !== "undefined") {
-        return __MAINZ_BASE_PATH__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__;
     return typeof fromGlobal === "string" && fromGlobal.trim() ? fromGlobal : "/";
 }
 
 function resolveMainzDefaultLocale(): string | undefined {
-    if (typeof __MAINZ_DEFAULT_LOCALE__ !== "undefined") {
-        return __MAINZ_DEFAULT_LOCALE__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_DEFAULT_LOCALE__;
     return typeof fromGlobal === "string" && fromGlobal.trim() ? fromGlobal : undefined;
 }
 
 function resolveMainzLocalePrefix(): "except-default" | "always" {
-    if (typeof __MAINZ_LOCALE_PREFIX__ !== "undefined") {
-        return __MAINZ_LOCALE_PREFIX__;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_LOCALE_PREFIX__;
     return fromGlobal === "always" ? "always" : "except-default";
 }
 
 function resolveMainzSiteUrl(): string | undefined {
-    if (typeof __MAINZ_SITE_URL__ !== "undefined") {
-        return __MAINZ_SITE_URL__ || undefined;
-    }
-
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_SITE_URL__;
     return typeof fromGlobal === "string" && fromGlobal.trim() ? fromGlobal : undefined;
 }
 
 function readMainzAppLocales(): readonly string[] {
-    if (typeof __MAINZ_APP_LOCALES__ !== "undefined") {
-        return __MAINZ_APP_LOCALES__;
-    }
-
     const appLocalesFromGlobal = (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
     if (Array.isArray(appLocalesFromGlobal)) {
         return appLocalesFromGlobal.filter((value): value is string => typeof value === "string");
