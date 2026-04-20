@@ -1,6 +1,9 @@
 import type { RenderPolicy, RenderStrategy, ResourceRuntime } from "../resources/index.ts";
 import type { RenderMode } from "../routing/index.ts";
 
+declare const __MAINZ_RENDER_MODE__: "csr" | "ssg";
+declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
+
 export interface ComponentLoadEnvironment {
     renderMode: RenderMode;
     runtime: ResourceRuntime;
@@ -113,11 +116,19 @@ export function stableSerializeForLoadKey(
 }
 
 function resolveMainzRenderMode(): RenderMode {
+    if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
+        return __MAINZ_RENDER_MODE__;
+    }
+
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
     return fromGlobal === "ssg" ? "ssg" : "csr";
 }
 
 function resolveMainzRuntime(): ResourceRuntime {
+    if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
+        return __MAINZ_RUNTIME_ENV__;
+    }
+
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     return fromGlobal === "build" ? "build" : "client";
 }

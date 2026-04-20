@@ -19,6 +19,8 @@ import {
     resolvePageRoutePath,
 } from "./page-metadata.ts";
 
+declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
+
 export {
     Locales,
     RenderMode,
@@ -525,6 +527,10 @@ function getPageHeadLinkKey(item: PageHeadLinkDefinition): string | undefined {
 }
 
 function resolveMainzResourceRuntime(): ResourceRuntime {
+    if (typeof __MAINZ_RUNTIME_ENV__ !== "undefined") {
+        return __MAINZ_RUNTIME_ENV__;
+    }
+
     const fromGlobal = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     return fromGlobal === "build" ? "build" : "client";
 }
