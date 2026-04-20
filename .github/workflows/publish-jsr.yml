@@ -1,26 +1,26 @@
-name: Publish JSR package
+# name: Publish JSR package
 
-on:
-    push:
-        branches:
-            - main
-    workflow_dispatch:
+# on:
+#     push:
+#         branches:
+#             - main
+#     workflow_dispatch:
 
-permissions:
-    contents: read
-    id-token: write
+# permissions:
+#     contents: read
+#     id-token: write
 
-concurrency:
-    group: jsr-publish
-    cancel-in-progress: false
+# concurrency:
+#     group: jsr-publish
+#     cancel-in-progress: false
 
-jobs:
-    publish-mainz:
-        name: Publish @mainz/mainz
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v6
+# jobs:
+#     publish-mainz:
+#         name: Publish @mainz/mainz
+#         runs-on: ubuntu-latest
+#         steps:
+#             - name: Checkout
+#               uses: actions/checkout@v6
 
-            - name: Publish package
-              run: npx jsr publish --config jsr.json
+#             - name: Publish package
+#               run: npx jsr publish --config jsr.json
