@@ -55,7 +55,11 @@
     ],
     "exclude": [
       "**/tests/**",
-      "src/tests/**"
+      "src/tests/**",
+      "**/*.fixture.ts",
+      "**/*.fixture.tsx",
+      "**/_template.*",
+      "src/components/legacy/**"
     ]
   }
 }
