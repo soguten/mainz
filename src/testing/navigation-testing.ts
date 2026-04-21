@@ -11,12 +11,18 @@ import {
 } from "../runtime-events.ts";
 import { waitForCustomEvent } from "./async-testing.ts";
 
-type NavigationTestRuntime =
+/**
+ * Runtime helpers used by Mainz navigation tests.
+ */
+export type NavigationTestRuntime =
     & typeof import("../navigation/index.ts")
     & typeof import("../navigation/internal.ts");
 
 let navigationRuntimePromise: Promise<NavigationTestRuntime> | undefined;
 
+/**
+ * Loads the navigation runtime used by focused framework tests.
+ */
 export async function loadNavigationTestRuntime(): Promise<NavigationTestRuntime> {
     if (!navigationRuntimePromise) {
         navigationRuntimePromise = Promise.all([
@@ -31,6 +37,9 @@ export async function loadNavigationTestRuntime(): Promise<NavigationTestRuntime
     return await navigationRuntimePromise;
 }
 
+/**
+ * Resets DOM and runtime globals used by navigation-focused tests.
+ */
 export function resetMainzNavigationTestDom(): void {
     document.head.innerHTML = "";
     document.body.innerHTML = "";
@@ -51,12 +60,18 @@ export function resetMainzNavigationTestDom(): void {
     window.history.replaceState(null, "", "/");
 }
 
+/**
+ * Prepares a clean DOM and returns the Mainz navigation runtime for a test.
+ */
 export async function prepareNavigationTest(): Promise<NavigationTestRuntime> {
     await setupMainzDom();
     resetMainzNavigationTestDom();
     return await loadNavigationTestRuntime();
 }
 
+/**
+ * Waits for the next matching Mainz navigation-ready event.
+ */
 export async function waitForNavigationReady(options?: {
     target?: EventTarget;
     mode?: MainzNavigationReadyDetail["mode"];
@@ -107,6 +122,9 @@ export async function waitForNavigationReady(options?: {
     });
 }
 
+/**
+ * Waits for the next matching Mainz navigation-start event.
+ */
 export async function waitForNavigationStart(options?: {
     target?: EventTarget;
     mode?: MainzNavigationStartDetail["mode"];
@@ -157,6 +175,9 @@ export async function waitForNavigationStart(options?: {
     });
 }
 
+/**
+ * Waits for the next matching Mainz navigation-error event.
+ */
 export async function waitForNavigationError(options?: {
     target?: EventTarget;
     mode?: MainzNavigationErrorDetail["mode"];
@@ -212,6 +233,9 @@ export async function waitForNavigationError(options?: {
     });
 }
 
+/**
+ * Waits for the next matching Mainz navigation-abort event.
+ */
 export async function waitForNavigationAbort(options?: {
     target?: EventTarget;
     mode?: MainzNavigationAbortDetail["mode"];
