@@ -11,6 +11,7 @@ export * from "./src/public/i18n.ts";
 export * from "./src/public/di.ts";
 export * from "./src/public/app.ts";
 export * from "./src/public/commands.ts";
+export * from "./src/public/portal.ts";
 export * from "./src/public/http.ts";
 export * from "./src/public/http-testing.ts";
 export * from "./src/public/testing.ts";

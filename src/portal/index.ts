@@ -5,13 +5,26 @@ import {
 import { isDocumentFragmentLike, isNodeLike } from "../components/component-dom.ts";
 import { getCurrentRenderOwner } from "../jsx/render-owner.ts";
 
+/**
+ * Portal target scope used to decide where rendered nodes are mounted.
+ */
 export type PortalScope = "app" | "document";
+/**
+ * Named portal layer inside the selected portal scope.
+ */
 export type PortalLayer = "overlay" | "popover" | "toast" | string;
 
+/**
+ * Props accepted by {@link Portal}.
+ */
 export interface PortalProps {
+    /** Content rendered into the resolved portal layer. */
     children?: unknown;
+    /** Layer name used to group portal content. */
     layer?: PortalLayer;
+    /** Portal scope used when resolving the target layer. */
     scope?: PortalScope;
+    /** Explicit target element that overrides scope and layer resolution. */
     target?: HTMLElement;
 }
 
@@ -32,6 +45,9 @@ export type PortalMarkerNode = Comment & {
     [PORTAL_MARKER]: PortalDescriptor;
 };
 
+/**
+ * Creates a portal marker that renders children into an app, document, or explicit target layer.
+ */
 export function Portal(props: PortalProps): Comment {
     const ownerDocument = resolvePortalOwnerDocument();
     const marker = ownerDocument.createComment("mainz-portal") as PortalMarkerNode;
