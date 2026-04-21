@@ -1,42 +1,60 @@
 import { createDictionaryI18n, detectNavigatorLocale, DictionaryI18n, normalizeLocaleTag } from "./core.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT, type MainzLocaleChangeDetail } from "../runtime-events.ts";
 
+/** Controls which browser signals Mainz should use to detect the initial locale. */
 export interface DictionaryI18nAppDetectOptions {
+    /** Reads the leading pathname segment when it contains a supported locale. */
     path?: boolean;
+    /** Reads `document.documentElement.lang` when available. */
     document?: boolean;
+    /** Reads `navigator.languages` and `navigator.language` as a final browser fallback. */
     navigator?: boolean;
 }
 
-type LocaleKeys<T extends Record<string, object>> = keyof T & string;
-type LocaleDictionary<T extends Record<string, object>> = T[LocaleKeys<T>];
-
+/** Application-facing options used to create a browser-aware dictionary runtime. */
 export interface DictionaryI18nAppOptions<
     Dictionaries extends Record<string, object>,
 > {
-    defaultLocale: LocaleKeys<Dictionaries>;
+    /** Default locale used when no stronger locale signal is available. */
+    defaultLocale: keyof Dictionaries & string;
+    /** Translation dictionaries keyed by locale. */
     dictionaries: Dictionaries;
-    fallbackLocale?: LocaleKeys<Dictionaries>;
+    /** Optional fallback locale used for missing translations. */
+    fallbackLocale?: keyof Dictionaries & string;
+    /** Explicit locale to use before browser detection is attempted. */
     initialLocale?: string;
+    /** Browser detection strategy used to derive the initial locale. */
     detect?: DictionaryI18nAppDetectOptions;
-    onMissingTranslation?: (key: string, locale: LocaleKeys<Dictionaries>) => void;
+    /** Optional hook invoked when a translation key is missing in the active locale. */
+    onMissingTranslation?: (key: string, locale: keyof Dictionaries & string) => void;
 }
 
+/** Creates a browser-aware dictionary runtime backed by the provided locale dictionaries. */
 export function createAppDictionaryI18n<
     Dictionaries extends Record<string, object>,
 >(
     options: DictionaryI18nAppOptions<Dictionaries>,
-): DictionaryI18n<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>> {
-    const locales = Object.keys(options.dictionaries) as LocaleKeys<Dictionaries>[];
+): DictionaryI18n<
+    keyof Dictionaries & string,
+    Dictionaries[keyof Dictionaries & string]
+> {
+    const locales = Object.keys(options.dictionaries) as (keyof Dictionaries & string)[];
     if (locales.length === 0) {
         throw new Error("createAppDictionaryI18n requires at least one locale in dictionaries.");
     }
 
     const initialLocale = options.initialLocale ?? detectInitialLocale(locales, options.detect);
 
-    const i18n = createDictionaryI18n<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>>({
+    const i18n = createDictionaryI18n<
+        keyof Dictionaries & string,
+        Dictionaries[keyof Dictionaries & string]
+    >({
         defaultLocale: options.defaultLocale,
         locales,
-        dictionaries: options.dictionaries as Record<LocaleKeys<Dictionaries>, LocaleDictionary<Dictionaries>>,
+        dictionaries: options.dictionaries as Record<
+            keyof Dictionaries & string,
+            Dictionaries[keyof Dictionaries & string]
+        >,
         fallbackLocale: options.fallbackLocale,
         initialLocale,
         onMissingTranslation: options.onMissingTranslation,

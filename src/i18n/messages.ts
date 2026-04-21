@@ -1,6 +1,7 @@
 import { MessagesLoader } from "./types.ts";
 import { normalizeLocaleTag } from "./core.ts";
 
+/** Validates that a messages loader can resolve the requested locales without throwing. */
 export async function validateMessagesForLocales(
     locales: readonly string[],
     loader: MessagesLoader<string>,

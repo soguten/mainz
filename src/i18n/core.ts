@@ -1,17 +1,25 @@
 import { DictionaryI18nOptions } from "./types.ts";
 
+/** Locale-aware dictionary runtime used by Mainz applications and utilities. */
 export interface DictionaryI18n<
     Locale extends string,
     Dictionary extends object,
 > {
+    /** Supported locales available to the runtime. */
     locales: readonly Locale[];
+    /** Default locale used when no other locale can be resolved. */
     defaultLocale: Locale;
+    /** Returns the currently active locale. */
     getLocale(): Locale;
+    /** Activates a locale and returns the resolved supported locale. */
     setLocale(locale: string): Locale;
+    /** Resolves an arbitrary locale candidate against the supported locale set. */
     resolveLocale(locale: string | undefined): Locale;
+    /** Looks up a translation path from the active or fallback dictionary. */
     t<T = string>(path: string): T;
 }
 
+/** Creates a dictionary-backed i18n runtime for a known set of locales and dictionaries. */
 export function createDictionaryI18n<
     Locale extends string,
     Dictionary extends object,
@@ -78,6 +86,7 @@ export function createDictionaryI18n<
     };
 }
 
+/** Returns the best locale candidate exposed by the current browser environment. */
 export function detectNavigatorLocale(): string | undefined {
     if (typeof navigator === "undefined") {
         return undefined;
@@ -91,6 +100,7 @@ export function detectNavigatorLocale(): string | undefined {
     return candidates.length > 0 ? candidates[0] : undefined;
 }
 
+/** Normalizes a locale into canonical BCP 47 format. */
 export function normalizeLocaleTag(locale: string): string {
     const normalized = locale.trim().replaceAll("_", "-");
     if (!normalized) {
@@ -104,15 +114,18 @@ export function normalizeLocaleTag(locale: string): string {
     }
 }
 
+/** Converts a locale into the lowercase path segment used by Mainz routing. */
 export function toLocalePathSegment(locale: string): string {
     return normalizeLocaleTag(locale).toLowerCase();
 }
 
+/** Resolves a locale candidate against a supported locale map, returning the best match. */
 export function resolveSupportedLocale(args: {
     candidate: string | undefined;
     localeByNormalized: Map<string, string>;
     fallbackLocale: string;
 }): string;
+/** Resolves a typed locale candidate against a supported locale map, returning the best match. */
 export function resolveSupportedLocale<Locale extends string>(args: {
     candidate: string | undefined;
     localeByNormalized: Map<string, Locale>;
@@ -157,6 +170,7 @@ export function resolveSupportedLocale<Locale extends string>(args: {
     return fallbackMapped;
 }
 
+/** Reads a nested value from an object using a dot-delimited path expression. */
 export function getByPath(source: unknown, path: string): unknown {
     const chunks = path.split(".");
     let current: unknown = source;
