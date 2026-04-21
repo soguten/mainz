@@ -4,4 +4,4 @@
  * @module
  */
 
-export * from "./src/components/index.ts";
+export * from "./src/public/core.ts";
