@@ -1,25 +1,38 @@
 import { attachServiceContainer, withServiceContainer } from "./context.ts";
 
+/** Constructor token used to identify a service inside the Mainz DI container. */
 export type ServiceToken<T> = abstract new (...args: never[]) => T;
+/** Concrete class implementation that can be instantiated by the DI container. */
 export type ServiceImplementation<T> = new () => T;
 
+/** Context object exposed to service factories while resolving dependencies. */
 export interface ServiceFactoryContext {
+    /** Resolves another service from the same active container. */
     get<T>(token: ServiceToken<T>): T;
 }
 
-type ServiceFactory<T> = (context: ServiceFactoryContext) => T;
+/** Factory callback used to create a service instance from the active container context. */
+export type ServiceFactory<T> = (context: ServiceFactoryContext) => T;
 
+/** Normalized service registration stored by the Mainz DI container. */
 export interface ServiceRegistration<T = unknown> {
+    /** Token used to resolve the service. */
     token: ServiceToken<T>;
+    /** Lifetime policy used by the container when producing instances. */
     lifetime: "singleton" | "transient";
+    /** Factory responsible for producing the service instance. */
     factory: ServiceFactory<T>;
 }
 
+/** Service container contract used by Mainz runtime and component integration. */
 export interface ServiceContainer {
+    /** Resolves a service instance for the provided token. */
     get<T>(token: ServiceToken<T>): T;
 }
 
+/** Error raised when no registration exists for a requested service token. */
 export class MissingServiceError extends Error {
+    /** Creates a missing-service error that includes the active resolution chain. */
     constructor(token: ServiceToken<unknown>, chain: readonly ServiceToken<unknown>[]) {
         super(
             `No service registration exists for "${describeToken(token)}".` +
@@ -31,14 +44,18 @@ export class MissingServiceError extends Error {
     }
 }
 
+/** Error raised when the same service token is registered more than once. */
 export class DuplicateServiceError extends Error {
+    /** Creates a duplicate-registration error for the provided service token. */
     constructor(token: ServiceToken<unknown>) {
         super(`A service registration for "${describeToken(token)}" already exists.`);
         this.name = "DuplicateServiceError";
     }
 }
 
+/** Error raised when service resolution encounters a dependency cycle. */
 export class ServiceCycleError extends Error {
+    /** Creates a dependency-cycle error that includes the offending token chain. */
     constructor(chain: readonly ServiceToken<unknown>[]) {
         super(
             `A dependency cycle was detected in service registration: ${
@@ -49,17 +66,21 @@ export class ServiceCycleError extends Error {
     }
 }
 
+/** Registers a singleton service using its own implementation type as the token. */
 export function singleton<T>(
     implementation: ServiceImplementation<T>,
 ): ServiceRegistration<T>;
+/** Registers a singleton service using an explicit token and factory callback. */
 export function singleton<T>(
     token: ServiceToken<T>,
     factory: ServiceFactory<T>,
 ): ServiceRegistration<T>;
+/** Registers a singleton service using an explicit token and concrete implementation class. */
 export function singleton<T, TImplementation extends T>(
     token: ServiceToken<T>,
     implementation: ServiceImplementation<TImplementation>,
 ): ServiceRegistration<T>;
+/** Creates a singleton service registration. */
 export function singleton<T>(
     tokenOrImplementation: ServiceToken<T> | ServiceImplementation<T>,
     implementationOrFactory?: ServiceImplementation<T> | ServiceFactory<T>,
@@ -79,17 +100,21 @@ export function singleton<T>(
     );
 }
 
+/** Registers a transient service using its own implementation type as the token. */
 export function transient<T>(
     implementation: ServiceImplementation<T>,
 ): ServiceRegistration<T>;
+/** Registers a transient service using an explicit token and factory callback. */
 export function transient<T>(
     token: ServiceToken<T>,
     factory: ServiceFactory<T>,
 ): ServiceRegistration<T>;
+/** Registers a transient service using an explicit token and concrete implementation class. */
 export function transient<T, TImplementation extends T>(
     token: ServiceToken<T>,
     implementation: ServiceImplementation<TImplementation>,
 ): ServiceRegistration<T>;
+/** Creates a transient service registration. */
 export function transient<T>(
     tokenOrImplementation: ServiceToken<T> | ServiceImplementation<T>,
     implementationOrFactory?: ServiceImplementation<T> | ServiceFactory<T>,
@@ -109,6 +134,7 @@ export function transient<T>(
     );
 }
 
+/** Creates a service container from a static list of service registrations. */
 export function createServiceContainer(
     registrations: readonly ServiceRegistration[] = [],
 ): ServiceContainer {

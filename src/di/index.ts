@@ -5,6 +5,7 @@ import {
     DuplicateServiceError,
     MissingServiceError,
     type ServiceContainer,
+    type ServiceFactory,
     ServiceCycleError,
     type ServiceFactoryContext,
     type ServiceImplementation,
@@ -25,6 +26,7 @@ export {
 
 export type {
     ServiceContainer,
+    ServiceFactory,
     ServiceFactoryContext,
     ServiceImplementation,
     ServiceRegistration,
@@ -35,6 +37,12 @@ const INJECT_REFERENCE_SET_OWNER = Symbol.for("mainz.di.inject-ref.set-owner");
 const INJECT_REFERENCE_CLONE = Symbol.for("mainz.di.inject-ref.clone");
 const injectedReferenceOwners = new WeakMap<object, object>();
 
+/**
+ * Creates a lazily resolved service reference bound to the nearest active service container.
+ *
+ * The returned proxy behaves like the target service, but resolves the concrete instance on
+ * demand from the owner component/container at access time.
+ */
 export function inject<T>(token: ServiceToken<T>): T {
     const referenceTarget = Object.create(null) as Record<PropertyKey, unknown>;
     let reference!: object;
