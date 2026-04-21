@@ -1,8 +1,11 @@
 import { Component } from "./component.ts";
 import type { Principal } from "../authorization/index.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
-import type { NavigationMode, RenderMode as PageRenderModeValue } from "../routing/types.ts";
-import { readResource, type Resource, type ResourceRuntime } from "../resources/resource.ts";
+import {
+    readResource,
+    type Resource,
+    type ResourceRuntime,
+} from "../resources/resource.ts";
 import type {
     PageEntryDefinition,
     PageHeadDefinition,
@@ -17,6 +20,7 @@ import type {
 import { isRouteContext } from "./route-context.ts";
 import {
     Locales,
+    type PageRenderMode,
     RenderMode,
     Route,
     requirePageRoutePath,
@@ -45,67 +49,118 @@ export type {
 } from "./page-contract.ts";
 export type { RouteContext, RouteProfileContext } from "./route-context.ts";
 
+/** Navigation mode visible to page-owned load and head helpers. */
+export type PageNavigationMode = "spa" | "mpa" | "enhanced-mpa";
+
+/** Runtime channel used when resolving page-owned resources. */
+export type PageLoadRuntime = "build" | "client";
+
+/**
+ * Structural resource contract accepted by page-owned resource readers.
+ *
+ * Mainz page helpers are designed to consume Mainz resources, but the public contract stays small
+ * by requiring only the read/load shape needed by the page API.
+ */
+export interface PageResource<Params = void, Context = void, Value = unknown> {
+    /** Reads or resolves a resource value for the given params and context. */
+    read(params: Params, context: Context): Value | Promise<Value>;
+    /** Underlying resource loader used by Mainz resource implementations. */
+    load(params: Params, context: Context): Value | Promise<Value>;
+}
+
+/** Context passed to `Page.entries()` when expanding static routes. */
 export interface PageEntriesContext {
+    /** Locale currently being expanded, when entry generation is locale-aware. */
     locale?: string;
+    /** Active profile metadata associated with the target being expanded. */
     profile?: RouteProfileContext;
 }
 
-type PageLoadByParamResolver<Value> = (
-    value: string,
-    context: PageLoadContext,
-) => Value | Promise<Value>;
-type PageLoadByParamsResolver<Names extends readonly string[], Value> = (
-    params: { readonly [K in Names[number]]: string },
-    context: PageLoadContext,
-) => Value | Promise<Value>;
+/** Helper namespace for deriving page loaders from route params. */
 export interface PageLoadHelpers {
+    /** Creates a loader that reads a single route param by name. */
     byParam<Value>(
         name: string,
-        resolver: PageLoadByParamResolver<Value>,
+        resolver: (
+            value: string,
+            context: PageLoadContext,
+        ) => Value | Promise<Value>,
     ): (context: PageLoadContext) => Value | Promise<Value>;
+    /** Creates a loader that reads a selected subset of route params. */
     byParams<const Names extends readonly string[], Value>(
         names: Names,
-        resolver: PageLoadByParamsResolver<Names, Value>,
+        resolver: (
+            params: { readonly [K in Names[number]]: string },
+            context: PageLoadContext,
+        ) => Value | Promise<Value>,
     ): (context: PageLoadContext) => Value | Promise<Value>;
 }
 
+/** Full route-aware context passed to page `load()` and `head()` helpers. */
 export interface PageLoadContext {
+    /** Current requested path. */
     path: string;
+    /** Current matched route pattern path. */
     matchedPath: string;
+    /** Route params resolved for the current request. */
     params: PageRouteParams;
+    /** Locale resolved for the current request, when present. */
     locale?: string;
+    /** Fully resolved request URL. */
     url: URL;
-    renderMode: PageRenderModeValue;
-    navigationMode: NavigationMode;
+    /** Page render mode active for the current request. */
+    renderMode: PageRenderMode;
+    /** Navigation mode active for the current request. */
+    navigationMode: PageNavigationMode;
+    /** Abort signal for the current page load operation. */
     signal: AbortSignal;
+    /** Principal resolved for the current request, when present. */
     principal?: Principal;
+    /** Profile metadata associated with the current target, when present. */
     profile?: RouteProfileContext;
+    /** Route context exposed to the page subtree. */
     route: RouteContext;
+    /** Page-owned resource reader helpers. */
     resources: PageLoadResources;
 }
 
+/** Context passed to `Page.head()`. */
 export type PageHeadContext = PageLoadContext;
 
+/** Resource helpers available from `PageLoadContext.resources`. */
 export interface PageLoadResources {
+    /** Reads a page-owned resource under the current page execution environment. */
     read<Params, Context, Value>(
-        resource: Resource<Params, Context, Value>,
+        resource: PageResource<Params, Context, Value>,
         params: Params,
         context: Context,
     ): Value | Promise<Value>;
 }
 
+/** Initialization payload used to build a full `PageLoadContext`. */
 export interface PageLoadContextInit {
+    /** Requested path. Defaults to `url.pathname`. */
     path?: string;
+    /** Matched route path. Defaults to the resolved `path`. */
     matchedPath?: string;
+    /** Route params resolved for the request. */
     params: PageRouteParams;
+    /** Locale resolved for the request, when present. */
     locale?: string;
+    /** Fully resolved request URL. */
     url: URL;
-    renderMode: PageRenderModeValue;
-    navigationMode: NavigationMode;
+    /** Page render mode active for the request. */
+    renderMode: PageRenderMode;
+    /** Navigation mode active for the request. */
+    navigationMode: PageNavigationMode;
+    /** Abort signal for the load operation. */
     signal?: AbortSignal;
+    /** Principal resolved for the current request, when present. */
     principal?: Principal;
+    /** Profile metadata associated with the current target, when present. */
     profile?: RouteProfileContext;
-    runtime?: ResourceRuntime;
+    /** Runtime channel used for page-owned resource reads. */
+    runtime?: PageLoadRuntime;
 }
 
 export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
@@ -134,6 +189,7 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
 > {
     private pageData?: D;
 
+    /** Returns page-owned data resolved through the route-aware page lifecycle. */
     override get data(): D {
         const propsRecord = typeof this.props === "object" && this.props !== null
             ? this.props as Record<string, unknown>
@@ -159,6 +215,7 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
         return undefined;
     }
 
+    /** Connects the page and applies managed document head metadata when ready to render. */
     override connectedCallback() {
         if (this.shouldDeferInitialPageRender()) {
             return;
@@ -168,15 +225,18 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
         applyPageHeadToDocument(this, this.props);
     }
 
+    /** Reapplies managed document head metadata after each page render. */
     override afterRender(): void {
         applyPageHeadToDocument(this, this.props);
         super.afterRender?.();
     }
 
+    /** Pages manage their own route-owned loading instead of participating in component loading. */
     protected override participatesInComponentLoad(): boolean {
         return false;
     }
 
+    /** Determines whether the current props already contain a resolved route context. */
     private hasResolvedRouteContext(): boolean {
         if (typeof this.props !== "object" || this.props === null) {
             return false;
@@ -185,6 +245,7 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
         return isRouteContext((this.props as Record<string, unknown>).route);
     }
 
+    /** Detects whether the initial page render should wait for route context resolution. */
     private shouldDeferInitialPageRender(): boolean {
         if (this.hasResolvedRouteContext()) {
             return false;
@@ -199,25 +260,37 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown> exte
     }
 }
 
+/** Constructor contract used by page discovery, route metadata, and page helpers. */
 export interface PageConstructor {
+    /** Creates a new page instance. */
     new (...args: unknown[]): Page<any, any, any>;
+    /** Prototype associated with the page constructor. */
     readonly prototype: Page<any, any, any>;
+    /** Stable class name used for diagnostics and metadata. */
     readonly name: string;
+    /** Optional static entry expansion used during SSG route materialization. */
     entries?(
         context: PageEntriesContext,
     ): readonly PageEntryDefinition[] | Promise<readonly PageEntryDefinition[]>;
 }
 
+/** Helper namespace for deriving page loaders from route params. */
 export const load: PageLoadHelpers = {
     byParam<Value>(
         name: string,
-        resolver: PageLoadByParamResolver<Value>,
+        resolver: (
+            value: string,
+            context: PageLoadContext,
+        ) => Value | Promise<Value>,
     ): (context: PageLoadContext) => Value | Promise<Value> {
         return (context) => resolver(context.params[name], context);
     },
     byParams<const Names extends readonly string[], Value>(
         names: Names,
-        resolver: PageLoadByParamsResolver<Names, Value>,
+        resolver: (
+            params: { readonly [K in Names[number]]: string },
+            context: PageLoadContext,
+        ) => Value | Promise<Value>,
     ): (context: PageLoadContext) => Value | Promise<Value> {
         return (context) => {
             const selectedParams = Object.fromEntries(
@@ -229,6 +302,9 @@ export const load: PageLoadHelpers = {
     },
 };
 
+/**
+ * Creates a normalized `PageLoadContext` from a partial initialization payload.
+ */
 export function createPageLoadContext(init: PageLoadContextInit): PageLoadContext {
     const routePath = init.path ?? init.url.pathname;
     const matchedPath = init.matchedPath ?? routePath;
@@ -262,8 +338,12 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
         ...baseContext,
         route,
         resources: {
-            read(resource, params, context) {
-                return readResource(resource, params, context, {
+            read<Params, Context, Value>(
+                resource: PageResource<Params, Context, Value>,
+                params: Params,
+                context: Context,
+            ) {
+                return readResource(resource as Resource<Params, Context, Value>, params, context, {
                     renderMode: baseContext.renderMode,
                     navigationMode: baseContext.navigationMode,
                     runtime: baseContext.runtime,
@@ -274,6 +354,7 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
     };
 }
 
+/** Determines whether a value is a Mainz `Page` constructor. */
 export function isPageConstructor(value: unknown): value is PageConstructor {
     if (typeof value !== "function") {
         return false;
