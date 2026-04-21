@@ -284,6 +284,9 @@ function resolveRegistryForExecution(
     );
 }
 
+/**
+ * Ensures that an app root has an active command registry wired to keyboard handling.
+ */
 export function ensureAppCommandRegistry(args: {
     root: HTMLElement;
     appId?: string;
@@ -316,10 +319,16 @@ export function ensureAppCommandRegistry(args: {
     return registry;
 }
 
+/**
+ * Removes the command registry attached to an app root.
+ */
 export function cleanupAppCommandRegistry(root: HTMLElement): void {
     APP_REGISTRIES.get(root)?.cleanup();
 }
 
+/**
+ * Runs a registered command against the currently resolved app registry.
+ */
 export function runCommand<TPayload = unknown>(
     commandId: string,
     context: Omit<CommandExecutionContext<TPayload>, "commandId" | "services"> = {},
@@ -332,6 +341,9 @@ export function runCommand<TPayload = unknown>(
     );
 }
 
+/**
+ * Lists commands for the currently resolved app registry.
+ */
 export function listCommands(
     context: Omit<CommandExecutionContext, "commandId" | "services"> = {},
 ): readonly ListedMainzCommand[] {
