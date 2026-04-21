@@ -21,6 +21,7 @@ export {
     Route,
 } from "./components/index.ts";
 export { defineApp, startApp } from "./navigation/index.ts";
+export { defineMainzConfig, defineTargetBuild } from "./config/index.ts";
 export { Portal } from "./portal/index.ts";
 export { defineCommand, listCommands, runCommand } from "./commands/index.ts";
 export {
@@ -74,6 +75,19 @@ export type {
     SpaRouteParams,
     StartDefinedAppOptions,
 } from "./navigation/index.ts";
+export type {
+    LoadedMainzConfig,
+    MainzConfig,
+    MainzTargetDefinition,
+    MainzTargetViteAlias,
+    MainzTargetViteOptions,
+    NormalizedMainzConfig,
+    NormalizedMainzTarget,
+    NormalizedTargetBuildDefinition,
+    NormalizedTargetBuildProfile,
+    TargetBuildDefinition,
+    TargetBuildProfileDefinition,
+} from "./config/index.ts";
 export type { PortalLayer, PortalProps, PortalScope } from "./portal/index.ts";
 export type {
     PageConstructor,

@@ -11,15 +11,9 @@ import {
     NormalizedTargetBuildDefinition,
     NormalizedTargetBuildProfile,
     TargetBuildDefinition,
+    TargetBuildProfileDefinition,
 } from "./types.ts";
-
-export function defineMainzConfig(config: MainzConfig): MainzConfig {
-    return config;
-}
-
-export function defineTargetBuild(config: TargetBuildDefinition): TargetBuildDefinition {
-    return config;
-}
+export { defineMainzConfig, defineTargetBuild } from "./definition.ts";
 
 export async function loadMainzConfig(configPath = "mainz.config.ts"): Promise<LoadedMainzConfig> {
     const absolutePath = resolve(configPath);
@@ -293,4 +287,5 @@ export type {
     NormalizedTargetBuildDefinition,
     NormalizedTargetBuildProfile,
     TargetBuildDefinition,
+    TargetBuildProfileDefinition,
 };

@@ -5,6 +5,14 @@ summary: Run Mainz targets through build, dev, preview, test, publish-info, and 
 
 ## App scaffolding
 
+Use `mainz init` to prepare an empty repo for Mainz. It creates `deno.json` with the Mainz import
+map and an empty `mainz.config.ts` ready to receive app targets.
+
+```bash
+mainz init
+mainz init --mainz jsr:@mainz/mainz@<version>
+```
+
 Use `mainz app create --name <name>` to create an app workspace and register a target for it.
 `mainz app create <name>` is also accepted as a short form.
 
@@ -30,9 +38,11 @@ site/
       NotFound.page.tsx
 ```
 
-`--type routed` is the default. Routed apps include `defineApp(...)`, `startApp(...)`, a pages directory, a home page, and a not-found page. Use `--type root` for a root-mounted app without routing pages.
+`--type routed` is the default. Routed apps include `defineApp(...)`, `startApp(...)`, a pages
+directory, a home page, and a not-found page. Use `--type root` for a root-mounted app without
+routing pages.
 
-The command also creates or updates `mainz.config.ts`:
+`mainz app create` also creates or updates `mainz.config.ts`:
 
 ```ts title="mainz.config.ts"
 import { defineMainzConfig } from "mainz/config";
@@ -59,7 +69,9 @@ mainz app remove site
 mainz app remove site --delete-files
 ```
 
-`remove` does not delete app files. It only removes the Mainz target wiring, so the app directory stays available for manual cleanup or reuse. Add `--delete-files` when you also want to delete the target's `rootDir`.
+`remove` does not delete app files. It only removes the Mainz target wiring, so the app directory
+stays available for manual cleanup or reuse. Add `--delete-files` when you also want to delete the
+target's `rootDir`.
 
 Use `--out-dir <path>` when the app should build somewhere other than `dist/<name>`.
 
@@ -85,7 +97,8 @@ export default defineMainzConfig({
 });
 ```
 
-Use `--target <name>` when you want one target. Use `--target all` on commands that support running across every target.
+Use `--target <name>` when you want one target. Use `--target all` on commands that support running
+across every target.
 
 ```bash
 mainz build --target site --profile production

@@ -10,13 +10,16 @@ Mainz leans on Deno and Vite, so the setup is intentionally small.
 If your repo already uses Deno tasks, Mainz fits in cleanly without an extra package manager layer.
 
 ```bash title="Install and run"
-deno task build --target site --profile production
-deno task preview --target site --profile production
+mainz init
+mainz app create site
+mainz dev --target site
 ```
 
 ## Use the generated Vite config
 
-Normal Mainz targets do not need a `vite.config.ts` file. Mainz generates the Vite config from the selected target and app, including JSX setup, framework aliases, build output, base path, and the app navigation mode.
+Normal Mainz targets do not need a `vite.config.ts` file. Mainz generates the Vite config from the
+selected target and app, including JSX setup, framework aliases, build output, base path, and the
+app navigation mode.
 
 Use `target.vite` for small app-specific additions that should still live inside the generated
 config.

@@ -56,6 +56,13 @@ type PublishInfoCommandOptions = SharedCliOptions & {
     command: "publish-info";
 };
 
+type InitCommandOptions = {
+    command: "init";
+    configPath?: string;
+    denoConfigPath?: string;
+    mainzSpecifier?: string;
+};
+
 type DiagnoseCommandOptions = SharedCliOptions & {
     command: "diagnose";
     app?: string;
@@ -76,6 +83,7 @@ type AppCommandOptions = {
 };
 
 type MainzCliCommand =
+    | InitCommandOptions
     | BuildCommandOptions
     | DevCommandOptions
     | PreviewCommandOptions
@@ -92,6 +100,11 @@ export async function main(args: string[]): Promise<void> {
     const command = parseCliCommand(args);
     if (!command) {
         printHelp();
+        return;
+    }
+
+    if (command.command === "init") {
+        await runInitCommand(command);
         return;
     }
 
@@ -136,11 +149,16 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         command !== "build" && command !== "dev" && command !== "preview" && command !== "test" &&
         command !== "publish-info" &&
         command !== "diagnose" &&
-        command !== "app"
+        command !== "app" &&
+        command !== "init"
     ) {
         throw new Error(
-            `Unknown command "${command}". Use "build", "dev", "preview", "test", "publish-info", "diagnose", or "app".`,
+            `Unknown command "${command}". Use "init", "build", "dev", "preview", "test", "publish-info", "diagnose", or "app".`,
         );
+    }
+
+    if (command === "init") {
+        return parseInitCommand(rest);
     }
 
     if (command === "app") {
@@ -174,6 +192,39 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         ...options,
         format: options.format,
         failOn: options.failOn,
+    };
+}
+
+function parseInitCommand(args: string[]): InitCommandOptions {
+    const options: Omit<InitCommandOptions, "command"> = {};
+
+    for (let index = 0; index < args.length; index += 1) {
+        const current = args[index];
+
+        if (current === "--config") {
+            options.configPath = readOptionValue(current, args[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--deno-config") {
+            options.denoConfigPath = readOptionValue(current, args[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--mainz") {
+            options.mainzSpecifier = readOptionValue(current, args[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        throw new Error(`Unknown option "${current}".`);
+    }
+
+    return {
+        command: "init",
+        ...options,
     };
 }
 
@@ -388,6 +439,20 @@ function parseCommandOptions(
     }
 
     return options;
+}
+
+async function runInitCommand(options: InitCommandOptions): Promise<void> {
+    const configPath = options.configPath ?? "mainz.config.ts";
+    const denoConfigPath = options.denoConfigPath ?? "deno.json";
+    const mainzSpecifier = options.mainzSpecifier ?? await resolvePublishedMainzSpecifier();
+
+    await assertCanCreateFiles([configPath, denoConfigPath]);
+    await writeNewTextFile(configPath, renderGeneratedEmptyConfig());
+    await writeNewTextFile(denoConfigPath, renderGeneratedDenoConfig(mainzSpecifier));
+
+    console.log(`[mainz] Initialized Mainz project in ${Deno.cwd()}.`);
+    console.log(`[mainz] Created ${configPath} and ${denoConfigPath}.`);
+    console.log('[mainz] Add an app with "mainz app create <name>".');
 }
 
 async function runAppCommand(options: AppCommandOptions): Promise<void> {
@@ -621,6 +686,7 @@ function printHelp(): void {
             "Mainz CLI",
             "",
             "Usage:",
+            "  mainz init [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
             "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
             "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
@@ -631,6 +697,8 @@ function printHelp(): void {
             "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
             "Examples:",
+            "  mainz init",
+            "  mainz init --mainz jsr:@mainz/mainz@<version>",
             "  mainz app create site",
             "  mainz app create --name site",
             "  mainz app create docs --navigation enhanced-mpa",
@@ -768,6 +836,42 @@ async function upsertConfigTarget(configPath: string, target: string): Promise<v
     await Deno.writeTextFile(absoluteConfigPath, insertConfigTarget(content, target));
 }
 
+async function writeNewTextFile(path: string, content: string): Promise<void> {
+    const absolutePath = resolve(path);
+    if (await pathExists(absolutePath)) {
+        throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
+    }
+
+    await Deno.mkdir(dirname(absolutePath), { recursive: true });
+    await Deno.writeTextFile(absolutePath, content);
+}
+
+async function assertCanCreateFiles(paths: string[]): Promise<void> {
+    for (const path of paths) {
+        const absolutePath = resolve(path);
+        if (await pathExists(absolutePath)) {
+            throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
+        }
+    }
+}
+
+async function resolvePublishedMainzSpecifier(): Promise<string> {
+    const version = await readPackageVersion();
+    return `jsr:@mainz/mainz@${version}`;
+}
+
+async function readPackageVersion(): Promise<string> {
+    const packageConfigUrl = new URL("../../jsr.json", import.meta.url);
+    const packageConfig = JSON.parse(await Deno.readTextFile(packageConfigUrl)) as {
+        version?: unknown;
+    };
+    if (typeof packageConfig.version !== "string" || packageConfig.version.length === 0) {
+        throw new Error("Could not resolve Mainz package version from jsr.json.");
+    }
+
+    return packageConfig.version;
+}
+
 function renderGeneratedConfig(target: string): string {
     return [
         'import { defineMainzConfig } from "mainz/config";',
@@ -779,6 +883,46 @@ function renderGeneratedConfig(target: string): string {
         "});",
         "",
     ].join("\n");
+}
+
+function renderGeneratedEmptyConfig(): string {
+    return [
+        'import { defineMainzConfig } from "mainz/config";',
+        "",
+        "export default defineMainzConfig({",
+        "    targets: [",
+        "    ],",
+        "});",
+        "",
+    ].join("\n");
+}
+
+function renderGeneratedDenoConfig(mainzSpecifier: string): string {
+    return `${
+        JSON.stringify(
+            {
+                compilerOptions: {
+                    lib: ["dom", "esnext"],
+                    jsx: "react-jsx",
+                    jsxImportSource: "mainz",
+                    strict: true,
+                },
+                imports: {
+                    mainz: mainzSpecifier,
+                    "mainz/": `${mainzSpecifier}/`,
+                },
+                tasks: {
+                    dev: "mainz dev",
+                    build: "mainz build",
+                    preview: "mainz preview",
+                    test: "mainz test",
+                    diagnose: "mainz diagnose",
+                },
+            },
+            null,
+            4,
+        )
+    }\n`;
 }
 
 function insertConfigTarget(content: string, target: string): string {

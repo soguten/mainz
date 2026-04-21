@@ -6,6 +6,85 @@ import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 const mainzCliPath = resolve(cliTestsRepoRoot, "src", "cli", "mainz.ts");
 
+Deno.test("cli/mainz init: should initialize an empty project", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-" });
+
+    try {
+        const result = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+        assertStringIncludes(result.stdout, "Initialized Mainz project");
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'import { defineMainzConfig } from "mainz/config";');
+        assertStringIncludes(config, "targets: [");
+
+        const denoConfig = JSON.parse(
+            await Deno.readTextFile(resolve(cwd, "deno.json")),
+        ) as {
+            compilerOptions?: Record<string, unknown>;
+            imports?: Record<string, unknown>;
+            tasks?: Record<string, unknown>;
+        };
+        assertEquals(denoConfig.compilerOptions?.jsxImportSource, "mainz");
+        assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
+        assertEquals(denoConfig.imports?.["mainz/"], "jsr:@mainz/mainz@0.1.0-alpha.99/");
+        assertEquals(denoConfig.tasks?.dev, "mainz dev");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz init: should let app create register the first target", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-app-create-" });
+
+    try {
+        const init = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+
+        const create = await runMainz(cwd, ["app", "create", "docs"]);
+        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'name: "docs"');
+        assertStringIncludes(config, 'rootDir: "./docs"');
+        assertStringIncludes(config, "    ],");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz init: should refuse to overwrite existing project files", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-overwrite-" });
+
+    try {
+        await Deno.writeTextFile(resolve(cwd, "mainz.config.ts"), "export default {};\n");
+
+        const result = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+
+        assertEquals(result.code, 1);
+        assertStringIncludes(result.stderr, "Refusing to overwrite existing file");
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertEquals(config, "export default {};\n");
+        await assertRejectsNotFound(resolve(cwd, "deno.json"));
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 Deno.test("cli/mainz app: create should scaffold an app workspace and target", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-app-create-" });
 
