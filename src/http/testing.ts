@@ -1,3 +1,4 @@
+/** Resolves a value after a delay unless the provided signal aborts first. */
 export function delayWithSignal<T>(
     value: T,
     signal: AbortSignal | null | undefined,
@@ -23,6 +24,7 @@ export function delayWithSignal<T>(
     });
 }
 
+/** Creates a JSON response with a default `content-type` header. */
 export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
     return new Response(JSON.stringify(body), {
         ...init,
@@ -33,6 +35,7 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
     });
 }
 
+/** Creates a plain text response with a default UTF-8 `content-type` header. */
 export function textResponse(body: string, init: ResponseInit = {}): Response {
     return new Response(body, {
         ...init,
@@ -43,6 +46,7 @@ export function textResponse(body: string, init: ResponseInit = {}): Response {
     });
 }
 
+/** Creates a JSON error response using a default status text when needed. */
 export function httpError(status: number, body: unknown, init: ResponseInit = {}): Response {
     return jsonResponse(body, {
         ...init,
@@ -51,10 +55,12 @@ export function httpError(status: number, body: unknown, init: ResponseInit = {}
     });
 }
 
+/** Throws a mock network error that behaves like a failed fetch request. */
 export function networkError(message = "Mock network failure."): never {
     throw new TypeError(message);
 }
 
+/** Creates a handler that consumes the provided steps in sequence across invocations. */
 export function sequence<TArgs extends readonly unknown[], TResult>(
     ...steps: Array<(...args: TArgs) => TResult>
 ): (...args: TArgs) => TResult {
@@ -70,10 +76,12 @@ export function sequence<TArgs extends readonly unknown[], TResult>(
     };
 }
 
+/** Reads and parses a request body as JSON without consuming the original request stream. */
 export async function requestJson<T>(request: Request): Promise<T> {
     return await request.clone().json() as T;
 }
 
+/** Returns the query parameters for a request, URL, or URL string. */
 export function query(input: Request | URL | string): URLSearchParams {
     if (typeof input === "string") {
         return new URL(input).searchParams;
@@ -86,17 +94,24 @@ export function query(input: Request | URL | string): URLSearchParams {
     return new URL(input.url).searchParams;
 }
 
+/** Context passed to mock fetch handlers when a route matches. */
 export interface MockFetchRequestContext {
+    /** Request object passed to the mock fetch implementation. */
     request: Request;
+    /** Parsed URL for the matched request. */
     url: URL;
+    /** Abort signal associated with the matched request, when present. */
     signal: AbortSignal | null | undefined;
+    /** Route params resolved from the matched pathname pattern. */
     params: Readonly<Record<string, string>>;
 }
 
+/** Value or callback used to satisfy a matched mock fetch route. */
 export type MockFetchHandler =
     | Response
     | ((context: MockFetchRequestContext) => Response | Promise<Response>);
 
+/** Creates a fetch implementation backed by declarative mock routes. */
 export function createMockFetch(
     configure: (routes: MockFetchRoutes) => void,
 ): typeof fetch {
@@ -126,6 +141,7 @@ export function createMockFetch(
     };
 }
 
+/** Route collection used to build mock fetch implementations for tests. */
 export class MockFetchRoutes {
     private readonly routes: Array<{
         method: string;
@@ -133,26 +149,32 @@ export class MockFetchRoutes {
         handler: MockFetchHandler;
     }> = [];
 
+    /** Registers a GET route handler. */
     get(pathname: string, handler: MockFetchHandler): void {
         this.add("GET", pathname, handler);
     }
 
+    /** Registers a POST route handler. */
     post(pathname: string, handler: MockFetchHandler): void {
         this.add("POST", pathname, handler);
     }
 
+    /** Registers a PUT route handler. */
     put(pathname: string, handler: MockFetchHandler): void {
         this.add("PUT", pathname, handler);
     }
 
+    /** Registers a PATCH route handler. */
     patch(pathname: string, handler: MockFetchHandler): void {
         this.add("PATCH", pathname, handler);
     }
 
+    /** Registers a DELETE route handler. */
     delete(pathname: string, handler: MockFetchHandler): void {
         this.add("DELETE", pathname, handler);
     }
 
+    /** Matches a registered route for the provided method and pathname. */
     match(method: string, pathname: string): {
         handler: MockFetchHandler;
         params: Record<string, string>;
@@ -176,6 +198,7 @@ export class MockFetchRoutes {
         return undefined;
     }
 
+    /** Stores a normalized route definition in the mock route table. */
     private add(method: string, pattern: string, handler: MockFetchHandler): void {
         this.routes.push({
             method,
