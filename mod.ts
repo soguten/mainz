@@ -11,3 +11,4 @@ export * from "./src/public/i18n.ts";
 export * from "./src/public/di.ts";
 export * from "./src/public/http.ts";
 export * from "./src/public/http-testing.ts";
+export * from "./src/public/testing.ts";

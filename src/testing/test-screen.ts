@@ -1,16 +1,28 @@
+/** Minimal DOM testing facade returned by Mainz component render helpers. */
 export type TestScreen<TComponent extends Element = HTMLElement> = {
+    /** Root rendered component instance. */
     component: TComponent;
+    /** Host container created for the rendered component. */
     host: HTMLElement;
+    /** Alias for the host container used by the test helpers. */
     container: HTMLElement;
+    /** Returns the first matching element or throws when none is found. */
     getBySelector<E extends Element = Element>(selector: string): E;
+    /** Returns the first matching element or `null` when none is found. */
     queryBySelector<E extends Element = Element>(selector: string): E | null;
+    /** Clicks the first matching element. */
     click(selector: string): void;
+    /** Dispatches a custom event on the first matching element. */
     dispatch(selector: string, event: Event): void;
+    /** Updates an input-like element and dispatches an `input` event. */
     input(selector: string, value: string): void;
+    /** Updates an input-like element and dispatches a `change` event. */
     change(selector: string, value: string): void;
+    /** Removes the rendered host container and runs optional custom cleanup. */
     cleanup(): void;
 };
 
+/** Creates a `TestScreen` facade around a rendered Mainz component instance. */
 export function createTestScreen<TComponent extends Element>(
     component: TComponent,
     host: HTMLElement,

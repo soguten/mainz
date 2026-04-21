@@ -1,10 +1,12 @@
 const DEFAULT_WAIT_ATTEMPTS = 100;
 
+/** Waits for the current microtask queue and a zero-delay timer to flush. */
 export async function nextTick(): Promise<void> {
     await Promise.resolve();
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
 }
 
+/** Repeatedly evaluates a predicate until it becomes true or times out. */
 export async function waitFor(
     predicate: () => boolean,
     message = "Expected condition to become true.",
@@ -20,6 +22,7 @@ export async function waitFor(
     throw new Error(message);
 }
 
+/** Waits for a matching custom event and returns its detail payload. */
 export async function waitForCustomEvent<T>(
     eventName: string,
     options?: {

@@ -2,21 +2,27 @@ import { Window } from "happy-dom";
 import { ensureMainzCustomElementDefined } from "../components/registry.ts";
 import { createTestScreen, type TestScreen } from "./test-screen.ts";
 
+/** Constructor contract accepted by the Mainz component render helpers. */
 export type MainzComponentCtor<T extends HTMLElement> = {
+    /** Returns the custom element tag name associated with the component class. */
     getTagName(): string;
+    /** Creates a new component instance. */
     new (): T;
 };
 
+/** Result returned by `renderMainzComponent`, including DOM query helpers. */
 export type RenderResult<T extends HTMLElement> = TestScreen<T>;
 
-type PropsOf<T> = T extends { props: infer P } ? P : never;
-type StateOf<T> = T extends { state: infer S } ? S : never;
-type ObjectStateOf<T> = Extract<StateOf<T>, Record<string, unknown>>;
-
+/** Options used to render a Mainz component into the Happy DOM test environment. */
 export type RenderMainzOptions<T extends HTMLElement> = {
-    props?: PropsOf<T>;
+    /** Props assigned to the component before it is connected. */
+    props?: T extends { props: infer P } ? P : never;
+    /** Attributes applied to the component element before mounting. */
     attrs?: Record<string, string>;
-    stateOverride?: Partial<ObjectStateOf<T>>;
+    /** Partial state merged into the component before mounting. */
+    stateOverride?: Partial<
+        Extract<T extends { state: infer S } ? S : never, Record<string, unknown>>
+    >;
 };
 
 type HappyDOMLike = {
@@ -27,6 +33,7 @@ let domInitialized = false;
 let domSettled = false;
 let domSetupPromise: Promise<void> | null = null;
 
+/** Sets up the Happy DOM globals used by Mainz component tests. */
 export function setupMainzDom(): Promise<void> {
     if (domSettled) {
         return Promise.resolve();
@@ -103,10 +110,12 @@ function ensureDefined<T extends HTMLElement>(Ctor: MainzComponentCtor<T>): stri
     );
 }
 
+/** Renders a Mainz component into the shared Happy DOM environment. */
 export function renderMainzComponent<T extends HTMLElement>(
     Ctor: MainzComponentCtor<T>,
 ): RenderResult<T>;
 
+/** Renders a Mainz component into the shared Happy DOM environment with overrides. */
 export function renderMainzComponent<T extends HTMLElement>(
     Ctor: MainzComponentCtor<T>,
     options: RenderMainzOptions<T>,
@@ -136,14 +145,18 @@ export function renderMainzComponent<T extends HTMLElement>(
     }
 
     if (options.props !== undefined && "props" in component) {
-        (component as T & { props: PropsOf<T> }).props = options.props;
+        (component as T & { props: T extends { props: infer P } ? P : never }).props = options.props;
     }
 
     if (options.stateOverride !== undefined && "state" in component) {
-        const currentState = (component as T & { state: ObjectStateOf<T> }).state ??
-            {} as ObjectStateOf<T>;
+        type ObjectState = Extract<
+            T extends { state: infer S } ? S : never,
+            Record<string, unknown>
+        >;
+        const currentState = (component as T & { state: ObjectState }).state ??
+            {} as ObjectState;
 
-        (component as T & { state: ObjectStateOf<T> }).state = {
+        (component as T & { state: ObjectState }).state = {
             ...currentState,
             ...options.stateOverride,
         };
