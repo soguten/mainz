@@ -65,40 +65,82 @@ const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
 const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol("mainz.appDefinitionKind");
-const ROUTED_APP_CAPTURE_STACK: Array<(app: DefinedRoutedApp) => void> = [];
+type InternalDefinedRoutedApp = DefinedRoutedApp & {
+    readonly [MAINZ_APP_DEFINITION_KIND]: "routed";
+};
+type InternalDefinedRootApp = DefinedRootApp & {
+    readonly [MAINZ_APP_DEFINITION_KIND]: "root";
+};
+const ROUTED_APP_CAPTURE_STACK: Array<(app: InternalDefinedRoutedApp) => void> = [];
 
+/**
+ * Route params extracted from a matched SPA route pattern.
+ */
 export type SpaRouteParams = Readonly<Record<string, string>>;
+/**
+ * Resolves the routed path handled by SPA navigation for a given URL.
+ */
 export type RoutePathResolver = (context: { url: URL; basePath: string }) => string | null;
 
+/**
+ * Context emitted when Mainz applies a new locale during navigation.
+ */
 export interface NavigationLocaleContext {
+    /** Normalized locale applied to the current document and route. */
     locale: string;
+    /** Full URL associated with the locale change. */
     url: URL;
+    /** Application base path used when resolving localized routes. */
     basePath: string;
 }
 
+/**
+ * Custom element constructor accepted as a SPA page entry.
+ */
 export interface SpaPageConstructor extends CustomElementConstructor {
+    /** Optional page metadata discovered from decorators on the constructor. */
     page?: {
+        /** Page-level head metadata collected from the constructor. */
         head?: PageHeadDefinition;
+        /** Page-level authorization metadata collected from the constructor. */
         authorization?: PageAuthorizationMetadata;
     };
+    /** Returns the custom-element tag name used to instantiate the page. */
     getTagName(): string;
+    /** Constructor name used in diagnostics and route errors. */
     name: string;
 }
 
+/**
+ * Module shape accepted by lazy SPA route loaders.
+ */
 export type SpaPageModule = SpaPageConstructor | {
     default: SpaPageConstructor;
 };
 
+/**
+ * Explicit route metadata for a SPA entry.
+ */
 export interface SpaRouteDefinition {
+    /** Route path resolved by SPA navigation. */
     path: string;
 }
 
+/**
+ * Eager SPA page registration with an optional explicit path override.
+ */
 export interface SpaPageDefinition {
+    /** Page constructor used for the route. */
     page: SpaPageConstructor;
+    /** Explicit route path used instead of reading @Route(...) from the page. */
     path?: string;
 }
 
+/**
+ * Lazy SPA page registration that defers loading until the route is visited.
+ */
 export interface SpaLazyPageDefinition extends SpaRouteDefinition {
+    /** Loads the page module for the matched route. */
     load(): Promise<SpaPageModule>;
 }
 
@@ -154,57 +196,104 @@ export interface InternalStartNavigationOptions {
     spa?: SpaNavigationOptions;
 }
 
+/**
+ * Internationalization settings shared by a routed app.
+ */
 export interface RoutedAppI18nDefinition<Locale extends string = string> {
+    /** Supported locales handled by the application. */
     locales: readonly Locale[];
+    /** Default locale used when no explicit locale segment is present. */
     defaultLocale: Locale;
+    /** Controls whether locale segments are always present in routed URLs. */
     localePrefix?: "always" | "except-default";
 }
 
+/**
+ * Authorization settings shared by a routed app.
+ */
 export interface RoutedAppAuthorizationDefinition {
+    /** Policy names that must be registered before protected routes can render. */
     policyNames?: readonly string[];
 }
 
+/**
+ * Application definition for a routed Mainz app.
+ */
 export interface RoutedAppDefinition {
+    /** Stable application id used for runtime markers and diagnostics. */
     id: string;
+    /** Authorization settings applied to routed pages. */
     authorization?: RoutedAppAuthorizationDefinition;
+    /** Command registrations available to the application shell. */
     commands?: readonly MainzCommand<never>[];
+    /** Navigation mode used when starting the app. */
     navigation?: NavigationMode;
+    /** Internationalization settings for routed pages. */
     i18n?: RoutedAppI18nDefinition;
+    /** Language assigned to the root HTML document while the app is active. */
     documentLanguage?: string;
+    /** Page entries available to the routed application. */
     pages: readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
+    /** Optional catch-all page rendered when no route matches. */
     notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
+    /** Service registrations attached to the application container. */
     services?: readonly ServiceRegistration[];
 }
 
-type RootComponentConstructor = CustomElementConstructor & {
+/**
+ * Root component constructor accepted by root-only Mainz apps.
+ */
+export type AppRootComponentConstructor = CustomElementConstructor & {
+    /** Returns the custom-element tag name used to instantiate the root component. */
     getTagName(): string;
+    /** Constructor name used in diagnostics and default app ids. */
     name: string;
 };
 
+/**
+ * Application definition for a root-only Mainz app.
+ */
 export interface RootAppDefinition {
+    /** Stable application id used for runtime markers and diagnostics. */
     id: string;
+    /** Command registrations available to the application shell. */
     commands?: readonly MainzCommand<never>[];
-    root: RootComponentConstructor;
+    /** Root component rendered directly into the application mount. */
+    root: AppRootComponentConstructor;
+    /** Service registrations attached to the application container. */
     services?: readonly ServiceRegistration[];
 }
 
-export interface DefinedRoutedApp extends RoutedAppDefinition {
-    readonly [MAINZ_APP_DEFINITION_KIND]: "routed";
-}
-
-export interface DefinedRootApp extends RootAppDefinition {
-    readonly [MAINZ_APP_DEFINITION_KIND]: "root";
-}
-
+/**
+ * Routed app definition prepared by {@link defineApp}.
+ */
+export interface DefinedRoutedApp extends RoutedAppDefinition {}
+/**
+ * Root app definition prepared by {@link defineApp}.
+ */
+export interface DefinedRootApp extends RootAppDefinition {}
+/**
+ * Any Mainz app definition prepared by {@link defineApp}.
+ */
 export type DefinedApp = DefinedRoutedApp | DefinedRootApp;
 
+/**
+ * Runtime options used when starting a defined Mainz app.
+ */
 export interface StartDefinedAppOptions {
+    /** Mount target used for the running application. */
     mount?: string | Element;
+    /** Authorization runtime used for page evaluation during startup. */
     auth?: AuthorizationRuntimeOptions;
 }
 
+/**
+ * Runtime handle returned when a Mainz app is started.
+ */
 export interface NavigationController {
+    /** Navigation mode currently managed by the controller. */
     mode: NavigationMode;
+    /** Tears down listeners, portals, commands, and mounted app state. */
     cleanup(): void;
 }
 
@@ -297,20 +386,26 @@ function isAbortLikeError(error: unknown): boolean {
     return error instanceof Error && error.name === "AbortError";
 }
 
+/**
+ * Validates and brands a routed app definition for later startup.
+ */
 export function defineApp(app: RoutedAppDefinition): DefinedRoutedApp;
+/**
+ * Validates and brands a root-only app definition for later startup.
+ */
 export function defineApp(app: RootAppDefinition): DefinedRootApp;
 export function defineApp(
     app: RoutedAppDefinition | RootAppDefinition,
 ): DefinedRoutedApp | DefinedRootApp {
     if (isRoutedAppDefinitionShape(app)) {
         validateRoutedAppDefinition(app);
-        const definedApp = brandDefinedApp(app, "routed") as DefinedRoutedApp;
+        const definedApp = brandDefinedApp(app, "routed") as InternalDefinedRoutedApp;
         captureDefinedRoutedApp(definedApp);
         return definedApp;
     }
 
     if (isRootAppDefinitionShape(app)) {
-        return brandDefinedApp(app, "root") as DefinedRootApp;
+        return brandDefinedApp(app, "root") as InternalDefinedRootApp;
     }
 
     return app as DefinedRoutedApp | DefinedRootApp;
@@ -319,7 +414,7 @@ export function defineApp(
 export async function captureDefinedRoutedAppDuring<Value>(
     action: () => Value | Promise<Value>,
 ): Promise<{ value: Value; app?: DefinedRoutedApp }> {
-    let capturedApp: DefinedRoutedApp | undefined;
+    let capturedApp: InternalDefinedRoutedApp | undefined;
     ROUTED_APP_CAPTURE_STACK.push((app) => {
         capturedApp ??= app;
     });
@@ -389,20 +484,29 @@ export function resolveDefinedAppDefinitionsFromModuleExports(
     return resolved;
 }
 
+/**
+ * Starts a routed Mainz app created with {@link defineApp}.
+ */
 export function startApp(
     app: DefinedRoutedApp,
     options?: StartDefinedAppOptions,
 ): NavigationController;
+/**
+ * Starts a root-only Mainz app created with {@link defineApp}.
+ */
 export function startApp(
     app: DefinedRootApp,
     options?: StartDefinedAppOptions,
 ): NavigationController;
+/**
+ * Starts a root component directly without wrapping it in a root app definition.
+ */
 export function startApp(
-    root: RootComponentConstructor,
+    root: AppRootComponentConstructor,
     options?: StartDefinedAppOptions,
 ): NavigationController;
 export function startApp(
-    appOrRoot: DefinedRoutedApp | DefinedRootApp | RootComponentConstructor,
+    appOrRoot: DefinedRoutedApp | DefinedRootApp | AppRootComponentConstructor,
     options?: StartDefinedAppOptions,
 ): NavigationController {
     if (isRootComponentConstructor(appOrRoot)) {
@@ -493,7 +597,7 @@ function startRootApp(
     };
 }
 
-function captureDefinedRoutedApp(app: DefinedRoutedApp): void {
+function captureDefinedRoutedApp(app: InternalDefinedRoutedApp): void {
     ROUTED_APP_CAPTURE_STACK.at(-1)?.(app);
 }
 
@@ -539,9 +643,9 @@ function isRootAppDefinitionShape(value: unknown): value is RootAppDefinition {
         Array.isArray(record.services);
 }
 
-function isRootComponentConstructor(value: unknown): value is RootComponentConstructor {
+function isRootComponentConstructor(value: unknown): value is AppRootComponentConstructor {
     return typeof value === "function" &&
-        typeof (value as RootComponentConstructor).getTagName === "function";
+        typeof (value as AppRootComponentConstructor).getTagName === "function";
 }
 
 function isRoutedPageEntry(value: unknown): boolean {
@@ -678,12 +782,12 @@ function validateImmediatePageLocaleRestrictions(app: RoutedAppDefinition): void
     }
 }
 
-function isDefinedRoutedApp(value: unknown): value is DefinedRoutedApp {
+function isDefinedRoutedApp(value: unknown): value is InternalDefinedRoutedApp {
     return isRoutedAppDefinitionShape(value) &&
         readAppDefinitionKind(value) === "routed";
 }
 
-function isDefinedRootApp(value: unknown): value is DefinedRootApp {
+function isDefinedRootApp(value: unknown): value is InternalDefinedRootApp {
     return isRootAppDefinitionShape(value) &&
         readAppDefinitionKind(value) === "root";
 }
