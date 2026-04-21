@@ -1,17 +1,28 @@
-import type { RenderPolicy, RenderStrategy } from "../resources/resource.ts";
+/** Public strategy type used by component render metadata and decorators. */
+export type ComponentRenderStrategy = "blocking" | "defer";
 
+/** Public policy type used by component render metadata and decorators. */
+export type ComponentRenderPolicy = "placeholder-in-ssg" | "hide-in-ssg" | "forbidden-in-ssg";
+
+/**
+ * Effective component render metadata resolved from decorators and component shape.
+ */
 export interface ComponentRenderConfig {
-    strategy: RenderStrategy;
-    policy?: RenderPolicy;
+    /** When the component participates in rendering. */
+    strategy: ComponentRenderStrategy;
+    /** How the component should behave during SSG build, when explicitly constrained. */
+    policy?: ComponentRenderPolicy;
+    /** Whether the strategy came from an explicit decorator rather than inference. */
     hasExplicitStrategy: boolean;
+    /** Whether the policy came from an explicit decorator. */
     hasExplicitPolicy: boolean;
 }
 
 type MainzComponentConstructor = (abstract new (...args: unknown[]) => object) & {
     name: string;
     [COMPONENT_CUSTOM_ELEMENT_TAG]?: string;
-    [COMPONENT_RENDER_STRATEGY]?: RenderStrategy;
-    [COMPONENT_RENDER_POLICY]?: RenderPolicy;
+    [COMPONENT_RENDER_STRATEGY]?: ComponentRenderStrategy;
+    [COMPONENT_RENDER_POLICY]?: ComponentRenderPolicy;
 };
 
 const COMPONENT_CUSTOM_ELEMENT_TAG = Symbol(
@@ -23,10 +34,6 @@ const COMPONENT_RENDER_STRATEGY = Symbol(
 const COMPONENT_RENDER_POLICY = Symbol(
     "mainz.component.render-policy",
 );
-type MainzComponentDecorator = <T extends MainzComponentConstructor>(
-    value: T,
-    _context?: ClassDecoratorContext<T>,
-) => void;
 
 /**
  * Declares the custom element tag name for a Mainz component class.
@@ -34,7 +41,10 @@ type MainzComponentDecorator = <T extends MainzComponentConstructor>(
  * Use `@CustomElement(...)` when the component needs a stable public tag name in rendered output
  * or direct DOM usage.
  */
-export function CustomElement(tagName: string): MainzComponentDecorator {
+export function CustomElement(tagName: string): <T extends abstract new (...args: unknown[]) => object>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -55,8 +65,11 @@ export function CustomElement(tagName: string): MainzComponentDecorator {
  * When no explicit strategy is declared, Mainz may infer the strategy from the component shape.
  */
 export function RenderStrategy(
-    strategy: RenderStrategy,
-): MainzComponentDecorator {
+    strategy: ComponentRenderStrategy,
+): <T extends abstract new (...args: unknown[]) => object>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -76,8 +89,11 @@ export function RenderStrategy(
  * - `"forbidden-in-ssg"` to reject SSG usage entirely
  */
 export function RenderPolicy(
-    policy: RenderPolicy,
-): MainzComponentDecorator {
+    policy: ComponentRenderPolicy,
+): <T extends abstract new (...args: unknown[]) => object>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void {
     return function <T extends MainzComponentConstructor>(
         value: T,
         _context?: ClassDecoratorContext<T>,
@@ -86,6 +102,7 @@ export function RenderPolicy(
     };
 }
 
+/** Resolves the explicit custom-element tag declared for a component, when present. */
 export function resolveDecoratedCustomElementTag(
     componentCtor: object,
 ): string | undefined {
@@ -95,24 +112,27 @@ export function resolveDecoratedCustomElementTag(
     return tagName ? tagName : undefined;
 }
 
+/** Resolves the effective component render strategy for a constructor. */
 export function resolveComponentRenderStrategy(
     componentCtor: object,
-): RenderStrategy | undefined {
+): ComponentRenderStrategy | undefined {
     return resolveComponentRenderConfig(componentCtor)?.strategy;
 }
 
+/** Resolves the effective component render policy for a constructor. */
 export function resolveComponentRenderPolicy(
     componentCtor: object,
-): RenderPolicy | undefined {
+): ComponentRenderPolicy | undefined {
     return resolveComponentRenderConfig(componentCtor)?.policy;
 }
 
+/** Resolves the full effective component render configuration for a constructor. */
 export function resolveComponentRenderConfig(
     componentCtor: object,
 ): ComponentRenderConfig | undefined {
     const componentOwner = componentCtor as {
-        [COMPONENT_RENDER_STRATEGY]?: RenderStrategy;
-        [COMPONENT_RENDER_POLICY]?: RenderPolicy;
+        [COMPONENT_RENDER_STRATEGY]?: ComponentRenderStrategy;
+        [COMPONENT_RENDER_POLICY]?: ComponentRenderPolicy;
     };
     const candidate = componentCtor as {
         prototype?: {
@@ -142,14 +162,14 @@ function applyDecoratedCustomElementTag(
 
 function applyDecoratedRenderStrategy(
     ctor: MainzComponentConstructor,
-    strategy: RenderStrategy,
+    strategy: ComponentRenderStrategy,
 ): void {
     ctor[COMPONENT_RENDER_STRATEGY] = strategy;
 }
 
 function applyDecoratedRenderPolicy(
     ctor: MainzComponentConstructor,
-    policy: RenderPolicy,
+    policy: ComponentRenderPolicy,
 ): void {
     ctor[COMPONENT_RENDER_POLICY] = policy;
 }

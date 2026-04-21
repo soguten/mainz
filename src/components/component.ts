@@ -85,7 +85,11 @@ export {
     resolveComponentRenderPolicy,
     resolveComponentRenderStrategy,
 } from "./component-metadata.ts";
-export type { ComponentRenderConfig } from "./component-metadata.ts";
+export type {
+    ComponentRenderConfig,
+    ComponentRenderPolicy,
+    ComponentRenderStrategy,
+} from "./component-metadata.ts";
 
 /**
  * Runtime base class used by Mainz components.

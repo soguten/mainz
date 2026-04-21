@@ -2,7 +2,9 @@ import type { NavigationMode, RenderMode } from "../routing/types.ts";
 
 export type ResourceVisibility = "public" | "private";
 export type ResourceExecution = "build" | "client" | "either";
+/** Declares when a component or resource should participate in rendering. */
 export type RenderStrategy = "blocking" | "defer";
+/** Declares how a component or resource should behave during SSG build. */
 export type RenderPolicy = "placeholder-in-ssg" | "hide-in-ssg" | "forbidden-in-ssg";
 export type ResourceStrategy = RenderStrategy;
 export type ResourceRuntime = "build" | "client";
