@@ -1,4 +1,4 @@
-import type { RenderPolicy, RenderStrategy } from "../resources/index.ts";
+import type { RenderPolicy, RenderStrategy } from "../resources/resource.ts";
 
 export interface ComponentRenderConfig {
     strategy: RenderStrategy;

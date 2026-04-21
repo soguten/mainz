@@ -1,7 +1,9 @@
-import type { PageEntryDefinition, PageHeadDefinition } from "../components/page.ts";
+import type { PageEntryDefinition, PageHeadDefinition } from "../components/page-contract.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
+/** Page-level render mode used by Mainz routing and build pipelines. */
 export type RenderMode = "csr" | "ssg";
+/** Navigation behavior used by Mainz runtime and build outputs. */
 export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
 export type RouteSource = "filesystem";
 

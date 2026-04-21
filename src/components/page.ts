@@ -2,9 +2,15 @@ import { Component } from "./component.ts";
 import type { Principal } from "../authorization/index.ts";
 import type { DefaultProps, DefaultState } from "./types.ts";
 import type { NavigationMode, RenderMode as PageRenderModeValue } from "../routing/types.ts";
-import { readResource, type Resource, type ResourceRuntime } from "../resources/index.ts";
+import { readResource, type Resource, type ResourceRuntime } from "../resources/resource.ts";
 import type {
+    PageEntryDefinition,
+    PageHeadDefinition,
+    PageHeadLinkDefinition,
+    PageHeadMetaDefinition,
     PageRouteParams,
+} from "./page-contract.ts";
+import type {
     RouteContext,
     RouteProfileContext,
 } from "./route-context.ts";
@@ -30,33 +36,18 @@ export {
     resolvePageRenderMode,
     resolvePageRoutePath,
 } from "./page-metadata.ts";
-export type { PageRouteParams, RouteContext, RouteProfileContext } from "./route-context.ts";
-
-export interface PageHeadMetaDefinition {
-    name?: string;
-    property?: string;
-    content: string;
-}
-
-export interface PageHeadLinkDefinition {
-    rel: string;
-    href: string;
-    hreflang?: string;
-}
-
-export interface PageHeadDefinition {
-    title?: string;
-    meta?: readonly PageHeadMetaDefinition[];
-    links?: readonly PageHeadLinkDefinition[];
-}
+export type {
+    PageEntryDefinition,
+    PageHeadDefinition,
+    PageHeadLinkDefinition,
+    PageHeadMetaDefinition,
+    PageRouteParams,
+} from "./page-contract.ts";
+export type { RouteContext, RouteProfileContext } from "./route-context.ts";
 
 export interface PageEntriesContext {
     locale?: string;
     profile?: RouteProfileContext;
-}
-
-export interface PageEntryDefinition {
-    params: PageRouteParams;
 }
 
 type PageLoadByParamResolver<Value> = (

@@ -1,11 +1,11 @@
 import { normalizeLocaleTag } from "../i18n/core.ts";
 import type { RenderMode } from "../routing/types.ts";
-import type { PageConstructor } from "./page.ts";
 
 const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
 const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
 const PAGE_LOCALES = Symbol("mainz.page.locales");
-type PageDecorator = <T extends PageConstructor>(
+type DecoratedPageClass = abstract new (...args: unknown[]) => object;
+type PageDecorator = <T extends DecoratedPageClass>(
     value: T,
     _context?: ClassDecoratorContext<T>,
 ) => void;
@@ -20,7 +20,7 @@ type PageDecorator = <T extends PageConstructor>(
  * - `"/stories/:slug"`
  */
 export function Route(path: string): PageDecorator {
-    return function <T extends PageConstructor>(
+    return function <T extends DecoratedPageClass>(
         value: T,
         _context?: ClassDecoratorContext<T>,
     ): void {
@@ -40,7 +40,7 @@ export function Route(path: string): PageDecorator {
  * Use `@RenderMode(...)` to describe the page-level render contract.
  */
 export function RenderMode(mode: RenderMode): PageDecorator {
-    return function <T extends PageConstructor>(
+    return function <T extends DecoratedPageClass>(
         value: T,
         _context?: ClassDecoratorContext<T>,
     ): void {
@@ -49,7 +49,7 @@ export function RenderMode(mode: RenderMode): PageDecorator {
 }
 
 export function Locales(...locales: string[]): PageDecorator {
-    return function <T extends PageConstructor>(
+    return function <T extends DecoratedPageClass>(
         value: T,
         context?: ClassDecoratorContext<T>,
     ): void {
@@ -87,15 +87,15 @@ export function resolvePageLocales(pageCtor: object): readonly string[] | undefi
     return routeOwner[PAGE_LOCALES];
 }
 
-function applyPageRoutePath(pageCtor: PageConstructor, path: string): void {
+function applyPageRoutePath(pageCtor: object, path: string): void {
     (pageCtor as { [PAGE_ROUTE_PATH]?: string })[PAGE_ROUTE_PATH] = path;
 }
 
-function applyPageRenderMode(pageCtor: PageConstructor, mode: RenderMode): void {
+function applyPageRenderMode(pageCtor: object, mode: RenderMode): void {
     (pageCtor as { [PAGE_RENDER_MODE]?: RenderMode })[PAGE_RENDER_MODE] = mode;
 }
 
-function applyPageLocales(pageCtor: PageConstructor, locales: readonly string[]): void {
+function applyPageLocales(pageCtor: object, locales: readonly string[]): void {
     (pageCtor as { [PAGE_LOCALES]?: readonly string[] })[PAGE_LOCALES] = locales.map((
         locale,
         index,

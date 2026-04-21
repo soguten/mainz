@@ -1,27 +1,36 @@
+/** Role- and policy-based authorization options declared on pages or components. */
 export interface AuthorizationOptions {
     roles?: readonly string[];
     policy?: string;
 }
 
+/** Normalized authorization requirement applied to a protected target. */
 export interface AuthorizationRequirement {
     authenticated: true;
     roles?: readonly string[];
     policy?: string;
 }
 
+/** Authorization metadata resolved from a page declaration. */
 export interface PageAuthorizationMetadata {
     allowAnonymous?: true;
     requirement?: AuthorizationRequirement;
 }
 
+/** Authorization metadata resolved from a component declaration. */
 export interface ComponentAuthorizationMetadata {
     requirement: AuthorizationRequirement;
 }
 
+/** Authenticated or anonymous principal resolved for the current runtime request. */
 export interface Principal {
+    /** Whether the principal is authenticated. */
     authenticated: boolean;
+    /** Stable principal identifier, when available. */
     id?: string;
+    /** Roles granted to the principal. */
     roles: readonly string[];
+    /** Arbitrary claims associated with the principal. */
     claims: Readonly<Record<string, string | readonly string[]>>;
 }
 

@@ -70,12 +70,12 @@ import {
 import type { ServiceContainer } from "../di/container.ts";
 import {
     isRouteContext,
-    type PageRouteParams,
     type RouteContext,
     type RouteProfileContext,
 } from "./route-context.ts";
+import type { PageRouteParams } from "./page-contract.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
-import type { RenderPolicy } from "../resources/index.ts";
+import type { RenderPolicy } from "../resources/resource.ts";
 
 export {
     CustomElement,
@@ -87,21 +87,49 @@ export {
 } from "./component-metadata.ts";
 export type { ComponentRenderConfig } from "./component-metadata.ts";
 
-const HTMLElementBase = (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
+/**
+ * Runtime base class used by Mainz components.
+ *
+ * This falls back to an empty class in environments where `HTMLElement` is not available during
+ * type analysis or server-side execution.
+ */
+export const ComponentElementBase =
+    (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
 
+/**
+ * Context object passed to `Component.load()`.
+ *
+ * This carries the current request, route, and runtime metadata available while Mainz resolves
+ * lifecycle data for a component.
+ *
+ * @template Props The props type associated with the component being loaded.
+ */
 export interface ComponentLoadContext<Props = DefaultProps> {
+    /** Abort signal for the current lifecycle load operation. */
     signal: AbortSignal;
+    /** Current component props, when available during the load phase. */
     props?: Props;
+    /** Active route context for the owning page or route subtree. */
     route?: RouteContext;
+    /** Current requested path. */
     path?: string;
+    /** Current matched route path. */
     matchedPath?: string;
+    /** Current route params. */
     params?: PageRouteParams;
+    /** Resolved locale for the active route, when present. */
     locale?: string;
+    /** Fully resolved URL for the current route. */
     url?: URL;
+    /** Page render mode active for the current request. */
     renderMode?: RenderMode;
+    /** Navigation mode active for the current request. */
     navigationMode?: NavigationMode;
+    /** Resolved principal associated with the current request. */
     principal?: Principal;
+    /** Active route profile metadata, when available. */
     profile?: RouteProfileContext;
+    /** Runtime-specific resource helpers associated with the current request. */
     resources?: unknown;
 }
 
@@ -115,8 +143,15 @@ interface ComponentPortalEntry {
     nodes: Node[];
     target: HTMLElement;
 }
-
-type ComponentRenderArgs<Data = unknown> = [] | [data: Data];
+/**
+ * Positional arguments passed into `Component.render()`.
+ *
+ * Components without resolved lifecycle data receive no arguments.
+ * Components with resolved data receive a single `data` argument.
+ *
+ * @template Data The lifecycle data type resolved by `load()`.
+ */
+export type PublicComponentRenderArgs<Data = unknown> = [] | [data: Data];
 
 /**
  * Base class for Mainz components.
@@ -153,7 +188,7 @@ export abstract class Component<
     State = DefaultState,
     Data = unknown,
     LoadContext extends ComponentLoadContext<Props> = ComponentLoadContext<Props>,
-> extends HTMLElementBase {
+> extends ComponentElementBase {
     private static tagNameCache = new WeakMap<typeof Component, string>();
     private static tagOwners = new Map<string, typeof Component>();
     private static tagSuffixCounter = 0;
@@ -256,6 +291,7 @@ export abstract class Component<
      */
     protected initState?(): State;
 
+    /** Initializes component state once before the first render. */
     private ensureStateInitialized(): void {
         if (this.stateInitialized) {
             return;
@@ -348,6 +384,9 @@ export abstract class Component<
         });
     }
 
+    /**
+     * Registers a DOM event listener that should participate in Mainz-managed cleanup.
+     */
     public registerDOMEvent(
         target: EventTarget,
         type: string,
@@ -457,6 +496,7 @@ export abstract class Component<
         }
     }
 
+    /** Resolves the concrete tree that should be committed for the current render pass. */
     private resolveRenderedTree(): HTMLElement | DocumentFragment {
         if (this.suppressUnauthorizedRender) {
             return this.ownerDocument.createDocumentFragment();
@@ -486,6 +526,7 @@ export abstract class Component<
         return this.resolveComponentLoadFallback(renderConfig);
     }
 
+    /** Determines whether protected content should be hidden for the current principal. */
     private shouldSuppressUnauthorizedRender(): boolean {
         const authorization = resolveComponentAuthorization(this.constructor);
         if (!authorization) {
@@ -518,6 +559,7 @@ export abstract class Component<
         return !requirementDecision;
     }
 
+    /** Prepares async component loading for the current render pass when needed. */
     private prepareComponentLoad(): void {
         if (!this.hasComponentLoad()) {
             return;
@@ -567,6 +609,7 @@ export abstract class Component<
         this.startComponentLoad(loadKey);
     }
 
+    /** Starts a new async component load request for the current props and route context. */
     private startComponentLoad(loadKey: string): void {
         this.abortActiveComponentLoad();
 
@@ -653,6 +696,7 @@ export abstract class Component<
             });
     }
 
+    /** Applies a new async load state and optionally re-renders the component. */
     private applyComponentLoadState(
         nextState: ComponentLoadState<Data>,
         rerender = false,
@@ -666,6 +710,7 @@ export abstract class Component<
         this.renderDOM();
     }
 
+    /** Aborts the active async load request, if one is in flight. */
     private abortActiveComponentLoad(): void {
         if (!this.activeLoadController) {
             return;
@@ -676,6 +721,7 @@ export abstract class Component<
         this.activeLoadRequestId += 1;
     }
 
+    /** Computes the stable cache key for the current async load inputs. */
     private computeComponentLoadKey(): string {
         return stableSerializeForLoadKey(
             {
@@ -686,6 +732,7 @@ export abstract class Component<
         );
     }
 
+    /** Resolves the authorization context visible to this component render. */
     private resolveAuthorizationRenderContext(): AuthorizationRenderContext {
         const fromProps = resolveAuthorizationRenderContextFromProps(this.props);
         if (fromProps) {
@@ -697,6 +744,7 @@ export abstract class Component<
             {};
     }
 
+    /** Resolves the service container available to this component instance. */
     private resolveServiceContainer(): ServiceContainer | undefined {
         const fromRoute =
             typeof this.props === "object" && this.props !== null && "route" in this.props
@@ -711,6 +759,7 @@ export abstract class Component<
             getCurrentServiceContainer();
     }
 
+    /** Returns the effective render configuration for this component constructor. */
     private requireRenderConfig(): ComponentRenderConfig {
         const renderConfig = resolveComponentRenderConfig(this.constructor);
         if (renderConfig) {
@@ -724,14 +773,17 @@ export abstract class Component<
         };
     }
 
+    /** Indicates whether this component participates in the async load lifecycle. */
     private hasComponentLoad(): boolean {
         return this.participatesInComponentLoad() && typeof this.load === "function";
     }
 
+    /** Controls whether Mainz should consider `load()` for this component type. */
     protected participatesInComponentLoad(): boolean {
         return true;
     }
 
+    /** Resolves the nearest route context associated with this component subtree. */
     private resolveComponentRouteContext(): RouteContext | undefined {
         const fromProps = this.readRouteContextFromValue(this.props);
         if (fromProps) {
@@ -741,11 +793,12 @@ export abstract class Component<
         return this.findAncestorRouteContext();
     }
 
+    /** Walks ancestor nodes to find an inherited route context. */
     private findAncestorRouteContext(): RouteContext | undefined {
         let current: Node | null = this.parentNode;
 
         while (current) {
-            if (current instanceof HTMLElementBase) {
+            if (current instanceof ComponentElementBase) {
                 const element = current as HTMLElement & {
                     props?: unknown;
                 };
@@ -761,6 +814,7 @@ export abstract class Component<
         return undefined;
     }
 
+    /** Reads a route context from a props-like object when one is present. */
     private readRouteContextFromValue(value: unknown): RouteContext | undefined {
         if (typeof value !== "object" || value === null) {
             return undefined;
@@ -770,6 +824,7 @@ export abstract class Component<
         return isRouteContext(propsRecord.route) ? propsRecord.route : undefined;
     }
 
+    /** Converts a route context into a stable serializable structure for load keys. */
     private toSerializableRouteContext(
         route: RouteContext | undefined,
     ): Record<string, unknown> | null {
@@ -796,6 +851,7 @@ export abstract class Component<
         };
     }
 
+    /** Resolves placeholder output for pending async component loading. */
     private resolveComponentLoadFallback(
         renderConfig: ComponentRenderConfig,
     ): HTMLElement | DocumentFragment {
@@ -812,6 +868,7 @@ export abstract class Component<
         return this.ownerDocument.createDocumentFragment();
     }
 
+    /** Resolves output for policy-driven render branches such as SSG restrictions. */
     private resolvePolicyDrivenTree(
         policy: RenderPolicy | undefined,
     ): HTMLElement | DocumentFragment {
@@ -836,6 +893,7 @@ export abstract class Component<
         return this.ownerDocument.createDocumentFragment();
     }
 
+    /** Renders the component once all required lifecycle data is available. */
     private renderResolvedOutput(): HTMLElement | DocumentFragment {
         if (this.shouldPassResolvedDataToRender()) {
             return this.render(this.data);
@@ -844,10 +902,12 @@ export abstract class Component<
         return this.render();
     }
 
+    /** Indicates whether resolved lifecycle data should be passed into `render()`. */
     private shouldPassResolvedDataToRender(): boolean {
         return typeof this.load === "function";
     }
 
+    /** Resolves fallback output for rejected async component loading. */
     private resolveComponentLoadErrorFallback(
         renderConfig: ComponentRenderConfig,
         error: unknown,
@@ -867,6 +927,7 @@ export abstract class Component<
         return this.resolveComponentLoadFallback(renderConfig);
     }
 
+    /** Patches a single rendered node against its next rendered counterpart. */
     private patchNode(current: Node, next: Node): Node {
         if (isPortalMarkerNode(current) && isPortalMarkerNode(next)) {
             syncPortalMarkerNode(current, next);
@@ -906,7 +967,8 @@ export abstract class Component<
         return current;
     }
 
-    private patchChildren(current: Element, next: Element) {
+    /** Patches the child list of a rendered element. */
+    private patchChildren(current: Element, next: Element): void {
         this.patchChildNodeList(
             current,
             Array.from(current.childNodes),
@@ -914,6 +976,7 @@ export abstract class Component<
         );
     }
 
+    /** Patches a node list using Mainz's keyed child diffing strategy. */
     private patchChildNodeList(
         parent: Element,
         currentChildren: Node[],
@@ -929,6 +992,7 @@ export abstract class Component<
         });
     }
 
+    /** Synchronizes rendered portal markers with their resolved target containers. */
     private syncPortalEntries(): void {
         const nextMarkers = this.collectPortalMarkers();
         const retainedMarkers = new Set(nextMarkers);
@@ -971,6 +1035,7 @@ export abstract class Component<
         }
     }
 
+    /** Collects portal markers from the current rendered node set. */
     private collectPortalMarkers(): PortalMarkerNode[] {
         const markers: PortalMarkerNode[] = [];
         const visit = (node: Node) => {
@@ -991,6 +1056,7 @@ export abstract class Component<
         return markers;
     }
 
+    /** Cleans up all active portal entries owned by this component. */
     private cleanupPortalEntries(): void {
         for (const entry of this.portalEntries.values()) {
             this.cleanupPortalEntry(entry);
@@ -999,6 +1065,7 @@ export abstract class Component<
         this.portalEntries.clear();
     }
 
+    /** Removes a previously rendered portal entry from its target. */
     private cleanupPortalEntry(entry: ComponentPortalEntry): void {
         for (const node of entry.nodes) {
             if (node.parentNode === entry.target) {
@@ -1007,20 +1074,24 @@ export abstract class Component<
         }
     }
 
+    /** Normalizes rendered output into a concrete node list for patching. */
     private toRenderedNodes(rendered: HTMLElement | DocumentFragment): Node[] {
         return toRenderedNodes(rendered, this.ownerDocument);
     }
 
-    private syncAttributes(current: Element, next: Element) {
+    /** Synchronizes DOM attributes and derived properties between two elements. */
+    private syncAttributes(current: Element, next: Element): void {
         syncAttributes(current, next);
         this.syncProperties(current, next);
     }
 
-    private syncProperties(current: Element, next: Element) {
+    /** Synchronizes DOM properties between two rendered elements. */
+    private syncProperties(current: Element, next: Element): void {
         syncProperties(current, next, this.ownerDocument);
     }
 
-    private syncManagedDOMEvents(current: Element, next: Element) {
+    /** Synchronizes managed DOM event registrations between two rendered elements. */
+    private syncManagedDOMEvents(current: Element, next: Element): void {
         syncManagedDOMEvents({
             current,
             next,
@@ -1030,6 +1101,7 @@ export abstract class Component<
         });
     }
 
+    /** Unregisters a single managed DOM event listener from the tracked set. */
     private unregisterSpecificEvent(
         target: EventTarget,
         event: {
@@ -1045,6 +1117,7 @@ export abstract class Component<
         });
     }
 
+    /** Unregisters managed listeners that match a target, type, and options tuple. */
     private unregisterEventsByTargetAndType(
         target: EventTarget,
         type: string,
@@ -1058,7 +1131,8 @@ export abstract class Component<
         });
     }
 
-    private pruneDetachedEventListeners() {
+    /** Prunes tracked listeners whose target nodes are no longer retained. */
+    private pruneDetachedEventListeners(): void {
         this.eventListeners = pruneDetachedEventListeners({
             host: this,
             ownerDocument: this.ownerDocument,
@@ -1067,19 +1141,23 @@ export abstract class Component<
         });
     }
 
+    /** Returns the portal-rendered nodes that should be retained during listener pruning. */
     private getPortalRetainedNodes(): Node[] {
         return Array.from(this.portalEntries.values()).flatMap((entry) => entry.nodes);
     }
 
+    /** Returns the diffing key associated with a rendered node, when present. */
     private getNodeKey(node: Node): string | null {
         return getNodeKey(node, this.ownerDocument);
     }
 
+    /** Builds the internal lookup key used by keyed child diffing. */
     private buildNodeLookupKey(node: Node, key: string): string {
         return buildNodeLookupKey(node, key, this.ownerDocument);
     }
 
-    private isSameNodeType(current: Node, next: Node) {
+    /** Determines whether two nodes can be patched in place instead of replaced. */
+    private isSameNodeType(current: Node, next: Node): boolean {
         return isSameNodeType(current, next, this.ownerDocument);
     }
 
@@ -1134,7 +1212,7 @@ export abstract class Component<
      *
      * @returns {HTMLElement | DocumentFragment} The rendered component element or a fragment.
      */
-    abstract render(...args: ComponentRenderArgs<Data>): HTMLElement | DocumentFragment;
+    abstract render(...args: PublicComponentRenderArgs<Data>): HTMLElement | DocumentFragment;
 
     /**
      * Runs after the component is connected to the DOM.
@@ -1154,6 +1232,7 @@ export abstract class Component<
     /** Optional static property to define CSS styles for the component */
     static styles?: string | string[];
 
+    /** Appends styles to the inherited static style list of a component subclass. */
     protected static extendStyles(...extra: string[]): string[] {
         const parentClass = Object.getPrototypeOf(this) as typeof Component;
         const parentStyles = parentClass.styles
@@ -1171,10 +1250,12 @@ export abstract class Component<
      */
     afterRender?(): void;
 
+    /** Converts a PascalCase or camelCase class name into kebab-case. */
     private static toKebabCase(str: string): string {
         return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
     }
 
+    /** Resolves the final custom-element tag name for a component constructor. */
     private static resolveDesiredTagName(ctor: typeof Component): string {
         const explicitTag = Component.normalizeExplicitTag(
             ctor,
@@ -1192,6 +1273,7 @@ export abstract class Component<
         return `x-${normalizedName}`;
     }
 
+    /** Normalizes and validates an explicitly configured custom-element tag name. */
     private static normalizeExplicitTag(
         ctor: typeof Component,
         explicitTag: string | undefined,

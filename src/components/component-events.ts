@@ -2,7 +2,7 @@ import {
     getManagedDOMEvents,
     type ManagedDOMEventDescriptor,
     setManagedDOMEvents,
-} from "../jsx/dom-factory.ts";
+} from "../jsx/managed-dom-events.ts";
 import { isNodeLike } from "./component-dom.ts";
 
 export interface TrackedEventListener {

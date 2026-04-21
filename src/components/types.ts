@@ -6,8 +6,10 @@
  * Use `ChildrenOnlyProps` when a component should accept only JSX children.
  */
 export interface DefaultProps {
+    /** JSX children passed to the component. */
     // deno-lint-ignore no-explicit-any
     children?: any;
+    /** Additional caller-provided props keyed by property name. */
     // deno-lint-ignore no-explicit-any
     [key: string]: any;
 }
@@ -26,5 +28,6 @@ export type NoState = Record<string, never>;
 
 /** Props shape for a component that accepts only JSX children. */
 export interface ChildrenOnlyProps {
+    /** JSX children passed to the component. */
     children?: unknown;
 }

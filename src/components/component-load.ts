@@ -1,5 +1,5 @@
-import type { RenderPolicy, RenderStrategy, ResourceRuntime } from "../resources/index.ts";
-import type { RenderMode } from "../routing/index.ts";
+import type { RenderPolicy, RenderStrategy, ResourceRuntime } from "../resources/resource.ts";
+import type { RenderMode } from "../routing/types.ts";
 
 declare const __MAINZ_RENDER_MODE__: "csr" | "ssg";
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";

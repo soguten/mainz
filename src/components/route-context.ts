@@ -1,23 +1,36 @@
 import type { Principal } from "../authorization/index.ts";
+import type { PageRouteParams } from "./page-contract.ts";
 import type { NavigationMode, RenderMode } from "../routing/types.ts";
 
-export type PageRouteParams = Readonly<Record<string, string>>;
-
+/** Build/profile metadata associated with the resolved route. */
 export interface RouteProfileContext {
+    /** Profile name associated with the active target, when available. */
     name?: string;
+    /** Normalized base path for the active target. */
     basePath: string;
+    /** Absolute site URL associated with the active target, when available. */
     siteUrl?: string;
 }
 
+/** Active route metadata exposed to pages and descendant components. */
 export interface RouteContext {
+    /** Current requested path. */
     path: string;
+    /** Current matched route pattern path. */
     matchedPath: string;
+    /** Route params resolved for the current path. */
     params: PageRouteParams;
+    /** Resolved locale for the current route, when present. */
     locale?: string;
+    /** Fully resolved URL for the current route. */
     url: URL;
+    /** Page render mode active for the current route. */
     renderMode: RenderMode;
+    /** Navigation mode active for the current route. */
     navigationMode: NavigationMode;
+    /** Principal associated with the current route resolution, when available. */
     principal?: Principal;
+    /** Build/profile metadata associated with the current route. */
     profile?: RouteProfileContext;
 }
 
