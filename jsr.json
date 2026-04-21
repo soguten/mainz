@@ -1,14 +1,46 @@
 {
   "$schema": "https://jsr.io/schema/config-file.v1.json",
   "name": "@mainz/mainz",
-  "version": "0.1.0-alpha.5",
+  "version": "0.1.0-alpha.6",
   "license": "MIT",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "es2022"
+    ],
+    "strict": true
+  },
   "exports": "./mod.ts",
   "publish": {
     "include": [
       "LICENSE",
+      "README.md",
       "mod.ts",
-      "src/utils/locale.ts"
+      "src/authorization/**",
+      "src/components/component-dom.ts",
+      "src/components/component-events.ts",
+      "src/components/component-load.ts",
+      "src/components/component-metadata.ts",
+      "src/components/component-patching.ts",
+      "src/components/component-render-strategy-guardrails.ts",
+      "src/components/component.ts",
+      "src/components/page-metadata.ts",
+      "src/components/page.ts",
+      "src/components/registry.ts",
+      "src/components/route-context.ts",
+      "src/components/types.ts",
+      "src/di/**",
+      "src/i18n/**",
+      "src/jsx-runtime.ts",
+      "src/jsx-dev-runtime.ts",
+      "src/jsx/**",
+      "src/portal/**",
+      "src/resources/**",
+      "src/routing/filesystem.ts",
+      "src/routing/index.ts",
+      "src/routing/manifest.ts",
+      "src/routing/types.ts",
+      "src/runtime-events.ts"
     ],
     "exclude": [
       "**/tests/**",

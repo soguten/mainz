@@ -1,10 +1,18 @@
 /**
- * Minimal Mainz JSR probe package.
+ * Public JSR entrypoint for incremental Mainz releases.
  *
- * This entrypoint intentionally exports a tiny utility surface so we can
- * validate publication behavior independently from the full framework graph.
+ * This facade intentionally grows in small steps so we can validate package
+ * publication behavior without coupling it to the repo's internal entrypoints.
  *
  * @module
  */
 
-export { normalizeLocaleTag, toLocalePathSegment } from "./src/utils/locale.ts";
+export { Component } from "./src/components/component.ts";
+export type { ComponentLoadContext } from "./src/components/component.ts";
+export type {
+    ChildrenOnlyProps,
+    DefaultProps,
+    DefaultState,
+    NoProps,
+    NoState,
+} from "./src/components/types.ts";
