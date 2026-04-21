@@ -1,33 +1,55 @@
 const RETRYABLE_GET_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+/** Retry policy applied to retryable HTTP requests. */
 export interface HttpRetryOptions {
+    /** Maximum number of attempts, including the initial request. */
     attempts?: number;
+    /** Delay in milliseconds between retry attempts. */
     delayMs?: number;
 }
 
+/** Shared client-level configuration applied to all requests issued by an `HttpClient`. */
 export interface HttpClientOptions {
+    /** Optional base URL used to resolve relative request paths. */
     baseUrl?: string;
+    /** Default headers merged into every request. */
     headers?: HeadersInit;
+    /** Default retry policy applied when a request does not override it. */
     retry?: HttpRetryOptions;
+    /** Default timeout in milliseconds for each request. */
     timeoutMs?: number;
+    /** Custom fetch implementation used to execute requests. */
     fetch?: typeof fetch;
 }
 
+/** Per-request overrides accepted by `HttpClient` request helpers. */
 export interface HttpRequestOptions {
+    /** Additional headers merged into the request. */
     headers?: HeadersInit;
+    /** Request body sent with non-GET requests. */
     body?: BodyInit | null;
+    /** Abort signal used to cancel the request. */
     signal?: AbortSignal;
+    /** Retry policy override for this specific request. */
     retry?: HttpRetryOptions;
+    /** Timeout override in milliseconds for this specific request. */
     timeoutMs?: number;
 }
 
+/** Error raised when an HTTP response completes with a non-success status code. */
 export class HttpResponseError extends Error {
+    /** Uppercase HTTP method used for the failed request. */
     readonly method: string;
+    /** Fully resolved request URL. */
     readonly url: string;
+    /** Numeric HTTP status code returned by the server. */
     readonly status: number;
+    /** HTTP status text returned by the server. */
     readonly statusText: string;
+    /** Original response associated with the failure. */
     readonly response: Response;
 
+    /** Creates an error from a failed HTTP response. */
     constructor(args: {
         method: string;
         url: string;
@@ -45,6 +67,10 @@ export class HttpResponseError extends Error {
     }
 }
 
+/** Supported HTTP methods exposed by the Mainz HTTP client. */
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+/** Small fluent HTTP client with retry and timeout support. */
 export class HttpClient {
     private readonly baseUrl?: string;
     private readonly defaultHeaders: Headers;
@@ -52,6 +78,7 @@ export class HttpClient {
     private readonly defaultTimeoutMs?: number;
     private readonly fetchImpl: typeof fetch;
 
+    /** Creates a new HTTP client instance with shared defaults. */
     constructor(options: HttpClientOptions = {}) {
         this.baseUrl = options.baseUrl;
         this.defaultHeaders = new Headers(options.headers);
@@ -60,26 +87,32 @@ export class HttpClient {
         this.fetchImpl = options.fetch ?? fetch;
     }
 
+    /** Creates a GET request handle. */
     get(path: string, options?: HttpRequestOptions): HttpRequest {
         return this.createRequest("GET", path, options);
     }
 
+    /** Creates a POST request handle. */
     post(path: string, options?: HttpRequestOptions): HttpRequest {
         return this.createRequest("POST", path, options);
     }
 
+    /** Creates a PUT request handle. */
     put(path: string, options?: HttpRequestOptions): HttpRequest {
         return this.createRequest("PUT", path, options);
     }
 
+    /** Creates a PATCH request handle. */
     patch(path: string, options?: HttpRequestOptions): HttpRequest {
         return this.createRequest("PATCH", path, options);
     }
 
+    /** Creates a DELETE request handle. */
     delete(path: string, options?: HttpRequestOptions): HttpRequest {
         return this.createRequest("DELETE", path, options);
     }
 
+    /** Builds a lazily executed request handle for the provided method and path. */
     private createRequest(
         method: HttpMethod,
         path: string,
@@ -88,6 +121,7 @@ export class HttpClient {
         return new HttpRequest(this, method, path, options);
     }
 
+    /** Executes a request immediately and returns the successful response. */
     async execute(
         method: HttpMethod,
         path: string,
@@ -154,9 +188,11 @@ export class HttpClient {
     }
 }
 
+/** Lazily executed request wrapper produced by `HttpClient` helper methods. */
 export class HttpRequest {
     private responsePromise?: Promise<Response>;
 
+    /** Creates a request wrapper bound to a client and request configuration. */
     constructor(
         private readonly client: HttpClient,
         private readonly method: HttpMethod,
@@ -164,26 +200,31 @@ export class HttpRequest {
         private readonly options: HttpRequestOptions = {},
     ) {}
 
+    /** Resolves and returns the full HTTP response. */
     async response(): Promise<Response> {
         const response = await this.getResponse();
         return response.clone();
     }
 
+    /** Resolves the response body as JSON. */
     async json<T>(): Promise<T> {
         const response = await this.getResponse();
         return await response.clone().json() as T;
     }
 
+    /** Resolves the response body as text. */
     async text(): Promise<string> {
         const response = await this.getResponse();
         return await response.clone().text();
     }
 
+    /** Resolves the response body as a blob. */
     async blob(): Promise<Blob> {
         const response = await this.getResponse();
         return await response.clone().blob();
     }
 
+    /** Memoizes the underlying response promise for repeated body readers. */
     private getResponse(): Promise<Response> {
         if (!this.responsePromise) {
             this.responsePromise = this.client.execute(this.method, this.path, this.options);
@@ -192,8 +233,6 @@ export class HttpRequest {
         return this.responsePromise;
     }
 }
-
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 function mergeHeaders(target: Headers, source: HeadersInit | undefined): void {
     if (!source) {
