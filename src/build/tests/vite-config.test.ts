@@ -36,6 +36,39 @@ Deno.test("build/vite-config: should generate framework aliases from public Main
     );
 });
 
+Deno.test("build/vite-config: should not alias Mainz to missing consumer project source files", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-consumer-vite-aliases-" });
+
+    try {
+        const config = normalizeMainzConfig({
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                },
+            ],
+        });
+
+        const generated = resolveGeneratedViteConfig({
+            cwd,
+            target: config.targets[0],
+            modeOutDir: "dist/site/csr",
+            renderMode: "csr",
+            navigationMode: "spa",
+            basePath: "/",
+            appLocales: [],
+            localePrefix: "except-default",
+        });
+
+        assertEquals(
+            generated.aliases.filter((alias) => alias.framework).map((alias) => alias.find),
+            [],
+        );
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 Deno.test("build/vite-config: should generate Mainz defaults and app extensions", () => {
     const cwd = Deno.cwd();
     const config = normalizeMainzConfig({

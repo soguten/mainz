@@ -909,7 +909,9 @@ function renderGeneratedDenoConfig(mainzSpecifier: string): string {
                 },
                 imports: {
                     mainz: mainzSpecifier,
-                    "mainz/": `${mainzSpecifier}/`,
+                    "mainz/config": `${mainzSpecifier}/config`,
+                    "mainz/jsx-runtime": `${mainzSpecifier}/jsx-runtime`,
+                    "mainz/jsx-dev-runtime": `${mainzSpecifier}/jsx-dev-runtime`,
                 },
                 tasks: {
                     dev: "mainz dev",

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
@@ -97,11 +98,13 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
 }
 
 function resolveFrameworkAliases(cwd: string): GeneratedViteAlias[] {
-    return MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => ({
-        find: entrypoint.specifier,
-        replacement: normalizePathSlashes(resolve(cwd, entrypoint.sourcePath)),
-        framework: true,
-    }));
+    return MAINZ_PUBLIC_ENTRYPOINTS
+        .map((entrypoint) => ({
+            find: entrypoint.specifier,
+            replacement: normalizePathSlashes(resolve(cwd, entrypoint.sourcePath)),
+            framework: true,
+        }))
+        .filter((alias) => existsSync(alias.replacement));
 }
 
 function resolveTargetAliases(
