@@ -74,7 +74,8 @@ import {
     type RouteProfileContext,
 } from "./route-context.ts";
 import type { PageRouteParams } from "./page-contract.ts";
-import type { NavigationMode, RenderMode } from "../routing/types.ts";
+import type { PageRenderMode } from "./page-metadata.ts";
+import type { NavigationMode } from "../routing/types.ts";
 import type { RenderPolicy } from "../resources/resource.ts";
 
 export {
@@ -126,7 +127,7 @@ export interface ComponentLoadContext<Props = DefaultProps> {
     /** Fully resolved URL for the current route. */
     url?: URL;
     /** Page render mode active for the current request. */
-    renderMode?: RenderMode;
+    renderMode?: PageRenderMode;
     /** Navigation mode active for the current request. */
     navigationMode?: NavigationMode;
     /** Resolved principal associated with the current request. */

@@ -24,4 +24,4 @@ export type { ChildrenOnlyProps, DefaultProps, DefaultState, NoProps, NoState } 
 export type { PageRouteParams } from "../components/page-contract.ts";
 export type { ComponentLoadContext } from "../components/component.ts";
 export type { RouteContext, RouteProfileContext } from "../components/route-context.ts";
-export type { NavigationMode, RenderMode } from "../routing/types.ts";
+export type { NavigationMode } from "../routing/types.ts";

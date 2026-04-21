@@ -1,6 +1,7 @@
 import type { Principal } from "../authorization/index.ts";
 import type { PageRouteParams } from "./page-contract.ts";
-import type { NavigationMode, RenderMode } from "../routing/types.ts";
+import type { PageRenderMode } from "./page-metadata.ts";
+import type { NavigationMode } from "../routing/types.ts";
 
 /** Build/profile metadata associated with the resolved route. */
 export interface RouteProfileContext {
@@ -25,7 +26,7 @@ export interface RouteContext {
     /** Fully resolved URL for the current route. */
     url: URL;
     /** Page render mode active for the current route. */
-    renderMode: RenderMode;
+    renderMode: PageRenderMode;
     /** Navigation mode active for the current route. */
     navigationMode: NavigationMode;
     /** Principal associated with the current route resolution, when available. */
