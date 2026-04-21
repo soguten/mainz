@@ -776,7 +776,7 @@ export function __internalStartNavigation(
 
     document.documentElement.dataset.mainzViewTransitions = detectViewTransitionSupport();
     restoreScrollPosition();
-    let enteringTransitionTimeoutId: number | undefined;
+    let enteringTransitionTimeoutId: ReturnType<typeof globalThis.setTimeout> | undefined;
 
     const handleFocusIn = (event: Event) => {
         const anchor = findAnchorFromEvent(event);
