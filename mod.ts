@@ -5,3 +5,4 @@
  */
 
 export * from "./src/public/core.ts";
+export * from "./src/public/authorization.ts";

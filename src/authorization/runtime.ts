@@ -5,15 +5,22 @@ import type {
 } from "./index.ts";
 import type { RouteManifestEntry } from "../routing/types.ts";
 
+/** Runtime hooks and policy registration used while evaluating authorization. */
 export interface AuthorizationRuntimeOptions {
+    /** Resolves the principal for the current request or runtime transition. */
     getPrincipal?: () => Principal | Promise<Principal>;
+    /** Registered named authorization policies. */
     policies?: Readonly<Record<string, AuthorizationPolicy>>;
+    /** Login route used when anonymous access should redirect to authentication. */
     loginPath?: string;
 }
 
 export interface AuthorizationAccessDecision {
+    /** Final access result for the evaluated authorization request. */
     status: "authorized" | "redirect-login" | "forbidden";
+    /** Principal used during evaluation. */
     principal: Principal;
+    /** Authorization metadata that produced the decision, when present. */
     authorization?: PageAuthorizationMetadata;
 }
 
@@ -30,18 +37,21 @@ export async function resolveCurrentPrincipal(
     return normalizePrincipal(principal);
 }
 
+/** Sets the active authorization runtime options for the current execution context. */
 export function setAuthorizationRuntimeOptions(
     options: AuthorizationRuntimeOptions | undefined,
 ): void {
     currentAuthorizationRuntimeOptions = options;
 }
 
+/** Reads the currently active authorization runtime options, if any. */
 export function readAuthorizationRuntimeOptions():
     | AuthorizationRuntimeOptions
     | undefined {
     return currentAuthorizationRuntimeOptions;
 }
 
+/** Evaluates page authorization and resolves the final access decision. */
 export async function evaluatePageAuthorization(args: {
     authorization: PageAuthorizationMetadata | undefined;
     principal: Principal;
@@ -84,6 +94,7 @@ export async function evaluatePageAuthorization(args: {
     };
 }
 
+/** Evaluates a normalized authorization requirement for a specific principal. */
 export function evaluateAuthorizationRequirement(args: {
     principal: Principal;
     requirement: NonNullable<PageAuthorizationMetadata["requirement"]>;
@@ -113,6 +124,7 @@ export function evaluateAuthorizationRequirement(args: {
     return policy(principal);
 }
 
+/** Determines whether a route should be visible to the supplied principal. */
 export async function isRouteVisible(args: {
     route: Pick<RouteManifestEntry, "authorization">;
     principal: Principal;
@@ -127,6 +139,7 @@ export async function isRouteVisible(args: {
     return accessDecision.status === "authorized";
 }
 
+/** Filters a route list down to only routes visible to the supplied principal. */
 export async function filterVisibleRoutes(args: {
     routes: readonly RouteManifestEntry[];
     principal: Principal;
@@ -149,6 +162,7 @@ export async function filterVisibleRoutes(args: {
     return visibleRoutes;
 }
 
+/** Returns policy names referenced by authorizations that are not currently registered. */
 export function findMissingAuthorizationPolicies(args: {
     authorizations: readonly (PageAuthorizationMetadata | undefined)[];
     policies?: AuthorizationRuntimeOptions["policies"];
@@ -170,6 +184,7 @@ export function findMissingAuthorizationPolicies(args: {
     return [...missingPolicies].sort((left, right) => left.localeCompare(right));
 }
 
+/** Creates the default anonymous principal used when no authenticated identity is available. */
 export function createAnonymousPrincipal(): Principal {
     return {
         authenticated: false,

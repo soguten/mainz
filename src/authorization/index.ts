@@ -1,24 +1,32 @@
 /** Role- and policy-based authorization options declared on pages or components. */
 export interface AuthorizationOptions {
+    /** Roles that the principal must possess to satisfy the requirement. */
     roles?: readonly string[];
+    /** Named authorization policy that must also approve the principal. */
     policy?: string;
 }
 
 /** Normalized authorization requirement applied to a protected target. */
 export interface AuthorizationRequirement {
+    /** Whether the requirement expects an authenticated principal. */
     authenticated: true;
+    /** Roles that the principal must possess to satisfy the requirement. */
     roles?: readonly string[];
+    /** Named authorization policy that must also approve the principal. */
     policy?: string;
 }
 
 /** Authorization metadata resolved from a page declaration. */
 export interface PageAuthorizationMetadata {
+    /** Whether the page explicitly allows anonymous access. */
     allowAnonymous?: true;
+    /** Authorization requirement applied to the page when protection is enabled. */
     requirement?: AuthorizationRequirement;
 }
 
 /** Authorization metadata resolved from a component declaration. */
 export interface ComponentAuthorizationMetadata {
+    /** Authorization requirement applied to the component. */
     requirement: AuthorizationRequirement;
 }
 
@@ -34,6 +42,7 @@ export interface Principal {
     claims: Readonly<Record<string, string | readonly string[]>>;
 }
 
+/** Authorization policy callback that decides access for a resolved principal. */
 export type AuthorizationPolicy = (
     principal: Principal,
 ) => boolean | Promise<boolean>;
@@ -47,26 +56,33 @@ type AuthorizationOwner = {
     [AUTHORIZATION_REQUIREMENT]?: AuthorizationRequirement;
     [AUTHORIZATION_ALLOW_ANONYMOUS]?: boolean;
 };
-type AuthorizationDecoratedClass = abstract new (...args: unknown[]) => unknown;
-type AuthorizationDecorator = <T extends AuthorizationDecoratedClass>(
+/**
+ * Declares an authorization requirement for a page or component.
+ */
+export function Authorize(options: AuthorizationOptions = {}): <T extends abstract new (...args: unknown[]) => unknown>(
     value: T,
     _context?: ClassDecoratorContext<T>,
-) => void;
-
-export function Authorize(options: AuthorizationOptions = {}): AuthorizationDecorator {
-    const requirement = normalizeAuthorizationRequirement(options);
-
-    return function <T extends AuthorizationDecoratedClass>(
+) => void {
+    const decorator = <T extends abstract new (...args: unknown[]) => unknown>(
         value: T,
         _context?: ClassDecoratorContext<T>,
-    ): void {
+    ): void => {
         const owner = value as T & AuthorizationOwner;
         owner[AUTHORIZATION_REQUIREMENT] = requirement;
     };
+    const requirement = normalizeAuthorizationRequirement(options);
+
+    return decorator;
 }
 
-export function AllowAnonymous(): AuthorizationDecorator {
-    return function <T extends AuthorizationDecoratedClass>(
+/**
+ * Marks a page as accessible without authentication, even when parent flows are protected.
+ */
+export function AllowAnonymous(): <T extends abstract new (...args: unknown[]) => unknown>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void {
+    return function <T extends abstract new (...args: unknown[]) => unknown>(
         value: T,
         _context?: ClassDecoratorContext<T>,
     ): void {
@@ -75,6 +91,7 @@ export function AllowAnonymous(): AuthorizationDecorator {
     };
 }
 
+/** Resolves normalized authorization metadata declared on a page constructor. */
 export function resolvePageAuthorization(
     pageCtor: object,
 ): PageAuthorizationMetadata | undefined {
@@ -96,6 +113,7 @@ export function resolvePageAuthorization(
     };
 }
 
+/** Resolves normalized authorization metadata declared on a component constructor. */
 export function resolveComponentAuthorization(
     componentCtor: object,
 ): ComponentAuthorizationMetadata | undefined {
