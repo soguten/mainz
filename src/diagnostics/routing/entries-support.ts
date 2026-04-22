@@ -1,4 +1,4 @@
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../../compiler/typescript.ts";
 
 export interface RouteSourceContext {
     readonly constValues: ReadonlyMap<string, RouteConstValue>;

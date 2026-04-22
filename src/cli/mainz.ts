@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type {
     LoadedMainzConfig,
@@ -96,6 +94,9 @@ if (import.meta.main) {
     await main(Deno.args);
 }
 
+/**
+ * Runs the Mainz command-line interface with the provided process arguments.
+ */
 export async function main(args: string[]): Promise<void> {
     const command = parseCliCommand(args);
     if (!command) {

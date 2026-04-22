@@ -1,7 +1,5 @@
-/// <reference lib="deno.ns" />
-
 import { resolve } from "node:path";
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../../compiler/typescript.ts";
 
 export async function readStaticAppAuthorizationPolicyNames(args: {
     appFile: string;

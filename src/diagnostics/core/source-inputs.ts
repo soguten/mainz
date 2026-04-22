@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { NormalizedMainzTarget } from "../../config/index.ts";

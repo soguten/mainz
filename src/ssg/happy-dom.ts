@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { Window } from "happy-dom";
 
 const GLOBAL_DOM_KEYS = [
@@ -49,7 +47,8 @@ export async function withHappyDom<T>(
 
     for (const key of GLOBAL_DOM_KEYS) {
         previousValues.set(key, (globalThis as Record<string, unknown>)[key]);
-        (globalThis as Record<string, unknown>)[key] = (window as unknown as Record<string, unknown>)[key];
+        (globalThis as Record<string, unknown>)[key] =
+            (window as unknown as Record<string, unknown>)[key];
     }
 
     const extendedWindow = window as unknown as Window & {
@@ -58,20 +57,20 @@ export async function withHappyDom<T>(
     };
 
     if (!extendedWindow.requestIdleCallback) {
-        extendedWindow.requestIdleCallback = ((callback: IdleRequestCallback) => {
+        extendedWindow.requestIdleCallback = (callback: IdleRequestCallback) => {
             return setTimeout(() => {
                 callback({
                     didTimeout: false,
                     timeRemaining: () => 0,
                 });
             }, 0);
-        });
+        };
     }
 
     if (!extendedWindow.cancelIdleCallback) {
-        extendedWindow.cancelIdleCallback = ((handle: number) => {
+        extendedWindow.cancelIdleCallback = (handle: number) => {
             clearTimeout(handle);
-        });
+        };
     }
 
     const previousRuntime = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;

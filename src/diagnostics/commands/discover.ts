@@ -1,4 +1,4 @@
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../../compiler/typescript.ts";
 import type { CommandRegistrationFact, CommandSourceDiagnosticsInput } from "./facts.ts";
 
 interface CommandDiagnosticsFileContext {

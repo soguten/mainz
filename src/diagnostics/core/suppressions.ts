@@ -1,4 +1,4 @@
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../../compiler/typescript.ts";
 import { authorizationPolicyNotRegisteredComponentRuleCode } from "../components/rules/authorization-policy-not-registered.rule.ts";
 import { componentAllowAnonymousNotSupportedRuleCode } from "../components/rules/component-allow-anonymous-not-supported.rule.ts";
 import { componentAuthorizationSsgWarningRuleCode } from "../components/rules/component-authorization-ssg-warning.rule.ts";

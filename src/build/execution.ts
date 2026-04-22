@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { join, resolve } from "node:path";
 import type { NormalizedMainzConfig } from "../config/index.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
@@ -228,7 +226,7 @@ async function runViteBuild(args: {
         args: [
             "run",
             "-A",
-            "npm:vite",
+            "npm:vite@7.3.1",
             "build",
             "--config",
             args.viteConfigPath,
@@ -275,7 +273,7 @@ async function runViteDevServer(args: {
         args: [
             "run",
             "-A",
-            "npm:vite",
+            "npm:vite@7.3.1",
             "--config",
             args.viteConfigPath,
         ],

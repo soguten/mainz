@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";

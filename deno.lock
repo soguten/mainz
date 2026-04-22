@@ -5,8 +5,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@deno/vite-plugin@2.0.2": "2.0.2_vite@7.3.1__picomatch@4.0.3",
     "npm:happy-dom@20.1.0": "20.1.0",
-    "npm:typescript@*": "5.9.3",
-    "npm:vite@*": "7.3.1_picomatch@4.0.3",
+    "npm:typescript@5.9.3": "5.9.3",
     "npm:vite@7.3.1": "7.3.1_picomatch@4.0.3"
   },
   "jsr": {
@@ -485,7 +484,6 @@
       "jsr:@std/assert@*",
       "npm:@deno/vite-plugin@2.0.2",
       "npm:happy-dom@20.1.0",
-      "npm:vite@*",
       "npm:vite@7.3.1"
     ]
   }

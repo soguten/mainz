@@ -12,7 +12,7 @@
         "jsxImportSource": "mainz",
         "strict": true,
         "types": [
-            "npm:vite/client",
+            "npm:vite@7.3.1/client",
             "./src/types/jsx.d.ts",
             "./src/types/mainz-env.d.ts"
         ]

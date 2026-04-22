@@ -1,8 +1,6 @@
-/// <reference lib="deno.ns" />
-
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../compiler/typescript.ts";
 import { discoverPageExportFromFile, discoverPagesFromFile } from "./server.ts";
 import type { RenderMode } from "./index.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";

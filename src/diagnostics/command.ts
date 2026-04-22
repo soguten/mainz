@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import { collectDiagnosticsForTarget } from "./collect.ts";
 import type { MainzDiagnostic } from "./core/target-model.ts";

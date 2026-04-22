@@ -1,4 +1,4 @@
-import { ts } from "@/compiler/typescript.ts";
+import { ts } from "../../compiler/typescript.ts";
 import { readClassRenderDataContractInfo } from "../core/class-render-data.ts";
 import type {
     ComponentFact,

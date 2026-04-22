@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 import { extname, normalize, resolve, sep } from "node:path";
 
 export interface ArtifactPreviewServerOptions {
@@ -50,7 +48,9 @@ export function serveArtifactPreview(
     const handler = createArtifactPreviewHandler(options.rootDir);
 
     console.log(
-        `[mainz] Previewing build artifact output from ${resolve(options.rootDir)} on http://${host}:${port}/`,
+        `[mainz] Previewing build artifact output from ${
+            resolve(options.rootDir)
+        } on http://${host}:${port}/`,
     );
 
     return Deno.serve({ hostname: host, port }, handler);
@@ -86,7 +86,9 @@ function safeDecodePathname(pathname: string): string {
 }
 
 function stripLeadingParentSegments(relativePath: string): string {
-    const segments = relativePath.split("/").filter((segment) => segment.length > 0 && segment !== ".");
+    const segments = relativePath.split("/").filter((segment) =>
+        segment.length > 0 && segment !== "."
+    );
     const sanitizedSegments: string[] = [];
 
     for (const segment of segments) {
@@ -149,7 +151,8 @@ async function tryServeFile(
 function isPathInsideRoot(rootDir: string, filePath: string): boolean {
     const normalizedRoot = ensureTrailingSeparator(resolve(rootDir));
     const normalizedPath = resolve(filePath);
-    return normalizedPath.startsWith(normalizedRoot) || normalizedPath === normalizedRoot.slice(0, -1);
+    return normalizedPath.startsWith(normalizedRoot) ||
+        normalizedPath === normalizedRoot.slice(0, -1);
 }
 
 function ensureTrailingSeparator(path: string): string {
