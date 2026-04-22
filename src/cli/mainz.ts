@@ -90,6 +90,8 @@ type MainzCliCommand =
     | DiagnoseCommandOptions
     | AppCommandOptions;
 
+const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
+
 if (import.meta.main) {
     await main(Deno.args);
 }
@@ -111,6 +113,10 @@ export async function main(args: string[]): Promise<void> {
 
     if (command.command === "app") {
         await runAppCommand(command);
+        return;
+    }
+
+    if (await rerunWithProjectDenoConfigIfNeeded(command, args)) {
         return;
     }
 
@@ -136,6 +142,71 @@ export async function main(args: string[]): Promise<void> {
         case "build":
             await runBuildCommand(command, loadedConfig, normalizedConfig);
             return;
+    }
+}
+
+async function rerunWithProjectDenoConfigIfNeeded(
+    command:
+        | BuildCommandOptions
+        | DevCommandOptions
+        | PreviewCommandOptions
+        | TestCommandOptions
+        | PublishInfoCommandOptions
+        | DiagnoseCommandOptions,
+    args: readonly string[],
+): Promise<boolean> {
+    if (Deno.env.get(projectConfigBootstrapEnv) === "1") {
+        return false;
+    }
+
+    const denoConfigPath = await findNearestDenoConfig(command.configPath ?? "mainz.config.ts");
+    if (!denoConfigPath) {
+        return false;
+    }
+
+    const child = new Deno.Command("deno", {
+        cwd: Deno.cwd(),
+        args: [
+            "run",
+            "-A",
+            "--config",
+            denoConfigPath,
+            import.meta.url,
+            ...args,
+        ],
+        env: {
+            [projectConfigBootstrapEnv]: "1",
+        },
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+    }).spawn();
+
+    const status = await child.status;
+    if (!status.success) {
+        Deno.exit(status.code);
+    }
+
+    return true;
+}
+
+async function findNearestDenoConfig(configPath: string): Promise<string | undefined> {
+    let current = dirname(resolve(configPath));
+
+    while (true) {
+        for (const fileName of ["deno.json", "deno.jsonc"]) {
+            const candidate = resolve(current, fileName);
+            if (await pathExists(candidate)) {
+                return candidate;
+            }
+        }
+
+        const parent = dirname(current);
+        if (parent === current) {
+            return undefined;
+        }
+
+        current = parent;
     }
 }
 
@@ -449,7 +520,10 @@ async function runInitCommand(options: InitCommandOptions): Promise<void> {
 
     await assertCanCreateFiles([configPath, denoConfigPath]);
     await writeNewTextFile(configPath, renderGeneratedEmptyConfig());
-    await writeNewTextFile(denoConfigPath, renderGeneratedDenoConfig(mainzSpecifier));
+    await writeNewTextFile(
+        denoConfigPath,
+        renderGeneratedDenoConfig(mainzSpecifier, denoConfigPath),
+    );
 
     console.log(`[mainz] Initialized Mainz project in ${Deno.cwd()}.`);
     console.log(`[mainz] Created ${configPath} and ${denoConfigPath}.`);
@@ -898,7 +972,12 @@ function renderGeneratedEmptyConfig(): string {
     ].join("\n");
 }
 
-function renderGeneratedDenoConfig(mainzSpecifier: string): string {
+function renderGeneratedDenoConfig(mainzSpecifier: string, denoConfigPath: string): string {
+    const cliSpecifier = renderGeneratedMainzCliSpecifier(mainzSpecifier);
+    const cliCommand = `deno run -A --config ${
+        quoteCommandArgument(denoConfigPath)
+    } ${cliSpecifier}`;
+
     return `${
         JSON.stringify(
             {
@@ -915,17 +994,21 @@ function renderGeneratedDenoConfig(mainzSpecifier: string): string {
                     vite: "npm:vite@7.3.1",
                 },
                 tasks: {
-                    dev: "mainz dev",
-                    build: "mainz build",
-                    preview: "mainz preview",
-                    test: "mainz test",
-                    diagnose: "mainz diagnose",
+                    dev: `${cliCommand} dev`,
+                    build: `${cliCommand} build`,
+                    preview: `${cliCommand} preview`,
+                    test: `${cliCommand} test`,
+                    diagnose: `${cliCommand} diagnose`,
                 },
             },
             null,
             4,
         )
     }\n`;
+}
+
+function renderGeneratedMainzCliSpecifier(mainzSpecifier: string): string {
+    return `${mainzSpecifier.trim().replace(/\/+$/, "")}/cli`;
 }
 
 function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
@@ -935,6 +1018,14 @@ function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
     }
 
     return `${trimmed}/`;
+}
+
+function quoteCommandArgument(value: string): string {
+    if (/^[A-Za-z0-9._/@:-]+$/.test(value)) {
+        return value;
+    }
+
+    return `"${value.replaceAll('"', '\\"')}"`;
 }
 
 function insertConfigTarget(content: string, target: string): string {

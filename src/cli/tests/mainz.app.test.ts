@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
@@ -36,7 +37,14 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
             denoConfig.imports?.["mainz/"],
             "jsr:/@mainz/mainz@0.1.0-alpha.99/",
         );
-        assertEquals(denoConfig.tasks?.dev, "mainz dev");
+        assertEquals(
+            denoConfig.tasks?.dev,
+            "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/cli dev",
+        );
+        assertEquals(
+            denoConfig.tasks?.build,
+            "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/cli build",
+        );
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }
@@ -60,6 +68,65 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, "    ],");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: global commands should bootstrap the project deno config", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-global-bootstrap-" });
+
+    try {
+        const init = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+
+        const create = await runMainz(cwd, ["app", "create", "site"]);
+        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
+
+        const denoConfigPath = resolve(cwd, "deno.json");
+        const denoConfig = JSON.parse(await Deno.readTextFile(denoConfigPath)) as {
+            imports?: Record<string, string>;
+        };
+        denoConfig.imports = {
+            "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+            "happy-dom": "npm:happy-dom@20.1.0",
+            mainz: toFileSpecifier(resolve(cliTestsRepoRoot, "mod.ts")),
+            "mainz/config": toFileSpecifier(resolve(cliTestsRepoRoot, "src", "config", "index.ts")),
+            "mainz/jsx-dev-runtime": toFileSpecifier(
+                resolve(cliTestsRepoRoot, "src", "jsx-dev-runtime.ts"),
+            ),
+            "mainz/jsx-runtime": toFileSpecifier(
+                resolve(cliTestsRepoRoot, "src", "jsx-runtime.ts"),
+            ),
+            vite: "npm:vite@7.3.1",
+        };
+        await Deno.writeTextFile(denoConfigPath, JSON.stringify(denoConfig, null, 4));
+        const bootstrapConfigPath = resolve(cwd, "mainz-cli-bootstrap.deno.json");
+        await Deno.writeTextFile(
+            bootstrapConfigPath,
+            JSON.stringify(
+                {
+                    imports: {
+                        "happy-dom": "npm:happy-dom@20.1.0",
+                    },
+                },
+                null,
+                4,
+            ),
+        );
+
+        const result = await runMainz(
+            cwd,
+            ["diagnose", "--target", "site", "--format", "json", "--fail-on", "never"],
+            { denoRunConfigPath: bootstrapConfigPath },
+        );
+
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+        assertStringIncludes(result.stdout, "[]");
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }
@@ -362,19 +429,26 @@ Deno.test("cli/mainz app: remove --delete-files should remove the app root", asy
     }
 });
 
-async function runMainz(cwd: string, args: string[]): Promise<{
+async function runMainz(
+    cwd: string,
+    args: string[],
+    options: { denoRunConfigPath?: string; noConfig?: boolean } = {},
+): Promise<{
     code: number;
     stdout: string;
     stderr: string;
 }> {
+    const denoArgs = [
+        "run",
+        "--no-lock",
+        ...(options.noConfig ? ["--no-config"] : []),
+        ...(options.denoRunConfigPath ? ["--config", options.denoRunConfigPath] : []),
+        "-A",
+        mainzCliPath,
+        ...args,
+    ];
     const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "--no-lock",
-            "-A",
-            mainzCliPath,
-            ...args,
-        ],
+        args: denoArgs,
         cwd,
         stdout: "piped",
         stderr: "piped",
@@ -386,6 +460,10 @@ async function runMainz(cwd: string, args: string[]): Promise<{
         stdout: new TextDecoder().decode(result.stdout),
         stderr: new TextDecoder().decode(result.stderr),
     };
+}
+
+function toFileSpecifier(path: string): string {
+    return pathToFileURL(path).href;
 }
 
 async function assertRejectsNotFound(path: string): Promise<void> {
