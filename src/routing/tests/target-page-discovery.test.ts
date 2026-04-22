@@ -80,7 +80,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -122,7 +121,6 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -166,7 +164,6 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -212,7 +209,6 @@ Deno.test("routing/target-page-discovery: should select the configured appId whe
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 appId: "beta-app",
                 outDir: fixture.outputDir,
@@ -250,7 +246,6 @@ Deno.test("routing/target-page-discovery: should require appId when app discover
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -282,7 +277,6 @@ Deno.test("routing/target-page-discovery: should report an explicit error when t
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 appId: "missing-app",
                 outDir: fixture.outputDir,

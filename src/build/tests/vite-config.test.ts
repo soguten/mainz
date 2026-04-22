@@ -139,8 +139,8 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     });
     const moduleSource = renderGeneratedViteConfigModule(generated);
 
-    assertStringIncludes(moduleSource, `import deno from "npm:@deno/vite-plugin@2.0.2";`);
-    assertStringIncludes(moduleSource, `import { defineConfig } from "npm:vite";`);
+    assertStringIncludes(moduleSource, `import deno from "@deno/vite-plugin";`);
+    assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
     assertStringIncludes(moduleSource, `plugins: deno({`);
     assertStringIncludes(moduleSource, `preserveJsx: true`);
     assertStringIncludes(moduleSource, `appType: "spa"`);

@@ -18,7 +18,6 @@ Deno.test("diagnostics/routing: target evaluation should collect all routed app 
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -58,7 +57,6 @@ Deno.test("diagnostics/routing: target evaluation should collect root-only app c
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -98,7 +96,6 @@ Deno.test("diagnostics/routing: target evaluation should read app-owned authoriz
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],
@@ -158,7 +155,6 @@ Deno.test("diagnostics/routing: target evaluation should report when a discovere
             targets: [{
                 name: "missing-id-app",
                 rootDir: tempRoot,
-                viteConfig: resolve(tempRoot, "vite.config.ts"),
                 appFile: resolve(srcDir, "main.tsx"),
                 outDir: resolve(tempRoot, "dist"),
             }],

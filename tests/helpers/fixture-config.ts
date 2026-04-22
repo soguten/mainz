@@ -34,7 +34,7 @@ function renderFixtureTargetDefinition(
         "    {",
         `      name: ${JSON.stringify(target.name)},`,
         `      rootDir: ${JSON.stringify(target.rootDir)},`,
-        `      viteConfig: ${JSON.stringify(target.viteConfig)},`,
+        ...(target.viteConfig ? [`      viteConfig: ${JSON.stringify(target.viteConfig)},`] : []),
         ...(target.appFile ? [`      appFile: ${JSON.stringify(target.appFile)},`] : []),
         ...(target.buildConfig
             ? [`      buildConfig: ${JSON.stringify(target.buildConfig)},`]

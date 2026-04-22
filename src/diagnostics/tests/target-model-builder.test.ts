@@ -17,7 +17,6 @@ Deno.test("diagnostics: target model builder should build app-scoped diagnostics
             targets: [{
                 name: fixture.targetName,
                 rootDir: fixture.fixtureRoot,
-                viteConfig: resolve(fixture.fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
                 outDir: fixture.outputDir,
             }],

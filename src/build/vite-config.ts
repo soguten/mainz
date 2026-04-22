@@ -70,8 +70,8 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
     });
 
     return [
-        `import deno from "npm:@deno/vite-plugin@2.0.2";`,
-        `import { defineConfig } from "npm:vite";`,
+        `import deno from "@deno/vite-plugin";`,
+        `import { defineConfig } from "vite";`,
         ``,
         `export default defineConfig({`,
         `    appType: ${JSON.stringify(config.appType)},`,

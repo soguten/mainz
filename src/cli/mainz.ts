@@ -908,8 +908,10 @@ function renderGeneratedDenoConfig(mainzSpecifier: string): string {
                     strict: true,
                 },
                 imports: {
+                    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
                     mainz: mainzSpecifier,
                     "mainz/": renderGeneratedMainzSubpathPrefix(mainzSpecifier),
+                    vite: "npm:vite@7.3.1",
                 },
                 tasks: {
                     dev: "mainz dev",

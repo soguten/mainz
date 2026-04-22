@@ -140,8 +140,6 @@ Deno.test("diagnostics/command: should report duplicate stable command ids from 
                 "",
             ].join("\n"),
         );
-        await Deno.writeTextFile(resolve(tempRoot, "vite.config.ts"), "export default {};");
-
         const configPath = resolve(tempRoot, "mainz.config.ts");
         await Deno.writeTextFile(
             configPath,
@@ -151,7 +149,6 @@ Deno.test("diagnostics/command: should report duplicate stable command ids from 
                 "    {",
                 '      name: "command-diagnostics",',
                 `      rootDir: ${JSON.stringify(tempRoot)},`,
-                `      viteConfig: ${JSON.stringify(resolve(tempRoot, "vite.config.ts"))},`,
                 `      appFile: ${JSON.stringify(resolve(srcDir, "main.tsx"))},`,
                 `      outDir: ${JSON.stringify(resolve(tempRoot, "dist"))}`,
                 "    }",

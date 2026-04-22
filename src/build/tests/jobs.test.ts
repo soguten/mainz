@@ -157,7 +157,6 @@ Deno.test("build/jobs: should include ssg jobs for routed app targets discovered
             {
                 name: "entries-di-build",
                 rootDir: fixtureRoot,
-                viteConfig: resolve(fixtureRoot, "vite.config.ts"),
             },
         ],
     });
@@ -175,7 +174,6 @@ Deno.test("build/jobs: should keep explicit csr routed apps on the csr build rec
             {
                 name: "routed-di-client-app",
                 rootDir: "./tests/fixtures/routed-di-client-app",
-                viteConfig: "./tests/fixtures/routed-di-client-app/vite.config.ts",
             },
         ],
     });
@@ -215,7 +213,6 @@ Deno.test("build/jobs: should fail when routed app discovery is ambiguous withou
             {
                 name: "diagnostics-multi-app",
                 rootDir: fixtureRoot,
-                viteConfig: resolve(fixtureRoot, "vite.config.ts"),
                 appFile: resolve(fixtureRoot, "src", "main.tsx"),
             },
         ],
@@ -240,7 +237,6 @@ Deno.test("build/jobs: should keep imported routed app definitions on the defaul
             {
                 name: "diagnostics-di-imported-app",
                 rootDir: fixtureRoot,
-                viteConfig: resolve(fixtureRoot, "vite.config.ts"),
             },
         ],
     });

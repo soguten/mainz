@@ -35,7 +35,6 @@ export async function buildRootAppForCombination(
         fixtureName: "root-app",
         targetName: "root-app",
         combination,
-        omitViteConfig: true,
     });
 }
 
@@ -264,7 +263,6 @@ export async function createFixtureTargetDefinition(args: {
     targetName?: string;
     appFile?: string;
     appNavigation?: TestNavigationMode;
-    omitViteConfig?: boolean;
 }): Promise<FixtureTargetDefinition> {
     const sourceFixtureRoot = resolve(
         cliTestsRepoRoot,
@@ -288,7 +286,6 @@ export async function createFixtureTargetDefinition(args: {
     const requestedAppFile = args.appFile
         ? resolve(fixtureRoot, args.appFile)
         : resolve(fixtureRoot, "src", "main.tsx");
-    const viteConfig = resolve(fixtureRoot, "vite.config.ts");
     const buildConfigPath = resolve(fixtureRoot, "mainz.build.ts");
     const hasBuildConfig = await fileExists(buildConfigPath);
     const includeAppFile = args.appFile !== undefined || await fileExists(requestedAppFile);
@@ -296,7 +293,6 @@ export async function createFixtureTargetDefinition(args: {
     const targetDefinition = {
         name: targetName,
         rootDir: fixtureRoot,
-        ...(args.omitViteConfig || args.appNavigation ? {} : { viteConfig }),
         ...(includeAppFile ? { appFile: requestedAppFile } : {}),
         ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
         outDir: outputDir,
@@ -322,13 +318,11 @@ async function buildNamedFixtureForCombination(args: {
     targetName: string;
     combination: TestBuildCombination;
     profile?: string;
-    omitViteConfig?: boolean;
 }): Promise<TestBuildContext> {
     const fixture = await createFixtureTargetDefinition({
         fixtureName: args.fixtureName,
         targetName: args.targetName,
         appNavigation: args.combination.navigation,
-        omitViteConfig: args.omitViteConfig,
     });
 
     try {
