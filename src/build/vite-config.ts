@@ -70,11 +70,19 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
     });
 
     return [
+        `import deno from "npm:@deno/vite-plugin@2.0.2";`,
         `import { defineConfig } from "npm:vite";`,
         ``,
         `export default defineConfig({`,
         `    appType: ${JSON.stringify(config.appType)},`,
         `    base: ${JSON.stringify(config.base)},`,
+        `    plugins: deno({`,
+        `        workspaceOptions: {`,
+        `            noLock: true,`,
+        `            platform: "browser",`,
+        `            preserveJsx: true,`,
+        `        },`,
+        `    }),`,
         `    resolve: {`,
         `        alias: [`,
         ...aliases.map((alias) => `            ${alias},`),

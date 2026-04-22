@@ -33,16 +33,8 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
         assertEquals(denoConfig.compilerOptions?.jsxImportSource, "mainz");
         assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
         assertEquals(
-            denoConfig.imports?.["mainz/config"],
-            "jsr:@mainz/mainz@0.1.0-alpha.99/config",
-        );
-        assertEquals(
-            denoConfig.imports?.["mainz/jsx-runtime"],
-            "jsr:@mainz/mainz@0.1.0-alpha.99/jsx-runtime",
-        );
-        assertEquals(
-            denoConfig.imports?.["mainz/jsx-dev-runtime"],
-            "jsr:@mainz/mainz@0.1.0-alpha.99/jsx-dev-runtime",
+            denoConfig.imports?.["mainz/"],
+            "jsr:/@mainz/mainz@0.1.0-alpha.99/",
         );
         assertEquals(denoConfig.tasks?.dev, "mainz dev");
     } finally {

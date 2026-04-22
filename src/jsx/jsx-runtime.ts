@@ -33,7 +33,8 @@ export namespace JSX {
         props: unknown;
     }
 
-    export type Element = HTMLElement;
+    // deno-lint-ignore no-explicit-any
+    export type Element = any;
 }
 
 export const Fragment = FragmentFactory;

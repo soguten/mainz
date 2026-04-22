@@ -909,9 +909,7 @@ function renderGeneratedDenoConfig(mainzSpecifier: string): string {
                 },
                 imports: {
                     mainz: mainzSpecifier,
-                    "mainz/config": `${mainzSpecifier}/config`,
-                    "mainz/jsx-runtime": `${mainzSpecifier}/jsx-runtime`,
-                    "mainz/jsx-dev-runtime": `${mainzSpecifier}/jsx-dev-runtime`,
+                    "mainz/": renderGeneratedMainzSubpathPrefix(mainzSpecifier),
                 },
                 tasks: {
                     dev: "mainz dev",
@@ -925,6 +923,15 @@ function renderGeneratedDenoConfig(mainzSpecifier: string): string {
             4,
         )
     }\n`;
+}
+
+function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
+    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+    if (trimmed.startsWith("jsr:@")) {
+        return `jsr:/${trimmed.slice("jsr:".length)}/`;
+    }
+
+    return `${trimmed}/`;
 }
 
 function insertConfigTarget(content: string, target: string): string {
