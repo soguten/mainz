@@ -25,6 +25,7 @@ import {
     type AppScaffoldType,
     createAppScaffold,
 } from "./app-scaffold.ts";
+import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 
 type SharedCliOptions = {
     target?: string;
@@ -516,7 +517,8 @@ function parseCommandOptions(
 async function runInitCommand(options: InitCommandOptions): Promise<void> {
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
-    const mainzSpecifier = options.mainzSpecifier ?? await resolvePublishedMainzSpecifier();
+    const mainzSpecifier = options.mainzSpecifier ??
+        await resolvePublishedMainzSpecifier(import.meta.url);
 
     await assertCanCreateFiles([configPath, denoConfigPath]);
     await writeNewTextFile(configPath, renderGeneratedEmptyConfig());
@@ -928,23 +930,6 @@ async function assertCanCreateFiles(paths: string[]): Promise<void> {
             throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
         }
     }
-}
-
-async function resolvePublishedMainzSpecifier(): Promise<string> {
-    const version = await readPackageVersion();
-    return `jsr:@mainz/mainz@${version}`;
-}
-
-async function readPackageVersion(): Promise<string> {
-    const packageConfigUrl = new URL("../../jsr.json", import.meta.url);
-    const packageConfig = JSON.parse(await Deno.readTextFile(packageConfigUrl)) as {
-        version?: unknown;
-    };
-    if (typeof packageConfig.version !== "string" || packageConfig.version.length === 0) {
-        throw new Error("Could not resolve Mainz package version from jsr.json.");
-    }
-
-    return packageConfig.version;
 }
 
 function renderGeneratedConfig(target: string): string {
