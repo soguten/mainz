@@ -1,9 +1,0 @@
-import { Locales, RenderMode, Route } from "mainz";
-import { TypecaseDocPageBase } from "../../lib/TypecaseDocPageBase.tsx";
-
-@Route("/components/toolbar")
-@RenderMode("ssg")
-@Locales("en")
-export class ToolbarPage extends TypecaseDocPageBase {
-    protected override readonly slug = "toolbar";
-}

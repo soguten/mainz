@@ -30,13 +30,6 @@ export default defineMainzConfig({
             outDir: "dist/examples/di-http-site",
         },
         {
-            name: "typecase-site",
-            rootDir: "./typecase-site",
-            appFile: "./typecase-site/src/main.tsx",
-            appId: "typecase-site",
-            outDir: "dist/typecase-site",
-        },
-        {
             name: "docs",
             rootDir: "./docs-site",
             appFile: "./docs-site/src/main.tsx",

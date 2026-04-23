@@ -26,7 +26,7 @@
         "mainz/testing": "./src/testing/index.ts",
         "mainz/diagnostics": "./src/diagnostics.ts",
         "mainz/config": "./src/config/index.ts",
-        "mainz/typecase": "./src/typecase/index.ts",
+        "mainz/typecase": "../typecase/src/index.ts",
         "mainz/jsx-runtime": "./src/jsx-runtime.ts",
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "@/": "./src/",
