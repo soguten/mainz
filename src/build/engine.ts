@@ -16,6 +16,7 @@ export type BuildEngineProfile = ResolvedBuildProfile;
 export type BuildEnginePublicationMetadata = PublicationMetadata;
 export type BuildEngineRenderMode = RenderMode;
 export type BuildEngineNavigationMode = NavigationMode;
+export type DevServerHostOption = string | true;
 
 export async function resolveEngineBuildJobs(
     config: NormalizedMainzConfig,
@@ -61,12 +62,18 @@ export async function runEngineDevServer(
     config: NormalizedMainzConfig,
     target: NormalizedMainzTarget,
     profile: BuildEngineProfile,
+    options: {
+        host?: DevServerHostOption;
+        port?: number;
+    } = {},
     cwd = Deno.cwd(),
 ): Promise<void> {
     await runDevServer({
         config,
         targetName: target.name,
         profile,
+        host: options.host,
+        port: options.port,
         cwd,
     });
 }

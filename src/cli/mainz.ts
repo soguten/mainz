@@ -33,17 +33,21 @@ type SharedCliOptions = {
     configPath?: string;
 };
 
+type CliHostOption = string | true;
+
 type BuildCommandOptions = SharedCliOptions & {
     command: "build";
 };
 
 type DevCommandOptions = SharedCliOptions & {
     command: "dev";
+    host?: CliHostOption;
+    port?: number;
 };
 
 type PreviewCommandOptions = SharedCliOptions & {
     command: "preview";
-    host?: string;
+    host?: CliHostOption;
     port?: number;
 };
 
@@ -431,11 +435,11 @@ function parseCommandOptions(
 ):
     & SharedCliOptions
     & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-    & Pick<PreviewCommandOptions, "host" | "port"> {
+    & Pick<DevCommandOptions, "host" | "port"> {
     const options:
         & SharedCliOptions
         & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-        & Pick<PreviewCommandOptions, "host" | "port"> = {};
+        & Pick<DevCommandOptions, "host" | "port"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -477,17 +481,22 @@ function parseCommandOptions(
         }
 
         if (current === "--host") {
-            if (command !== "preview") {
+            if (command !== "dev" && command !== "preview") {
                 throw new Error(`Unknown option "${current}".`);
             }
 
-            options.host = args[index + 1];
-            index += 1;
+            const nextValue = args[index + 1];
+            if (nextValue?.trim() && !nextValue.startsWith("--")) {
+                options.host = nextValue;
+                index += 1;
+            } else {
+                options.host = true;
+            }
             continue;
         }
 
         if (current === "--port") {
-            if (command !== "preview") {
+            if (command !== "dev" && command !== "preview") {
                 throw new Error(`Unknown option "${current}".`);
             }
 
@@ -659,7 +668,10 @@ async function runDevCommand(
         `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
     );
 
-    await runEngineDevServer(normalizedConfig, target, profile);
+    await runEngineDevServer(normalizedConfig, target, profile, {
+        host: options.host,
+        port: options.port,
+    });
 }
 
 async function runPreviewCommand(
@@ -688,7 +700,7 @@ async function runPreviewCommand(
 
     serveArtifactPreview({
         rootDir: metadata.outDir,
-        host: options.host,
+        host: options.host === true ? "0.0.0.0" : options.host,
         port: options.port,
     });
 
@@ -767,8 +779,8 @@ function printHelp(): void {
             "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
             "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
-            "  mainz dev --target <name> [--profile <name>] [--config <path>]",
-            "  mainz preview --target <name> [--profile <name>] [--host <host>] [--port <port>] [--config <path>]",
+            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+            "  mainz preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
             "  mainz test [--target <name|all>] [--config <path>]",
             "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
             "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
@@ -786,6 +798,7 @@ function printHelp(): void {
             "  mainz build --target site --profile gh-pages",
             "  mainz build --target playground",
             "  mainz dev --target playground",
+            "  mainz dev --target site --host",
             "  mainz preview --target site --profile production",
             "  mainz test --target site",
             "  mainz publish-info --target site --profile gh-pages",

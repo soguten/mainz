@@ -129,6 +129,8 @@ profile, and selected app. Keep `viteConfig` only for advanced cases that need f
 
 ```bash
 mainz dev --target site
+mainz dev --target site --host
+mainz dev --target site --host 0.0.0.0 --port 5175
 ```
 
 Dev uses the same target model and generated Vite defaults as build.

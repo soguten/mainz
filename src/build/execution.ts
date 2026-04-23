@@ -87,6 +87,8 @@ export async function runDevServer(args: {
     config: NormalizedMainzConfig;
     targetName: string;
     profile: ResolvedBuildProfile;
+    host?: string | true;
+    port?: number;
     cwd?: string;
 }): Promise<void> {
     const cwd = args.cwd ?? Deno.cwd();
@@ -118,6 +120,8 @@ export async function runDevServer(args: {
             cwd,
             viteConfigPath: viteConfig.path,
             targetName: target.name,
+            host: args.host,
+            port: args.port,
             navigationMode,
             basePath: resolveViteBasePath(args.profile.basePath, navigationMode),
             appLocales: appDefinition?.i18n?.locales ??
@@ -260,6 +264,8 @@ async function runViteDevServer(args: {
     cwd: string;
     viteConfigPath: string;
     targetName: string;
+    host?: string | true;
+    port?: number;
     navigationMode: NavigationMode;
     basePath: string;
     appLocales: readonly string[];
@@ -270,13 +276,7 @@ async function runViteDevServer(args: {
 }): Promise<void> {
     const command = new Deno.Command("deno", {
         cwd: args.cwd,
-        args: [
-            "run",
-            "-A",
-            "npm:vite@7.3.1",
-            "--config",
-            args.viteConfigPath,
-        ],
+        args: resolveViteDevCommandArgs(args.viteConfigPath, args.host, args.port),
         env: {
             MAINZ_OUT_DIR: args.modeOutDir,
             MAINZ_RENDER_MODE: "csr",
@@ -298,6 +298,33 @@ async function runViteDevServer(args: {
     if (!status.success) {
         throw new Error(`Vite dev server failed for target "${args.targetName}".`);
     }
+}
+
+export function resolveViteDevCommandArgs(
+    viteConfigPath: string,
+    host?: string | true,
+    port?: number,
+): string[] {
+    const commandArgs = [
+        "run",
+        "-A",
+        "npm:vite@7.3.1",
+        "--config",
+        viteConfigPath,
+    ];
+
+    if (host !== undefined) {
+        commandArgs.push("--host");
+        if (host !== true) {
+            commandArgs.push(host);
+        }
+    }
+
+    if (port !== undefined) {
+        commandArgs.push("--port", String(port));
+    }
+
+    return commandArgs;
 }
 
 function toViteBasePath(basePath: string): string {
