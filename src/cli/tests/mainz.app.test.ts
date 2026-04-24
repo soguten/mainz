@@ -22,6 +22,7 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
         assertStringIncludes(config, 'import { defineMainzConfig } from "mainz/config";');
+        assertStringIncludes(config, 'platform: "deno"');
         assertStringIncludes(config, "targets: [");
 
         const denoConfig = JSON.parse(
@@ -65,6 +66,7 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'platform: "deno"');
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, "    ],");
@@ -170,6 +172,7 @@ Deno.test("cli/mainz app: create should scaffold an app workspace and target", a
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
         assertStringIncludes(config, 'import { defineMainzConfig } from "mainz/config";');
+        assertStringIncludes(config, 'platform: "deno"');
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, 'appFile: "./docs/src/app.ts"');

@@ -1,32 +1,9 @@
+/// <reference lib="deno.ns" />
+
 import { assertEquals } from "@std/assert";
-import { DenoToolingPlatform, NodeToolingPlatform } from "../../tooling/platform/index.ts";
+import { NodeToolingPlatform } from "../index.ts";
 
-Deno.test("build/execution: should forward dev host and port to Vite", () => {
-    const platform = new DenoToolingPlatform();
-
-    assertEquals(
-        platform.resolveViteDevCommand({
-            viteConfigPath: "/tmp/vite.config.mjs",
-            host: true,
-            port: 4175,
-        }),
-        {
-            command: "deno",
-            args: [
-                "run",
-                "-A",
-                "npm:vite@7.3.1",
-                "--config",
-                "/tmp/vite.config.mjs",
-                "--host",
-                "--port",
-                "4175",
-            ],
-        },
-    );
-});
-
-Deno.test("build/execution: node platform should resolve Vite commands through npx", () => {
+Deno.test("tooling/platform/node: should resolve Vite build and dev commands through npx", () => {
     const platform = new NodeToolingPlatform();
 
     assertEquals(

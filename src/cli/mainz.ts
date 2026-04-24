@@ -24,7 +24,10 @@ import {
     type AppScaffoldTarget,
     type AppScaffoldType,
     createAppScaffold,
-} from "./app-scaffold.ts";
+} from "./scaffolds/index.ts";
+import { createProjectEmptyScaffold } from "./scaffolds/index.ts";
+import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 
 type SharedCliOptions = {
@@ -97,32 +100,57 @@ type MainzCliCommand =
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 
+class CliExitError extends Error {
+    constructor(readonly code: number) {
+        super(`CLI exited with code ${code}.`);
+    }
+}
+
 if (import.meta.main) {
-    await main(Deno.args);
+    Deno.exit(await runCliEntryPoint(Deno.args));
 }
 
 /**
  * Runs the Mainz command-line interface with the provided process arguments.
  */
 export async function main(args: string[]): Promise<void> {
+    const exitCode = await runCliEntryPoint(args);
+    if (exitCode !== 0) {
+        Deno.exit(exitCode);
+    }
+}
+
+async function runCliEntryPoint(args: string[]): Promise<number> {
+    try {
+        return await runCli(args);
+    } catch (error) {
+        if (error instanceof CliExitError) {
+            return error.code;
+        }
+
+        throw error;
+    }
+}
+
+async function runCli(args: string[]): Promise<number> {
     const command = parseCliCommand(args);
     if (!command) {
         printHelp();
-        return;
+        return 0;
     }
 
     if (command.command === "init") {
         await runInitCommand(command);
-        return;
+        return 0;
     }
 
     if (command.command === "app") {
         await runAppCommand(command);
-        return;
+        return 0;
     }
 
     if (await rerunWithProjectDenoConfigIfNeeded(command, args)) {
-        return;
+        return 0;
     }
 
     const loadedConfig = await loadMainzConfig(command.configPath);
@@ -131,22 +159,20 @@ export async function main(args: string[]): Promise<void> {
     switch (command.command) {
         case "publish-info":
             await runPublishInfoCommand(command, normalizedConfig);
-            return;
+            return 0;
         case "diagnose":
-            await runDiagnoseCommand(command, normalizedConfig);
-            return;
+            return await runDiagnoseCommand(command, normalizedConfig);
         case "dev":
             await runDevCommand(command, loadedConfig, normalizedConfig);
-            return;
+            return 0;
         case "preview":
             await runPreviewCommand(command, loadedConfig, normalizedConfig);
-            return;
+            return 0;
         case "test":
-            await runTestCommand(command, normalizedConfig);
-            return;
+            return await runTestCommand(command, normalizedConfig);
         case "build":
             await runBuildCommand(command, loadedConfig, normalizedConfig);
-            return;
+            return 0;
     }
 }
 
@@ -160,7 +186,8 @@ async function rerunWithProjectDenoConfigIfNeeded(
         | DiagnoseCommandOptions,
     args: readonly string[],
 ): Promise<boolean> {
-    if (Deno.env.get(projectConfigBootstrapEnv) === "1") {
+    const platform = denoToolingPlatform;
+    if (getCliBootstrapEnv() === "1") {
         return false;
     }
 
@@ -169,8 +196,9 @@ async function rerunWithProjectDenoConfigIfNeeded(
         return false;
     }
 
-    const child = new Deno.Command("deno", {
-        cwd: Deno.cwd(),
+    const status = await platform.run({
+        command: "deno",
+        cwd: platform.cwd(),
         args: [
             "run",
             "-A",
@@ -185,11 +213,9 @@ async function rerunWithProjectDenoConfigIfNeeded(
         stdin: "inherit",
         stdout: "inherit",
         stderr: "inherit",
-    }).spawn();
-
-    const status = await child.status;
+    });
     if (!status.success) {
-        Deno.exit(status.code);
+        throw new CliExitError(status.code);
     }
 
     return true;
@@ -524,19 +550,24 @@ function parseCommandOptions(
 }
 
 async function runInitCommand(options: InitCommandOptions): Promise<void> {
+    const platform = denoToolingPlatform;
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
         await resolvePublishedMainzSpecifier(import.meta.url);
-
-    await assertCanCreateFiles([configPath, denoConfigPath]);
-    await writeNewTextFile(configPath, renderGeneratedEmptyConfig());
-    await writeNewTextFile(
+    const scaffold = createProjectEmptyScaffold({
+        platform: "deno",
+        mainzSpecifier,
+        configPath,
         denoConfigPath,
-        renderGeneratedDenoConfig(mainzSpecifier, denoConfigPath),
-    );
+    });
 
-    console.log(`[mainz] Initialized Mainz project in ${Deno.cwd()}.`);
+    await assertCanCreateFiles([...scaffold.files.keys()], platform);
+    for (const [path, content] of scaffold.files) {
+        await writeNewTextFile(path, content, platform);
+    }
+
+    console.log(`[mainz] Initialized Mainz project in ${platform.cwd()}.`);
     console.log(`[mainz] Created ${configPath} and ${denoConfigPath}.`);
     console.log('[mainz] Add an app with "mainz app create <name>".');
 }
@@ -551,6 +582,7 @@ async function runAppCommand(options: AppCommandOptions): Promise<void> {
 }
 
 async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
+    const platform = denoToolingPlatform;
     const appName = normalizeAppName(options.name);
     const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
     const rootPath = resolve(rootDir);
@@ -562,33 +594,35 @@ async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
         rootDir,
         outDir,
         navigation: options.navigation ?? "enhanced-mpa",
+        platform: "deno",
     });
 
     for (const relativePath of scaffold.files.keys()) {
         const path = resolve(rootPath, relativePath);
-        if (await pathExists(path)) {
+        if (await pathExists(path, platform)) {
             throw new Error(`Refusing to overwrite existing file "${path}".`);
         }
     }
 
     for (const directory of scaffold.directories) {
-        await Deno.mkdir(resolve(rootPath, directory), { recursive: true });
+        await platform.mkdir(resolve(rootPath, directory), { recursive: true });
     }
 
     for (const [relativePath, content] of scaffold.files) {
-        await Deno.writeTextFile(resolve(rootPath, relativePath), content);
+        await platform.writeTextFile(resolve(rootPath, relativePath), content);
     }
 
-    await upsertConfigTarget(configPath, renderConfigTarget(scaffold.target));
+    await upsertConfigTarget(configPath, renderConfigTarget(scaffold.target), platform);
 
     console.log(`[mainz] Created app "${appName}" in ${rootDir}.`);
 }
 
 async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
+    const platform = denoToolingPlatform;
     const appName = normalizeAppName(options.name);
     const configPath = options.configPath ?? "mainz.config.ts";
     const absoluteConfigPath = resolve(configPath);
-    const content = await Deno.readTextFile(absoluteConfigPath);
+    const content = await platform.readTextFile(absoluteConfigPath);
     const targetSource = findConfigTargetSource(content, appName);
     const updated = removeConfigTarget(content, appName);
 
@@ -604,10 +638,10 @@ async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
             );
         }
 
-        await removeAppRoot(rootDir);
+        await removeAppRoot(rootDir, platform);
     }
 
-    await Deno.writeTextFile(absoluteConfigPath, updated);
+    await platform.writeTextFile(absoluteConfigPath, updated);
     console.log(`[mainz] Removed app target "${appName}" from ${configPath}.`);
 
     if (options.deleteFiles) {
@@ -620,7 +654,8 @@ async function runBuildCommand(
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
 ): Promise<void> {
-    const jobs = await resolveEngineBuildJobs(normalizedConfig, options);
+    const cwd = denoToolingPlatform.cwd();
+    const jobs = await resolveEngineBuildJobs(normalizedConfig, options, cwd);
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
     const resolvedProfileByTarget = new Map<
         string,
@@ -629,7 +664,7 @@ async function runBuildCommand(
     for (const target of selectedTargets.values()) {
         resolvedProfileByTarget.set(
             target.name,
-            await resolveEngineBuildProfile(target, options.profile),
+            await resolveEngineBuildProfile(target, options.profile, cwd),
         );
     }
 
@@ -642,7 +677,7 @@ async function runBuildCommand(
         `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
     );
 
-    await runEngineBuildJobs(normalizedConfig, resolvedJobs);
+    await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd);
 
     console.log("[mainz] Build completed successfully.");
 }
@@ -651,8 +686,13 @@ async function runPublishInfoCommand(
     options: PublishInfoCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
 ): Promise<void> {
+    const cwd = denoToolingPlatform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "publish-info");
-    const metadata = await resolveEnginePublicationMetadata(target, options.profile, Deno.cwd());
+    const metadata = await resolveEnginePublicationMetadata(
+        target,
+        options.profile,
+        cwd,
+    );
     console.log(JSON.stringify(metadata, null, 2));
 }
 
@@ -661,8 +701,9 @@ async function runDevCommand(
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
 ): Promise<void> {
+    const cwd = denoToolingPlatform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
-    const profile = await resolveEngineBuildProfile(target, options.profile);
+    const profile = await resolveEngineBuildProfile(target, options.profile, cwd);
 
     console.log(
         `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
@@ -671,7 +712,7 @@ async function runDevCommand(
     await runEngineDevServer(normalizedConfig, target, profile, {
         host: options.host,
         port: options.port,
-    });
+    }, cwd);
 }
 
 async function runPreviewCommand(
@@ -679,6 +720,7 @@ async function runPreviewCommand(
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
 ): Promise<void> {
+    const cwd = denoToolingPlatform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "preview");
 
     await runBuildCommand(
@@ -695,7 +737,7 @@ async function runPreviewCommand(
     const metadata = await resolveEnginePublicationMetadata(
         target,
         options.profile,
-        Deno.cwd(),
+        cwd,
     );
 
     serveArtifactPreview({
@@ -710,8 +752,13 @@ async function runPreviewCommand(
 async function runDiagnoseCommand(
     options: DiagnoseCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
-): Promise<void> {
-    const diagnostics = await collectDiagnosticsForConfig(normalizedConfig, options, Deno.cwd());
+): Promise<number> {
+    const cwd = denoToolingPlatform.cwd();
+    const diagnostics = await collectDiagnosticsForConfig(
+        normalizedConfig,
+        options,
+        cwd,
+    );
     const format = resolveDiagnoseFormat(options.format);
     console.log(
         format === "human"
@@ -719,17 +766,21 @@ async function runDiagnoseCommand(
             : formatDiagnosticsJson(diagnostics),
     );
     if (shouldFailDiagnostics(diagnostics, resolveDiagnoseFailOn(options.failOn))) {
-        Deno.exit(1);
+        return 1;
     }
+
+    return 0;
 }
 
 async function runTestCommand(
     options: TestCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
-): Promise<void> {
-    const testPaths = resolveTestPathsForTarget(normalizedConfig, options.target);
-    const command = new Deno.Command("deno", {
-        cwd: Deno.cwd(),
+): Promise<number> {
+    const cwd = denoToolingPlatform.cwd();
+    const testPaths = resolveTestPathsForTarget(normalizedConfig, options.target, cwd);
+    const status = await denoToolingPlatform.run({
+        command: "deno",
+        cwd,
         args: [
             "test",
             "-A",
@@ -739,12 +790,11 @@ async function runTestCommand(
         stdout: "inherit",
         stderr: "inherit",
     });
-
-    const child = command.spawn();
-    const status = await child.status;
     if (!status.success) {
-        Deno.exit(status.code);
+        return status.code;
     }
+
+    return 0;
 }
 
 function resolveRequiredTarget(
@@ -827,6 +877,7 @@ function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
 function resolveTestPathsForTarget(
     config: NormalizedMainzConfig,
     targetName: string | undefined,
+    cwd: string,
 ): string[] {
     const normalizedTargetName = targetName?.trim();
     if (!normalizedTargetName) {
@@ -836,9 +887,7 @@ function resolveTestPathsForTarget(
     if (normalizedTargetName === "all") {
         return Array.from(
             new Set(
-                config.targets.map((target) =>
-                    normalizePathSlashes(resolve(Deno.cwd(), target.rootDir))
-                ),
+                config.targets.map((target) => normalizePathSlashes(resolve(cwd, target.rootDir))),
             ),
         );
     }
@@ -852,7 +901,7 @@ function resolveTestPathsForTarget(
         );
     }
 
-    return [normalizePathSlashes(resolve(Deno.cwd(), target.rootDir))];
+    return [normalizePathSlashes(resolve(cwd, target.rootDir))];
 }
 
 function normalizePathSlashes(path: string): string {
@@ -913,33 +962,44 @@ function normalizeOutDir(outDir: string): string {
     return normalized.startsWith(".") ? normalized.slice(2) : normalized;
 }
 
-async function upsertConfigTarget(configPath: string, target: string): Promise<void> {
+async function upsertConfigTarget(
+    configPath: string,
+    target: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<void> {
     const absoluteConfigPath = resolve(configPath);
 
-    if (!(await pathExists(absoluteConfigPath))) {
-        await Deno.mkdir(dirname(absoluteConfigPath), { recursive: true });
-        await Deno.writeTextFile(absoluteConfigPath, renderGeneratedConfig(target));
+    if (!(await pathExists(absoluteConfigPath, platform))) {
+        await platform.mkdir(dirname(absoluteConfigPath), { recursive: true });
+        await platform.writeTextFile(absoluteConfigPath, renderGeneratedConfig(target));
         return;
     }
 
-    const content = await Deno.readTextFile(absoluteConfigPath);
-    await Deno.writeTextFile(absoluteConfigPath, insertConfigTarget(content, target));
+    const content = await platform.readTextFile(absoluteConfigPath);
+    await platform.writeTextFile(absoluteConfigPath, insertConfigTarget(content, target));
 }
 
-async function writeNewTextFile(path: string, content: string): Promise<void> {
+async function writeNewTextFile(
+    path: string,
+    content: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<void> {
     const absolutePath = resolve(path);
-    if (await pathExists(absolutePath)) {
+    if (await pathExists(absolutePath, platform)) {
         throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
     }
 
-    await Deno.mkdir(dirname(absolutePath), { recursive: true });
-    await Deno.writeTextFile(absolutePath, content);
+    await platform.mkdir(dirname(absolutePath), { recursive: true });
+    await platform.writeTextFile(absolutePath, content);
 }
 
-async function assertCanCreateFiles(paths: string[]): Promise<void> {
+async function assertCanCreateFiles(
+    paths: string[],
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<void> {
     for (const path of paths) {
         const absolutePath = resolve(path);
-        if (await pathExists(absolutePath)) {
+        if (await pathExists(absolutePath, platform)) {
             throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
         }
     }
@@ -950,80 +1010,13 @@ function renderGeneratedConfig(target: string): string {
         'import { defineMainzConfig } from "mainz/config";',
         "",
         "export default defineMainzConfig({",
+        '    platform: "deno",',
         "    targets: [",
         target,
         "    ],",
         "});",
         "",
     ].join("\n");
-}
-
-function renderGeneratedEmptyConfig(): string {
-    return [
-        'import { defineMainzConfig } from "mainz/config";',
-        "",
-        "export default defineMainzConfig({",
-        "    targets: [",
-        "    ],",
-        "});",
-        "",
-    ].join("\n");
-}
-
-function renderGeneratedDenoConfig(mainzSpecifier: string, denoConfigPath: string): string {
-    const cliSpecifier = renderGeneratedMainzCliSpecifier(mainzSpecifier);
-    const cliCommand = `deno run -A --config ${
-        quoteCommandArgument(denoConfigPath)
-    } ${cliSpecifier}`;
-
-    return `${
-        JSON.stringify(
-            {
-                compilerOptions: {
-                    lib: ["dom", "esnext"],
-                    jsx: "react-jsx",
-                    jsxImportSource: "mainz",
-                    strict: true,
-                },
-                imports: {
-                    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-                    mainz: mainzSpecifier,
-                    "mainz/": renderGeneratedMainzSubpathPrefix(mainzSpecifier),
-                    vite: "npm:vite@7.3.1",
-                },
-                tasks: {
-                    dev: `${cliCommand} dev`,
-                    build: `${cliCommand} build`,
-                    preview: `${cliCommand} preview`,
-                    test: `${cliCommand} test`,
-                    diagnose: `${cliCommand} diagnose`,
-                },
-            },
-            null,
-            4,
-        )
-    }\n`;
-}
-
-function renderGeneratedMainzCliSpecifier(mainzSpecifier: string): string {
-    return `${mainzSpecifier.trim().replace(/\/+$/, "")}/cli`;
-}
-
-function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
-    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
-    if (trimmed.startsWith("jsr:@")) {
-        return `jsr:/${trimmed.slice("jsr:".length)}/`;
-    }
-
-    return `${trimmed}/`;
-}
-
-function quoteCommandArgument(value: string): string {
-    if (/^[A-Za-z0-9._/@:-]+$/.test(value)) {
-        return value;
-    }
-
-    return `"${value.replaceAll('"', '\\"')}"`;
 }
 
 function insertConfigTarget(content: string, target: string): string {
@@ -1106,8 +1099,11 @@ function extractTargetRootDir(targetSource: string): string | undefined {
     return match?.[2]?.trim() || undefined;
 }
 
-async function removeAppRoot(rootDir: string): Promise<void> {
-    const cwd = Deno.cwd();
+async function removeAppRoot(
+    rootDir: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<void> {
+    const cwd = platform.cwd();
     const rootPath = resolve(cwd, rootDir);
     const relativeRoot = relative(cwd, rootPath);
 
@@ -1115,8 +1111,8 @@ async function removeAppRoot(rootDir: string): Promise<void> {
         throw new Error(`Refusing to delete app root outside the current workspace: "${rootDir}".`);
     }
 
-    if (await pathExists(rootPath)) {
-        await Deno.remove(rootPath, { recursive: true });
+    if (await pathExists(rootPath, platform)) {
+        await platform.remove(rootPath, { recursive: true });
     }
 }
 
@@ -1223,15 +1219,30 @@ function renderConfigTarget(target: AppScaffoldTarget): string {
     ].join("\n");
 }
 
-async function pathExists(path: string): Promise<boolean> {
+async function pathExists(
+    path: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<boolean> {
     try {
-        await Deno.stat(path);
+        await platform.stat(path);
         return true;
     } catch (error) {
-        if (error instanceof Deno.errors.NotFound) {
+        if (isNotFoundError(error)) {
             return false;
         }
 
         throw error;
     }
+}
+
+function isNotFoundError(error: unknown): boolean {
+    return error instanceof Deno.errors.NotFound ||
+        (typeof error === "object" && error !== null && (
+            ("name" in error && error.name === "NotFound") ||
+            ("code" in error && error.code === "ENOENT")
+        ));
+}
+
+function getCliBootstrapEnv(): string | undefined {
+    return Deno.env.get(projectConfigBootstrapEnv);
 }

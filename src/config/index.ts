@@ -1,8 +1,11 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 import {
     LoadedMainzConfig,
     MainzConfig,
+    MainzPlatform,
     MainzTargetDefinition,
     MainzTargetViteAlias,
     MainzTargetViteOptions,
@@ -15,12 +18,17 @@ import {
 } from "./types.ts";
 export { defineMainzConfig, defineTargetBuild } from "./definition.ts";
 
-export async function loadMainzConfig(configPath = "mainz.config.ts"): Promise<LoadedMainzConfig> {
+export async function loadMainzConfig(
+    configPath = "mainz.config.ts",
+    platform: MainzToolingPlatform = denoToolingPlatform,
+): Promise<LoadedMainzConfig> {
     const absolutePath = resolve(configPath);
 
     let module: Record<string, unknown>;
     try {
-        module = await import(`${pathToFileURL(absolutePath).href}?t=${Date.now()}`);
+        module = await platform.importModule(
+            `${pathToFileURL(absolutePath).href}?t=${Date.now()}`,
+        ) as Record<string, unknown>;
     } catch (error) {
         throw new Error(
             `Could not load Mainz config at "${absolutePath}": ${toErrorMessage(error)}`,
@@ -49,6 +57,7 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     assertUniqueTargetNames(normalizedTargets);
 
     return {
+        platform: normalizeMainzPlatform(input.platform),
         targets: normalizedTargets,
     };
 }
@@ -216,6 +225,20 @@ function normalizeTargetBuildProfile(profile: {
         basePath: normalizeBasePath(profile.basePath),
         siteUrl: normalizeSiteUrl(profile.siteUrl),
     };
+}
+
+function normalizeMainzPlatform(platform: MainzPlatform | undefined): MainzPlatform {
+    if (platform === undefined) {
+        return "deno";
+    }
+
+    if (platform === "deno" || platform === "node" || platform === "bun") {
+        return platform;
+    }
+
+    throw new Error(
+        `Unsupported Mainz platform "${String(platform)}". Use "deno", "node", or "bun".`,
+    );
 }
 
 function assertUniqueTargetNames(targets: NormalizedMainzTarget[]): void {

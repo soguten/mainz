@@ -1,6 +1,8 @@
 import type { NormalizedMainzConfig, NormalizedMainzTarget } from "../config/index.ts";
 import type { RenderMode } from "../routing/index.ts";
 import { resolveTargetDiscoveredPagesForTarget } from "../routing/target-page-discovery.ts";
+import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 
 export interface BuildRequestOptions {
@@ -25,15 +27,16 @@ const BUILD_RECIPE_RENDER_MODES: readonly RenderMode[] = ["csr", "ssg"];
 export async function resolveBuildJobs(
     config: NormalizedMainzConfig,
     options: BuildRequestOptions,
-    cwd = Deno.cwd(),
+    cwd = denoToolingPlatform.cwd(),
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<BuildJob[]> {
-    return await resolveProductionBuildJobsInternal(config, options, cwd);
+    return await resolveProductionBuildJobsInternal(config, options, cwd, platform);
 }
 
 export async function resolveForcedBuildJobs(
     config: NormalizedMainzConfig,
     options: ForcedBuildRequestOptions,
-    cwd = Deno.cwd(),
+    cwd = denoToolingPlatform.cwd(),
 ): Promise<BuildJob[]> {
     const targetSelection = options.target?.trim();
     const modeSelection = options.mode?.trim();
@@ -81,13 +84,14 @@ async function resolveProductionBuildJobsInternal(
     config: NormalizedMainzConfig,
     options: BuildRequestOptions,
     cwd: string,
+    platform: MainzToolingPlatform,
 ): Promise<BuildJob[]> {
     const targetSelection = options.target?.trim();
     const jobs = await resolveForcedBuildJobs(config, options, cwd);
 
     const filteredJobs: BuildJob[] = [];
     for (const job of jobs) {
-        if (!await targetSupportsRenderMode(job.target, job.mode, cwd)) {
+        if (!await targetSupportsRenderMode(job.target, job.mode, cwd, platform)) {
             continue;
         }
 
@@ -99,7 +103,7 @@ async function resolveProductionBuildJobsInternal(
         if (
             selectedTarget &&
             jobs.length > 0 &&
-            !await targetSupportsRenderMode(selectedTarget, jobs[0].mode, cwd)
+            !await targetSupportsRenderMode(selectedTarget, jobs[0].mode, cwd, platform)
         ) {
             throw new Error(
                 `Target "${selectedTarget.name}" has no pages/routes and only supports csr app builds.`,
@@ -114,16 +118,18 @@ async function targetSupportsRenderMode(
     target: NormalizedMainzTarget,
     mode: RenderMode,
     cwd: string,
+    platform: MainzToolingPlatform,
 ): Promise<boolean> {
-    const supportedModes = await resolveTargetSupportedRenderModes(target, cwd);
+    const supportedModes = await resolveTargetSupportedRenderModes(target, cwd, platform);
     return supportedModes.has(mode);
 }
 
 async function resolveTargetSupportedRenderModes(
     target: NormalizedMainzTarget,
     cwd: string,
+    platform: MainzToolingPlatform,
 ): Promise<ReadonlySet<RenderMode>> {
-    const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd);
+    const discovery = await resolveTargetDiscoveredPagesForTarget(target, cwd, platform);
     const hasAnyRouteInput = Boolean(discovery.discoveredPages?.length);
 
     if (discovery.discoveryErrors?.length) {

@@ -1,28 +1,65 @@
+/**
+ * Supported app scaffold shapes.
+ */
 export type AppScaffoldType = "routed" | "root";
+/**
+ * Navigation modes supported by generated apps.
+ */
 export type AppScaffoldNavigation = "spa" | "mpa" | "enhanced-mpa";
+/**
+ * Tooling platforms that can materialize an app scaffold.
+ */
+export type AppScaffoldPlatform = "deno" | "node" | "bun";
 
+/**
+ * Generated target metadata for a scaffolded app.
+ */
 export type AppScaffoldTarget = {
+    /** Logical target name registered in `mainz.config.ts`. */
     name: string;
+    /** Root directory for the generated app. */
     rootDir: string;
+    /** App definition file used by the target. */
     appFile: string;
+    /** App identifier passed to `defineApp(...)`. */
     appId: string;
+    /** Output directory used by builds for this app. */
     outDir: string;
 };
 
+/**
+ * Files and directories generated for a scaffolded app.
+ */
 export type AppScaffold = {
+    /** Generated target metadata to insert into `mainz.config.ts`. */
     target: AppScaffoldTarget;
+    /** Files that should be written under the app root. */
     files: Map<string, string>;
+    /** Directories that should exist before files are written. */
     directories: string[];
 };
 
+/**
+ * Input required to scaffold a Mainz app.
+ */
 export type CreateAppScaffoldOptions = {
+    /** Shape of app to generate. */
     type: AppScaffoldType;
+    /** Logical app name. */
     name: string;
+    /** Relative root directory for the app. */
     rootDir: string;
+    /** Relative output directory used by builds. */
     outDir: string;
+    /** Navigation mode configured for the generated app. */
     navigation: AppScaffoldNavigation;
+    /** Tooling platform used to materialize host-specific files when needed. */
+    platform?: AppScaffoldPlatform;
 };
 
+/**
+ * Creates a scaffold for a Mainz app.
+ */
 export function createAppScaffold(options: CreateAppScaffoldOptions): AppScaffold {
     if (options.type === "root") {
         return createRootAppScaffold(options);

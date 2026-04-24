@@ -9,14 +9,25 @@ import {
     type RoutedAppDefinition,
 } from "../navigation/index.ts";
 import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
+import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 
 export async function loadTargetBuildAppDefinition(
     target: NormalizedMainzTarget,
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<DefinedApp | undefined> {
     const appFile = resolveTargetAppFile(target, cwd);
     if (!appFile) {
         return undefined;
+    }
+
+    if (!target.appFile?.trim()) {
+        try {
+            await platform.stat(appFile);
+        } catch {
+            return undefined;
+        }
     }
 
     const resolvedAppFile = normalizePathSlashes(resolve(cwd, appFile));
@@ -26,7 +37,7 @@ export async function loadTargetBuildAppDefinition(
 
     try {
         const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
-            return await import(moduleUrl) as Record<string, unknown>;
+            return await platform.importModule<Record<string, unknown>>(moduleUrl);
         });
         const candidates = resolveDefinedAppDefinitionsFromModuleExports(moduleExports);
         if (app && !candidates.includes(app)) {
@@ -71,8 +82,9 @@ export async function loadTargetBuildAppDefinition(
 export async function loadTargetBuildRoutedAppDefinition(
     target: NormalizedMainzTarget,
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<RoutedAppDefinition | undefined> {
-    const appDefinition = await loadTargetBuildAppDefinition(target, cwd);
+    const appDefinition = await loadTargetBuildAppDefinition(target, cwd, platform);
     return appDefinition && "pages" in appDefinition ? appDefinition : undefined;
 }
 

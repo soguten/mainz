@@ -1,4 +1,9 @@
 /**
+ * Tooling platform selected for a Mainz project.
+ */
+export type MainzPlatform = "deno" | "node" | "bun";
+
+/**
  * Configuration for one Mainz build/dev/test target.
  */
 export interface MainzTargetDefinition {
@@ -62,6 +67,8 @@ export interface TargetBuildDefinition {
  * Root Mainz project configuration.
  */
 export interface MainzConfig {
+    /** Project-level tooling platform selection. */
+    platform?: MainzPlatform;
     /** Targets known to Mainz CLI commands. */
     targets: readonly MainzTargetDefinition[];
 }
@@ -106,6 +113,8 @@ export interface NormalizedTargetBuildDefinition {
  * Normalized root Mainz project configuration.
  */
 export interface NormalizedMainzConfig {
+    /** Normalized project-level tooling platform selection. */
+    platform: MainzPlatform;
     /** Normalized target definitions. */
     targets: NormalizedMainzTarget[];
 }

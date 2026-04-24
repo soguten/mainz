@@ -1,6 +1,6 @@
 {
     "$schema": "https://jsr.io/schema/config-file.v1.json",
-    "name": "@mainz/mainz",
+    "name": "@mainz/platform-deno",
     "version": "0.1.0-alpha.27",
     "license": "MIT",
     "compilerOptions": {
@@ -17,22 +17,13 @@
         "vite": "npm:vite@7.3.1"
     },
     "exports": {
-        ".": "./mod.ts",
-        "./cli": "./src/cli/mainz.ts",
-        "./config": "./src/public/config.ts",
-        "./di": "./src/public/di.ts",
-        "./http": "./src/public/http.ts",
-        "./http/testing": "./src/public/http-testing.ts",
-        "./i18n": "./src/public/i18n.ts",
-        "./testing": "./src/public/testing.ts",
-        "./jsx-runtime": "./src/jsx-runtime.ts",
-        "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
+        ".": "./mod.platform-deno.ts"
     },
     "publish": {
         "include": [
             "LICENSE",
-            "README.md",
-            "mod.ts",
+            "README.platform-deno.md",
+            "mod.platform-deno.ts",
             "src/**"
         ],
         "exclude": [

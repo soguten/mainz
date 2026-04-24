@@ -7,6 +7,7 @@ export { defineMainzConfig, defineTargetBuild } from "../config/definition.ts";
 export type {
     LoadedMainzConfig,
     MainzConfig,
+    MainzPlatform,
     MainzTargetDefinition,
     MainzTargetViteAlias,
     MainzTargetViteOptions,

@@ -1,0 +1,32 @@
+{
+    "$schema": "https://jsr.io/schema/config-file.v1.json",
+    "name": "@mainz/platform-node",
+    "version": "0.1.0-alpha.27",
+    "license": "MIT",
+    "compilerOptions": {
+        "lib": [
+            "dom",
+            "deno.ns",
+            "es2022"
+        ],
+        "strict": true
+    },
+    "exports": {
+        ".": "./mod.platform-node.ts"
+    },
+    "publish": {
+        "include": [
+            "LICENSE",
+            "README.platform-node.md",
+            "mod.platform-node.ts",
+            "src/**"
+        ],
+        "exclude": [
+            "**/tests/**",
+            "src/tests/**",
+            "**/*.fixture.ts",
+            "**/*.fixture.tsx",
+            "**/_template.*"
+        ]
+    }
+}

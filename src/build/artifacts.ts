@@ -31,6 +31,8 @@ import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 import { type RoutedAppDefinition } from "../navigation/index.ts";
 import { type ResolvedBuildProfile, resolveEffectiveNavigationMode } from "./profiles.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
+import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 
 export interface ArtifactBuildJob {
     target: NormalizedMainzTarget;
@@ -53,6 +55,7 @@ export async function emitSsgArtifacts(
     job: ArtifactBuildJob,
     modeOutDir: string,
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<void> {
     const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
         await resolveStaticRouteBuildContext(
@@ -61,6 +64,7 @@ export async function emitSsgArtifacts(
             modeOutDir,
             cwd,
             "SSG",
+            platform,
         );
 
     for (const entry of outputEntries) {
@@ -131,15 +135,15 @@ export async function emitSsgArtifacts(
         });
         html = applyRouteHead(html, { head: routeHead });
 
-        await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
-        await Deno.writeTextFile(absoluteOutputPath, html);
+        await platform.mkdir(dirname(absoluteOutputPath), { recursive: true });
+        await platform.writeTextFile(absoluteOutputPath, html);
     }
 
     const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
-    await Deno.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
+    await platform.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
 
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
-    await Deno.writeTextFile(
+    await platform.writeTextFile(
         hydrationManifestPath,
         JSON.stringify(
             {
@@ -160,7 +164,7 @@ export async function emitSsgArtifacts(
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
-        await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
+        await platform.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
 }
 
@@ -169,6 +173,7 @@ export async function emitCsrRouteArtifacts(
     job: ArtifactBuildJob,
     modeOutDir: string,
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<void> {
     const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
         await resolveStaticRouteBuildContext(
@@ -177,6 +182,7 @@ export async function emitCsrRouteArtifacts(
             modeOutDir,
             cwd,
             "CSR document",
+            platform,
         );
 
     for (const entry of outputEntries) {
@@ -236,15 +242,15 @@ export async function emitCsrRouteArtifacts(
         html = setHtmlLang(html, entry.locale);
         html = applyRouteHead(html, { head: routeHead });
 
-        await Deno.mkdir(dirname(absoluteOutputPath), { recursive: true });
-        await Deno.writeTextFile(absoluteOutputPath, html);
+        await platform.mkdir(dirname(absoluteOutputPath), { recursive: true });
+        await platform.writeTextFile(absoluteOutputPath, html);
     }
 
     const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
-    await Deno.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
+    await platform.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
 
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
-    await Deno.writeTextFile(
+    await platform.writeTextFile(
         hydrationManifestPath,
         JSON.stringify(
             {
@@ -265,11 +271,12 @@ export async function emitCsrRouteArtifacts(
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
-        await Deno.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
+        await platform.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
 }
 
 export async function emitCsrSpaAppShellMetadata(args: {
+    platform?: MainzToolingPlatform;
     modeOutDir: string;
     cwd: string;
     documentLanguage?: string;
@@ -280,8 +287,9 @@ export async function emitCsrSpaAppShellMetadata(args: {
     }
 
     const indexHtmlPath = resolve(args.cwd, args.modeOutDir, "index.html");
-    const html = await Deno.readTextFile(indexHtmlPath);
-    await Deno.writeTextFile(indexHtmlPath, setHtmlLang(html, normalizedDocumentLanguage));
+    const platform = args.platform ?? denoToolingPlatform;
+    const html = await platform.readTextFile(indexHtmlPath);
+    await platform.writeTextFile(indexHtmlPath, setHtmlLang(html, normalizedDocumentLanguage));
 }
 
 async function resolveStaticRouteBuildContext(
@@ -290,6 +298,7 @@ async function resolveStaticRouteBuildContext(
     modeOutDir: string,
     cwd: string,
     buildLabel: string,
+    platform: MainzToolingPlatform,
 ): Promise<{
     templateHtml: string;
     manifest: ReturnType<typeof buildTargetRouteManifest>;
@@ -297,9 +306,21 @@ async function resolveStaticRouteBuildContext(
     routeById: Map<string, ReturnType<typeof buildTargetRouteManifest>["routes"][number]>;
     targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
 }> {
-    const templateHtml = await readBuildTemplateHtml(modeOutDir, cwd, job.target.name, buildLabel);
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd);
-    const manifest = await resolveTargetRouteBuildContext(config, job, cwd, appDefinition);
+    const templateHtml = await readBuildTemplateHtml(
+        modeOutDir,
+        cwd,
+        job.target.name,
+        buildLabel,
+        platform,
+    );
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, platform);
+    const manifest = await resolveTargetRouteBuildContext(
+        config,
+        job,
+        cwd,
+        appDefinition,
+        platform,
+    );
     const targetI18n = resolveTargetI18nConfig(appDefinition);
     const buildServiceContainer = await resolveTargetBuildServiceContainer(job.target, cwd);
     const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(
@@ -307,6 +328,7 @@ async function resolveStaticRouteBuildContext(
         cwd,
         buildServiceContainer,
         job.profile,
+        platform,
     );
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
         localePrefix: targetI18n?.localePrefix,
@@ -329,6 +351,7 @@ async function resolveSsgRouteEntriesByRouteId(
     cwd: string,
     buildServiceContainer?: ServiceContainer,
     profile?: ResolvedBuildProfile,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
     const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
 
@@ -337,7 +360,7 @@ async function resolveSsgRouteEntriesByRouteId(
             continue;
         }
 
-        const pageCtor = await loadRoutePageConstructor(route, cwd);
+        const pageCtor = await loadRoutePageConstructor(route, cwd, platform);
         if (typeof pageCtor.entries !== "function") {
             throw new Error(
                 `SSG route "${route.path}" must define static entries() to expand dynamic params.`,
@@ -388,8 +411,9 @@ async function resolveSsgRouteEntriesByRouteId(
 async function resolveTargetBuildServiceContainer(
     target: NormalizedMainzTarget,
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<ServiceContainer | undefined> {
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, platform);
     return appDefinition?.services?.length
         ? createServiceContainer(appDefinition.services)
         : undefined;
@@ -398,6 +422,7 @@ async function resolveTargetBuildServiceContainer(
 async function loadRoutePageConstructor(
     route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
     cwd: string,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<PageConstructor> {
     if (!route.file || !route.exportName) {
         throw new Error(
@@ -408,7 +433,7 @@ async function loadRoutePageConstructor(
     const moduleUrl = `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${
         Math.random().toString(36).slice(2)
     }`;
-    const moduleExports = await import(moduleUrl) as Record<string, unknown>;
+    const moduleExports = await platform.importModule<Record<string, unknown>>(moduleUrl);
     const exportedValue = moduleExports[route.exportName];
 
     if (typeof exportedValue !== "function") {
@@ -449,11 +474,12 @@ async function readBuildTemplateHtml(
     cwd: string,
     targetName: string,
     buildLabel: string,
+    platform: MainzToolingPlatform,
 ): Promise<string> {
     const indexHtmlPath = resolve(cwd, modeOutDir, "index.html");
 
     try {
-        return await Deno.readTextFile(indexHtmlPath);
+        return await platform.readTextFile(indexHtmlPath);
     } catch {
         throw new Error(
             `${buildLabel} build for target "${targetName}" requires "${indexHtmlPath}" to exist.`,
@@ -466,12 +492,13 @@ async function resolveTargetRouteBuildContext(
     job: ArtifactBuildJob,
     cwd: string,
     appDefinition?: RoutedAppDefinition,
+    platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const { discoveredPages, discoveryErrors } =
-        await resolveTargetDiscoveredPagesForTarget(
-            job.target,
-            cwd,
-        );
+    const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
+        job.target,
+        cwd,
+        platform,
+    );
     if (discoveryErrors?.length) {
         throw new Error(
             discoveryErrors.map((entry) => `${entry.file}: ${entry.message}`).join("\n"),

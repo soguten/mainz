@@ -24,6 +24,15 @@ Deno.test("cli/package-version: should ignore non-Mainz JSR module URLs", () => 
     );
 });
 
+Deno.test("cli/package-version: should resolve the Mainz specifier from platform package URLs", () => {
+    assertEquals(
+        resolvePublishedMainzSpecifierFromModuleUrl(
+            "https://jsr.io/@mainz/platform-deno/0.1.0-alpha.26/mod.platform-deno.ts",
+        ),
+        "jsr:@mainz/mainz@0.1.0-alpha.26",
+    );
+});
+
 Deno.test("cli/package-version: should read the local package version for file URLs", async () => {
     const root = await Deno.makeTempDir({ prefix: "mainz-package-version-" });
 

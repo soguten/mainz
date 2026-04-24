@@ -13,7 +13,22 @@ Deno.test("config/target-vite: should allow targets without viteConfig", () => {
         ],
     });
 
+    assertEquals(config.platform, "deno");
     assertEquals(config.targets[0].viteConfig, undefined);
+});
+
+Deno.test("config/target-vite: should normalize project-level platform", () => {
+    const config = normalizeMainzConfig({
+        platform: "node",
+        targets: [
+            {
+                name: "site",
+                rootDir: "./site",
+            },
+        ],
+    });
+
+    assertEquals(config.platform, "node");
 });
 
 Deno.test("config/target-vite: should keep explicit viteConfig as the advanced path", () => {

@@ -32,7 +32,11 @@ function resolvePublishedMainzVersionFromModuleUrl(moduleUrl: string): string | 
     }
 
     const segments = url.pathname.split("/").filter(Boolean);
-    if (segments[0] !== "@mainz" || segments[1] !== "mainz") {
+    if (segments[0] !== "@mainz") {
+        return undefined;
+    }
+
+    if (!segments[1]?.startsWith("mainz") && !segments[1]?.startsWith("platform-")) {
         return undefined;
     }
 
