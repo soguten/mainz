@@ -31,8 +31,8 @@ import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 import { type RoutedAppDefinition } from "../navigation/index.ts";
 import { type ResolvedBuildProfile, resolveEffectiveNavigationMode } from "./profiles.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
-import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 
 export interface ArtifactBuildJob {
     target: NormalizedMainzTarget;
@@ -55,7 +55,7 @@ export async function emitSsgArtifacts(
     job: ArtifactBuildJob,
     modeOutDir: string,
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
         await resolveStaticRouteBuildContext(
@@ -64,7 +64,7 @@ export async function emitSsgArtifacts(
             modeOutDir,
             cwd,
             "SSG",
-            platform,
+            runtime,
         );
 
     for (const entry of outputEntries) {
@@ -135,15 +135,15 @@ export async function emitSsgArtifacts(
         });
         html = applyRouteHead(html, { head: routeHead });
 
-        await platform.mkdir(dirname(absoluteOutputPath), { recursive: true });
-        await platform.writeTextFile(absoluteOutputPath, html);
+        await runtime.mkdir(dirname(absoluteOutputPath), { recursive: true });
+        await runtime.writeTextFile(absoluteOutputPath, html);
     }
 
     const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
-    await platform.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
+    await runtime.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
 
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
-    await platform.writeTextFile(
+    await runtime.writeTextFile(
         hydrationManifestPath,
         JSON.stringify(
             {
@@ -164,7 +164,7 @@ export async function emitSsgArtifacts(
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
-        await platform.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
+        await runtime.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
 }
 
@@ -173,7 +173,7 @@ export async function emitCsrRouteArtifacts(
     job: ArtifactBuildJob,
     modeOutDir: string,
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
         await resolveStaticRouteBuildContext(
@@ -182,7 +182,7 @@ export async function emitCsrRouteArtifacts(
             modeOutDir,
             cwd,
             "CSR document",
-            platform,
+            runtime,
         );
 
     for (const entry of outputEntries) {
@@ -242,15 +242,15 @@ export async function emitCsrRouteArtifacts(
         html = setHtmlLang(html, entry.locale);
         html = applyRouteHead(html, { head: routeHead });
 
-        await platform.mkdir(dirname(absoluteOutputPath), { recursive: true });
-        await platform.writeTextFile(absoluteOutputPath, html);
+        await runtime.mkdir(dirname(absoluteOutputPath), { recursive: true });
+        await runtime.writeTextFile(absoluteOutputPath, html);
     }
 
     const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
-    await platform.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
+    await runtime.writeTextFile(routesManifestPath, JSON.stringify(manifest, null, 2));
 
     const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
-    await platform.writeTextFile(
+    await runtime.writeTextFile(
         hydrationManifestPath,
         JSON.stringify(
             {
@@ -271,12 +271,12 @@ export async function emitCsrRouteArtifacts(
         job.profile.siteUrl,
     );
     if (localeRedirectHtml) {
-        await platform.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
+        await runtime.writeTextFile(resolve(cwd, modeOutDir, "index.html"), localeRedirectHtml);
     }
 }
 
 export async function emitCsrSpaAppShellMetadata(args: {
-    platform?: MainzToolingPlatform;
+    runtime?: MainzToolingRuntime;
     modeOutDir: string;
     cwd: string;
     documentLanguage?: string;
@@ -287,9 +287,9 @@ export async function emitCsrSpaAppShellMetadata(args: {
     }
 
     const indexHtmlPath = resolve(args.cwd, args.modeOutDir, "index.html");
-    const platform = args.platform ?? denoToolingPlatform;
-    const html = await platform.readTextFile(indexHtmlPath);
-    await platform.writeTextFile(indexHtmlPath, setHtmlLang(html, normalizedDocumentLanguage));
+    const runtime = args.runtime ?? denoToolingRuntime;
+    const html = await runtime.readTextFile(indexHtmlPath);
+    await runtime.writeTextFile(indexHtmlPath, setHtmlLang(html, normalizedDocumentLanguage));
 }
 
 async function resolveStaticRouteBuildContext(
@@ -298,7 +298,7 @@ async function resolveStaticRouteBuildContext(
     modeOutDir: string,
     cwd: string,
     buildLabel: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<{
     templateHtml: string;
     manifest: ReturnType<typeof buildTargetRouteManifest>;
@@ -311,15 +311,15 @@ async function resolveStaticRouteBuildContext(
         cwd,
         job.target.name,
         buildLabel,
-        platform,
+        runtime,
     );
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, platform);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, runtime);
     const manifest = await resolveTargetRouteBuildContext(
         config,
         job,
         cwd,
         appDefinition,
-        platform,
+        runtime,
     );
     const targetI18n = resolveTargetI18nConfig(appDefinition);
     const buildServiceContainer = await resolveTargetBuildServiceContainer(job.target, cwd);
@@ -328,7 +328,7 @@ async function resolveStaticRouteBuildContext(
         cwd,
         buildServiceContainer,
         job.profile,
-        platform,
+        runtime,
     );
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
         localePrefix: targetI18n?.localePrefix,
@@ -351,7 +351,7 @@ async function resolveSsgRouteEntriesByRouteId(
     cwd: string,
     buildServiceContainer?: ServiceContainer,
     profile?: ResolvedBuildProfile,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
     const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
 
@@ -360,7 +360,7 @@ async function resolveSsgRouteEntriesByRouteId(
             continue;
         }
 
-        const pageCtor = await loadRoutePageConstructor(route, cwd, platform);
+        const pageCtor = await loadRoutePageConstructor(route, cwd, runtime);
         if (typeof pageCtor.entries !== "function") {
             throw new Error(
                 `SSG route "${route.path}" must define static entries() to expand dynamic params.`,
@@ -411,9 +411,9 @@ async function resolveSsgRouteEntriesByRouteId(
 async function resolveTargetBuildServiceContainer(
     target: NormalizedMainzTarget,
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<ServiceContainer | undefined> {
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, platform);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, runtime);
     return appDefinition?.services?.length
         ? createServiceContainer(appDefinition.services)
         : undefined;
@@ -422,7 +422,7 @@ async function resolveTargetBuildServiceContainer(
 async function loadRoutePageConstructor(
     route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<PageConstructor> {
     if (!route.file || !route.exportName) {
         throw new Error(
@@ -433,7 +433,7 @@ async function loadRoutePageConstructor(
     const moduleUrl = `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${
         Math.random().toString(36).slice(2)
     }`;
-    const moduleExports = await platform.importModule<Record<string, unknown>>(moduleUrl);
+    const moduleExports = await runtime.importModule<Record<string, unknown>>(moduleUrl);
     const exportedValue = moduleExports[route.exportName];
 
     if (typeof exportedValue !== "function") {
@@ -474,12 +474,12 @@ async function readBuildTemplateHtml(
     cwd: string,
     targetName: string,
     buildLabel: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<string> {
     const indexHtmlPath = resolve(cwd, modeOutDir, "index.html");
 
     try {
-        return await platform.readTextFile(indexHtmlPath);
+        return await runtime.readTextFile(indexHtmlPath);
     } catch {
         throw new Error(
             `${buildLabel} build for target "${targetName}" requires "${indexHtmlPath}" to exist.`,
@@ -492,12 +492,12 @@ async function resolveTargetRouteBuildContext(
     job: ArtifactBuildJob,
     cwd: string,
     appDefinition?: RoutedAppDefinition,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<ReturnType<typeof buildTargetRouteManifest>> {
     const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
         job.target,
         cwd,
-        platform,
+        runtime,
     );
     if (discoveryErrors?.length) {
         throw new Error(

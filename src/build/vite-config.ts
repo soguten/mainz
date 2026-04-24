@@ -3,7 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
-import type { ToolingPlatformName } from "../tooling/platform/index.ts";
+import type { ToolingRuntimeName } from "../tooling/runtime/index.ts";
 
 export interface GeneratedViteAlias {
     find: string;
@@ -59,7 +59,7 @@ export function resolveGeneratedViteConfig(input: GeneratedViteConfigInput): Gen
 
 export function renderGeneratedViteConfigModule(
     config: GeneratedViteConfig,
-    platform: ToolingPlatformName = "deno",
+    runtime: ToolingRuntimeName = "deno",
 ): string {
     const aliases = config.aliases.map((alias) => {
         if (alias.framework) {
@@ -80,7 +80,7 @@ export function renderGeneratedViteConfigModule(
         `    base: ${JSON.stringify(config.base)},`,
     ];
 
-    if (platform === "deno") {
+    if (runtime === "deno") {
         imports.unshift(`import deno from "@deno/vite-plugin";`);
         configLines.push(
             `    plugins: deno({`,

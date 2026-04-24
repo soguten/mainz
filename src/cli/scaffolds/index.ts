@@ -3,13 +3,13 @@ export { createProjectEmptyScaffold } from "./project/index.ts";
 export type {
     AppScaffold,
     AppScaffoldNavigation,
-    AppScaffoldPlatform,
+    AppScaffoldRuntime,
     AppScaffoldTarget,
     AppScaffoldType,
     CreateAppScaffoldOptions,
 } from "./app/index.ts";
 export type {
     CreateProjectEmptyScaffoldOptions,
-    EmptyProjectPlatform,
+    EmptyProjectRuntime,
     ProjectEmptyScaffold,
 } from "./project/index.ts";

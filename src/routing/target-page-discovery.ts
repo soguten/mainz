@@ -11,8 +11,8 @@ import {
     type PageDiscoveryErrorKind,
     pageDiscoveryFailedErrorKind,
 } from "./page-discovery-errors.ts";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
-import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 
 export interface CliDiscoveredPage {
     file: string;
@@ -82,11 +82,11 @@ interface ResolvedAppExpression {
 
 export async function resolveDiscoveredPagesFromDirectory(
     pagesDir: string | undefined,
-    cwd = denoToolingPlatform.cwd(),
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    cwd = denoToolingRuntime.cwd(),
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<TargetPageDiscoveryResult> {
     const pageFiles = pagesDir
-        ? await collectPageFilesInDirectory(resolve(cwd, pagesDir), platform)
+        ? await collectPageFilesInDirectory(resolve(cwd, pagesDir), runtime)
         : undefined;
     const discoveredPages: CliDiscoveredPage[] = [];
     const discoveryErrors: CliPageDiscoveryError[] = [];
@@ -117,15 +117,15 @@ export async function resolveDiscoveredPagesFromDirectory(
 
 export async function resolveTargetDiscoveredPagesForTarget(
     target: NormalizedMainzTarget,
-    cwd = denoToolingPlatform.cwd(),
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    cwd = denoToolingRuntime.cwd(),
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<TargetPageDiscoveryResult> {
     const resolvedAppFile = resolveTargetAppFile(target, cwd);
     if (resolvedAppFile) {
         const appDiscovery = await resolveTargetAppCandidatesFromAppFile(
             resolvedAppFile,
             target.appFile !== undefined,
-            platform,
+            runtime,
         );
 
         const validCandidates = selectValidTargetAppCandidates(target, appDiscovery.appCandidates);
@@ -170,8 +170,8 @@ export async function resolveTargetDiscoveredPagesForTarget(
 
 export async function resolveTargetAppDiscoveryForTarget(
     target: NormalizedMainzTarget,
-    cwd = denoToolingPlatform.cwd(),
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    cwd = denoToolingRuntime.cwd(),
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<TargetAppDiscovery> {
     const resolvedAppFile = resolveTargetAppFile(target, cwd);
     if (!resolvedAppFile) {
@@ -184,7 +184,7 @@ export async function resolveTargetAppDiscoveryForTarget(
     const appDiscovery = await resolveTargetAppCandidatesFromAppFile(
         resolvedAppFile,
         target.appFile !== undefined,
-        platform,
+        runtime,
     );
     return {
         resolvedAppFile,
@@ -194,15 +194,15 @@ export async function resolveTargetAppDiscoveryForTarget(
 
 async function collectFilesystemFiles(
     directory: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<string[]> {
     const filePaths: string[] = [];
 
-    for await (const entry of platform.readDir(directory)) {
+    for await (const entry of runtime.readDir(directory)) {
         const absolutePath = resolve(directory, entry.name);
 
         if (entry.isDirectory) {
-            const nested = await collectFilesystemFiles(absolutePath, platform);
+            const nested = await collectFilesystemFiles(absolutePath, runtime);
             filePaths.push(...nested);
             continue;
         }
@@ -217,13 +217,13 @@ async function collectFilesystemFiles(
 async function resolveTargetAppCandidatesFromAppFile(
     appFile: string,
     explicit: boolean,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<{
     appCandidates: readonly AppDiscoveryCandidate[] | undefined;
     foundAppDefinition: boolean;
 }> {
     const normalizedAppFile = normalizePathSlashes(resolve(appFile));
-    if (!await pathExists(normalizedAppFile, platform)) {
+    if (!await pathExists(normalizedAppFile, runtime)) {
         if (!explicit) {
             return {
                 appCandidates: undefined,
@@ -248,7 +248,7 @@ async function resolveTargetAppCandidatesFromAppFile(
 
     let source: string;
     try {
-        source = await platform.readTextFile(normalizedAppFile);
+        source = await runtime.readTextFile(normalizedAppFile);
     } catch (error) {
         return {
             appCandidates: [{
@@ -268,9 +268,9 @@ async function resolveTargetAppCandidatesFromAppFile(
     }
 
     const contexts = new Map<string, AppFileContext>();
-    const context = await createAppFileContext(normalizedAppFile, source, platform);
+    const context = await createAppFileContext(normalizedAppFile, source, runtime);
     contexts.set(normalizedAppFile, context);
-    const appResolutions = await collectAppDefinitions(context, contexts, platform);
+    const appResolutions = await collectAppDefinitions(context, contexts, runtime);
     if (appResolutions.length === 0) {
         return {
             appCandidates: undefined,
@@ -292,7 +292,7 @@ async function resolveTargetAppCandidatesFromAppFile(
 async function createAppFileContext(
     file: string,
     source: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<AppFileContext> {
     const sourceFile = ts.createSourceFile(
         file,
@@ -306,7 +306,7 @@ async function createAppFileContext(
         file,
         sourceFile,
         variables: collectTopLevelVariableExpressions(sourceFile),
-        imports: await collectImports(sourceFile, file, platform),
+        imports: await collectImports(sourceFile, file, runtime),
         exportedBindings: collectExportedBindings(sourceFile),
     };
 }
@@ -314,15 +314,15 @@ async function createAppFileContext(
 function collectAppDefinitions(
     context: AppFileContext,
     contexts: Map<string, AppFileContext>,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<readonly RoutedAppDefinitionResolution[]> {
-    return collectAppDefinitionsInternal(context, contexts, platform);
+    return collectAppDefinitionsInternal(context, contexts, runtime);
 }
 
 async function collectAppDefinitionsInternal(
     context: AppFileContext,
     contexts: Map<string, AppFileContext>,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<readonly RoutedAppDefinitionResolution[]> {
     const found: RoutedAppDefinitionResolution[] = [];
     const seen = new Set<string>();
@@ -343,7 +343,7 @@ async function collectAppDefinitionsInternal(
             contexts,
             new Set<string>(),
             callee === "defineApp",
-            platform,
+            runtime,
         );
         for (const candidate of candidates) {
             const candidateKey =
@@ -366,7 +366,7 @@ async function collectAppDefinitionExpressions(
     contexts: Map<string, AppFileContext>,
     visitedReferences: Set<string>,
     allowObjectLiteral: boolean,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<readonly RoutedAppDefinitionResolution[]> {
     const normalizedExpression = expression ? unwrapExpression(expression) : undefined;
     if (!normalizedExpression) {
@@ -392,7 +392,7 @@ async function collectAppDefinitionExpressions(
             contexts,
             visitedReferences,
             true,
-            platform,
+            runtime,
         );
     }
 
@@ -404,7 +404,7 @@ async function collectAppDefinitionExpressions(
                 contexts,
                 new Set(visitedReferences),
                 allowObjectLiteral,
-                platform,
+                runtime,
             ),
             ...await collectAppDefinitionExpressions(
                 normalizedExpression.whenFalse,
@@ -412,7 +412,7 @@ async function collectAppDefinitionExpressions(
                 contexts,
                 new Set(visitedReferences),
                 allowObjectLiteral,
-                platform,
+                runtime,
             ),
         ];
     }
@@ -431,7 +431,7 @@ async function collectAppDefinitionExpressions(
         context,
         contexts,
         normalizedExpression.text,
-        platform,
+        runtime,
     );
     if (!resolved) {
         return [];
@@ -443,7 +443,7 @@ async function collectAppDefinitionExpressions(
         contexts,
         visitedReferences,
         allowObjectLiteral,
-        platform,
+        runtime,
     );
 }
 
@@ -642,7 +642,7 @@ async function resolveIdentifierExpression(
     context: AppFileContext,
     contexts: Map<string, AppFileContext>,
     identifierName: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<ResolvedAppExpression | undefined> {
     const localVariable = context.variables.get(identifierName);
     if (localVariable) {
@@ -660,7 +660,7 @@ async function resolveIdentifierExpression(
     const importedContext = await loadAppFileContext(
         importedBinding.sourceFile,
         contexts,
-        platform,
+        runtime,
     );
     if (!importedContext) {
         return undefined;
@@ -680,7 +680,7 @@ async function resolveIdentifierExpression(
 async function loadAppFileContext(
     file: string,
     contexts: Map<string, AppFileContext>,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<AppFileContext | undefined> {
     const normalizedFile = normalizePathSlashes(resolve(file));
     const cached = contexts.get(normalizedFile);
@@ -690,12 +690,12 @@ async function loadAppFileContext(
 
     let source: string;
     try {
-        source = await platform.readTextFile(normalizedFile);
+        source = await runtime.readTextFile(normalizedFile);
     } catch {
         return undefined;
     }
 
-    const context = await createAppFileContext(normalizedFile, source, platform);
+    const context = await createAppFileContext(normalizedFile, source, runtime);
     contexts.set(normalizedFile, context);
     return context;
 }
@@ -843,7 +843,7 @@ function collectTopLevelVariableExpressions(
 async function collectImports(
     sourceFile: ts.SourceFile,
     file: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<ReadonlyMap<string, ImportedBinding>> {
     const imports = new Map<string, ImportedBinding>();
 
@@ -857,7 +857,7 @@ async function collectImports(
             continue;
         }
 
-        const resolvedImport = await resolveImportPath(file, importPath, platform);
+        const resolvedImport = await resolveImportPath(file, importPath, runtime);
         if (!resolvedImport) {
             continue;
         }
@@ -917,7 +917,7 @@ function collectExportedBindings(sourceFile: ts.SourceFile): ReadonlyMap<string,
 async function resolveImportPath(
     file: string,
     importPath: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<string | undefined> {
     const basePath = file.slice(0, Math.max(file.lastIndexOf("/"), 0));
     const candidateBase = normalizePathSegments(`${basePath}/${importPath}`);
@@ -932,7 +932,7 @@ async function resolveImportPath(
     ];
 
     for (const candidate of candidates) {
-        if (await pathExists(candidate, platform)) {
+        if (await pathExists(candidate, runtime)) {
             return candidate.replaceAll("\\", "/");
         }
     }
@@ -969,9 +969,9 @@ function hasExportModifier(node: ts.Node): boolean {
 
 async function collectPageFilesInDirectory(
     pagesDir: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<string[]> {
-    return await collectFilesystemFiles(pagesDir, platform);
+    return await collectFilesystemFiles(pagesDir, runtime);
 }
 
 export function resolveTargetAppFile(
@@ -1077,9 +1077,9 @@ async function visitNodeAsync(
     }
 }
 
-async function pathExists(path: string, platform: MainzToolingPlatform): Promise<boolean> {
+async function pathExists(path: string, runtime: MainzToolingRuntime): Promise<boolean> {
     try {
-        await platform.stat(path);
+        await runtime.stat(path);
         return true;
     } catch {
         return false;

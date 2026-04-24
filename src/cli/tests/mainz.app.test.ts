@@ -22,7 +22,7 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
         assertStringIncludes(config, 'import { defineMainzConfig } from "mainz/config";');
-        assertStringIncludes(config, 'platform: "deno"');
+        assertStringIncludes(config, 'runtime: "deno"');
         assertStringIncludes(config, "targets: [");
 
         const denoConfig = JSON.parse(
@@ -66,7 +66,7 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
-        assertStringIncludes(config, 'platform: "deno"');
+        assertStringIncludes(config, 'runtime: "deno"');
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, "    ],");
@@ -75,12 +75,12 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
     }
 });
 
-Deno.test("cli/mainz init: should initialize an empty node project with --platform", async () => {
+Deno.test("cli/mainz init: should initialize an empty node project with --runtime", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-" });
 
     try {
         const result = await runMainz(cwd, [
-            "--platform",
+            "--runtime",
             "node",
             "init",
             "--mainz",
@@ -91,7 +91,7 @@ Deno.test("cli/mainz init: should initialize an empty node project with --platfo
         assertStringIncludes(result.stdout, "Initialized Mainz project");
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
-        assertStringIncludes(config, 'platform: "node"');
+        assertStringIncludes(config, 'runtime: "node"');
 
         const packageJson = JSON.parse(await Deno.readTextFile(resolve(cwd, "package.json"))) as {
             dependencies?: Record<string, string>;
@@ -115,12 +115,12 @@ Deno.test("cli/mainz init: should initialize an empty node project with --platfo
     }
 });
 
-Deno.test("cli/mainz init: should let app create keep node as the project platform", async () => {
+Deno.test("cli/mainz init: should let app create keep node as the project runtime", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-app-create-" });
 
     try {
         const init = await runMainz(cwd, [
-            "--platform",
+            "--runtime",
             "node",
             "init",
             "--mainz",
@@ -132,7 +132,7 @@ Deno.test("cli/mainz init: should let app create keep node as the project platfo
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
-        assertStringIncludes(config, 'platform: "node"');
+        assertStringIncludes(config, 'runtime: "node"');
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, "    ],");
@@ -238,7 +238,7 @@ Deno.test("cli/mainz app: create should scaffold an app workspace and target", a
 
         const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
         assertStringIncludes(config, 'import { defineMainzConfig } from "mainz/config";');
-        assertStringIncludes(config, 'platform: "deno"');
+        assertStringIncludes(config, 'runtime: "deno"');
         assertStringIncludes(config, 'name: "docs"');
         assertStringIncludes(config, 'rootDir: "./docs"');
         assertStringIncludes(config, 'appFile: "./docs/src/app.ts"');

@@ -7,9 +7,9 @@ export type AppScaffoldType = "routed" | "root";
  */
 export type AppScaffoldNavigation = "spa" | "mpa" | "enhanced-mpa";
 /**
- * Tooling platforms that can materialize an app scaffold.
+ * Tooling runtimes that can materialize an app scaffold.
  */
-export type AppScaffoldPlatform = "deno" | "node" | "bun";
+export type AppScaffoldRuntime = "deno" | "node" | "bun";
 
 /**
  * Generated target metadata for a scaffolded app.
@@ -53,8 +53,8 @@ export type CreateAppScaffoldOptions = {
     outDir: string;
     /** Navigation mode configured for the generated app. */
     navigation: AppScaffoldNavigation;
-    /** Tooling platform used to materialize host-specific files when needed. */
-    platform?: AppScaffoldPlatform;
+    /** Tooling runtime used to materialize host-specific files when needed. */
+    runtime?: AppScaffoldRuntime;
 };
 
 /**

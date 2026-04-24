@@ -1,7 +1,7 @@
 /**
- * Supported Mainz tooling platforms.
+ * Supported Mainz tooling runtimes.
  */
-export type ToolingPlatformName = "deno" | "node" | "bun";
+export type ToolingRuntimeName = "deno" | "node" | "bun";
 
 /**
  * Process stdio modes supported by tooling commands.
@@ -31,7 +31,7 @@ export interface ToolingDirEntry {
 }
 
 /**
- * A platform-resolved process invocation.
+ * A runtime-resolved process invocation.
  */
 export interface ToolingCommand {
     /** Executable to launch. */
@@ -75,9 +75,9 @@ export interface ToolingViteCommandOptions {
 /**
  * Runtime-specific host operations used by Mainz tooling.
  */
-export interface MainzToolingPlatform {
-    /** Public platform name used by Mainz config and CLI resolution. */
-    readonly name: ToolingPlatformName;
+export interface MainzToolingRuntime {
+    /** Public runtime name used by Mainz config and CLI resolution. */
+    readonly name: ToolingRuntimeName;
     /** Returns the current working directory for the host runtime. */
     cwd(): string;
     /** Reads a UTF-8 text file from the host filesystem. */

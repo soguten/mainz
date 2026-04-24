@@ -5,12 +5,12 @@ import { createProjectEmptyScaffold } from "../scaffolds/index.ts";
 
 Deno.test("cli/scaffolds/project: empty deno should compose base config and deno files", () => {
     const scaffold = createProjectEmptyScaffold({
-        platform: "deno",
+        runtime: "deno",
         mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
     });
 
     assertEquals([...scaffold.files.keys()], ["mainz.config.ts", "deno.json"]);
-    assertStringIncludes(scaffold.files.get("mainz.config.ts") ?? "", 'platform: "deno"');
+    assertStringIncludes(scaffold.files.get("mainz.config.ts") ?? "", 'runtime: "deno"');
     assertStringIncludes(
         scaffold.files.get("deno.json") ?? "",
         '"mainz": "jsr:@mainz/mainz@0.1.0-alpha.99"',
@@ -19,7 +19,7 @@ Deno.test("cli/scaffolds/project: empty deno should compose base config and deno
 
 Deno.test("cli/scaffolds/project: empty node should compose base config and node files", () => {
     const scaffold = createProjectEmptyScaffold({
-        platform: "node",
+        runtime: "node",
         mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
     });
 
@@ -27,7 +27,7 @@ Deno.test("cli/scaffolds/project: empty node should compose base config and node
         [...scaffold.files.keys()],
         ["mainz.config.ts", "package.json", ".npmrc", "tsconfig.json"],
     );
-    assertStringIncludes(scaffold.files.get("mainz.config.ts") ?? "", 'platform: "node"');
+    assertStringIncludes(scaffold.files.get("mainz.config.ts") ?? "", 'runtime: "node"');
     assertStringIncludes(
         scaffold.files.get("package.json") ?? "",
         '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',

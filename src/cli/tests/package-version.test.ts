@@ -24,10 +24,10 @@ Deno.test("cli/package-version: should ignore non-Mainz JSR module URLs", () => 
     );
 });
 
-Deno.test("cli/package-version: should resolve the Mainz specifier from platform package URLs", () => {
+Deno.test("cli/package-version: should resolve the Mainz specifier from runtime package URLs", () => {
     assertEquals(
         resolvePublishedMainzSpecifierFromModuleUrl(
-            "https://jsr.io/@mainz/platform-deno/0.1.0-alpha.26/mod.platform-deno.ts",
+            "https://jsr.io/@mainz/runtime-deno/0.1.0-alpha.26/mod.runtime-deno.ts",
         ),
         "jsr:@mainz/mainz@0.1.0-alpha.26",
     );

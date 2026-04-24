@@ -1,5 +1,5 @@
 import type {
-    MainzToolingPlatform,
+    MainzToolingRuntime,
     ToolingCommand,
     ToolingCommandResult,
     ToolingDirEntry,
@@ -10,7 +10,7 @@ import type {
 /**
  * Mainz tooling host implementation for Deno.
  */
-export class DenoToolingPlatform implements MainzToolingPlatform {
+export class DenoToolingRuntime implements MainzToolingRuntime {
     readonly name = "deno" as const;
 
     cwd(): string {
@@ -118,6 +118,6 @@ export class DenoToolingPlatform implements MainzToolingPlatform {
 }
 
 /**
- * Shared Deno tooling platform instance.
+ * Shared Deno tooling runtime instance.
  */
-export const denoToolingPlatform: DenoToolingPlatform = new DenoToolingPlatform();
+export const denoToolingRuntime: DenoToolingRuntime = new DenoToolingRuntime();

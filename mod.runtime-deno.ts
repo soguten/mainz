@@ -5,37 +5,37 @@
  */
 
 import { main } from "./src/cli/mainz.ts";
-import { denoToolingPlatform as internalDenoToolingPlatform } from "./src/tooling/platform/deno.ts";
-import type { MainzToolingPlatform } from "./src/tooling/platform/types.ts";
+import { denoToolingRuntime as internalDenoToolingRuntime } from "./src/tooling/runtime/deno.ts";
+import type { MainzToolingRuntime } from "./src/tooling/runtime/types.ts";
 
 export { main } from "./src/cli/mainz.ts";
 export { createAppScaffold, createProjectEmptyScaffold } from "./src/cli/scaffolds/index.ts";
 export type {
     AppScaffold,
     AppScaffoldNavigation,
-    AppScaffoldPlatform,
+    AppScaffoldRuntime,
     AppScaffoldTarget,
     AppScaffoldType,
     CreateAppScaffoldOptions,
     CreateProjectEmptyScaffoldOptions,
-    EmptyProjectPlatform,
+    EmptyProjectRuntime,
     ProjectEmptyScaffold,
 } from "./src/cli/scaffolds/index.ts";
 export type {
-    MainzToolingPlatform,
+    MainzToolingRuntime,
     ToolingCommand,
     ToolingCommandResult,
     ToolingCommandStdio,
     ToolingDirEntry,
     ToolingFileStat,
-    ToolingPlatformName,
+    ToolingRuntimeName,
     ToolingViteCommandOptions,
-} from "./src/tooling/platform/types.ts";
+} from "./src/tooling/runtime/types.ts";
 
 /**
- * Shared Deno tooling platform instance exposed by the published package.
+ * Shared Deno tooling runtime instance exposed by the published package.
  */
-export const denoToolingPlatform: MainzToolingPlatform = internalDenoToolingPlatform;
+export const denoToolingRuntime: MainzToolingRuntime = internalDenoToolingRuntime;
 
 if (import.meta.main) {
     await main(Deno.args);

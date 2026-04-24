@@ -1,6 +1,6 @@
 {
     "$schema": "https://jsr.io/schema/config-file.v1.json",
-    "name": "@mainz/platform-node",
+    "name": "@mainz/runtime-deno",
     "version": "0.1.0-alpha.31",
     "license": "MIT",
     "compilerOptions": {
@@ -11,14 +11,19 @@
         ],
         "strict": true
     },
+    "imports": {
+        "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+        "happy-dom": "npm:happy-dom@20.1.0",
+        "vite": "npm:vite@7.3.1"
+    },
     "exports": {
-        ".": "./mod.platform-node.ts"
+        ".": "./mod.runtime-deno.ts"
     },
     "publish": {
         "include": [
             "LICENSE",
-            "README.platform-node.md",
-            "mod.platform-node.ts",
+            "README.runtime-deno.md",
+            "mod.runtime-deno.ts",
             "src/**"
         ],
         "exclude": [

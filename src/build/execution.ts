@@ -1,8 +1,8 @@
 import { join, resolve } from "node:path";
 import type { NormalizedMainzConfig } from "../config/index.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
-import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 import {
     emitCsrRouteArtifacts,
@@ -18,31 +18,31 @@ import { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./v
 export async function runBuildJobs(
     config: NormalizedMainzConfig,
     jobs: BuildJob[],
-    cwd = denoToolingPlatform.cwd(),
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    cwd = denoToolingRuntime.cwd(),
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     for (const job of jobs) {
-        await runSingleBuild(config, job, cwd, platform);
+        await runSingleBuild(config, job, cwd, runtime);
     }
 }
 
 export async function runSingleBuild(
     config: NormalizedMainzConfig,
     job: BuildJob,
-    cwd = denoToolingPlatform.cwd(),
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    cwd = denoToolingRuntime.cwd(),
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));
     const navigationMode = await resolveEffectiveNavigationMode(
         job.target,
         job.profile,
         cwd,
-        platform,
+        runtime,
     );
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, platform);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, runtime);
     const targetI18n = resolveTargetI18nConfig(appDefinition);
     const viteConfig = await resolveViteConfigPathForBuild({
-        platform,
+        runtime,
         cwd,
         job,
         modeOutDir,
@@ -57,7 +57,7 @@ export async function runSingleBuild(
 
     try {
         await runViteBuild({
-            platform,
+            runtime,
             cwd,
             viteConfigPath: viteConfig.path,
             modeOutDir,
@@ -76,18 +76,18 @@ export async function runSingleBuild(
     }
 
     if (job.mode === "ssg") {
-        await emitSsgArtifacts(config, job, modeOutDir, cwd, platform);
+        await emitSsgArtifacts(config, job, modeOutDir, cwd, runtime);
         return;
     }
 
     if (job.mode === "csr" && navigationMode !== "spa") {
-        await emitCsrRouteArtifacts(config, job, modeOutDir, cwd, platform);
+        await emitCsrRouteArtifacts(config, job, modeOutDir, cwd, runtime);
         return;
     }
 
     if (job.mode === "csr" && navigationMode === "spa") {
         await emitCsrSpaAppShellMetadata({
-            platform,
+            runtime,
             modeOutDir,
             cwd,
             documentLanguage: targetI18n?.defaultLocale,
@@ -102,10 +102,10 @@ export async function runDevServer(args: {
     host?: string | true;
     port?: number;
     cwd?: string;
-    platform?: MainzToolingPlatform;
+    runtime?: MainzToolingRuntime;
 }): Promise<void> {
-    const platform = args.platform ?? denoToolingPlatform;
-    const cwd = args.cwd ?? platform.cwd();
+    const runtime = args.runtime ?? denoToolingRuntime;
+    const cwd = args.cwd ?? runtime.cwd();
     const target = args.config.targets.find((entry) => entry.name === args.targetName);
     if (!target) {
         throw new Error(`No target matched "${args.targetName}".`);
@@ -115,13 +115,13 @@ export async function runDevServer(args: {
         target,
         args.profile,
         cwd,
-        platform,
+        runtime,
     );
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, platform);
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, runtime);
     const targetI18n = resolveTargetI18nConfig(appDefinition);
     const modeOutDir = normalizePathSlashes(join(target.outDir, "csr"));
     const viteConfig = await resolveViteConfigPathForTarget({
-        platform,
+        runtime,
         cwd,
         target,
         modeOutDir,
@@ -137,7 +137,7 @@ export async function runDevServer(args: {
 
     try {
         await runViteDevServer({
-            platform,
+            runtime,
             cwd,
             viteConfigPath: viteConfig.path,
             targetName: target.name,
@@ -158,7 +158,7 @@ export async function runDevServer(args: {
 }
 
 async function resolveViteConfigPathForBuild(args: {
-    platform: MainzToolingPlatform;
+    runtime: MainzToolingRuntime;
     cwd: string;
     job: BuildJob;
     modeOutDir: string;
@@ -176,7 +176,7 @@ async function resolveViteConfigPathForBuild(args: {
     }
 
     return await resolveViteConfigPathForTarget({
-        platform: args.platform,
+        runtime: args.runtime,
         cwd: args.cwd,
         target: args.job.target,
         modeOutDir: args.modeOutDir,
@@ -191,7 +191,7 @@ async function resolveViteConfigPathForBuild(args: {
 }
 
 async function resolveViteConfigPathForTarget(args: {
-    platform: MainzToolingPlatform;
+    runtime: MainzToolingRuntime;
     cwd: string;
     target: BuildJob["target"];
     modeOutDir: string;
@@ -209,7 +209,7 @@ async function resolveViteConfigPathForTarget(args: {
         };
     }
 
-    const tempDir = await createGeneratedViteConfigDir(args.cwd, args.platform);
+    const tempDir = await createGeneratedViteConfigDir(args.cwd, args.runtime);
     const viteConfigPath = normalizePathSlashes(resolve(tempDir, "vite.config.generated.mjs"));
     const generatedConfig = resolveGeneratedViteConfig({
         cwd: args.cwd,
@@ -224,40 +224,40 @@ async function resolveViteConfigPathForTarget(args: {
         siteUrl: args.siteUrl,
     });
 
-    await args.platform.writeTextFile(
+    await args.runtime.writeTextFile(
         viteConfigPath,
-        renderGeneratedViteConfigModule(generatedConfig, args.platform.name),
+        renderGeneratedViteConfigModule(generatedConfig, args.runtime.name),
     );
 
     return {
         path: viteConfigPath,
         async cleanup() {
-            await args.platform.remove(tempDir, { recursive: true });
+            await args.runtime.remove(tempDir, { recursive: true });
         },
     };
 }
 
 export async function createGeneratedViteConfigDir(
     cwd: string,
-    platform: MainzToolingPlatform,
+    runtime: MainzToolingRuntime,
 ): Promise<string> {
-    if (platform.name === "node") {
+    if (runtime.name === "node") {
         const tempDir = resolve(
             cwd,
             ".mainz",
             `vite-config-${Date.now()}-${Math.random().toString(16).slice(2)}`,
         );
-        await platform.mkdir(tempDir, { recursive: true });
+        await runtime.mkdir(tempDir, { recursive: true });
         return tempDir;
     }
 
-    return await platform.makeTempDir({
+    return await runtime.makeTempDir({
         prefix: "mainz-vite-config-",
     });
 }
 
 async function runViteBuild(args: {
-    platform: MainzToolingPlatform;
+    runtime: MainzToolingRuntime;
     cwd: string;
     viteConfigPath: string;
     modeOutDir: string;
@@ -270,8 +270,8 @@ async function runViteBuild(args: {
     localePrefix: "except-default" | "always";
     siteUrl?: string;
 }): Promise<void> {
-    const status = await args.platform.run({
-        ...args.platform.resolveViteBuildCommand({
+    const status = await args.runtime.run({
+        ...args.runtime.resolveViteBuildCommand({
             viteConfigPath: args.viteConfigPath,
         }),
         cwd: args.cwd,
@@ -298,7 +298,7 @@ async function runViteBuild(args: {
 }
 
 async function runViteDevServer(args: {
-    platform: MainzToolingPlatform;
+    runtime: MainzToolingRuntime;
     cwd: string;
     viteConfigPath: string;
     targetName: string;
@@ -312,8 +312,8 @@ async function runViteDevServer(args: {
     siteUrl?: string;
     modeOutDir: string;
 }): Promise<void> {
-    const status = await args.platform.run({
-        ...args.platform.resolveViteDevCommand({
+    const status = await args.runtime.run({
+        ...args.runtime.resolveViteDevCommand({
             viteConfigPath: args.viteConfigPath,
             host: args.host,
             port: args.port,

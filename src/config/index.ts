@@ -1,11 +1,11 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
-import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import {
     LoadedMainzConfig,
     MainzConfig,
-    MainzPlatform,
+    MainzRuntime,
     MainzTargetDefinition,
     MainzTargetViteAlias,
     MainzTargetViteOptions,
@@ -20,13 +20,13 @@ export { defineMainzConfig, defineTargetBuild } from "./definition.ts";
 
 export async function loadMainzConfig(
     configPath = "mainz.config.ts",
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<LoadedMainzConfig> {
     const absolutePath = resolve(configPath);
 
     let module: Record<string, unknown>;
     try {
-        module = await platform.importModule(
+        module = await runtime.importModule(
             `${pathToFileURL(absolutePath).href}?t=${Date.now()}`,
         ) as Record<string, unknown>;
     } catch (error) {
@@ -57,7 +57,7 @@ export function normalizeMainzConfig(input: MainzConfig): NormalizedMainzConfig 
     assertUniqueTargetNames(normalizedTargets);
 
     return {
-        platform: normalizeMainzPlatform(input.platform),
+        runtime: normalizeMainzRuntime(input.runtime),
         targets: normalizedTargets,
     };
 }
@@ -227,17 +227,17 @@ function normalizeTargetBuildProfile(profile: {
     };
 }
 
-function normalizeMainzPlatform(platform: MainzPlatform | undefined): MainzPlatform {
-    if (platform === undefined) {
+function normalizeMainzRuntime(runtime: MainzRuntime | undefined): MainzRuntime {
+    if (runtime === undefined) {
         return "deno";
     }
 
-    if (platform === "deno" || platform === "node" || platform === "bun") {
-        return platform;
+    if (runtime === "deno" || runtime === "node" || runtime === "bun") {
+        return runtime;
     }
 
     throw new Error(
-        `Unsupported Mainz platform "${String(platform)}". Use "deno", "node", or "bun".`,
+        `Unsupported Mainz runtime "${String(runtime)}". Use "deno", "node", or "bun".`,
     );
 }
 
@@ -302,7 +302,7 @@ function toErrorMessage(error: unknown): string {
 export type {
     LoadedMainzConfig,
     MainzConfig,
-    MainzPlatform,
+    MainzRuntime,
     MainzTargetDefinition,
     MainzTargetViteAlias,
     MainzTargetViteOptions,

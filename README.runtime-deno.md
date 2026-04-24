@@ -1,15 +1,15 @@
-# @mainz/platform-deno
+# @mainz/runtime-deno
 
 Deno-hosted Mainz tooling package.
 
 This package exposes:
 
 - the Deno Mainz CLI entrypoint
-- the Deno tooling platform adapter
+- the Deno tooling runtime adapter
 - shared scaffold builders used by `mainz init` and `mainz app create`
 
 Typical usage:
 
 ```ts
-import { denoToolingPlatform } from "@mainz/platform-deno";
+import { denoToolingRuntime } from "@mainz/runtime-deno";
 ```

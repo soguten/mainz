@@ -36,7 +36,7 @@ function resolvePublishedMainzVersionFromModuleUrl(moduleUrl: string): string | 
         return undefined;
     }
 
-    if (!segments[1]?.startsWith("mainz") && !segments[1]?.startsWith("platform-")) {
+    if (!segments[1]?.startsWith("mainz") && !segments[1]?.startsWith("runtime-")) {
         return undefined;
     }
 

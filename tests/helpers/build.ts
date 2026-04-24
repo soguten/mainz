@@ -385,7 +385,7 @@ async function buildFixtureTargetWithEngine(args: {
 }): Promise<void> {
     const cwd = args.cwd ?? cliTestsRepoRoot;
     const normalizedConfig = {
-        platform: "deno" as const,
+        runtime: "deno" as const,
         targets: [args.target],
     };
     const buildKey = [

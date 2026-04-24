@@ -71,7 +71,7 @@ async function collectSourceFiles(directory: string): Promise<string[]> {
 function isAllowedPlatformBoundaryFile(file: string): boolean {
     const normalized = normalizePathSlashes(file);
     return normalized.includes("/tests/") ||
-        normalized.includes("/tooling/platform/") ||
+        normalized.includes("/tooling/runtime/") ||
         normalized.includes("/cli/");
 }
 

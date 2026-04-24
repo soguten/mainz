@@ -1,6 +1,6 @@
 export { createProjectEmptyScaffold } from "./empty/index.ts";
 export type {
     CreateProjectEmptyScaffoldOptions,
-    EmptyProjectPlatform,
+    EmptyProjectRuntime,
     ProjectEmptyScaffold,
 } from "./empty/index.ts";

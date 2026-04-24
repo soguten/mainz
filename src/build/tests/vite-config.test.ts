@@ -154,7 +154,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
 
     try {
         const config = normalizeMainzConfig({
-            platform: "node",
+            runtime: "node",
             targets: [
                 {
                     name: "site",

@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import process from "node:process";
 import { join } from "node:path";
 import type {
-    MainzToolingPlatform,
+    MainzToolingRuntime,
     ToolingCommand,
     ToolingCommandResult,
     ToolingDirEntry,
@@ -36,7 +36,7 @@ function toNodeStdio(
 /**
  * Mainz tooling host implementation for Node.js.
  */
-export class NodeToolingPlatform implements MainzToolingPlatform {
+export class NodeToolingRuntime implements MainzToolingRuntime {
     readonly name = "node" as const;
 
     cwd(): string {
@@ -156,6 +156,6 @@ export class NodeToolingPlatform implements MainzToolingPlatform {
 }
 
 /**
- * Shared Node tooling platform instance.
+ * Shared Node tooling runtime instance.
  */
-export const nodeToolingPlatform: NodeToolingPlatform = new NodeToolingPlatform();
+export const nodeToolingRuntime: NodeToolingRuntime = new NodeToolingRuntime();

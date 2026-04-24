@@ -3,12 +3,12 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import type { MainzToolingPlatform } from "../../tooling/platform/index.ts";
+import type { MainzToolingRuntime } from "../../tooling/runtime/index.ts";
 import { loadMainzConfig } from "../index.ts";
 
-Deno.test("config/load: should load config modules through the supplied tooling platform", async () => {
+Deno.test("config/load: should load config modules through the supplied tooling runtime", async () => {
     const seenSpecifiers: string[] = [];
-    const platform: MainzToolingPlatform = {
+    const runtime: MainzToolingRuntime = {
         name: "deno",
         cwd: () => Deno.cwd(),
         readTextFile: async () => "",
@@ -36,7 +36,7 @@ Deno.test("config/load: should load config modules through the supplied tooling 
         },
     };
 
-    const loaded = await loadMainzConfig("./mainz.config.ts", platform);
+    const loaded = await loadMainzConfig("./mainz.config.ts", runtime);
 
     assertEquals(loaded.path, resolve("./mainz.config.ts"));
     assertEquals(loaded.config.targets[0].name, "site");

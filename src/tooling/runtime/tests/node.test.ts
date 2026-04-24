@@ -1,13 +1,13 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { NodeToolingPlatform } from "../index.ts";
+import { NodeToolingRuntime } from "../index.ts";
 
-Deno.test("tooling/platform/node: should resolve Vite build and dev commands through npx", () => {
-    const platform = new NodeToolingPlatform();
+Deno.test("tooling/runtime/node: should resolve Vite build and dev commands through npx", () => {
+    const runtime = new NodeToolingRuntime();
 
     assertEquals(
-        platform.resolveViteBuildCommand({
+        runtime.resolveViteBuildCommand({
             viteConfigPath: "/tmp/vite.config.mjs",
         }),
         {
@@ -22,7 +22,7 @@ Deno.test("tooling/platform/node: should resolve Vite build and dev commands thr
     );
 
     assertEquals(
-        platform.resolveViteDevCommand({
+        runtime.resolveViteDevCommand({
             viteConfigPath: "/tmp/vite.config.mjs",
             host: "127.0.0.1",
             port: 4175,

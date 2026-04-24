@@ -9,13 +9,13 @@ import {
     type RoutedAppDefinition,
 } from "../navigation/index.ts";
 import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
-import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 
 export async function loadTargetBuildAppDefinition(
     target: NormalizedMainzTarget,
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<DefinedApp | undefined> {
     const appFile = resolveTargetAppFile(target, cwd);
     if (!appFile) {
@@ -24,7 +24,7 @@ export async function loadTargetBuildAppDefinition(
 
     if (!target.appFile?.trim()) {
         try {
-            await platform.stat(appFile);
+            await runtime.stat(appFile);
         } catch {
             return undefined;
         }
@@ -37,7 +37,7 @@ export async function loadTargetBuildAppDefinition(
 
     try {
         const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
-            return await platform.importModule<Record<string, unknown>>(moduleUrl);
+            return await runtime.importModule<Record<string, unknown>>(moduleUrl);
         });
         const candidates = resolveDefinedAppDefinitionsFromModuleExports(moduleExports);
         if (app && !candidates.includes(app)) {
@@ -82,9 +82,9 @@ export async function loadTargetBuildAppDefinition(
 export async function loadTargetBuildRoutedAppDefinition(
     target: NormalizedMainzTarget,
     cwd: string,
-    platform: MainzToolingPlatform = denoToolingPlatform,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<RoutedAppDefinition | undefined> {
-    const appDefinition = await loadTargetBuildAppDefinition(target, cwd, platform);
+    const appDefinition = await loadTargetBuildAppDefinition(target, cwd, runtime);
     return appDefinition && "pages" in appDefinition ? appDefinition : undefined;
 }
 
