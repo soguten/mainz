@@ -28,6 +28,33 @@ Deno.test("cli/mainz: dev should validate port", async () => {
     assertStringIncludes(result.stderr, 'Invalid --port value "nope".');
 });
 
+Deno.test("cli/mainz: dev should accept global --platform before the command", async () => {
+    const command = new Deno.Command("deno", {
+        args: [
+            "run",
+            "-A",
+            "./src/cli/mainz.ts",
+            "--platform",
+            "node",
+            "dev",
+            "--target",
+            "missing-target",
+        ],
+        cwd: cliTestsRepoRoot,
+        stdout: "piped",
+        stderr: "piped",
+    });
+
+    const result = await command.output();
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
+
+    assertEquals(result.code, 1);
+    assertEquals(stdout, "");
+    assertStringIncludes(stderr, 'No targets matched "missing-target".');
+    assertEquals(stderr.includes('Unknown command "--platform".'), false);
+});
+
 async function runMainzDevCommand(args: readonly string[]): Promise<{
     code: number;
     stdout: string;

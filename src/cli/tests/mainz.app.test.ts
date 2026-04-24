@@ -75,6 +75,69 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
     }
 });
 
+Deno.test("cli/mainz init: should initialize an empty node project with --platform", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-" });
+
+    try {
+        const result = await runMainz(cwd, [
+            "--platform",
+            "node",
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+        assertStringIncludes(result.stdout, "Initialized Mainz project");
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'platform: "node"');
+
+        const packageJson = JSON.parse(await Deno.readTextFile(resolve(cwd, "package.json"))) as {
+            dependencies?: Record<string, string>;
+            scripts?: Record<string, string>;
+        };
+        assertEquals(packageJson.dependencies?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
+        assertEquals(packageJson.scripts?.dev, "mainz dev");
+        assertEquals(packageJson.scripts?.build, "mainz build");
+
+        const tsconfig = JSON.parse(await Deno.readTextFile(resolve(cwd, "tsconfig.json"))) as {
+            compilerOptions?: Record<string, unknown>;
+        };
+        assertEquals(tsconfig.compilerOptions?.jsxImportSource, "mainz");
+
+        await assertRejectsNotFound(resolve(cwd, "deno.json"));
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz init: should let app create keep node as the project platform", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-app-create-" });
+
+    try {
+        const init = await runMainz(cwd, [
+            "--platform",
+            "node",
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+
+        const create = await runMainz(cwd, ["app", "create", "docs"]);
+        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'platform: "node"');
+        assertStringIncludes(config, 'name: "docs"');
+        assertStringIncludes(config, 'rootDir: "./docs"');
+        assertStringIncludes(config, "    ],");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 Deno.test("cli/mainz: global commands should bootstrap the project deno config", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-global-bootstrap-" });
 

@@ -302,6 +302,7 @@ function toErrorMessage(error: unknown): string {
 export type {
     LoadedMainzConfig,
     MainzConfig,
+    MainzPlatform,
     MainzTargetDefinition,
     MainzTargetViteAlias,
     MainzTargetViteOptions,

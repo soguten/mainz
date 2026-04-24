@@ -1,6 +1,7 @@
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import type {
     LoadedMainzConfig,
+    MainzPlatform,
     NormalizedMainzConfig,
     NormalizedMainzTarget,
 } from "../config/index.ts";
@@ -26,11 +27,12 @@ import {
     createAppScaffold,
 } from "./scaffolds/index.ts";
 import { createProjectEmptyScaffold } from "./scaffolds/index.ts";
-import { denoToolingPlatform } from "../tooling/platform/index.ts";
+import { denoToolingPlatform, nodeToolingPlatform } from "../tooling/platform/index.ts";
 import type { MainzToolingPlatform } from "../tooling/platform/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 
 type SharedCliOptions = {
+    platform?: MainzPlatform;
     target?: string;
     profile?: string;
     configPath?: string;
@@ -64,6 +66,7 @@ type PublishInfoCommandOptions = SharedCliOptions & {
 
 type InitCommandOptions = {
     command: "init";
+    platform?: MainzPlatform;
     configPath?: string;
     denoConfigPath?: string;
     mainzSpecifier?: string;
@@ -84,6 +87,7 @@ type AppCommandOptions = {
     root?: string;
     outDir?: string;
     navigation?: AppScaffoldNavigation;
+    platform?: MainzPlatform;
     configPath?: string;
     deleteFiles?: boolean;
 };
@@ -97,6 +101,8 @@ type MainzCliCommand =
     | PublishInfoCommandOptions
     | DiagnoseCommandOptions
     | AppCommandOptions;
+
+type SupportedCliPlatform = "deno" | "node";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 
@@ -153,25 +159,26 @@ async function runCli(args: string[]): Promise<number> {
         return 0;
     }
 
-    const loadedConfig = await loadMainzConfig(command.configPath);
+    const platform = await resolveCommandToolingPlatform(command);
+    const loadedConfig = await loadMainzConfig(command.configPath, platform);
     const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
     switch (command.command) {
         case "publish-info":
-            await runPublishInfoCommand(command, normalizedConfig);
+            await runPublishInfoCommand(command, normalizedConfig, platform);
             return 0;
         case "diagnose":
-            return await runDiagnoseCommand(command, normalizedConfig);
+            return await runDiagnoseCommand(command, normalizedConfig, platform);
         case "dev":
-            await runDevCommand(command, loadedConfig, normalizedConfig);
+            await runDevCommand(command, loadedConfig, normalizedConfig, platform);
             return 0;
         case "preview":
-            await runPreviewCommand(command, loadedConfig, normalizedConfig);
+            await runPreviewCommand(command, loadedConfig, normalizedConfig, platform);
             return 0;
         case "test":
-            return await runTestCommand(command, normalizedConfig);
+            return await runTestCommand(command, normalizedConfig, platform);
         case "build":
-            await runBuildCommand(command, loadedConfig, normalizedConfig);
+            await runBuildCommand(command, loadedConfig, normalizedConfig, platform);
             return 0;
     }
 }
@@ -186,6 +193,10 @@ async function rerunWithProjectDenoConfigIfNeeded(
         | DiagnoseCommandOptions,
     args: readonly string[],
 ): Promise<boolean> {
+    if (command.platform && command.platform !== "deno") {
+        return false;
+    }
+
     const platform = denoToolingPlatform;
     if (getCliBootstrapEnv() === "1") {
         return false;
@@ -242,7 +253,8 @@ async function findNearestDenoConfig(configPath: string): Promise<string | undef
 }
 
 function parseCliCommand(args: string[]): MainzCliCommand | undefined {
-    const [command, ...rest] = args;
+    const { platform, remainingArgs } = parseGlobalCliOptions(args);
+    const [command, ...rest] = remainingArgs;
 
     if (!command || command === "help" || command === "--help" || command === "-h") {
         return undefined;
@@ -261,14 +273,14 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     }
 
     if (command === "init") {
-        return parseInitCommand(rest);
+        return parseInitCommand(rest, platform);
     }
 
     if (command === "app") {
-        return parseAppCommand(rest);
+        return parseAppCommand(rest, platform);
     }
 
-    const options = parseCommandOptions(command, rest);
+    const options = parseCommandOptions(command, rest, platform);
 
     if (command === "build") {
         return { command, ...options };
@@ -298,8 +310,34 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     };
 }
 
-function parseInitCommand(args: string[]): InitCommandOptions {
-    const options: Omit<InitCommandOptions, "command"> = {};
+function parseGlobalCliOptions(args: readonly string[]): {
+    platform?: MainzPlatform;
+    remainingArgs: string[];
+} {
+    const remainingArgs: string[] = [];
+    let platform: MainzPlatform | undefined;
+
+    for (let index = 0; index < args.length; index += 1) {
+        const current = args[index];
+        if (current === "--platform") {
+            platform = parsePlatformOption(args[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        remainingArgs.push(current);
+    }
+
+    return { platform, remainingArgs };
+}
+
+function parseInitCommand(
+    args: string[],
+    inheritedPlatform?: MainzPlatform,
+): InitCommandOptions {
+    const options: Omit<InitCommandOptions, "command"> = {
+        platform: inheritedPlatform,
+    };
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -322,6 +360,12 @@ function parseInitCommand(args: string[]): InitCommandOptions {
             continue;
         }
 
+        if (current === "--platform") {
+            options.platform = parsePlatformOption(args[index + 1]);
+            index += 1;
+            continue;
+        }
+
         throw new Error(`Unknown option "${current}".`);
     }
 
@@ -331,7 +375,10 @@ function parseInitCommand(args: string[]): InitCommandOptions {
     };
 }
 
-function parseAppCommand(args: string[]): AppCommandOptions {
+function parseAppCommand(
+    args: string[],
+    inheritedPlatform?: MainzPlatform,
+): AppCommandOptions {
     const [action, maybeName, ...rest] = args;
 
     if (action !== "create" && action !== "remove") {
@@ -343,8 +390,10 @@ function parseAppCommand(args: string[]): AppCommandOptions {
 
     const options: Pick<
         AppCommandOptions,
-        "type" | "root" | "outDir" | "navigation" | "configPath" | "deleteFiles"
-    > = {};
+        "type" | "root" | "outDir" | "navigation" | "configPath" | "deleteFiles" | "platform"
+    > = {
+        platform: inheritedPlatform,
+    };
     let flagName: string | undefined;
 
     for (let index = 0; index < remaining.length; index += 1) {
@@ -388,6 +437,12 @@ function parseAppCommand(args: string[]): AppCommandOptions {
 
         if (current === "--config") {
             options.configPath = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--platform") {
+            options.platform = parsePlatformOption(remaining[index + 1]);
             index += 1;
             continue;
         }
@@ -455,9 +510,20 @@ function parseAppType(value: string | undefined): AppScaffoldType {
     throw new Error(`Unsupported app type "${value ?? ""}". Use "routed" or "root".`);
 }
 
+function parsePlatformOption(value: string | undefined): MainzPlatform {
+    if (value === "deno" || value === "node" || value === "bun") {
+        return value;
+    }
+
+    throw new Error(
+        `Unsupported platform "${value ?? ""}". Use "deno", "node", or "bun".`,
+    );
+}
+
 function parseCommandOptions(
     command: Exclude<MainzCliCommand["command"], "app">,
     args: string[],
+    inheritedPlatform?: MainzPlatform,
 ):
     & SharedCliOptions
     & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
@@ -465,7 +531,9 @@ function parseCommandOptions(
     const options:
         & SharedCliOptions
         & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-        & Pick<DevCommandOptions, "host" | "port"> = {};
+        & Pick<DevCommandOptions, "host" | "port"> = {
+            platform: inheritedPlatform,
+        };
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -484,6 +552,12 @@ function parseCommandOptions(
 
         if (current === "--config") {
             options.configPath = args[index + 1];
+            index += 1;
+            continue;
+        }
+
+        if (current === "--platform") {
+            options.platform = parsePlatformOption(args[index + 1]);
             index += 1;
             continue;
         }
@@ -550,13 +624,14 @@ function parseCommandOptions(
 }
 
 async function runInitCommand(options: InitCommandOptions): Promise<void> {
-    const platform = denoToolingPlatform;
+    const projectPlatform = resolveSupportedCliPlatform(options.platform ?? "deno");
+    const platform = resolveToolingPlatform(projectPlatform);
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
         await resolvePublishedMainzSpecifier(import.meta.url);
     const scaffold = createProjectEmptyScaffold({
-        platform: "deno",
+        platform: projectPlatform === "node" ? "node" : "deno",
         mainzSpecifier,
         configPath,
         denoConfigPath,
@@ -568,7 +643,7 @@ async function runInitCommand(options: InitCommandOptions): Promise<void> {
     }
 
     console.log(`[mainz] Initialized Mainz project in ${platform.cwd()}.`);
-    console.log(`[mainz] Created ${configPath} and ${denoConfigPath}.`);
+    console.log(`[mainz] Created ${Array.from(scaffold.files.keys()).join(", ")}.`);
     console.log('[mainz] Add an app with "mainz app create <name>".');
 }
 
@@ -582,7 +657,8 @@ async function runAppCommand(options: AppCommandOptions): Promise<void> {
 }
 
 async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
-    const platform = denoToolingPlatform;
+    const projectPlatform = await resolveProjectPlatformPreference(options);
+    const platform = resolveToolingPlatform(projectPlatform);
     const appName = normalizeAppName(options.name);
     const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
     const rootPath = resolve(rootDir);
@@ -594,7 +670,7 @@ async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
         rootDir,
         outDir,
         navigation: options.navigation ?? "enhanced-mpa",
-        platform: "deno",
+        platform: projectPlatform,
     });
 
     for (const relativePath of scaffold.files.keys()) {
@@ -612,7 +688,12 @@ async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
         await platform.writeTextFile(resolve(rootPath, relativePath), content);
     }
 
-    await upsertConfigTarget(configPath, renderConfigTarget(scaffold.target), platform);
+    await upsertConfigTarget(
+        configPath,
+        renderConfigTarget(scaffold.target),
+        projectPlatform,
+        platform,
+    );
 
     console.log(`[mainz] Created app "${appName}" in ${rootDir}.`);
 }
@@ -653,8 +734,9 @@ async function runBuildCommand(
     options: BuildCommandOptions,
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<void> {
-    const cwd = denoToolingPlatform.cwd();
+    const cwd = platform.cwd();
     const jobs = await resolveEngineBuildJobs(normalizedConfig, options, cwd);
     const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
     const resolvedProfileByTarget = new Map<
@@ -677,7 +759,7 @@ async function runBuildCommand(
         `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
     );
 
-    await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd);
+    await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd, platform);
 
     console.log("[mainz] Build completed successfully.");
 }
@@ -685,8 +767,9 @@ async function runBuildCommand(
 async function runPublishInfoCommand(
     options: PublishInfoCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<void> {
-    const cwd = denoToolingPlatform.cwd();
+    const cwd = platform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "publish-info");
     const metadata = await resolveEnginePublicationMetadata(
         target,
@@ -700,8 +783,9 @@ async function runDevCommand(
     options: DevCommandOptions,
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<void> {
-    const cwd = denoToolingPlatform.cwd();
+    const cwd = platform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
     const profile = await resolveEngineBuildProfile(target, options.profile, cwd);
 
@@ -712,15 +796,16 @@ async function runDevCommand(
     await runEngineDevServer(normalizedConfig, target, profile, {
         host: options.host,
         port: options.port,
-    }, cwd);
+    }, cwd, platform);
 }
 
 async function runPreviewCommand(
     options: PreviewCommandOptions,
     loadedConfig: LoadedMainzConfig,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<void> {
-    const cwd = denoToolingPlatform.cwd();
+    const cwd = platform.cwd();
     const target = resolveRequiredTarget(normalizedConfig, options.target, "preview");
 
     await runBuildCommand(
@@ -732,6 +817,7 @@ async function runPreviewCommand(
         },
         loadedConfig,
         normalizedConfig,
+        platform,
     );
 
     const metadata = await resolveEnginePublicationMetadata(
@@ -752,8 +838,9 @@ async function runPreviewCommand(
 async function runDiagnoseCommand(
     options: DiagnoseCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<number> {
-    const cwd = denoToolingPlatform.cwd();
+    const cwd = platform.cwd();
     const diagnostics = await collectDiagnosticsForConfig(
         normalizedConfig,
         options,
@@ -775,10 +862,15 @@ async function runDiagnoseCommand(
 async function runTestCommand(
     options: TestCommandOptions,
     normalizedConfig: NormalizedMainzConfig,
+    platform: MainzToolingPlatform,
 ): Promise<number> {
-    const cwd = denoToolingPlatform.cwd();
+    if (platform.name !== "deno") {
+        throw new Error('Command "test" is not implemented yet for platform "node".');
+    }
+
+    const cwd = platform.cwd();
     const testPaths = resolveTestPathsForTarget(normalizedConfig, options.target, cwd);
-    const status = await denoToolingPlatform.run({
+    const status = await platform.run({
         command: "deno",
         cwd,
         args: [
@@ -825,18 +917,19 @@ function printHelp(): void {
             "Mainz CLI",
             "",
             "Usage:",
-            "  mainz init [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-            "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
-            "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
-            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
-            "  mainz preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
-            "  mainz test [--target <name|all>] [--config <path>]",
-            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
-            "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] init [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+            "  mainz [--platform <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] test [--target <name|all>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>]",
+            "  mainz [--platform <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
             "Examples:",
             "  mainz init",
+            "  mainz --platform node init",
             "  mainz init --mainz jsr:@mainz/mainz@<version>",
             "  mainz app create site",
             "  mainz app create --name site",
@@ -965,13 +1058,17 @@ function normalizeOutDir(outDir: string): string {
 async function upsertConfigTarget(
     configPath: string,
     target: string,
+    projectPlatform: "deno" | "node" = "deno",
     platform: MainzToolingPlatform = denoToolingPlatform,
 ): Promise<void> {
     const absoluteConfigPath = resolve(configPath);
 
     if (!(await pathExists(absoluteConfigPath, platform))) {
         await platform.mkdir(dirname(absoluteConfigPath), { recursive: true });
-        await platform.writeTextFile(absoluteConfigPath, renderGeneratedConfig(target));
+        await platform.writeTextFile(
+            absoluteConfigPath,
+            renderGeneratedConfig(target, projectPlatform),
+        );
         return;
     }
 
@@ -1005,12 +1102,15 @@ async function assertCanCreateFiles(
     }
 }
 
-function renderGeneratedConfig(target: string): string {
+function renderGeneratedConfig(
+    target: string,
+    projectPlatform: "deno" | "node" = "deno",
+): string {
     return [
         'import { defineMainzConfig } from "mainz/config";',
         "",
         "export default defineMainzConfig({",
-        '    platform: "deno",',
+        `    platform: ${JSON.stringify(projectPlatform)},`,
         "    targets: [",
         target,
         "    ],",
@@ -1245,4 +1345,55 @@ function isNotFoundError(error: unknown): boolean {
 
 function getCliBootstrapEnv(): string | undefined {
     return Deno.env.get(projectConfigBootstrapEnv);
+}
+
+function resolveToolingPlatform(platform: SupportedCliPlatform): MainzToolingPlatform {
+    if (platform === "deno") {
+        return denoToolingPlatform;
+    }
+
+    return nodeToolingPlatform;
+}
+
+async function resolveCommandToolingPlatform(
+    command:
+        | BuildCommandOptions
+        | DevCommandOptions
+        | PreviewCommandOptions
+        | TestCommandOptions
+        | PublishInfoCommandOptions
+        | DiagnoseCommandOptions,
+): Promise<MainzToolingPlatform> {
+    const platform = await resolveProjectPlatformPreference(command);
+    return resolveToolingPlatform(platform);
+}
+
+async function resolveProjectPlatformPreference(
+    options: Pick<SharedCliOptions, "platform" | "configPath">,
+): Promise<SupportedCliPlatform> {
+    if (options.platform) {
+        return resolveSupportedCliPlatform(options.platform);
+    }
+
+    const projectPlatform = await readProjectPlatform(options.configPath ?? "mainz.config.ts");
+    return resolveSupportedCliPlatform(projectPlatform ?? "deno");
+}
+
+async function readProjectPlatform(configPath: string): Promise<MainzPlatform | undefined> {
+    const absoluteConfigPath = resolve(configPath);
+    if (!(await pathExists(absoluteConfigPath))) {
+        return undefined;
+    }
+
+    const source = await denoToolingPlatform.readTextFile(absoluteConfigPath);
+    const match = source.match(/\bplatform\s*:\s*["'](deno|node|bun)["']/);
+    return match?.[1] as MainzPlatform | undefined;
+}
+
+function resolveSupportedCliPlatform(platform: MainzPlatform): SupportedCliPlatform {
+    if (platform === "deno" || platform === "node") {
+        return platform;
+    }
+
+    throw new Error('Platform "bun" is not implemented yet.');
 }
