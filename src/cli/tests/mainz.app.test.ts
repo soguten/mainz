@@ -97,9 +97,12 @@ Deno.test("cli/mainz init: should initialize an empty node project with --platfo
             dependencies?: Record<string, string>;
             scripts?: Record<string, string>;
         };
-        assertEquals(packageJson.dependencies?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
+        assertEquals(packageJson.dependencies?.mainz, "npm:@jsr/mainz__mainz@0.1.0-alpha.99");
         assertEquals(packageJson.scripts?.dev, "mainz dev");
         assertEquals(packageJson.scripts?.build, "mainz build");
+
+        const npmrc = await Deno.readTextFile(resolve(cwd, ".npmrc"));
+        assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
 
         const tsconfig = JSON.parse(await Deno.readTextFile(resolve(cwd, "tsconfig.json"))) as {
             compilerOptions?: Record<string, unknown>;

@@ -1,6 +1,10 @@
 import { type EmptyProjectPlatform, renderEmptyProjectConfig } from "./base.ts";
 import { renderEmptyDenoProjectConfig } from "./deno.ts";
-import { renderEmptyNodePackageJson, renderEmptyNodeTsconfig } from "./node.ts";
+import {
+    renderEmptyNodeNpmrc,
+    renderEmptyNodePackageJson,
+    renderEmptyNodeTsconfig,
+} from "./node.ts";
 
 /**
  * Files generated for an empty Mainz project scaffold.
@@ -45,6 +49,7 @@ export function createProjectEmptyScaffold(
     }
 
     files.set("package.json", renderEmptyNodePackageJson(options.mainzSpecifier));
+    files.set(".npmrc", renderEmptyNodeNpmrc());
     files.set("tsconfig.json", renderEmptyNodeTsconfig());
     return { files };
 }

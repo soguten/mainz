@@ -20,15 +20,19 @@ Deno.test("cli/scaffolds/project: empty deno should compose base config and deno
 Deno.test("cli/scaffolds/project: empty node should compose base config and node files", () => {
     const scaffold = createProjectEmptyScaffold({
         platform: "node",
-        mainzSpecifier: "@mainz/mainz",
+        mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
     });
 
     assertEquals(
         [...scaffold.files.keys()],
-        ["mainz.config.ts", "package.json", "tsconfig.json"],
+        ["mainz.config.ts", "package.json", ".npmrc", "tsconfig.json"],
     );
     assertStringIncludes(scaffold.files.get("mainz.config.ts") ?? "", 'platform: "node"');
-    assertStringIncludes(scaffold.files.get("package.json") ?? "", '"mainz": "@mainz/mainz"');
+    assertStringIncludes(
+        scaffold.files.get("package.json") ?? "",
+        '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
+    );
     assertStringIncludes(scaffold.files.get("package.json") ?? "", '"dev": "mainz dev"');
+    assertStringIncludes(scaffold.files.get(".npmrc") ?? "", "@jsr:registry=https://npm.jsr.io");
     assertStringIncludes(scaffold.files.get("tsconfig.json") ?? "", '"jsxImportSource": "mainz"');
 });

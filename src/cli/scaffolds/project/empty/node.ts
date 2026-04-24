@@ -4,6 +4,8 @@
 export function renderEmptyNodePackageJson(
     mainzSpecifier: string,
 ): string {
+    const mainzDependency = toNodeCompatibleJsrDependency(mainzSpecifier);
+
     return `${
         JSON.stringify(
             {
@@ -18,7 +20,7 @@ export function renderEmptyNodePackageJson(
                     diagnose: "mainz diagnose",
                 },
                 dependencies: {
-                    mainz: mainzSpecifier,
+                    mainz: mainzDependency,
                 },
                 devDependencies: {
                     vite: "^7.3.1",
@@ -28,6 +30,13 @@ export function renderEmptyNodePackageJson(
             4,
         )
     }\n`;
+}
+
+/**
+ * Renders the npm registry configuration needed for JSR-backed npm installs.
+ */
+export function renderEmptyNodeNpmrc(): string {
+    return "@jsr:registry=https://npm.jsr.io\n";
 }
 
 /**
@@ -55,4 +64,21 @@ export function renderEmptyNodeTsconfig(): string {
             4,
         )
     }\n`;
+}
+
+function toNodeCompatibleJsrDependency(specifier: string): string {
+    if (specifier.startsWith("npm:@jsr/")) {
+        return specifier;
+    }
+
+    const normalized = specifier.startsWith("jsr:")
+        ? specifier.slice("jsr:".length)
+        : specifier;
+    const match = normalized.match(/^@([^/]+)\/([^@/]+)(@.+)?$/);
+    if (!match) {
+        return specifier;
+    }
+
+    const [, scope, name, version = ""] = match;
+    return `npm:@jsr/${scope}__${name}${version}`;
 }
