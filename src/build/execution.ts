@@ -209,9 +209,7 @@ async function resolveViteConfigPathForTarget(args: {
         };
     }
 
-    const tempDir = await args.platform.makeTempDir({
-        prefix: "mainz-vite-config-",
-    });
+    const tempDir = await createGeneratedViteConfigDir(args.cwd, args.platform);
     const viteConfigPath = normalizePathSlashes(resolve(tempDir, "vite.config.generated.mjs"));
     const generatedConfig = resolveGeneratedViteConfig({
         cwd: args.cwd,
@@ -228,7 +226,7 @@ async function resolveViteConfigPathForTarget(args: {
 
     await args.platform.writeTextFile(
         viteConfigPath,
-        renderGeneratedViteConfigModule(generatedConfig),
+        renderGeneratedViteConfigModule(generatedConfig, args.platform.name),
     );
 
     return {
@@ -237,6 +235,25 @@ async function resolveViteConfigPathForTarget(args: {
             await args.platform.remove(tempDir, { recursive: true });
         },
     };
+}
+
+export async function createGeneratedViteConfigDir(
+    cwd: string,
+    platform: MainzToolingPlatform,
+): Promise<string> {
+    if (platform.name === "node") {
+        const tempDir = resolve(
+            cwd,
+            ".mainz",
+            `vite-config-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        );
+        await platform.mkdir(tempDir, { recursive: true });
+        return tempDir;
+    }
+
+    return await platform.makeTempDir({
+        prefix: "mainz-vite-config-",
+    });
 }
 
 async function runViteBuild(args: {

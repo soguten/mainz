@@ -149,6 +149,42 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);
 });
 
+Deno.test("build/vite-config: should render a Node Vite config module without the Deno plugin", () => {
+    const cwd = Deno.makeTempDirSync({ prefix: "mainz-node-vite-config-" });
+
+    try {
+        const config = normalizeMainzConfig({
+            platform: "node",
+            targets: [
+                {
+                    name: "site",
+                    rootDir: "./site",
+                },
+            ],
+        });
+
+        const generated = resolveGeneratedViteConfig({
+            cwd,
+            target: config.targets[0],
+            modeOutDir: "dist/site/csr",
+            renderMode: "csr",
+            navigationMode: "spa",
+            basePath: "/",
+            appLocales: [],
+            localePrefix: "except-default",
+        });
+        const moduleSource = renderGeneratedViteConfigModule(generated, "node");
+
+        assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
+        assertEquals(moduleSource.includes(`import deno from "@deno/vite-plugin";`), false);
+        assertEquals(moduleSource.includes(`plugins: deno({`), false);
+        assertStringIncludes(moduleSource, `appType: "spa"`);
+        assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);
+    } finally {
+        Deno.removeSync(cwd, { recursive: true });
+    }
+});
+
 Deno.test("build/vite-config: should use app-owned navigation for generated defaults", async () => {
     const fixture = await createAppFixture({
         navigation: "enhanced-mpa",

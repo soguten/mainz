@@ -1,4 +1,5 @@
 import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type {
     LoadedMainzConfig,
     MainzPlatform,
@@ -155,7 +156,7 @@ async function runCli(args: string[]): Promise<number> {
         return 0;
     }
 
-    if (await rerunWithProjectDenoConfigIfNeeded(command, args)) {
+    if (await rerunWithProjectBootstrapIfNeeded(command, args)) {
         return 0;
     }
 
@@ -183,7 +184,7 @@ async function runCli(args: string[]): Promise<number> {
     }
 }
 
-async function rerunWithProjectDenoConfigIfNeeded(
+async function rerunWithProjectBootstrapIfNeeded(
     command:
         | BuildCommandOptions
         | DevCommandOptions
@@ -193,13 +194,47 @@ async function rerunWithProjectDenoConfigIfNeeded(
         | DiagnoseCommandOptions,
     args: readonly string[],
 ): Promise<boolean> {
-    if (command.platform && command.platform !== "deno") {
-        return false;
-    }
-
     const platform = denoToolingPlatform;
     if (getCliBootstrapEnv() === "1") {
         return false;
+    }
+
+    const projectPlatform = await resolveProjectPlatformPreference(command);
+    if (projectPlatform === "node") {
+        const bootstrap = await createNodeProjectBootstrapConfig(
+            command.configPath ?? "mainz.config.ts",
+        );
+        if (!bootstrap) {
+            return false;
+        }
+
+        try {
+            const status = await platform.run({
+                command: "deno",
+                cwd: platform.cwd(),
+                args: [
+                    "run",
+                    "-A",
+                    "--config",
+                    bootstrap.configPath,
+                    import.meta.url,
+                    ...args,
+                ],
+                env: {
+                    [projectConfigBootstrapEnv]: "1",
+                },
+                stdin: "inherit",
+                stdout: "inherit",
+                stderr: "inherit",
+            });
+            if (!status.success) {
+                throw new CliExitError(status.code);
+            }
+
+            return true;
+        } finally {
+            await platform.remove(bootstrap.tempDir, { recursive: true });
+        }
     }
 
     const denoConfigPath = await findNearestDenoConfig(command.configPath ?? "mainz.config.ts");
@@ -230,6 +265,56 @@ async function rerunWithProjectDenoConfigIfNeeded(
     }
 
     return true;
+}
+
+async function createNodeProjectBootstrapConfig(
+    configPath: string,
+): Promise<{ configPath: string; tempDir: string } | undefined> {
+    const absoluteConfigPath = resolve(configPath);
+    const projectDir = dirname(absoluteConfigPath);
+    const packageJsonPath = resolve(projectDir, "package.json");
+    if (!(await pathExists(packageJsonPath))) {
+        return undefined;
+    }
+
+    const packageJson = JSON.parse(await denoToolingPlatform.readTextFile(packageJsonPath)) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+    };
+    const mainzDependency = packageJson.dependencies?.mainz ?? packageJson.devDependencies?.mainz;
+    const mainzImports = resolveBootstrapMainzImports(mainzDependency);
+    if (!mainzImports) {
+        throw new Error(
+            `Could not resolve the Mainz package version from "${packageJsonPath}".`,
+        );
+    }
+
+    const tempDir = await denoToolingPlatform.makeTempDir({ prefix: "mainz-node-bootstrap-" });
+    const bootstrapConfigPath = resolve(tempDir, "deno.json");
+    await denoToolingPlatform.writeTextFile(
+        bootstrapConfigPath,
+        JSON.stringify(
+            {
+                compilerOptions: {
+                    jsx: "react-jsx",
+                    jsxImportSource: "mainz",
+                },
+                imports: {
+                    ...mainzImports,
+                    vite: "npm:vite@7.3.1",
+                    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+                    "happy-dom": "npm:happy-dom@20.1.0",
+                },
+            },
+            null,
+            4,
+        ),
+    );
+
+    return {
+        configPath: bootstrapConfigPath,
+        tempDir,
+    };
 }
 
 async function findNearestDenoConfig(configPath: string): Promise<string | undefined> {
@@ -1345,6 +1430,64 @@ function isNotFoundError(error: unknown): boolean {
 
 function getCliBootstrapEnv(): string | undefined {
     return Deno.env.get(projectConfigBootstrapEnv);
+}
+
+function resolveBootstrapMainzImports(
+    dependency: string | undefined,
+): Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
+    | undefined {
+    const localImports = resolveLocalBootstrapMainzImports();
+    if (localImports) {
+        return localImports;
+    }
+
+    const specifier = toBootstrapMainzSpecifier(dependency);
+    if (!specifier) {
+        return undefined;
+    }
+
+    return {
+        mainz: specifier,
+        "mainz/config": `${specifier}/config`,
+        "mainz/jsx-runtime": `${specifier}/jsx-runtime`,
+        "mainz/jsx-dev-runtime": `${specifier}/jsx-dev-runtime`,
+    };
+}
+
+function resolveLocalBootstrapMainzImports():
+    | Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
+    | undefined {
+    if (!import.meta.url.startsWith("file:")) {
+        return undefined;
+    }
+
+    const cliPath = fileURLToPath(import.meta.url);
+    const repoRoot = resolve(dirname(cliPath), "..", "..");
+
+    return {
+        mainz: pathToFileURL(resolve(repoRoot, "mod.ts")).href,
+        "mainz/config": pathToFileURL(resolve(repoRoot, "src", "config", "index.ts")).href,
+        "mainz/jsx-runtime": pathToFileURL(resolve(repoRoot, "src", "jsx-runtime.ts")).href,
+        "mainz/jsx-dev-runtime": pathToFileURL(resolve(repoRoot, "src", "jsx-dev-runtime.ts"))
+            .href,
+    };
+}
+
+function toBootstrapMainzSpecifier(dependency: string | undefined): string | undefined {
+    if (!dependency?.trim()) {
+        return undefined;
+    }
+
+    if (dependency.startsWith("jsr:@mainz/mainz@")) {
+        return dependency;
+    }
+
+    const npmJsrMatch = dependency.match(/^npm:@jsr\/mainz__mainz(@.+)$/);
+    if (npmJsrMatch) {
+        return `jsr:@mainz/mainz${npmJsrMatch[1]}`;
+    }
+
+    return undefined;
 }
 
 function resolveToolingPlatform(platform: SupportedCliPlatform): MainzToolingPlatform {

@@ -468,6 +468,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@std/assert@*",
       "npm:@deno/vite-plugin@2.0.2",
       "npm:happy-dom@20.1.0",
       "npm:vite@7.3.1"

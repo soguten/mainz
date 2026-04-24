@@ -3,6 +3,7 @@ import { isAbsolute, resolve } from "node:path";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import type { ToolingPlatformName } from "../tooling/platform/index.ts";
 
 export interface GeneratedViteAlias {
     find: string;
@@ -56,7 +57,10 @@ export function resolveGeneratedViteConfig(input: GeneratedViteConfigInput): Gen
     };
 }
 
-export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): string {
+export function renderGeneratedViteConfigModule(
+    config: GeneratedViteConfig,
+    platform: ToolingPlatformName = "deno",
+): string {
     const aliases = config.aliases.map((alias) => {
         if (alias.framework) {
             return `{ find: ${renderExactSpecifierRegex(alias.find)}, replacement: ${
@@ -69,20 +73,27 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
         } }`;
     });
 
-    return [
-        `import deno from "@deno/vite-plugin";`,
-        `import { defineConfig } from "vite";`,
-        ``,
+    const imports = [`import { defineConfig } from "vite";`];
+    const configLines = [
         `export default defineConfig({`,
         `    appType: ${JSON.stringify(config.appType)},`,
         `    base: ${JSON.stringify(config.base)},`,
-        `    plugins: deno({`,
-        `        workspaceOptions: {`,
-        `            noLock: true,`,
-        `            platform: "browser",`,
-        `            preserveJsx: true,`,
-        `        },`,
-        `    }),`,
+    ];
+
+    if (platform === "deno") {
+        imports.unshift(`import deno from "@deno/vite-plugin";`);
+        configLines.push(
+            `    plugins: deno({`,
+            `        workspaceOptions: {`,
+            `            noLock: true,`,
+            `            platform: "browser",`,
+            `            preserveJsx: true,`,
+            `        },`,
+            `    }),`,
+        );
+    }
+
+    configLines.push(
         `    resolve: {`,
         `        alias: [`,
         ...aliases.map((alias) => `            ${alias},`),
@@ -101,6 +112,12 @@ export function renderGeneratedViteConfigModule(config: GeneratedViteConfig): st
         `        jsxImportSource: "mainz",`,
         `    },`,
         `});`,
+    );
+
+    return [
+        ...imports,
+        ``,
+        ...configLines,
         ``,
     ].join("\n");
 }
