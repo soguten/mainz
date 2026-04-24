@@ -1,4 +1,4 @@
-name: Publish JSR package
+name: Publish JSR packages
 
 on:
   push:
@@ -12,6 +12,24 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: "@mainz/mainz"
+            config: "jsr.json"
+          - name: "@mainz/platform-deno"
+            config: "jsr.platform-deno.json"
+          - name: "@mainz/platform-node"
+            config: "jsr.platform-node.json"
     steps:
-      - uses: actions/checkout@v6
-      - run: npx jsr publish --config jsr.json
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Publish ${{ matrix.package.name }}
+        run: deno publish --config ${{ matrix.package.config }}
