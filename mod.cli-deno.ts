@@ -1,5 +1,5 @@
 /**
- * JSR entrypoint for Mainz Deno tooling.
+ * JSR entrypoint for the Mainz Deno CLI/tooling package.
  *
  * @module
  */
@@ -38,5 +38,8 @@ export type {
 export const denoToolingRuntime: MainzToolingRuntime = internalDenoToolingRuntime;
 
 if (import.meta.main) {
-    await main(Deno.args);
+    const exitCode = await main(Deno.args, { hostRuntime: "deno" });
+    if (exitCode !== 0) {
+        Deno.exit(exitCode);
+    }
 }

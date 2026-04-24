@@ -18,10 +18,10 @@ jobs:
         package:
           - name: "@mainz/mainz"
             config: "jsr.json"
-          - name: "@mainz/runtime-deno"
-            config: "jsr.runtime-deno.json"
-          - name: "@mainz/runtime-node"
-            config: "jsr.runtime-node.json"
+          - name: "@mainz/cli-deno"
+            config: "jsr.cli-deno.json"
+          - name: "@mainz/cli-node"
+            config: "jsr.cli-node.json"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

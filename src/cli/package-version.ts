@@ -1,13 +1,20 @@
+import { fileURLToPath } from "node:url";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
+
 /**
  * Resolves the published Mainz package specifier used by generated projects.
  */
-export async function resolvePublishedMainzSpecifier(moduleUrl: string): Promise<string> {
+export async function resolvePublishedMainzSpecifier(
+    moduleUrl: string,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
+): Promise<string> {
     const publishedSpecifier = resolvePublishedMainzSpecifierFromModuleUrl(moduleUrl);
     if (publishedSpecifier) {
         return publishedSpecifier;
     }
 
-    const version = await readPackageVersion(moduleUrl);
+    const version = await readPackageVersion(moduleUrl, runtime);
     return `jsr:@mainz/mainz@${version}`;
 }
 
@@ -36,20 +43,29 @@ function resolvePublishedMainzVersionFromModuleUrl(moduleUrl: string): string | 
         return undefined;
     }
 
-    if (!segments[1]?.startsWith("mainz") && !segments[1]?.startsWith("runtime-")) {
+    if (
+        !segments[1]?.startsWith("mainz") &&
+        !segments[1]?.startsWith("runtime-") &&
+        !segments[1]?.startsWith("cli-")
+    ) {
         return undefined;
     }
 
     return segments[2] || undefined;
 }
 
-async function readPackageVersion(moduleUrl: string): Promise<string> {
+async function readPackageVersion(
+    moduleUrl: string,
+    runtime: MainzToolingRuntime,
+): Promise<string> {
     const packageConfigUrl = new URL("../../jsr.json", moduleUrl);
     if (packageConfigUrl.protocol !== "file:") {
         throw new Error(`Could not resolve Mainz package version from ${moduleUrl}.`);
     }
 
-    const packageConfig = JSON.parse(await Deno.readTextFile(packageConfigUrl)) as {
+    const packageConfig = JSON.parse(
+        await runtime.readTextFile(fileURLToPath(packageConfigUrl.href)),
+    ) as {
         version?: unknown;
     };
     if (typeof packageConfig.version !== "string" || packageConfig.version.length === 0) {

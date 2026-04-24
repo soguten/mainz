@@ -1,5 +1,11 @@
 function renderGeneratedMainzCliSpecifier(mainzSpecifier: string): string {
-    return `${mainzSpecifier.trim().replace(/\/+$/, "")}/cli`;
+    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+    const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
+    if (jsrMainzMatch) {
+        return `jsr:@mainz/cli-deno${jsrMainzMatch[1] ?? ""}`;
+    }
+
+    return trimmed;
 }
 
 function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {

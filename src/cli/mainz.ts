@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import process from "node:process";
 import type {
     LoadedMainzConfig,
     MainzRuntime,
@@ -113,23 +114,29 @@ class CliExitError extends Error {
     }
 }
 
-if (import.meta.main) {
-    Deno.exit(await runCliEntryPoint(Deno.args));
-}
-
-/**
- * Runs the Mainz command-line interface with the provided process arguments.
- */
-export async function main(args: string[]): Promise<void> {
-    const exitCode = await runCliEntryPoint(args);
+if (import.meta.main && detectHostRuntime() === "deno") {
+    const exitCode = await main(Deno.args, { hostRuntime: "deno" });
     if (exitCode !== 0) {
         Deno.exit(exitCode);
     }
 }
 
-async function runCliEntryPoint(args: string[]): Promise<number> {
+/**
+ * Runs the Mainz command-line interface with the provided process arguments.
+ */
+export async function main(
+    args: string[],
+    options: { hostRuntime?: SupportedCliRuntime } = {},
+): Promise<number> {
+    return await runCliEntryPoint(args, options.hostRuntime ?? detectHostRuntime());
+}
+
+async function runCliEntryPoint(
+    args: string[],
+    hostRuntime: SupportedCliRuntime,
+): Promise<number> {
     try {
-        return await runCli(args);
+        return await runCli(args, hostRuntime);
     } catch (error) {
         if (error instanceof CliExitError) {
             return error.code;
@@ -139,7 +146,7 @@ async function runCliEntryPoint(args: string[]): Promise<number> {
     }
 }
 
-async function runCli(args: string[]): Promise<number> {
+async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise<number> {
     const command = parseCliCommand(args);
     if (!command) {
         printHelp();
@@ -147,20 +154,20 @@ async function runCli(args: string[]): Promise<number> {
     }
 
     if (command.command === "init") {
-        await runInitCommand(command);
+        await runInitCommand(command, hostRuntime);
         return 0;
     }
 
     if (command.command === "app") {
-        await runAppCommand(command);
+        await runAppCommand(command, hostRuntime);
         return 0;
     }
 
-    if (await rerunWithProjectBootstrapIfNeeded(command, args)) {
+    if (await rerunWithProjectBootstrapIfNeeded(command, args, hostRuntime)) {
         return 0;
     }
 
-    const runtime = await resolveCommandToolingRuntime(command);
+    const runtime = await resolveCommandToolingRuntime(command, hostRuntime);
     const loadedConfig = await loadMainzConfig(command.configPath, runtime);
     const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
@@ -193,13 +200,18 @@ async function rerunWithProjectBootstrapIfNeeded(
         | PublishInfoCommandOptions
         | DiagnoseCommandOptions,
     args: readonly string[],
+    hostRuntime: SupportedCliRuntime,
 ): Promise<boolean> {
+    if (hostRuntime !== "deno") {
+        return false;
+    }
+
     const runtime = denoToolingRuntime;
     if (getCliBootstrapEnv() === "1") {
         return false;
     }
 
-    const projectRuntime = await resolveProjectRuntimePreference(command);
+    const projectRuntime = await resolveProjectRuntimePreference(command, hostRuntime);
     if (projectRuntime === "node") {
         const bootstrap = await createNodeProjectBootstrapConfig(
             command.configPath ?? "mainz.config.ts",
@@ -708,13 +720,16 @@ function parseCommandOptions(
     return options;
 }
 
-async function runInitCommand(options: InitCommandOptions): Promise<void> {
-    const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? "deno");
+async function runInitCommand(
+    options: InitCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? hostRuntime);
     const runtime = resolveToolingRuntime(projectRuntime);
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
-        await resolvePublishedMainzSpecifier(import.meta.url);
+        await resolvePublishedMainzSpecifier(import.meta.url, runtime);
     const scaffold = createProjectEmptyScaffold({
         runtime: projectRuntime === "node" ? "node" : "deno",
         mainzSpecifier,
@@ -732,17 +747,23 @@ async function runInitCommand(options: InitCommandOptions): Promise<void> {
     console.log('[mainz] Add an app with "mainz app create <name>".');
 }
 
-async function runAppCommand(options: AppCommandOptions): Promise<void> {
+async function runAppCommand(
+    options: AppCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
     if (options.action === "create") {
-        await runAppCreateCommand(options);
+        await runAppCreateCommand(options, hostRuntime);
         return;
     }
 
     await runAppRemoveCommand(options);
 }
 
-async function runAppCreateCommand(options: AppCommandOptions): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options);
+async function runAppCreateCommand(
+    options: AppCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
     const runtime = resolveToolingRuntime(projectRuntime);
     const appName = normalizeAppName(options.name);
     const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
@@ -1012,9 +1033,12 @@ function printHelp(): void {
             "  mainz [--runtime <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>]",
             "  mainz [--runtime <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
             "",
+            "When --runtime is omitted, Mainz prefers the explicit project runtime and otherwise",
+            "falls back to the host runtime of the installed CLI package.",
+            "",
             "Examples:",
             "  mainz init",
-            "  mainz --runtime node init",
+            "  mainz init --runtime node",
             "  mainz init --mainz jsr:@mainz/mainz@<version>",
             "  mainz app create site",
             "  mainz app create --name site",
@@ -1421,7 +1445,8 @@ async function pathExists(
 }
 
 function isNotFoundError(error: unknown): boolean {
-    return error instanceof Deno.errors.NotFound ||
+    const denoNotFound = globalThis.Deno?.errors?.NotFound;
+    return (typeof denoNotFound === "function" && error instanceof denoNotFound) ||
         (typeof error === "object" && error !== null && (
             ("name" in error && error.name === "NotFound") ||
             ("code" in error && error.code === "ENOENT")
@@ -1429,7 +1454,7 @@ function isNotFoundError(error: unknown): boolean {
 }
 
 function getCliBootstrapEnv(): string | undefined {
-    return Deno.env.get(projectConfigBootstrapEnv);
+    return globalThis.Deno?.env?.get(projectConfigBootstrapEnv) ?? process.env[projectConfigBootstrapEnv];
 }
 
 function resolveBootstrapMainzImports(
@@ -1506,20 +1531,22 @@ async function resolveCommandToolingRuntime(
         | TestCommandOptions
         | PublishInfoCommandOptions
         | DiagnoseCommandOptions,
+    hostRuntime: SupportedCliRuntime,
 ): Promise<MainzToolingRuntime> {
-    const runtime = await resolveProjectRuntimePreference(command);
+    const runtime = await resolveProjectRuntimePreference(command, hostRuntime);
     return resolveToolingRuntime(runtime);
 }
 
 async function resolveProjectRuntimePreference(
     options: Pick<SharedCliOptions, "runtime" | "configPath">,
+    hostRuntime: SupportedCliRuntime,
 ): Promise<SupportedCliRuntime> {
     if (options.runtime) {
         return resolveSupportedCliRuntime(options.runtime);
     }
 
     const projectRuntime = await readProjectRuntime(options.configPath ?? "mainz.config.ts");
-    return resolveSupportedCliRuntime(projectRuntime ?? "deno");
+    return resolveSupportedCliRuntime(projectRuntime ?? hostRuntime);
 }
 
 async function readProjectRuntime(configPath: string): Promise<MainzRuntime | undefined> {
@@ -1529,8 +1556,16 @@ async function readProjectRuntime(configPath: string): Promise<MainzRuntime | un
     }
 
     const source = await denoToolingRuntime.readTextFile(absoluteConfigPath);
-    const match = source.match(/TEMP/);
+    const match = source.match(/\bruntime\s*:\s*["'](deno|node|bun)["']/);
     return match?.[1] as MainzRuntime | undefined;
+}
+
+function detectHostRuntime(): SupportedCliRuntime {
+    if (typeof globalThis.Deno !== "undefined" && typeof globalThis.Deno.version?.deno === "string") {
+        return "deno";
+    }
+
+    return "node";
 }
 
 function resolveSupportedCliRuntime(runtime: MainzRuntime): SupportedCliRuntime {

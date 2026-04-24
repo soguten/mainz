@@ -6,7 +6,7 @@ import { DenoToolingRuntime } from "../index.ts";
 
 Deno.test("tooling/runtime/deno: should support basic filesystem operations", async () => {
     const runtime = new DenoToolingRuntime();
-    const tempDir = await runtime.makeTempDir({ prefix: "mainz-runtime-deno-" });
+    const tempDir = await runtime.makeTempDir({ prefix: "mainz-cli-deno-" });
     const nestedDir = join(tempDir, "nested");
     const filePath = join(nestedDir, "note.txt");
 

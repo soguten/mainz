@@ -40,11 +40,11 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
         );
         assertEquals(
             denoConfig.tasks?.dev,
-            "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/cli dev",
+            "deno run -A --config deno.json jsr:@mainz/cli-deno@0.1.0-alpha.99 dev",
         );
         assertEquals(
             denoConfig.tasks?.build,
-            "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/cli build",
+            "deno run -A --config deno.json jsr:@mainz/cli-deno@0.1.0-alpha.99 build",
         );
     } finally {
         await Deno.remove(cwd, { recursive: true });
