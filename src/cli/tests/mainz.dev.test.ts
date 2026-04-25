@@ -56,18 +56,35 @@ Deno.test("cli/mainz: dev should accept global --runtime before the command", as
     assertEquals(stderr.includes('Unknown command "--runtime".'), false);
 });
 
-Deno.test("cli/mainz: dev should bootstrap node projects created by the CLI", async () => {
+Deno.test("cli/mainz: dev should bootstrap existing node projects", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-node-dev-" });
 
     try {
-        const init = await runMainzCommand(cwd, [
-            "--runtime",
-            "node",
-            "init",
-            "--mainz",
-            "jsr:@mainz/mainz@0.1.0-alpha.99",
-        ]);
-        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+        await Deno.writeTextFile(
+            resolve(cwd, "mainz.config.ts"),
+            [
+                'import { defineMainzConfig } from "mainz/config";',
+                "",
+                "export default defineMainzConfig({",
+                '    runtime: "node",',
+                "    targets: [",
+                "    ],",
+                "});",
+                "",
+            ].join("\n"),
+        );
+        await Deno.writeTextFile(
+            resolve(cwd, "package.json"),
+            JSON.stringify(
+                {
+                    dependencies: {
+                        mainz: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+                    },
+                },
+                null,
+                4,
+            ),
+        );
 
         const create = await runMainzCommand(cwd, ["app", "create", "site"]);
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);

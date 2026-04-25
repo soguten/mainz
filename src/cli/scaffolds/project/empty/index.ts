@@ -1,10 +1,5 @@
-import { type EmptyProjectRuntime, renderEmptyProjectConfig } from "./base.ts";
+import { renderEmptyProjectConfig } from "./base.ts";
 import { renderEmptyDenoProjectConfig } from "./deno.ts";
-import {
-    renderEmptyNodeNpmrc,
-    renderEmptyNodePackageJson,
-    renderEmptyNodeTsconfig,
-} from "./node.ts";
 
 /**
  * Files generated for an empty Mainz project scaffold.
@@ -18,8 +13,6 @@ export interface ProjectEmptyScaffold {
  * Input required to scaffold an empty Mainz project.
  */
 export interface CreateProjectEmptyScaffoldOptions {
-    /** Target tooling runtime for the generated project. */
-    runtime: EmptyProjectRuntime;
     /** Mainz package specifier used in generated imports or dependencies. */
     mainzSpecifier: string;
     /** Output path for the generated Mainz config file. */
@@ -36,21 +29,13 @@ export function createProjectEmptyScaffold(
 ): ProjectEmptyScaffold {
     const configPath = options.configPath ?? "mainz.config.ts";
     const files = new Map<string, string>([
-        [configPath, renderEmptyProjectConfig(options.runtime)],
+        [configPath, renderEmptyProjectConfig()],
     ]);
-
-    if (options.runtime === "deno") {
-        const denoConfigPath = options.denoConfigPath ?? "deno.json";
-        files.set(
-            denoConfigPath,
-            renderEmptyDenoProjectConfig(options.mainzSpecifier, denoConfigPath),
-        );
-        return { files };
-    }
-
-    files.set("package.json", renderEmptyNodePackageJson(options.mainzSpecifier));
-    files.set(".npmrc", renderEmptyNodeNpmrc());
-    files.set("tsconfig.json", renderEmptyNodeTsconfig());
+    const denoConfigPath = options.denoConfigPath ?? "deno.json";
+    files.set(
+        denoConfigPath,
+        renderEmptyDenoProjectConfig(options.mainzSpecifier, denoConfigPath),
+    );
     return { files };
 }
 

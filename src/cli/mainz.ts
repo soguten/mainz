@@ -725,13 +725,18 @@ async function runInitCommand(
     hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
     const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
+    if (projectRuntime !== "deno") {
+        throw new Error(
+            'Node project initialization moved to the Node CLI package. Use the "mainz-cli-node" wrapper to run "mainz init" for runtime "node".',
+        );
+    }
+
+    const runtime = denoToolingRuntime;
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
         await resolvePublishedMainzSpecifier(import.meta.url, runtime);
     const scaffold = createProjectEmptyScaffold({
-        runtime: projectRuntime === "node" ? "node" : "deno",
         mainzSpecifier,
         configPath,
         denoConfigPath,
@@ -1038,7 +1043,6 @@ function printHelp(): void {
             "",
             "Examples:",
             "  mainz init",
-            "  mainz init --runtime node",
             "  mainz init --mainz jsr:@mainz/mainz@<version>",
             "  mainz app create site",
             "  mainz app create --name site",
@@ -1545,17 +1549,23 @@ async function resolveProjectRuntimePreference(
         return resolveSupportedCliRuntime(options.runtime);
     }
 
-    const projectRuntime = await readProjectRuntime(options.configPath ?? "mainz.config.ts");
+    const projectRuntime = await readProjectRuntime(
+        options.configPath ?? "mainz.config.ts",
+        resolveToolingRuntime(hostRuntime),
+    );
     return resolveSupportedCliRuntime(projectRuntime ?? hostRuntime);
 }
 
-async function readProjectRuntime(configPath: string): Promise<MainzRuntime | undefined> {
+async function readProjectRuntime(
+    configPath: string,
+    runtime: MainzToolingRuntime = denoToolingRuntime,
+): Promise<MainzRuntime | undefined> {
     const absoluteConfigPath = resolve(configPath);
-    if (!(await pathExists(absoluteConfigPath))) {
+    if (!(await pathExists(absoluteConfigPath, runtime))) {
         return undefined;
     }
 
-    const source = await denoToolingRuntime.readTextFile(absoluteConfigPath);
+    const source = await runtime.readTextFile(absoluteConfigPath);
     const match = source.match(/\bruntime\s*:\s*["'](deno|node|bun)["']/);
     return match?.[1] as MainzRuntime | undefined;
 }

@@ -58,19 +58,50 @@ async function readPackageVersion(
     moduleUrl: string,
     runtime: MainzToolingRuntime,
 ): Promise<string> {
-    const packageConfigUrl = new URL("../../jsr.json", moduleUrl);
-    if (packageConfigUrl.protocol !== "file:") {
-        throw new Error(`Could not resolve Mainz package version from ${moduleUrl}.`);
+    const candidateConfigUrls = [
+        new URL("../../jsr.json", moduleUrl),
+        new URL("../../jsr.cli-deno.json", moduleUrl),
+        new URL("../../package.json", moduleUrl),
+    ];
+
+    for (const candidateUrl of candidateConfigUrls) {
+        if (candidateUrl.protocol !== "file:") {
+            continue;
+        }
+
+        try {
+            const packageConfig = JSON.parse(
+                await runtime.readTextFile(fileURLToPath(candidateUrl.href)),
+            ) as {
+                version?: unknown;
+            };
+            if (typeof packageConfig.version === "string" && packageConfig.version.length > 0) {
+                return packageConfig.version;
+            }
+        } catch (error) {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                "code" in error &&
+                error.code === "ENOENT"
+            ) {
+                continue;
+            }
+
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                "name" in error &&
+                error.name === "NotFound"
+            ) {
+                continue;
+            }
+
+            throw error;
+        }
     }
 
-    const packageConfig = JSON.parse(
-        await runtime.readTextFile(fileURLToPath(packageConfigUrl.href)),
-    ) as {
-        version?: unknown;
-    };
-    if (typeof packageConfig.version !== "string" || packageConfig.version.length === 0) {
-        throw new Error("Could not resolve Mainz package version from jsr.json.");
-    }
-
-    return packageConfig.version;
+    throw new Error(
+        "Could not resolve Mainz package version from jsr.json, jsr.cli-deno.json, or package.json.",
+    );
 }

@@ -20,8 +20,6 @@ jobs:
             config: "jsr.json"
           - name: "@mainz/cli-deno"
             config: "jsr.cli-deno.json"
-          - name: "@mainz/cli-node"
-            config: "jsr.cli-node.json"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

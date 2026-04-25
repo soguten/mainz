@@ -75,7 +75,7 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
     }
 });
 
-Deno.test("cli/mainz init: should initialize an empty node project with --runtime", async () => {
+Deno.test("cli/mainz init: should reject node project initialization and point to the node wrapper", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-" });
 
     try {
@@ -87,46 +87,34 @@ Deno.test("cli/mainz init: should initialize an empty node project with --runtim
             "jsr:@mainz/mainz@0.1.0-alpha.99",
         ]);
 
-        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
-        assertStringIncludes(result.stdout, "Initialized Mainz project");
+        assertEquals(result.code, 1);
+        assertStringIncludes(result.stderr, "Node project initialization moved to the Node CLI package");
+        assertStringIncludes(result.stderr, "mainz-cli-node");
 
-        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
-        assertStringIncludes(config, 'runtime: "node"');
-
-        const packageJson = JSON.parse(await Deno.readTextFile(resolve(cwd, "package.json"))) as {
-            dependencies?: Record<string, string>;
-            scripts?: Record<string, string>;
-        };
-        assertEquals(packageJson.dependencies?.mainz, "npm:@jsr/mainz__mainz@0.1.0-alpha.99");
-        assertEquals(packageJson.scripts?.dev, "mainz dev");
-        assertEquals(packageJson.scripts?.build, "mainz build");
-
-        const npmrc = await Deno.readTextFile(resolve(cwd, ".npmrc"));
-        assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
-
-        const tsconfig = JSON.parse(await Deno.readTextFile(resolve(cwd, "tsconfig.json"))) as {
-            compilerOptions?: Record<string, unknown>;
-        };
-        assertEquals(tsconfig.compilerOptions?.jsxImportSource, "mainz");
-
+        await assertRejectsNotFound(resolve(cwd, "mainz.config.ts"));
         await assertRejectsNotFound(resolve(cwd, "deno.json"));
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }
 });
 
-Deno.test("cli/mainz init: should let app create keep node as the project runtime", async () => {
+Deno.test("cli/mainz app: create should keep node as the project runtime in an existing node project", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-app-create-" });
 
     try {
-        const init = await runMainz(cwd, [
-            "--runtime",
-            "node",
-            "init",
-            "--mainz",
-            "jsr:@mainz/mainz@0.1.0-alpha.99",
-        ]);
-        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+        await Deno.writeTextFile(
+            resolve(cwd, "mainz.config.ts"),
+            [
+                'import { defineMainzConfig } from "mainz/config";',
+                "",
+                "export default defineMainzConfig({",
+                '    runtime: "node",',
+                "    targets: [",
+                "    ],",
+                "});",
+                "",
+            ].join("\n"),
+        );
 
         const create = await runMainz(cwd, ["app", "create", "docs"]);
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
