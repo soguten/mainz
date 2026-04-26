@@ -18,7 +18,7 @@ import { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./v
 export async function runBuildJobs(
     config: NormalizedMainzConfig,
     jobs: BuildJob[],
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     for (const job of jobs) {
@@ -29,7 +29,7 @@ export async function runBuildJobs(
 export async function runSingleBuild(
     config: NormalizedMainzConfig,
     job: BuildJob,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));

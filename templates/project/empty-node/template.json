@@ -1,0 +1,5 @@
+{
+    "kind": "project",
+    "name": "empty-node",
+    "runtime": "node"
+}

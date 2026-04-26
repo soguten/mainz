@@ -1,4 +1,4 @@
-import type { DiagnosticsTargetModel } from "../core/target-model.ts";
+import type { DiagnosticsContributor, DiagnosticsTargetModel } from "../core/target-model.ts";
 import type { MainzDiagnostic, RouteDiagnosticsPageInput } from "./facts.ts";
 import { collectRoutePageFacts } from "./discover.ts";
 import { collectDynamicSsgDiagnostics } from "./rules/dynamic-ssg.rule.ts";
@@ -27,7 +27,7 @@ type RoutingDiagnosticsContext = {
     registeredPolicyNames?: ReadonlySet<string>;
 };
 
-export const routeDiagnosticsContributor = {
+export const routeDiagnosticsContributor: DiagnosticsContributor = {
     name: "routing",
     async collect(model: DiagnosticsTargetModel) {
         return analyzeRouteDiagnostics(

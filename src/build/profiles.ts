@@ -31,7 +31,7 @@ const DEFAULT_BUILD_PROFILE_NAME = "production";
 export async function resolveTargetBuildProfile(
     target: NormalizedMainzTarget,
     requestedProfile: string | undefined,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<ResolvedBuildProfile> {
     const profileName = requestedProfile?.trim() || DEFAULT_BUILD_PROFILE_NAME;
@@ -67,7 +67,7 @@ export async function resolveTargetBuildProfile(
 export async function resolvePublicationMetadata(
     target: NormalizedMainzTarget,
     requestedProfile: string | undefined,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<PublicationMetadata> {
     const profile = await resolveTargetBuildProfile(target, requestedProfile, cwd, runtime);
@@ -86,7 +86,7 @@ export async function resolvePublicationMetadata(
 export async function resolveEffectiveNavigationMode(
     target: NormalizedMainzTarget,
     profile: ResolvedBuildProfile,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<NavigationMode> {
     const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, runtime);

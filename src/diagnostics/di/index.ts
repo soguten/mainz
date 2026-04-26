@@ -1,5 +1,5 @@
 import { runDiagnosticsRules } from "../core/pipeline.ts";
-import type { DiagnosticsTargetModel } from "../core/target-model.ts";
+import type { DiagnosticsContributor, DiagnosticsTargetModel } from "../core/target-model.ts";
 import { discoverDiFacts } from "./discover.ts";
 import type {
     DiDiagnostic,
@@ -32,7 +32,7 @@ type DiDiagnosticsRuntimeContext = {
     registrationsByToken: ReadonlyMap<string, DiRegistrationFact>;
 } & DiDiagnosticsContext;
 
-export const diDiagnosticsContributor = {
+export const diDiagnosticsContributor: DiagnosticsContributor = {
     name: "di",
     async collect(model: DiagnosticsTargetModel) {
         const facts = await discoverDiFacts(model.sourceInputs, {

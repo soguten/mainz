@@ -9,18 +9,6 @@ import { denoToolingRuntime as internalDenoToolingRuntime } from "./src/tooling/
 import type { MainzToolingRuntime } from "./src/tooling/runtime/types.ts";
 
 export { main } from "./src/cli/mainz.ts";
-export { createAppScaffold, createProjectEmptyScaffold } from "./src/cli/scaffolds/index.ts";
-export type {
-    AppScaffold,
-    AppScaffoldNavigation,
-    AppScaffoldRuntime,
-    AppScaffoldTarget,
-    AppScaffoldType,
-    CreateAppScaffoldOptions,
-    CreateProjectEmptyScaffoldOptions,
-    EmptyProjectRuntime,
-    ProjectEmptyScaffold,
-} from "./src/cli/scaffolds/index.ts";
 export type {
     MainzToolingRuntime,
     ToolingCommand,

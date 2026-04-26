@@ -1,5 +1,5 @@
 import { runDiagnosticsRules } from "../core/pipeline.ts";
-import type { DiagnosticsTargetModel } from "../core/target-model.ts";
+import type { DiagnosticsContributor, DiagnosticsTargetModel } from "../core/target-model.ts";
 import { discoverComponentFacts } from "./discover.ts";
 import type {
     ComponentDiagnostic,
@@ -56,7 +56,7 @@ const componentDiagnosticsRules = [
     componentRenderDataWithoutExplicitDataRule,
     componentBlockingPlaceholderConflictRule,
 ] as const;
-export const componentDiagnosticsContributor = {
+export const componentDiagnosticsContributor: DiagnosticsContributor = {
     name: "components",
     async collect(model: DiagnosticsTargetModel) {
         const facts = await discoverComponentFacts(model.sourceInputs);

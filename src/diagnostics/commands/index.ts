@@ -1,5 +1,5 @@
 import { runDiagnosticsRules } from "../core/pipeline.ts";
-import type { DiagnosticsTargetModel } from "../core/target-model.ts";
+import type { DiagnosticsContributor, DiagnosticsTargetModel } from "../core/target-model.ts";
 import { collectDiagnosticsFromModel } from "../collect.ts";
 import { createDiagnosticsTargetModel } from "../core/target-model.ts";
 import { discoverCommandFacts } from "./discover.ts";
@@ -27,7 +27,7 @@ export {
     appCommandDuplicateIdRule,
 } from "./rules/app-command-duplicate-id.rule.ts";
 
-export const commandDiagnosticsContributor = {
+export const commandDiagnosticsContributor: DiagnosticsContributor = {
     name: "commands",
     async collect(model: DiagnosticsTargetModel) {
         const registrations = await discoverCommandFacts(model.sourceInputs, {

@@ -27,7 +27,7 @@ const BUILD_RECIPE_RENDER_MODES: readonly RenderMode[] = ["csr", "ssg"];
 export async function resolveBuildJobs(
     config: NormalizedMainzConfig,
     options: BuildRequestOptions,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<BuildJob[]> {
     return await resolveProductionBuildJobsInternal(config, options, cwd, runtime);
@@ -36,7 +36,7 @@ export async function resolveBuildJobs(
 export async function resolveForcedBuildJobs(
     config: NormalizedMainzConfig,
     options: ForcedBuildRequestOptions,
-    cwd = denoToolingRuntime.cwd(),
+    cwd: string = denoToolingRuntime.cwd(),
 ): Promise<BuildJob[]> {
     const targetSelection = options.target?.trim();
     const modeSelection = options.mode?.trim();

@@ -11,9 +11,9 @@ export {
     routeDiagnosticsContributor,
 };
 
-export const diagnosticsContributors = [
+export const diagnosticsContributors: readonly DiagnosticsContributor[] = [
     routeDiagnosticsContributor,
     componentDiagnosticsContributor,
     diDiagnosticsContributor,
     commandDiagnosticsContributor,
-] as const satisfies readonly DiagnosticsContributor[];
+];

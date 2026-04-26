@@ -32,7 +32,7 @@ export async function collectDiagnosticsFromModel(
 
 export async function collectDiagnosticsForTarget(
     target: NormalizedMainzTarget,
-    cwd = Deno.cwd(),
+    cwd: string = Deno.cwd(),
     selectedAppId?: string,
 ): Promise<
     readonly {
@@ -88,5 +88,7 @@ function readDiagnosticRoutePath(diagnostic: MainzDiagnostic): string | undefine
     return "routePath" in diagnostic ? diagnostic.routePath : undefined;
 }
 
-export const collectTargetDiagnostics = collectDiagnosticsFromInput;
-export const collectTargetModelDiagnostics = collectDiagnosticsFromModel;
+export const collectTargetDiagnostics: typeof collectDiagnosticsFromInput =
+    collectDiagnosticsFromInput;
+export const collectTargetModelDiagnostics: typeof collectDiagnosticsFromModel =
+    collectDiagnosticsFromModel;

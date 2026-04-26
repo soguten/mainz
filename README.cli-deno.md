@@ -1,21 +1,27 @@
-# @mainz/cli-deno
+# Mainz CLI for Deno
 
-Deno-hosted Mainz tooling package.
+Deno-hosted command-line tooling for Mainz.
 
-This package exposes:
-
-- the Deno Mainz CLI entrypoint
-- the Deno tooling runtime adapter
-- shared scaffold builders used by `mainz init` and `mainz app create`
-
-Suggested global install when you want this CLI to coexist with other Mainz host CLIs:
-
-```bash
-deno install -A -g -f -n mainz-deno jsr:@mainz/cli-deno
+```powershell
+deno install -A -g -f -n mainz jsr:@mainz/cli-deno@0.1.0-alpha.39
 ```
 
-Typical usage:
+Create and run a Deno project:
 
-```ts
-import { denoToolingRuntime } from "@mainz/cli-deno";
+```powershell
+mainz init
+mainz app create site
+mainz dev --target site
+```
+
+Create a Node-shaped project from the Deno CLI:
+
+```powershell
+mainz init --runtime node
+```
+
+Uninstall the global command:
+
+```powershell
+deno uninstall -g mainz
 ```

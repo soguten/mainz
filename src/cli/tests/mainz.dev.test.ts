@@ -29,7 +29,7 @@ Deno.test("cli/mainz: dev should validate port", async () => {
     assertStringIncludes(result.stderr, 'Invalid --port value "nope".');
 });
 
-Deno.test("cli/mainz: dev should accept global --runtime before the command", async () => {
+Deno.test("cli/mainz: should reject leading --runtime before the command", async () => {
     const command = new Deno.Command("deno", {
         args: [
             "run",
@@ -52,8 +52,8 @@ Deno.test("cli/mainz: dev should accept global --runtime before the command", as
 
     assertEquals(result.code, 1);
     assertEquals(stdout, "");
-    assertStringIncludes(stderr, 'No targets matched "missing-target".');
-    assertEquals(stderr.includes('Unknown command "--runtime".'), false);
+    assertStringIncludes(stderr, 'Unknown command "--runtime".');
+    assertStringIncludes(stderr, 'Run "mainz --help" for usage.');
 });
 
 Deno.test("cli/mainz: dev should bootstrap existing node projects", async () => {

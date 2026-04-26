@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import type {
@@ -22,16 +22,10 @@ import {
     shouldFailDiagnostics,
 } from "../diagnostics/index.ts";
 import { serveArtifactPreview } from "../preview/artifact-server.ts";
-import {
-    type AppScaffoldNavigation,
-    type AppScaffoldTarget,
-    type AppScaffoldType,
-    createAppScaffold,
-} from "./scaffolds/index.ts";
-import { createProjectEmptyScaffold } from "./scaffolds/index.ts";
 import { denoToolingRuntime, nodeToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
+import { materializeTemplate, resolveBuiltInTemplateRoot } from "./templates/index.ts";
 
 type SharedCliOptions = {
     runtime?: MainzRuntime;
@@ -85,10 +79,10 @@ type AppCommandOptions = {
     command: "app";
     action: "create" | "remove";
     name: string;
-    type?: AppScaffoldType;
+    type?: "routed" | "root";
     root?: string;
     outDir?: string;
-    navigation?: AppScaffoldNavigation;
+    navigation?: "spa" | "mpa" | "enhanced-mpa";
     runtime?: MainzRuntime;
     configPath?: string;
     deleteFiles?: boolean;
@@ -113,6 +107,25 @@ class CliExitError extends Error {
         super(`CLI exited with code ${code}.`);
     }
 }
+
+class CliUsageError extends Error {
+    constructor(message: string, readonly helpTopic: HelpTopic = "main") {
+        super(message);
+    }
+}
+
+type HelpTopic =
+    | "main"
+    | "init"
+    | "app"
+    | "app-create"
+    | "app-remove"
+    | "build"
+    | "dev"
+    | "preview"
+    | "test"
+    | "publish-info"
+    | "diagnose";
 
 if (import.meta.main && detectHostRuntime() === "deno") {
     const exitCode = await main(Deno.args, { hostRuntime: "deno" });
@@ -141,12 +154,25 @@ async function runCliEntryPoint(
         if (error instanceof CliExitError) {
             return error.code;
         }
+        if (error instanceof Error) {
+            printSoftError(
+                error.message,
+                error instanceof CliUsageError ? error.helpTopic : "main",
+            );
+            return 1;
+        }
 
         throw error;
     }
 }
 
 async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise<number> {
+    const helpTopic = resolveHelpTopic(args);
+    if (helpTopic) {
+        printHelp(helpTopic);
+        return 0;
+    }
+
     const command = parseCliCommand(args);
     if (!command) {
         printHelp();
@@ -154,12 +180,20 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
     }
 
     if (command.command === "init") {
-        await runInitCommand(command, hostRuntime);
+        try {
+            await runInitCommand(command, hostRuntime);
+        } catch (error) {
+            throw toCliUsageError(error, "init");
+        }
         return 0;
     }
 
     if (command.command === "app") {
-        await runAppCommand(command, hostRuntime);
+        try {
+            await runAppCommand(command, hostRuntime);
+        } catch (error) {
+            throw toCliUsageError(error, command.action === "create" ? "app-create" : "app-remove");
+        }
         return 0;
     }
 
@@ -173,20 +207,44 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
 
     switch (command.command) {
         case "publish-info":
-            await runPublishInfoCommand(command, normalizedConfig, runtime);
+            try {
+                await runPublishInfoCommand(command, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "publish-info");
+            }
             return 0;
         case "diagnose":
-            return await runDiagnoseCommand(command, normalizedConfig, runtime);
+            try {
+                return await runDiagnoseCommand(command, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "diagnose");
+            }
         case "dev":
-            await runDevCommand(command, loadedConfig, normalizedConfig, runtime);
+            try {
+                await runDevCommand(command, loadedConfig, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "dev");
+            }
             return 0;
         case "preview":
-            await runPreviewCommand(command, loadedConfig, normalizedConfig, runtime);
+            try {
+                await runPreviewCommand(command, loadedConfig, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "preview");
+            }
             return 0;
         case "test":
-            return await runTestCommand(command, normalizedConfig, runtime);
+            try {
+                return await runTestCommand(command, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "test");
+            }
         case "build":
-            await runBuildCommand(command, loadedConfig, normalizedConfig, runtime);
+            try {
+                await runBuildCommand(command, loadedConfig, normalizedConfig, runtime);
+            } catch (error) {
+                throw toCliUsageError(error, "build");
+            }
             return 0;
     }
 }
@@ -350,7 +408,7 @@ async function findNearestDenoConfig(configPath: string): Promise<string | undef
 }
 
 function parseCliCommand(args: string[]): MainzCliCommand | undefined {
-    const { runtime, remainingArgs } = parseGlobalCliOptions(args);
+    const remainingArgs = parseLeadingCliOptions(args);
     const [command, ...rest] = remainingArgs;
 
     if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -364,20 +422,21 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         command !== "app" &&
         command !== "init"
     ) {
-        throw new Error(
+        throw new CliUsageError(
             `Unknown command "${command}". Use "init", "build", "dev", "preview", "test", "publish-info", "diagnose", or "app".`,
+            "main",
         );
     }
 
     if (command === "init") {
-        return parseInitCommand(rest, runtime);
+        return parseInitCommand(rest);
     }
 
     if (command === "app") {
-        return parseAppCommand(rest, runtime);
+        return parseAppCommand(rest);
     }
 
-    const options = parseCommandOptions(command, rest, runtime);
+    const options = parseCommandOptions(command, rest);
 
     if (command === "build") {
         return { command, ...options };
@@ -407,34 +466,32 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     };
 }
 
-function parseGlobalCliOptions(args: readonly string[]): {
-    runtime?: MainzRuntime;
-    remainingArgs: string[];
-} {
-    const remainingArgs: string[] = [];
-    let runtime: MainzRuntime | undefined;
+function parseLeadingCliOptions(args: readonly string[]): string[] {
+    const remainingArgs = [...args];
 
-    for (let index = 0; index < args.length; index += 1) {
-        const current = args[index];
-        if (current === "--runtime") {
-            runtime = parseRuntimeOption(args[index + 1]);
-            index += 1;
-            continue;
+    while (remainingArgs[0] === "--cli") {
+        const cli = remainingArgs[1];
+        if (cli !== "deno" && cli !== "node" && cli !== "bun") {
+            throw new CliUsageError(
+                `Unsupported CLI "${cli ?? ""}". Use "deno", "node", or "bun".`,
+                "main",
+            );
+        }
+        if (cli !== "deno") {
+            throw new CliUsageError(
+                `This executable is the Deno-hosted Mainz CLI. Received "--cli ${cli}".`,
+                "main",
+            );
         }
 
-        remainingArgs.push(current);
+        remainingArgs.splice(0, 2);
     }
 
-    return { runtime, remainingArgs };
+    return remainingArgs;
 }
 
-function parseInitCommand(
-    args: string[],
-    inheritedRuntime?: MainzRuntime,
-): InitCommandOptions {
-    const options: Omit<InitCommandOptions, "command"> = {
-        runtime: inheritedRuntime,
-    };
+function parseInitCommand(args: string[]): InitCommandOptions {
+    const options: Omit<InitCommandOptions, "command"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -472,10 +529,7 @@ function parseInitCommand(
     };
 }
 
-function parseAppCommand(
-    args: string[],
-    inheritedRuntime?: MainzRuntime,
-): AppCommandOptions {
+function parseAppCommand(args: string[]): AppCommandOptions {
     const [action, maybeName, ...rest] = args;
 
     if (action !== "create" && action !== "remove") {
@@ -488,9 +542,7 @@ function parseAppCommand(
     const options: Pick<
         AppCommandOptions,
         "type" | "root" | "outDir" | "navigation" | "configPath" | "deleteFiles" | "runtime"
-    > = {
-        runtime: inheritedRuntime,
-    };
+    > = {};
     let flagName: string | undefined;
 
     for (let index = 0; index < remaining.length; index += 1) {
@@ -599,7 +651,7 @@ function parseAppNavigation(value: string | undefined): AppCommandOptions["navig
     );
 }
 
-function parseAppType(value: string | undefined): AppScaffoldType {
+function parseAppType(value: string | undefined): "routed" | "root" {
     if (value === "routed" || value === "root") {
         return value;
     }
@@ -620,7 +672,6 @@ function parseRuntimeOption(value: string | undefined): MainzRuntime {
 function parseCommandOptions(
     command: Exclude<MainzCliCommand["command"], "app">,
     args: string[],
-    inheritedRuntime?: MainzRuntime,
 ):
     & SharedCliOptions
     & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
@@ -628,9 +679,7 @@ function parseCommandOptions(
     const options:
         & SharedCliOptions
         & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-        & Pick<DevCommandOptions, "host" | "port"> = {
-            runtime: inheritedRuntime,
-        };
+        & Pick<DevCommandOptions, "host" | "port"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -725,30 +774,34 @@ async function runInitCommand(
     hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
     const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? hostRuntime);
-    if (projectRuntime !== "deno") {
-        throw new Error(
-            'Node project initialization moved to the Node CLI package. Use the "mainz-cli-node" wrapper to run "mainz init" for runtime "node".',
-        );
-    }
-
     const runtime = denoToolingRuntime;
+    const projectName = basename(runtime.cwd()) || "mainz-app";
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
         await resolvePublishedMainzSpecifier(import.meta.url, runtime);
-    const scaffold = createProjectEmptyScaffold({
-        mainzSpecifier,
-        configPath,
-        denoConfigPath,
+    const generatedMainzSpecifier = projectRuntime === "node"
+        ? renderGeneratedNodeMainzSpecifier(mainzSpecifier)
+        : mainzSpecifier;
+    const plan = await materializeTemplate({
+        runtime,
+        templateRoot: resolveBuiltInTemplateRoot(
+            "project",
+            projectRuntime === "node" ? "empty-node" : "empty-deno",
+        ),
+        outputDir: runtime.cwd(),
+        params: {
+            mainzSpecifier: generatedMainzSpecifier,
+            projectName,
+            denoConfigPath,
+            mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
+            mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
+        },
+        beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
     });
 
-    await assertCanCreateFiles([...scaffold.files.keys()], runtime);
-    for (const [path, content] of scaffold.files) {
-        await writeNewTextFile(path, content, runtime);
-    }
-
     console.log(`[mainz] Initialized Mainz project in ${runtime.cwd()}.`);
-    console.log(`[mainz] Created ${Array.from(scaffold.files.keys()).join(", ")}.`);
+    console.log(`[mainz] Created ${plan.files.map((file) => file.path).join(", ")}.`);
     console.log('[mainz] Add an app with "mainz app create <name>".');
 }
 
@@ -775,33 +828,26 @@ async function runAppCreateCommand(
     const rootPath = resolve(rootDir);
     const outDir = normalizeOutDir(options.outDir ?? `dist/${appName}`);
     const configPath = options.configPath ?? "mainz.config.ts";
-    const scaffold = createAppScaffold({
-        type: options.type ?? "routed",
-        name: appName,
-        rootDir,
-        outDir,
-        navigation: options.navigation ?? "enhanced-mpa",
-        runtime: projectRuntime,
+    const plan = await materializeTemplate({
+        runtime,
+        templateRoot: resolveBuiltInTemplateRoot("app", options.type ?? "routed"),
+        outputDir: rootPath,
+        params: {
+            appName,
+            appId: appName,
+            appNavigation: options.navigation ?? "enhanced-mpa",
+            appTitle: appName,
+            customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
+            rootDir,
+            outDir,
+        },
+        beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
     });
-
-    for (const relativePath of scaffold.files.keys()) {
-        const path = resolve(rootPath, relativePath);
-        if (await pathExists(path, runtime)) {
-            throw new Error(`Refusing to overwrite existing file "${path}".`);
-        }
-    }
-
-    for (const directory of scaffold.directories) {
-        await runtime.mkdir(resolve(rootPath, directory), { recursive: true });
-    }
-
-    for (const [relativePath, content] of scaffold.files) {
-        await runtime.writeTextFile(resolve(rootPath, relativePath), content);
-    }
+    const target = resolveTemplateTarget(plan.manifest);
 
     await upsertConfigTarget(
         configPath,
-        renderConfigTarget(scaffold.target),
+        renderConfigTarget(target),
         projectRuntime,
         runtime,
     );
@@ -904,10 +950,17 @@ async function runDevCommand(
         `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
     );
 
-    await runEngineDevServer(normalizedConfig, target, profile, {
-        host: options.host,
-        port: options.port,
-    }, cwd, runtime);
+    await runEngineDevServer(
+        normalizedConfig,
+        target,
+        profile,
+        {
+            host: options.host,
+            port: options.port,
+        },
+        cwd,
+        runtime,
+    );
 }
 
 async function runPreviewCommand(
@@ -1022,49 +1075,156 @@ function resolveRequiredTarget(
     return target;
 }
 
-function printHelp(): void {
+function printHelp(topic: HelpTopic = "main"): void {
     console.log(
-        [
-            "Mainz CLI",
+        getHelpText(topic).join("\n"),
+    );
+}
+
+function getHelpText(topic: HelpTopic): string[] {
+    if (topic === "init") {
+        return [
+            "Mainz CLI - init",
             "",
             "Usage:",
-            "  mainz [--runtime <deno|node|bun>] init [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-            "  mainz [--runtime <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] test [--target <name|all>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>]",
-            "  mainz [--runtime <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
+            "  mainz init [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
             "",
-            "When --runtime is omitted, Mainz prefers the explicit project runtime and otherwise",
-            "falls back to the host runtime of the installed CLI package.",
+            "Notes:",
+            "  --runtime selects the runtime of the generated project, not the CLI host.",
+            "  This executable already is the Deno-hosted CLI.",
+        ];
+    }
+
+    if (topic === "app") {
+        return [
+            "Mainz CLI - app",
             "",
-            "Examples:",
-            "  mainz init",
-            "  mainz init --mainz jsr:@mainz/mainz@<version>",
-            "  mainz app create site",
-            "  mainz app create --name site",
-            "  mainz app create docs --navigation enhanced-mpa",
-            "  mainz app create portal --type root",
-            "  mainz app remove site",
-            "  mainz app remove --target site",
-            "  mainz build",
-            "  mainz build --target site --profile gh-pages",
-            "  mainz build --target playground",
-            "  mainz dev --target playground",
-            "  mainz dev --target site --host",
-            "  mainz preview --target site --profile production",
-            "  mainz test --target site",
-            "  mainz publish-info --target site --profile gh-pages",
-            "  mainz diagnose",
-            "  mainz diagnose --target docs",
-            "  mainz diagnose --target docs --app site",
-            "  mainz diagnose --target docs --format human",
-            "  mainz diagnose --target docs --format human --fail-on error",
-        ].join("\n"),
-    );
+            "Usage:",
+            "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+        ];
+    }
+
+    if (topic === "app-create") {
+        return [
+            "Mainz CLI - app create",
+            "",
+            "Usage:",
+            "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "app-remove") {
+        return [
+            "Mainz CLI - app remove",
+            "",
+            "Usage:",
+            "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+        ];
+    }
+
+    if (topic === "dev") {
+        return [
+            "Mainz CLI - dev",
+            "",
+            "Usage:",
+            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "build") {
+        return [
+            "Mainz CLI - build",
+            "",
+            "Usage:",
+            "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "preview") {
+        return [
+            "Mainz CLI - preview",
+            "",
+            "Usage:",
+            "  mainz preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "test") {
+        return [
+            "Mainz CLI - test",
+            "",
+            "Usage:",
+            "  mainz test [--target <name|all>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "publish-info") {
+        return [
+            "Mainz CLI - publish-info",
+            "",
+            "Usage:",
+            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "diagnose") {
+        return [
+            "Mainz CLI - diagnose",
+            "",
+            "Usage:",
+            "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
+        ];
+    }
+
+    return [
+        "Mainz CLI",
+        "",
+        "Usage:",
+        "  mainz [--cli <deno|node|bun>] init [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+        "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>] [--runtime <deno|node|bun>]",
+        "",
+        "Global options:",
+        "  --cli <deno|node|bun>      Reserved for a future Mainz launcher. This executable already is the Deno CLI.",
+        "",
+        "Command options:",
+        "  --runtime <deno|node|bun>  Selects the generated or targeted project runtime.",
+        "",
+        "The --runtime option belongs after the command that consumes it. Use --cli before the",
+        "command only when selecting which installed CLI host should execute the operation.",
+        "When --runtime is omitted, Mainz prefers the explicit project runtime and otherwise",
+        "falls back to the host runtime of the installed CLI package.",
+        "",
+        "Examples:",
+        "  mainz init",
+        "  mainz init --mainz jsr:@mainz/mainz@<version>",
+        "  mainz app create site",
+        "  mainz app create --name site",
+        "  mainz app create docs --navigation enhanced-mpa",
+        "  mainz app create portal --type root",
+        "  mainz app remove site",
+        "  mainz app remove --target site",
+        "  mainz build",
+        "  mainz build --target site --profile gh-pages",
+        "  mainz build --target playground",
+        "  mainz dev --target playground",
+        "  mainz dev --target site --host",
+        "  mainz preview --target site --profile production",
+        "  mainz test --target site",
+        "  mainz publish-info --target site --profile gh-pages",
+        "  mainz diagnose",
+        "  mainz diagnose --target docs",
+        "  mainz diagnose --target docs --app site",
+        "  mainz diagnose --target docs --format human",
+        "  mainz diagnose --target docs --format human --fail-on error",
+    ];
 }
 
 function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
@@ -1078,6 +1238,86 @@ function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
     }
 
     throw new Error(`Unsupported diagnose format "${format}". Use "json" or "human".`);
+}
+
+function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
+    const hasHelp = args.includes("--help") || args.includes("-h") || args.includes("help");
+    if (!hasHelp) {
+        return undefined;
+    }
+
+    const filtered = args.filter((arg) => arg !== "--help" && arg !== "-h" && arg !== "help");
+    const withoutGlobals = skipLeadingGlobalOptions(filtered);
+    const [command, subcommand] = withoutGlobals;
+
+    if (command === "init") {
+        return "init";
+    }
+    if (command === "app" && subcommand === "create") {
+        return "app-create";
+    }
+    if (command === "app" && subcommand === "remove") {
+        return "app-remove";
+    }
+    if (command === "app") {
+        return "app";
+    }
+    if (command === "build") {
+        return "build";
+    }
+    if (command === "dev") {
+        return "dev";
+    }
+    if (command === "preview") {
+        return "preview";
+    }
+    if (command === "test") {
+        return "test";
+    }
+    if (command === "publish-info") {
+        return "publish-info";
+    }
+    if (command === "diagnose") {
+        return "diagnose";
+    }
+
+    return "main";
+}
+
+function skipLeadingGlobalOptions(args: readonly string[]): string[] {
+    const remaining = [...args];
+    while (remaining[0] === "--cli") {
+        remaining.splice(0, 2);
+    }
+    return remaining;
+}
+
+function toCliUsageError(error: unknown, helpTopic: HelpTopic): Error {
+    if (error instanceof CliUsageError || error instanceof CliExitError) {
+        return error;
+    }
+    if (error instanceof Error) {
+        return new CliUsageError(error.message, helpTopic);
+    }
+    return new CliUsageError(String(error), helpTopic);
+}
+
+function printSoftError(message: string, helpTopic: HelpTopic = "main"): void {
+    console.error(`[mainz] ${message}`);
+    console.error(`[mainz] Run "mainz ${renderHelpCommand(helpTopic)}" for usage.`);
+}
+
+function renderHelpCommand(helpTopic: HelpTopic): string {
+    if (helpTopic === "main") {
+        return "--help";
+    }
+    if (helpTopic === "app-create") {
+        return "app create --help";
+    }
+    if (helpTopic === "app-remove") {
+        return "app remove --help";
+    }
+    return `${helpTopic} --help`;
 }
 
 function resolveTestPathsForTarget(
@@ -1189,29 +1429,13 @@ async function upsertConfigTarget(
     await runtime.writeTextFile(absoluteConfigPath, insertConfigTarget(content, target));
 }
 
-async function writeNewTextFile(
+async function assertCanCreateTemplateFile(
     path: string,
-    content: string,
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
     const absolutePath = resolve(path);
     if (await pathExists(absolutePath, runtime)) {
         throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
-    }
-
-    await runtime.mkdir(dirname(absolutePath), { recursive: true });
-    await runtime.writeTextFile(absolutePath, content);
-}
-
-async function assertCanCreateFiles(
-    paths: string[],
-    runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<void> {
-    for (const path of paths) {
-        const absolutePath = resolve(path);
-        if (await pathExists(absolutePath, runtime)) {
-            throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
-        }
     }
 }
 
@@ -1420,7 +1644,13 @@ function targetNameNeedle(target: string): string {
     return match?.[1] ? `name: ${match[1]}` : "target";
 }
 
-function renderConfigTarget(target: AppScaffoldTarget): string {
+function renderConfigTarget(target: {
+    name: string;
+    rootDir: string;
+    appFile: string;
+    appId: string;
+    outDir: string;
+}): string {
     return [
         "        {",
         `            name: ${JSON.stringify(target.name)},`,
@@ -1430,6 +1660,69 @@ function renderConfigTarget(target: AppScaffoldTarget): string {
         `            outDir: ${JSON.stringify(target.outDir)},`,
         "        },",
     ].join("\n");
+}
+
+function resolveTemplateTarget(manifest: Record<string, unknown>): {
+    name: string;
+    rootDir: string;
+    appFile: string;
+    appId: string;
+    outDir: string;
+} {
+    const target = manifest.target;
+    if (!target || typeof target !== "object") {
+        throw new Error(`Template "${String(manifest.name ?? "unknown")}" must define a target.`);
+    }
+
+    for (const key of ["name", "rootDir", "appFile", "appId", "outDir"] as const) {
+        const value = (target as Record<string, unknown>)[key];
+        if (typeof value !== "string" || !value.trim()) {
+            throw new Error(
+                `Template "${String(manifest.name ?? "unknown")}" target is missing "${key}".`,
+            );
+        }
+    }
+
+    return target as {
+        name: string;
+        rootDir: string;
+        appFile: string;
+        appId: string;
+        outDir: string;
+    };
+}
+
+function renderGeneratedMainzCliSpecifier(mainzSpecifier: string): string {
+    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+    const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
+    if (jsrMainzMatch) {
+        return `jsr:@mainz/cli-deno${jsrMainzMatch[1] ?? ""}`;
+    }
+
+    return trimmed;
+}
+
+function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
+    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+    if (trimmed.startsWith("jsr:@")) {
+        return `jsr:/${trimmed.slice("jsr:".length)}/`;
+    }
+
+    return `${trimmed}/`;
+}
+
+function renderGeneratedNodeMainzSpecifier(mainzSpecifier: string): string {
+    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+    const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
+    if (jsrMainzMatch) {
+        return `npm:@jsr/mainz__mainz${jsrMainzMatch[1] ?? ""}`;
+    }
+
+    return trimmed;
+}
+
+function toKebabCase(value: string): string {
+    return value.replaceAll("_", "-").replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
 }
 
 async function pathExists(
@@ -1458,12 +1751,14 @@ function isNotFoundError(error: unknown): boolean {
 }
 
 function getCliBootstrapEnv(): string | undefined {
-    return globalThis.Deno?.env?.get(projectConfigBootstrapEnv) ?? process.env[projectConfigBootstrapEnv];
+    return globalThis.Deno?.env?.get(projectConfigBootstrapEnv) ??
+        process.env[projectConfigBootstrapEnv];
 }
 
 function resolveBootstrapMainzImports(
     dependency: string | undefined,
-): Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
+):
+    | Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
     | undefined {
     const localImports = resolveLocalBootstrapMainzImports();
     if (localImports) {
@@ -1571,7 +1866,9 @@ async function readProjectRuntime(
 }
 
 function detectHostRuntime(): SupportedCliRuntime {
-    if (typeof globalThis.Deno !== "undefined" && typeof globalThis.Deno.version?.deno === "string") {
+    if (
+        typeof globalThis.Deno !== "undefined" && typeof globalThis.Deno.version?.deno === "string"
+    ) {
         return "deno";
     }
 

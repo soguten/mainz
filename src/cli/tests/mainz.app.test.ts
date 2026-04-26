@@ -75,24 +75,94 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
     }
 });
 
-Deno.test("cli/mainz init: should reject node project initialization and point to the node wrapper", async () => {
+Deno.test("cli/mainz init: should create a node project when --runtime node is passed", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-init-node-" });
 
     try {
         const result = await runMainz(cwd, [
+            "init",
             "--runtime",
             "node",
-            "init",
             "--mainz",
             "jsr:@mainz/mainz@0.1.0-alpha.99",
         ]);
 
-        assertEquals(result.code, 1);
-        assertStringIncludes(result.stderr, "Node project initialization moved to the Node CLI package");
-        assertStringIncludes(result.stderr, "mainz-cli-node");
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
 
-        await assertRejectsNotFound(resolve(cwd, "mainz.config.ts"));
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'runtime: "node"');
+
+        const packageJson = await Deno.readTextFile(resolve(cwd, "package.json"));
+        assertStringIncludes(
+            packageJson,
+            '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
+        );
         await assertRejectsNotFound(resolve(cwd, "deno.json"));
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz init: should allow matching --cli before the command", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-init-cli-deno-node-" });
+
+    try {
+        const result = await runMainz(cwd, [
+            "--cli",
+            "deno",
+            "init",
+            "--runtime",
+            "node",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'runtime: "node"');
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: should print command help for init", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-help-init-" });
+
+    try {
+        const result = await runMainz(cwd, ["init", "--help"]);
+
+        assertEquals(result.code, 0);
+        assertStringIncludes(result.stdout, "Mainz CLI - init");
+        assertStringIncludes(result.stdout, "mainz init [--runtime <deno|node|bun>]");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: should reject mismatched --cli values softly", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-cli-mismatch-" });
+
+    try {
+        const result = await runMainz(cwd, ["--cli", "node", "init"]);
+
+        assertEquals(result.code, 1);
+        assertStringIncludes(result.stderr, "Deno-hosted Mainz CLI");
+        assertStringIncludes(result.stderr, 'Run "mainz --help" for usage.');
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: should report unknown commands softly", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-unknown-command-" });
+
+    try {
+        const result = await runMainz(cwd, ["ship"]);
+
+        assertEquals(result.code, 1);
+        assertStringIncludes(result.stderr, 'Unknown command "ship"');
+        assertStringIncludes(result.stderr, 'Run "mainz --help" for usage.');
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }

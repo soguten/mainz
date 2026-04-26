@@ -55,6 +55,7 @@
         "preview": "deno run -A ./src/cli/mainz.ts preview",
         "publish-info": "deno run -A ./src/cli/mainz.ts publish-info",
         "diagnose": "deno run -A ./src/cli/mainz.ts diagnose",
+        "sync:templates": "deno run -A ./scripts/sync-templates.ts",
         "test": "deno test -A",
         "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests",
         "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",

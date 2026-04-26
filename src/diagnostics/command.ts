@@ -17,7 +17,7 @@ export type TargetDiagnostic = MainzDiagnostic & {
 export async function collectDiagnosticsForConfig(
     config: NormalizedMainzConfig,
     options: Pick<DiagnoseCommandOptions, "target" | "app">,
-    cwd = Deno.cwd(),
+    cwd: string = Deno.cwd(),
 ): Promise<readonly TargetDiagnostic[]> {
     const diagnostics: TargetDiagnostic[] = [];
 
