@@ -1,4 +1,4 @@
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import type {
@@ -98,6 +98,7 @@ type MainzCliCommand =
     | DiagnoseCommandOptions
     | AppCommandOptions;
 
+type CliRuntimeName = "deno" | "node" | "bun";
 type SupportedCliRuntime = "deno" | "node";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
@@ -167,13 +168,19 @@ async function runCliEntryPoint(
 }
 
 async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise<number> {
-    const helpTopic = resolveHelpTopic(args);
+    const cliSelection = parseLeadingCliSelection(args);
+    if (cliSelection.cli && cliSelection.cli !== hostRuntime) {
+        return await delegateToCli(cliSelection.cli, cliSelection.args, hostRuntime);
+    }
+
+    const effectiveArgs = cliSelection.args;
+    const helpTopic = resolveHelpTopic(effectiveArgs);
     if (helpTopic) {
         printHelp(helpTopic);
         return 0;
     }
 
-    const command = parseCliCommand(args);
+    const command = parseCliCommand(effectiveArgs);
     if (!command) {
         printHelp();
         return 0;
@@ -197,7 +204,7 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
         return 0;
     }
 
-    if (await rerunWithProjectBootstrapIfNeeded(command, args, hostRuntime)) {
+    if (await rerunWithProjectBootstrapIfNeeded(command, effectiveArgs, hostRuntime)) {
         return 0;
     }
 
@@ -247,6 +254,133 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
             }
             return 0;
     }
+}
+
+async function delegateToCli(
+    cli: CliRuntimeName,
+    args: readonly string[],
+    hostRuntime: SupportedCliRuntime,
+): Promise<number> {
+    const runtime = hostRuntime === "deno" ? denoToolingRuntime : nodeToolingRuntime;
+    const candidates = resolveCliDelegationCandidates(cli, args);
+
+    for (let index = 0; index < candidates.length; index += 1) {
+        const candidate = candidates[index];
+        if (
+            candidate.requiresPathLookup &&
+            !(await canResolveExecutable(candidate.command, runtime))
+        ) {
+            continue;
+        }
+
+        try {
+            const invocation = resolveCliInvocation(candidate.command, candidate.args);
+            const status = await runtime.run({
+                command: invocation.command,
+                cwd: runtime.cwd(),
+                args: invocation.args,
+                stdin: "inherit",
+                stdout: "inherit",
+                stderr: "inherit",
+            });
+            return status.code;
+        } catch (error) {
+            if (isCommandNotFoundError(error) && index < candidates.length - 1) {
+                continue;
+            }
+
+            if (isCommandNotFoundError(error)) {
+                throw new CliUsageError(
+                    `Could not execute a ${cli}-hosted Mainz CLI. Install the required ${cli} runtime or install the ${cli}-hosted Mainz CLI globally.`,
+                    "main",
+                );
+            }
+
+            throw error;
+        }
+    }
+
+    throw new CliUsageError(`Could not resolve a ${cli}-hosted Mainz CLI delegation target.`);
+}
+
+function resolveCliDelegationCandidates(
+    cli: CliRuntimeName,
+    args: readonly string[],
+): Array<{ command: string; args: readonly string[]; requiresPathLookup?: boolean }> {
+    const explicit = {
+        command: `mainz-cli-${cli}`,
+        args,
+        requiresPathLookup: true,
+    };
+
+    if (cli === "deno") {
+        return [
+            explicit,
+            {
+                command: "deno",
+                args: ["run", "-A", "jsr:@mainz/cli-deno@alpha", ...args],
+            },
+        ];
+    }
+
+    if (cli === "node") {
+        return [
+            explicit,
+            {
+                command: "npx",
+                args: ["-y", "@mainzjs/cli-node@alpha", ...args],
+            },
+        ];
+    }
+
+    return [
+        explicit,
+        {
+            command: "bunx",
+            args: ["@mainzjs/cli-bun@alpha", ...args],
+        },
+    ];
+}
+
+async function canResolveExecutable(
+    command: string,
+    runtime: MainzToolingRuntime,
+): Promise<boolean> {
+    const pathValue = process.env.PATH ?? "";
+    const extensions = process.platform === "win32"
+        ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+            .split(";")
+            .filter(Boolean)
+        : [""];
+    const commandHasExtension = /\.[^\\/]+$/.test(command);
+
+    for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+        const names = process.platform === "win32" && !commandHasExtension
+            ? extensions.map((extension) => `${command}${extension.toLowerCase()}`)
+            : [command];
+
+        for (const name of names) {
+            if (await pathExists(join(directory, name), runtime)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function resolveCliInvocation(
+    executable: string,
+    args: readonly string[],
+): { command: string; args: readonly string[] } {
+    if (process.platform !== "win32") {
+        return { command: executable, args };
+    }
+
+    return {
+        command: process.env.ComSpec ?? "cmd.exe",
+        args: ["/d", "/s", "/c", executable, ...args],
+    };
 }
 
 async function rerunWithProjectBootstrapIfNeeded(
@@ -466,25 +600,38 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     };
 }
 
-function parseLeadingCliOptions(args: readonly string[]): string[] {
+function parseLeadingCliSelection(args: readonly string[]): {
+    cli?: CliRuntimeName;
+    args: string[];
+} {
     const remainingArgs = [...args];
+    let cli: CliRuntimeName | undefined;
 
     while (remainingArgs[0] === "--cli") {
-        const cli = remainingArgs[1];
-        if (cli !== "deno" && cli !== "node" && cli !== "bun") {
+        const value = remainingArgs[1];
+        if (value !== "deno" && value !== "node" && value !== "bun") {
             throw new CliUsageError(
-                `Unsupported CLI "${cli ?? ""}". Use "deno", "node", or "bun".`,
+                `Unsupported CLI "${value ?? ""}". Use "deno", "node", or "bun".`,
                 "main",
             );
         }
+
+        cli = value;
+        remainingArgs.splice(0, 2);
+    }
+
+    return { cli, args: remainingArgs };
+}
+
+function parseLeadingCliOptions(args: readonly string[]): string[] {
+    const { cli, args: remainingArgs } = parseLeadingCliSelection(args);
+    if (cli) {
         if (cli !== "deno") {
             throw new CliUsageError(
                 `This executable is the Deno-hosted Mainz CLI. Received "--cli ${cli}".`,
                 "main",
             );
         }
-
-        remainingArgs.splice(0, 2);
     }
 
     return remainingArgs;
@@ -1192,7 +1339,7 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz [--cli <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>] [--runtime <deno|node|bun>]",
         "",
         "Global options:",
-        "  --cli <deno|node|bun>      Reserved for a future Mainz launcher. This executable already is the Deno CLI.",
+        "  --cli <deno|node|bun>      Selects which installed Mainz CLI host should execute the command.",
         "",
         "Command options:",
         "  --runtime <deno|node|bun>  Selects the generated or targeted project runtime.",
@@ -1748,6 +1895,10 @@ function isNotFoundError(error: unknown): boolean {
             ("name" in error && error.name === "NotFound") ||
             ("code" in error && error.code === "ENOENT")
         ));
+}
+
+function isCommandNotFoundError(error: unknown): boolean {
+    return isNotFoundError(error);
 }
 
 function getCliBootstrapEnv(): string | undefined {

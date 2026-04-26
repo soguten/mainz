@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { resolve } from "node:path";
+import { delimiter, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
@@ -140,14 +140,61 @@ Deno.test("cli/mainz: should print command help for init", async () => {
     }
 });
 
-Deno.test("cli/mainz: should reject mismatched --cli values softly", async () => {
-    const cwd = await Deno.makeTempDir({ prefix: "mainz-cli-mismatch-" });
+Deno.test("cli/mainz: should delegate non-host --cli values to explicit CLI executables", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-cli-delegate-" });
+    const binDir = await Deno.makeTempDir({ prefix: "mainz-cli-bin-" });
 
     try {
-        const result = await runMainz(cwd, ["--cli", "node", "init"]);
+        const markerPath = resolve(cwd, "delegated.txt");
+        await writeFakeCliExecutable(binDir, "mainz-cli-node", markerPath, 7);
+
+        const result = await runMainz(cwd, ["--cli", "node", "init", "--runtime", "deno"], {
+            env: {
+                PATH: `${binDir}${delimiter}${Deno.env.get("PATH") ?? ""}`,
+            },
+        });
+
+        assertEquals(result.code, 7);
+        assertEquals((await Deno.readTextFile(markerPath)).trim(), "init --runtime deno");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+        await Deno.remove(binDir, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: should fallback to the runtime runner when the explicit CLI executable is missing", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-cli-delegate-runner-" });
+    const binDir = await Deno.makeTempDir({ prefix: "mainz-cli-runner-bin-" });
+
+    try {
+        const markerPath = resolve(cwd, "delegated-runner.txt");
+        await writeFakeCliExecutable(binDir, "npx", markerPath, 9);
+
+        const result = await runMainz(cwd, ["--cli", "node", "init", "--runtime", "deno"], {
+            env: {
+                PATH: `${binDir}${delimiter}${Deno.env.get("PATH") ?? ""}`,
+            },
+        });
+
+        assertEquals(result.code, 9);
+        assertEquals(
+            (await Deno.readTextFile(markerPath)).trim(),
+            "-y @mainzjs/cli-node@alpha init --runtime deno",
+        );
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+        await Deno.remove(binDir, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz: should reject unsupported --cli values softly", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-cli-unsupported-" });
+
+    try {
+        const result = await runMainz(cwd, ["--cli", "ruby", "init"]);
 
         assertEquals(result.code, 1);
-        assertStringIncludes(result.stderr, "Deno-hosted Mainz CLI");
+        assertStringIncludes(result.stderr, 'Unsupported CLI "ruby"');
         assertStringIncludes(result.stderr, 'Run "mainz --help" for usage.');
     } finally {
         await Deno.remove(cwd, { recursive: true });
@@ -559,7 +606,11 @@ Deno.test("cli/mainz app: remove --delete-files should remove the app root", asy
 async function runMainz(
     cwd: string,
     args: string[],
-    options: { denoRunConfigPath?: string; noConfig?: boolean } = {},
+    options: {
+        denoRunConfigPath?: string;
+        env?: Record<string, string>;
+        noConfig?: boolean;
+    } = {},
 ): Promise<{
     code: number;
     stdout: string;
@@ -577,6 +628,7 @@ async function runMainz(
     const command = new Deno.Command("deno", {
         args: denoArgs,
         cwd,
+        env: options.env,
         stdout: "piped",
         stderr: "piped",
     });
@@ -587,6 +639,36 @@ async function runMainz(
         stdout: new TextDecoder().decode(result.stdout),
         stderr: new TextDecoder().decode(result.stderr),
     };
+}
+
+async function writeFakeCliExecutable(
+    binDir: string,
+    name: string,
+    markerPath: string,
+    exitCode: number,
+): Promise<void> {
+    if (Deno.build.os === "windows") {
+        await Deno.writeTextFile(
+            resolve(binDir, `${name}.cmd`),
+            [
+                "@echo off",
+                `echo %*>${JSON.stringify(markerPath)}`,
+                `exit /b ${exitCode}`,
+            ].join("\r\n"),
+        );
+        return;
+    }
+
+    const path = resolve(binDir, name);
+    await Deno.writeTextFile(
+        path,
+        [
+            "#!/bin/sh",
+            `printf '%s\\n' "$*" > ${JSON.stringify(markerPath)}`,
+            `exit ${exitCode}`,
+        ].join("\n"),
+    );
+    await Deno.chmod(path, 0o755);
 }
 
 function toFileSpecifier(path: string): string {

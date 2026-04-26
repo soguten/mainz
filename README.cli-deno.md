@@ -6,6 +6,9 @@ Deno-hosted command-line tooling for Mainz.
 deno install -A -g -f -n mainz jsr:@mainz/cli-deno@0.1.0-alpha.39
 ```
 
+`mainz` is the ergonomic command. Other Mainz CLIs can still delegate to the Deno CLI through
+`deno run -A jsr:@mainz/cli-deno@alpha ...`, so a second global command is not required.
+
 Create and run a Deno project:
 
 ```powershell
