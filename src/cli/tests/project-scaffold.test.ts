@@ -89,6 +89,48 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
     assertStringIncludes(counter?.content ?? "", "this.setState({ count: this.state.count + 1 })");
 });
 
+Deno.test("cli/templates/project: starter node should use node-compatible workspace paths", async () => {
+    const plan = await instantiateTemplate({
+        runtime: denoToolingRuntime,
+        templateRoot: resolveBuiltInTemplateRoot("project", "node/starter"),
+        params: {
+            mainzSpecifier: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+            denoConfigPath: "deno.json",
+            mainzCliSpecifier: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+            mainzSubpathPrefix: "npm:@jsr/mainz__mainz@0.1.0-alpha.99/",
+            projectName: "demo",
+            appName: "app",
+            appId: "app",
+            appNavigation: "enhanced-mpa",
+            appTitle: "demo",
+            customElementPrefix: "x-mainz-demo",
+            rootDir: "./app",
+            outDir: "dist/app",
+        },
+    });
+    const files = new Map(plan.files.map((file) => [file.path.replaceAll("\\", "/"), file]));
+
+    assertEquals(
+        [...files.keys()].sort(),
+        [
+            ".npmrc",
+            "app/index.html",
+            "app/package.json",
+            "app/src/app.ts",
+            "app/src/components/Counter.tsx",
+            "app/src/main.tsx",
+            "app/src/pages/Home.page.tsx",
+            "app/src/pages/NotFound.page.tsx",
+            "mainz.config.ts",
+            "package.json",
+            "tsconfig.json",
+        ],
+    );
+
+    const packageJson = JSON.parse(files.get("package.json")?.content ?? "{}");
+    assertEquals(packageJson.workspaces, ["app"]);
+});
+
 Deno.test("cli/templates/app: default-routed should render shared target metadata", async () => {
     const plan = await instantiateTemplate({
         runtime: denoToolingRuntime,

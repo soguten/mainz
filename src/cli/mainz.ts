@@ -3206,7 +3206,7 @@ async function prepareDenoAppWorkspaceUpdates(
         throw new Error(`Expected "imports" in ${appDenoJsonPath} to be an object.`);
     }
 
-    const workspacePath = renderWorkspacePath(rootDir, runtime);
+    const workspacePath = renderDenoWorkspacePath(rootDir, runtime);
     const nextWorkspace = appendUniqueString(
         workspace as string[] | undefined ?? [],
         workspacePath,
@@ -3322,7 +3322,7 @@ async function prepareNodeAppWorkspaceUpdates(
         }
     }
 
-    const workspacePath = renderWorkspacePath(rootDir, runtime);
+    const workspacePath = renderNodeWorkspacePath(rootDir, runtime);
     const updates: TemplateDependencyUpdate[] = [{
         path: packageJsonPath,
         content: `${
@@ -3380,7 +3380,7 @@ async function readJsonObjectFile(
     return parsed as Record<string, unknown>;
 }
 
-function renderWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
+function renderDenoWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
     const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir)).replaceAll(
         "\\",
         "/",
@@ -3396,12 +3396,24 @@ function renderWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): str
     return relativePath.startsWith("./") ? relativePath : `./${relativePath}`;
 }
 
+function renderNodeWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
+    const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir)).replaceAll(
+        "\\",
+        "/",
+    );
+    if (!relativePath || relativePath === ".") {
+        return ".";
+    }
+
+    return relativePath;
+}
+
 function removeWorkspacePath(
     values: readonly string[],
     rootDir: string,
     runtime: MainzToolingRuntime,
 ): string[] {
-    const workspacePath = normalizeWorkspacePath(renderWorkspacePath(rootDir, runtime));
+    const workspacePath = normalizeWorkspacePath(renderDenoWorkspacePath(rootDir, runtime));
     return values.filter((value) => normalizeWorkspacePath(value) !== workspacePath);
 }
 

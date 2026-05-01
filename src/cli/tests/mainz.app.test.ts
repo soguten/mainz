@@ -245,11 +245,14 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
         assertStringIncludes(config, 'runtime: "node"');
         assertStringIncludes(config, 'name: "app"');
 
-        const packageJson = await Deno.readTextFile(resolve(cwd, "demo", "package.json"));
-        assertStringIncludes(
-            packageJson,
-            '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
-        );
+        const packageJson = JSON.parse(
+            await Deno.readTextFile(resolve(cwd, "demo", "package.json")),
+        ) as {
+            dependencies?: Record<string, unknown>;
+            workspaces?: string[];
+        };
+        assertEquals(packageJson.dependencies?.mainz, "npm:@jsr/mainz__mainz@0.1.0-alpha.99");
+        assertEquals(packageJson.workspaces, ["app"]);
 
         const homePage = await Deno.readTextFile(
             resolve(cwd, "demo", "app", "src", "pages", "Home.page.tsx"),
@@ -721,7 +724,7 @@ Deno.test("cli/mainz app: create should apply template npm dependencies to node 
             workspaces?: string[];
         };
         assertEquals(packageJson.dependencies?.["chart.js"], undefined);
-        assertEquals(packageJson.workspaces, ["./analytics"]);
+        assertEquals(packageJson.workspaces, ["analytics"]);
 
         const appPackageJson = JSON.parse(
             await Deno.readTextFile(resolve(cwd, "analytics", "package.json")),
