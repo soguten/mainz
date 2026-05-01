@@ -1,6 +1,7 @@
 {
     "kind": "app",
-    "name": "routed",
+    "name": "default-root",
+    "appType": "root",
     "target": {
         "name": "{{appName}}",
         "rootDir": "{{rootDir}}",

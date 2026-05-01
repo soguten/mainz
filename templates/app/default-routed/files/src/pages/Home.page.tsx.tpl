@@ -1,8 +1,6 @@
-import { CustomElement, Page, RenderMode, Route } from "mainz";
+import { Page, Route } from "mainz";
 
-@CustomElement("{{customElementPrefix}}-home-page")
 @Route("/")
-@RenderMode("ssg")
 export class HomePage extends Page {
     override head() {
         return {
