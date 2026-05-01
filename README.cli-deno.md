@@ -17,6 +17,20 @@ mainz app create site
 mainz dev --target site
 ```
 
+Create a runnable starter project in a new directory:
+
+```powershell
+mainz init my-app --template starter
+mainz dev --target app
+```
+
+`--template` accepts built-in names or template sources such as local paths, absolute paths,
+`file://` URLs, and HTTP template sources.
+
+Some app templates can declare runtime compatibility and dependencies. For example,
+`mainz app create my-chart --template chart` creates a routed chart app and adds chart.js
+to the project manifest for the current runtime.
+
 Create a Node-shaped project from the Deno CLI:
 
 ```powershell

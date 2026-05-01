@@ -30,10 +30,12 @@ Deno.test("build/vite-config: should generate framework aliases from public Main
         localePrefix: "except-default",
     });
 
+    const frameworkAliases = generated.aliases.filter((alias) => alias.framework);
     assertEquals(
-        generated.aliases.filter((alias) => alias.framework).map((alias) => alias.find),
-        MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => entrypoint.specifier),
+        [...frameworkAliases].map((alias) => alias.find).sort(),
+        MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => entrypoint.specifier).sort(),
     );
+    assertEquals(frameworkAliases.at(-1)?.find, "mainz");
 });
 
 Deno.test("build/vite-config: should not alias Mainz to missing consumer project source files", async () => {
@@ -144,8 +146,8 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     assertStringIncludes(moduleSource, `plugins: deno({`);
     assertStringIncludes(moduleSource, `preserveJsx: true`);
     assertStringIncludes(moduleSource, `appType: "spa"`);
-    assertStringIncludes(moduleSource, `{ find: /^mainz$/, replacement:`);
-    assertStringIncludes(moduleSource, `{ find: /^mainz\\/jsx-runtime$/, replacement:`);
+    assertStringIncludes(moduleSource, `{ find: "mainz", replacement:`);
+    assertStringIncludes(moduleSource, `{ find: "mainz/jsx-runtime", replacement:`);
     assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);
 });
 

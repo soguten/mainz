@@ -29,6 +29,7 @@ export interface DiscoveredPage {
 interface DiscoverPageOptions {
     allowMissingRoute?: boolean;
     fallbackPath?: string;
+    fallbackMode?: RenderMode;
 }
 
 export async function discoverPagesFromFiles(
@@ -130,7 +131,7 @@ function normalizePageDefinition(
 
     return {
         path,
-        ...resolveDiscoveryMode(ctor, {}, filePath, exportName),
+        ...resolveDiscoveryMode(ctor, options),
         locales: locales ? [...locales] : undefined,
         head: undefined,
         authorization: authorization ? cloneAuthorization(authorization) : undefined,
@@ -139,14 +140,12 @@ function normalizePageDefinition(
 
 function resolveDiscoveryMode(
     ctor: PageConstructor,
-    _page: Record<string, unknown>,
-    filePath: string,
-    exportName: string,
+    options: DiscoverPageOptions = {},
 ): { mode: RenderMode } {
     const decoratorMode = resolvePageRenderMode(ctor);
 
     return {
-        mode: normalizeMode(decoratorMode),
+        mode: normalizeMode(decoratorMode ?? options.fallbackMode),
     };
 }
 

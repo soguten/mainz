@@ -28,7 +28,9 @@ docs/
     pages/
 ```
 
-When a target uses routing or shared DI composition, treat the app's `src/app.ts` as the readable composition root and keep `src/main.tsx` small. For simple root-only apps, that extra `app.ts` layer is optional.
+When a target uses routing or shared DI composition, treat the app's `src/app.ts` as the readable
+composition root and keep `src/main.tsx` small. For simple root-only apps, that extra `app.ts` layer
+is optional.
 
 Use the CLI to create the first structure:
 
@@ -37,10 +39,12 @@ mainz app create site
 mainz app create docs
 ```
 
-When you use `defineApp(...)`, give the app a stable unique `id`. Mainz uses that `id` for app-aware diagnostics and commands such as `mainz diagnose --target <name> --app <id>`.
+When you use `defineApp(...)`, give the app a stable unique `id`. Mainz uses that `id` for app-aware
+diagnostics and commands such as `mainz diagnose --target <name> --app <id>`.
 
 ## Avoid hiding routing in helpers
 
 The point is not to eliminate all helpers.
 
-The point is to keep the page model obvious enough that a teammate can open a target and understand how it boots, routes, and builds.
+The point is to keep the page model obvious enough that a teammate can open a target and understand
+how it boots, routes, and builds.

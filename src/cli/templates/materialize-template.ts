@@ -1,7 +1,11 @@
 import { dirname, relative, resolve } from "node:path";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
-import { loadTemplate } from "./load-template.ts";
+import {
+    type LoadedRemoteTemplateFile,
+    loadRemoteTemplate,
+    loadTemplate,
+} from "./load-template.ts";
 
 export interface MaterializedTemplateFile {
     path: string;
@@ -16,13 +20,21 @@ export interface MaterializedTemplatePlan {
 export async function instantiateTemplate(
     options: {
         runtime?: MainzToolingRuntime;
-        templateRoot: string;
+        templateRoot?: string;
+        templateUrl?: string;
         params?: Record<string, string>;
     },
 ): Promise<MaterializedTemplatePlan> {
     const runtime = options.runtime ?? denoToolingRuntime;
-    const template = await loadTemplate(options.templateRoot, runtime);
-    const relativePaths = await collectTemplateFiles(runtime, template.filesRoot);
+    const template = options.templateUrl
+        ? await loadRemoteTemplate(options.templateUrl)
+        : await loadTemplate(resolveRequiredTemplateRoot(options.templateRoot), runtime);
+    const remoteFiles: LoadedRemoteTemplateFile[] | undefined = options.templateUrl
+        ? (template as unknown as { files: LoadedRemoteTemplateFile[] }).files
+        : undefined;
+    const relativePaths: string[] = remoteFiles
+        ? remoteFiles.map((file) => file.path)
+        : await collectTemplateFiles(runtime, template.filesRoot);
     const params = options.params ?? {};
 
     return {
@@ -30,11 +42,12 @@ export async function instantiateTemplate(
         files: await Promise.all(
             relativePaths.map(async (relativePath) => {
                 const sourcePath = resolve(template.filesRoot, relativePath);
+                const remoteFile = remoteFiles?.find((file) => file.path === relativePath);
                 const renderedPath = stripTemplateSuffix(
                     replaceTemplateTokens(relativePath, params),
                 );
                 const renderedContent = replaceTemplateTokens(
-                    await runtime.readTextFile(sourcePath),
+                    remoteFile ? remoteFile.content : await runtime.readTextFile(sourcePath),
                     params,
                 );
 
@@ -50,7 +63,8 @@ export async function instantiateTemplate(
 export async function materializeTemplate(
     options: {
         runtime?: MainzToolingRuntime;
-        templateRoot: string;
+        templateRoot?: string;
+        templateUrl?: string;
         outputDir: string;
         params?: Record<string, string>;
         beforeWrite?: (path: string, file: MaterializedTemplateFile) => Promise<void>;
@@ -60,8 +74,29 @@ export async function materializeTemplate(
     const plan = await instantiateTemplate({
         runtime,
         templateRoot: options.templateRoot,
+        templateUrl: options.templateUrl,
         params: options.params,
     });
+    await materializeTemplatePlan({
+        runtime,
+        plan,
+        outputDir: options.outputDir,
+        beforeWrite: options.beforeWrite,
+    });
+
+    return plan;
+}
+
+export async function materializeTemplatePlan(
+    options: {
+        runtime?: MainzToolingRuntime;
+        plan: MaterializedTemplatePlan;
+        outputDir: string;
+        beforeWrite?: (path: string, file: MaterializedTemplateFile) => Promise<void>;
+    },
+): Promise<MaterializedTemplatePlan> {
+    const runtime = options.runtime ?? denoToolingRuntime;
+    const plan = options.plan;
     const filesWithAbsolutePaths = plan.files.map((file) => ({
         file,
         absolutePath: resolve(options.outputDir, file.path),
@@ -79,6 +114,14 @@ export async function materializeTemplate(
     }
 
     return plan;
+}
+
+function resolveRequiredTemplateRoot(templateRoot: string | undefined): string {
+    if (!templateRoot) {
+        throw new Error("Template root is required for built-in and local templates.");
+    }
+
+    return templateRoot;
 }
 
 async function collectTemplateFiles(

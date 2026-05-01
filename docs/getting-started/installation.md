@@ -15,6 +15,13 @@ mainz app create site
 mainz dev --target site
 ```
 
+Or start from a runnable example app:
+
+```bash title="Starter project"
+mainz init my-app --template starter
+mainz dev --target app
+```
+
 ## Use the generated Vite config
 
 Normal Mainz targets do not need a `vite.config.ts` file. Mainz generates the Vite config from the

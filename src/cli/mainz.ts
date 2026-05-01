@@ -27,7 +27,7 @@ import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 import {
     instantiateTemplate,
-    materializeTemplate,
+    materializeTemplatePlan,
     resolveBuiltInTemplateRoot,
 } from "./templates/index.ts";
 
@@ -37,6 +37,10 @@ type SharedCliOptions = {
     profile?: string;
     configPath?: string;
 };
+
+type TemplateMaterializationSource =
+    | { templateRoot: string }
+    | { templateUrl: string };
 
 type CliHostOption = string | true;
 
@@ -66,10 +70,12 @@ type PublishInfoCommandOptions = SharedCliOptions & {
 
 type InitCommandOptions = {
     command: "init";
+    name?: string;
     runtime?: MainzRuntime;
     configPath?: string;
     denoConfigPath?: string;
     mainzSpecifier?: string;
+    template?: string;
 };
 
 type DiagnoseCommandOptions = SharedCliOptions & {
@@ -83,6 +89,7 @@ type AppCommandOptions = {
     command: "app";
     action: "create" | "remove" | "list" | "info";
     name?: string;
+    template?: string;
     type?: "routed" | "root";
     root?: string;
     outDir?: string;
@@ -123,6 +130,23 @@ type MainzCliCommand =
 
 type CliRuntimeName = "deno" | "node" | "bun";
 type SupportedCliRuntime = "deno" | "node";
+type TemplateCompatibleRuntime = "deno" | "node" | "bun";
+type TemplateDependencyRegistry = "npm" | "jsr";
+type TemplateDependencyKind = "dependencies" | "devDependencies";
+
+type TemplateDependency = {
+    kind: TemplateDependencyKind;
+    specifier: string;
+    registry: TemplateDependencyRegistry;
+    packageName: string;
+    version: string;
+    subpaths: string[];
+};
+
+type TemplateDependencyUpdate = {
+    path: string;
+    content: string;
+};
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 
@@ -700,6 +724,7 @@ function parseLeadingCliOptions(args: readonly string[]): string[] {
 
 function parseInitCommand(args: string[]): InitCommandOptions {
     const options: Omit<InitCommandOptions, "command"> = {};
+    let positionalName: string | undefined;
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -722,9 +747,26 @@ function parseInitCommand(args: string[]): InitCommandOptions {
             continue;
         }
 
+        if (current === "--template") {
+            options.template = normalizeTemplateName(readOptionValue(current, args[index + 1]));
+            index += 1;
+            continue;
+        }
+
         if (current === "--runtime") {
             options.runtime = parseRuntimeOption(args[index + 1]);
             index += 1;
+            continue;
+        }
+
+        if (!current.startsWith("--")) {
+            if (positionalName) {
+                throw new Error(
+                    `Command "init" received multiple project names "${positionalName}" and "${current}".`,
+                );
+            }
+
+            positionalName = current;
             continue;
         }
 
@@ -733,6 +775,7 @@ function parseInitCommand(args: string[]): InitCommandOptions {
 
     return {
         command: "init",
+        name: positionalName,
         ...options,
     };
 }
@@ -749,7 +792,14 @@ function parseAppCommand(args: string[]): AppCommandOptions {
 
     const options: Pick<
         AppCommandOptions,
-        "type" | "root" | "outDir" | "navigation" | "configPath" | "deleteFiles" | "runtime"
+        | "template"
+        | "type"
+        | "root"
+        | "outDir"
+        | "navigation"
+        | "configPath"
+        | "deleteFiles"
+        | "runtime"
     > = {};
     let flagName: string | undefined;
 
@@ -768,7 +818,15 @@ function parseAppCommand(args: string[]): AppCommandOptions {
             continue;
         }
 
-        if (current === "--type") {
+        if (current === "--template" && action === "create") {
+            options.template = normalizeTemplateName(
+                readOptionValue(current, remaining[index + 1]),
+            );
+            index += 1;
+            continue;
+        }
+
+        if (current === "--type" && action === "create") {
             options.type = parseAppType(remaining[index + 1]);
             index += 1;
             continue;
@@ -1121,8 +1179,12 @@ async function runInitCommand(
     hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
     const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? hostRuntime);
+    const initTemplate = options.template ?? "empty";
     const runtime = denoToolingRuntime;
-    const projectName = basename(runtime.cwd()) || "mainz-app";
+    const outputDir = options.name
+        ? resolve(runtime.cwd(), normalizeInitProjectPath(options.name))
+        : runtime.cwd();
+    const projectName = basename(outputDir) || "mainz-app";
     const configPath = options.configPath ?? "mainz.config.ts";
     const denoConfigPath = options.denoConfigPath ?? "deno.json";
     const mainzSpecifier = options.mainzSpecifier ??
@@ -1130,26 +1192,51 @@ async function runInitCommand(
     const generatedMainzSpecifier = projectRuntime === "node"
         ? renderGeneratedNodeMainzSpecifier(mainzSpecifier)
         : mainzSpecifier;
-    const plan = await materializeTemplate({
+    const appName = "app";
+    const templateSource = await resolveInitProjectTemplateSource(
+        initTemplate,
+        projectRuntime,
         runtime,
-        templateRoot: resolveBuiltInTemplateRoot(
-            "project",
-            projectRuntime === "node" ? "empty-node" : "empty-deno",
-        ),
-        outputDir: runtime.cwd(),
-        params: {
-            mainzSpecifier: generatedMainzSpecifier,
-            projectName,
-            denoConfigPath,
-            mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
-            mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
-        },
+    );
+    const templateParams = {
+        mainzSpecifier: generatedMainzSpecifier,
+        projectName,
+        denoConfigPath,
+        mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
+        mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
+        appName,
+        appId: appName,
+        appNavigation: "enhanced-mpa",
+        appTitle: projectName,
+        customElementPrefix: `x-mainz-${toCustomElementSegment(projectName)}`,
+        rootDir: `./${appName}`,
+        outDir: `dist/${appName}`,
+    };
+    const plan = await instantiateTemplate({
+        runtime,
+        ...templateSource,
+        params: templateParams,
+    });
+    validateTemplateRuntimeCompatibility(plan.manifest, projectRuntime, initTemplate);
+
+    await materializeTemplatePlan({
+        runtime,
+        plan,
+        outputDir,
         beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
     });
 
-    console.log(`[mainz] Initialized Mainz project in ${runtime.cwd()}.`);
+    console.log(
+        `[mainz] Initialized Mainz ${
+            initTemplate === "starter" ? "starter project" : "project"
+        } in ${outputDir}.`,
+    );
     console.log(`[mainz] Created ${plan.files.map((file) => file.path).join(", ")}.`);
-    console.log('[mainz] Add an app with "mainz app create <name>".');
+    if (initTemplate === "starter") {
+        console.log('[mainz] Run "mainz dev --target app" to start the app.');
+    } else {
+        console.log('[mainz] Add an app with "mainz app create <name>".');
+    }
 }
 
 async function runAppCommand(
@@ -1162,7 +1249,7 @@ async function runAppCommand(
     }
 
     if (options.action === "remove") {
-        await runAppRemoveCommand(options);
+        await runAppRemoveCommand(options, hostRuntime);
         return;
     }
 
@@ -1185,22 +1272,46 @@ async function runAppCreateCommand(
     const rootPath = resolve(rootDir);
     const outDir = normalizeOutDir(options.outDir ?? `dist/${appName}`);
     const configPath = options.configPath ?? "mainz.config.ts";
-    const plan = await materializeTemplate({
+    if (options.template && options.type) {
+        throw new Error('Command "app create" cannot combine --template and --type.');
+    }
+    const templateName = options.template ??
+        resolveDefaultAppTemplateName(options.type ?? "routed");
+    const templateSource = await resolveAppTemplateSource(templateName, runtime);
+    const templateParams = {
+        appName,
+        appId: appName,
+        appNavigation: options.navigation ?? "enhanced-mpa",
+        appTitle: appName,
+        customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
+        rootDir,
+        outDir,
+    };
+    const plan = await instantiateTemplate({
         runtime,
-        templateRoot: resolveBuiltInTemplateRoot("app", options.type ?? "routed"),
+        ...templateSource,
+        params: templateParams,
+    });
+    validateTemplateRuntimeCompatibility(plan.manifest, projectRuntime, templateName);
+    const dependencyUpdates = await prepareAppTemplateWorkspaceUpdates(
+        plan.manifest,
+        projectRuntime,
+        runtime,
+        appName,
+        rootDir,
+    );
+
+    await materializeTemplatePlan({
+        runtime,
+        plan,
         outputDir: rootPath,
-        params: {
-            appName,
-            appId: appName,
-            appNavigation: options.navigation ?? "enhanced-mpa",
-            appTitle: appName,
-            customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
-            rootDir,
-            outDir,
-        },
         beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
     });
     const target = resolveTemplateTarget(plan.manifest);
+
+    for (const update of dependencyUpdates) {
+        await runtime.writeTextFile(update.path, update.content);
+    }
 
     await upsertConfigTarget(
         configPath,
@@ -1212,21 +1323,25 @@ async function runAppCreateCommand(
     console.log(`[mainz] Created app "${appName}" in ${rootDir}.`);
 }
 
-async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
-    const runtime = denoToolingRuntime;
+async function runAppRemoveCommand(
+    options: AppCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    const runtime = resolveToolingRuntime(projectRuntime);
     const appName = normalizeAppName(options.name!);
     const configPath = options.configPath ?? "mainz.config.ts";
     const absoluteConfigPath = resolve(configPath);
     const content = await runtime.readTextFile(absoluteConfigPath);
     const targetSource = findConfigTargetSource(content, appName);
     const updated = removeConfigTarget(content, appName);
+    const rootDir = targetSource ? extractTargetRootDir(targetSource) : undefined;
 
     if (updated === content) {
         throw new Error(`No target named "${appName}" found in ${configPath}.`);
     }
 
     if (options.deleteFiles) {
-        const rootDir = targetSource ? extractTargetRootDir(targetSource) : undefined;
         if (!rootDir) {
             throw new Error(
                 `Target "${appName}" does not define rootDir, so files were not deleted.`,
@@ -1234,6 +1349,13 @@ async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
         }
 
         await removeAppRoot(rootDir, runtime);
+    }
+
+    const workspaceUpdate = rootDir
+        ? await prepareRemoveAppWorkspaceUpdate(projectRuntime, runtime, rootDir)
+        : undefined;
+    if (workspaceUpdate) {
+        await runtime.writeTextFile(workspaceUpdate.path, workspaceUpdate.content);
     }
 
     await runtime.writeTextFile(absoluteConfigPath, updated);
@@ -1592,9 +1714,12 @@ function getHelpText(topic: HelpTopic): string[] {
             "Mainz CLI - init",
             "",
             "Usage:",
-            "  mainz init [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+            "  mainz init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
             "",
             "Notes:",
+            "  <name> creates the project in a new directory; omitting it initializes the current directory.",
+            "  --template starter creates a routed app with a counter component.",
+            "  --template also accepts a local path, file:// URL, or http(s) template source.",
             "  --runtime selects the runtime of the generated project, not the CLI host.",
             "  This executable already is the Deno-hosted CLI.",
         ];
@@ -1605,7 +1730,7 @@ function getHelpText(topic: HelpTopic): string[] {
             "Mainz CLI - app",
             "",
             "Usage:",
-            "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
             "  mainz app list [--config <path>]",
             "  mainz app info [<target>|--target <target>] [--config <path>]",
@@ -1617,7 +1742,12 @@ function getHelpText(topic: HelpTopic): string[] {
             "Mainz CLI - app create",
             "",
             "Usage:",
-            "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+            "",
+            "Notes:",
+            "  Without --template, Mainz uses default-routed; pass --type root for default-root.",
+            "  --template accepts a built-in name, local path, file:// URL, or http(s) template source.",
+            "  --template and --type are mutually exclusive.",
         ];
     }
 
@@ -1752,8 +1882,8 @@ function getHelpText(topic: HelpTopic): string[] {
         "Mainz CLI",
         "",
         "Usage:",
-        "  mainz [--cli <deno|node|bun>] init [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-        "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+        "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] app list [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] app info [<target>|--target <target>] [--config <path>] [--runtime <deno|node|bun>]",
@@ -1780,11 +1910,14 @@ function getHelpText(topic: HelpTopic): string[] {
         "",
         "Examples:",
         "  mainz init",
+        "  mainz init my-app",
+        "  mainz init my-app --template starter",
         "  mainz init --mainz jsr:@mainz/mainz@<version>",
         "  mainz app create site",
         "  mainz app create --name site",
         "  mainz app create docs --navigation enhanced-mpa",
         "  mainz app create portal --type root",
+        "  mainz app create docs --template default-routed",
         "  mainz app remove site",
         "  mainz app remove --target site",
         "  mainz app list",
@@ -1993,6 +2126,34 @@ function normalizeAppName(name: string): string {
         throw new Error(
             `Invalid app name "${name}". Use letters, numbers, dashes, or underscores, starting with a letter.`,
         );
+    }
+
+    return normalized;
+}
+
+function normalizeTemplateName(name: string): string {
+    const normalized = name.trim();
+    if (isTemplateSourceSpecifier(normalized)) {
+        return normalized;
+    }
+
+    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
+        throw new Error(
+            `Invalid template name or source "${name}". Use a built-in template name, a local path, a file:// URL, or an http(s) URL.`,
+        );
+    }
+
+    return normalized;
+}
+
+function normalizeInitProjectPath(name: string): string {
+    const normalized = normalizePathSlashes(name.trim()).replace(/\/+$/, "");
+    if (!normalized) {
+        throw new Error("Project name must not be empty.");
+    }
+
+    if (isAbsolute(normalized)) {
+        throw new Error("Project name must be a relative path.");
     }
 
     return normalized;
@@ -2276,6 +2437,151 @@ function renderConfigTarget(target: {
         `            outDir: ${JSON.stringify(target.outDir)},`,
         "        },",
     ].join("\n");
+}
+
+function resolveDefaultAppTemplateName(type: "routed" | "root"): string {
+    return type === "root" ? "default-root" : "default-routed";
+}
+
+async function resolveInitProjectTemplateSource(
+    template: string,
+    projectRuntime: SupportedCliRuntime,
+    runtime: MainzToolingRuntime,
+): Promise<TemplateMaterializationSource> {
+    if (isTemplateSourceSpecifier(template)) {
+        return await resolveExternalTemplateSource(template, runtime);
+    }
+
+    const runtimeRoot = resolveBuiltInTemplateRoot("project", projectRuntime);
+    const templateRoot = resolve(runtimeRoot, template);
+    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+        return { templateRoot };
+    }
+
+    const availableForRuntime = await listBuiltInTemplateNames(runtimeRoot, runtime);
+    const availableTemplates = await listProjectTemplateNames(runtime);
+    if (availableTemplates.includes(template)) {
+        throw new Error(
+            `Project template "${template}" is not available for runtime "${projectRuntime}". Available templates for ${projectRuntime}: ${
+                formatTemplateNames(availableForRuntime)
+            }.`,
+        );
+    }
+
+    throw new Error(
+        `Project template "${template}" was not found. Available project templates: ${
+            formatTemplateNames(availableTemplates)
+        }.`,
+    );
+}
+
+async function resolveAppTemplateSource(
+    template: string,
+    runtime: MainzToolingRuntime,
+): Promise<TemplateMaterializationSource> {
+    if (isTemplateSourceSpecifier(template)) {
+        return await resolveExternalTemplateSource(template, runtime);
+    }
+
+    const appTemplatesRoot = resolveBuiltInTemplateRoot("app", ".");
+    const templateRoot = resolve(appTemplatesRoot, template);
+    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+        return { templateRoot };
+    }
+
+    throw new Error(
+        `App template "${template}" was not found. Available app templates: ${
+            formatTemplateNames(await listBuiltInTemplateNames(appTemplatesRoot, runtime))
+        }.`,
+    );
+}
+
+async function resolveExternalTemplateSource(
+    source: string,
+    runtime: MainzToolingRuntime,
+): Promise<TemplateMaterializationSource> {
+    if (isHttpTemplateSource(source)) {
+        return { templateUrl: source };
+    }
+
+    const templateRoot = resolveLocalTemplateSourcePath(source, runtime);
+    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+        return { templateRoot };
+    }
+
+    throw new Error(
+        `Template source "${source}" was not found or does not contain template.json.`,
+    );
+}
+
+function resolveLocalTemplateSourcePath(source: string, runtime: MainzToolingRuntime): string {
+    if (source.startsWith("file://")) {
+        return fileURLToPath(source);
+    }
+
+    return isAbsolute(source) ? source : resolve(runtime.cwd(), source);
+}
+
+function isTemplateSourceSpecifier(value: string): boolean {
+    return isHttpTemplateSource(value) ||
+        value.startsWith("file://") ||
+        isAbsolute(value) ||
+        value === "." ||
+        value === ".." ||
+        value.startsWith("./") ||
+        value.startsWith("../") ||
+        value.includes("/") ||
+        value.includes("\\");
+}
+
+function isHttpTemplateSource(value: string): boolean {
+    return value.startsWith("https://") || value.startsWith("http://");
+}
+
+async function listProjectTemplateNames(runtime: MainzToolingRuntime): Promise<string[]> {
+    const projectTemplatesRoot = resolveBuiltInTemplateRoot("project", ".");
+    if (!(await pathExists(projectTemplatesRoot, runtime))) {
+        return [];
+    }
+
+    const names = new Set<string>();
+    for await (const entry of runtime.readDir(projectTemplatesRoot)) {
+        if (!entry.isDirectory) {
+            continue;
+        }
+
+        const runtimeRoot = resolve(projectTemplatesRoot, entry.name);
+        for (const templateName of await listBuiltInTemplateNames(runtimeRoot, runtime)) {
+            names.add(templateName);
+        }
+    }
+
+    return [...names].sort();
+}
+
+async function listBuiltInTemplateNames(
+    root: string,
+    runtime: MainzToolingRuntime,
+): Promise<string[]> {
+    if (!(await pathExists(root, runtime))) {
+        return [];
+    }
+
+    const names: string[] = [];
+    for await (const entry of runtime.readDir(root)) {
+        if (
+            entry.isDirectory &&
+            await pathExists(resolve(root, entry.name, "template.json"), runtime)
+        ) {
+            names.push(entry.name);
+        }
+    }
+
+    return names.sort();
+}
+
+function formatTemplateNames(names: readonly string[]): string {
+    return names.length > 0 ? names.join(", ") : "none";
 }
 
 function resolveAppHelpTopic(action: AppCommandOptions["action"]): HelpTopic {
@@ -2588,6 +2894,601 @@ function renderGithubPagesWorkflowTemplateParams(options: {
     };
 }
 
+function validateTemplateRuntimeCompatibility(
+    manifest: Record<string, unknown>,
+    projectRuntime: SupportedCliRuntime,
+    templateName: string,
+): void {
+    const compatibleRuntimes = resolveTemplateCompatibleRuntimes(manifest);
+    if (!compatibleRuntimes || compatibleRuntimes.includes(projectRuntime)) {
+        return;
+    }
+
+    throw new Error(
+        `Template "${templateName}" is not compatible with runtime "${projectRuntime}". Compatible runtimes: ${
+            formatTemplateNames(compatibleRuntimes)
+        }.`,
+    );
+}
+
+function resolveTemplateCompatibleRuntimes(
+    manifest: Record<string, unknown>,
+): TemplateCompatibleRuntime[] | undefined {
+    const compatibility = manifest.compatibility;
+    if (compatibility === undefined) {
+        return undefined;
+    }
+
+    if (!compatibility || typeof compatibility !== "object" || Array.isArray(compatibility)) {
+        throw new Error(
+            `Template "${String(manifest.name ?? "unknown")}" compatibility must be an object.`,
+        );
+    }
+
+    const runtimes = (compatibility as Record<string, unknown>).runtimes;
+    if (runtimes === undefined) {
+        return undefined;
+    }
+
+    if (!Array.isArray(runtimes)) {
+        throw new Error(
+            `Template "${
+                String(manifest.name ?? "unknown")
+            }" compatibility.runtimes must be an array.`,
+        );
+    }
+
+    const normalized = runtimes.map((runtime) => {
+        if (runtime !== "deno" && runtime !== "node" && runtime !== "bun") {
+            throw new Error(
+                `Template "${String(manifest.name ?? "unknown")}" declares unsupported runtime "${
+                    String(runtime)
+                }".`,
+            );
+        }
+
+        return runtime;
+    });
+
+    return [...new Set(normalized)].sort();
+}
+
+async function prepareAppTemplateWorkspaceUpdates(
+    manifest: Record<string, unknown>,
+    projectRuntime: SupportedCliRuntime,
+    runtime: MainzToolingRuntime,
+    appName: string,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate[]> {
+    const dependencies = resolveTemplateDependencies(manifest);
+    if (projectRuntime === "deno") {
+        return await prepareDenoAppWorkspaceUpdates(dependencies, runtime, rootDir);
+    }
+
+    return await prepareNodeAppWorkspaceUpdates(dependencies, runtime, appName, rootDir);
+}
+
+async function prepareRemoveAppWorkspaceUpdate(
+    projectRuntime: SupportedCliRuntime,
+    runtime: MainzToolingRuntime,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate | undefined> {
+    if (projectRuntime === "deno") {
+        return await prepareRemoveDenoWorkspaceUpdate(runtime, rootDir);
+    }
+
+    return await prepareRemoveNodeWorkspaceUpdate(runtime, rootDir);
+}
+
+async function prepareRemoveDenoWorkspaceUpdate(
+    runtime: MainzToolingRuntime,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate | undefined> {
+    const denoJsonPath = resolve(runtime.cwd(), "deno.json");
+    if (!(await pathExists(denoJsonPath, runtime))) {
+        return undefined;
+    }
+
+    const denoConfig = await readJsonObjectFile(
+        denoJsonPath,
+        runtime,
+        `Expected "${denoJsonPath}" to exist.`,
+    );
+    const workspace = denoConfig.workspace;
+    if (workspace === undefined) {
+        return undefined;
+    }
+
+    if (!Array.isArray(workspace) || workspace.some((entry) => typeof entry !== "string")) {
+        throw new Error('Expected "workspace" in deno.json to be an array of strings.');
+    }
+
+    const nextWorkspace = removeWorkspacePath(workspace, rootDir, runtime);
+    if (nextWorkspace.length === workspace.length) {
+        return undefined;
+    }
+
+    return {
+        path: denoJsonPath,
+        content: `${JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)}\n`,
+    };
+}
+
+async function prepareRemoveNodeWorkspaceUpdate(
+    runtime: MainzToolingRuntime,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate | undefined> {
+    const packageJsonPath = resolve(runtime.cwd(), "package.json");
+    if (!(await pathExists(packageJsonPath, runtime))) {
+        return undefined;
+    }
+
+    const packageJson = await readJsonObjectFile(
+        packageJsonPath,
+        runtime,
+        `Expected "${packageJsonPath}" to exist.`,
+    );
+    const workspaces = packageJson.workspaces;
+    if (workspaces === undefined) {
+        return undefined;
+    }
+
+    if (!Array.isArray(workspaces) || workspaces.some((entry) => typeof entry !== "string")) {
+        throw new Error('Expected "workspaces" in package.json to be an array of strings.');
+    }
+
+    const nextWorkspaces = removeWorkspacePath(workspaces, rootDir, runtime);
+    if (nextWorkspaces.length === workspaces.length) {
+        return undefined;
+    }
+
+    return {
+        path: packageJsonPath,
+        content: `${JSON.stringify({ ...packageJson, workspaces: nextWorkspaces }, null, 4)}\n`,
+    };
+}
+
+function resolveTemplateDependencies(manifest: Record<string, unknown>): TemplateDependency[] {
+    return [
+        ...resolveTemplateDependencyList(manifest, "dependencies"),
+        ...resolveTemplateDependencyList(manifest, "devDependencies"),
+    ];
+}
+
+function resolveTemplateDependencyList(
+    manifest: Record<string, unknown>,
+    kind: TemplateDependencyKind,
+): TemplateDependency[] {
+    const value = manifest[kind];
+    if (value === undefined) {
+        return [];
+    }
+
+    if (!Array.isArray(value)) {
+        throw new Error(
+            `Template "${String(manifest.name ?? "unknown")}" ${kind} must be an array.`,
+        );
+    }
+
+    return value.map((dependency) => normalizeTemplateDependency(manifest, kind, dependency));
+}
+
+function normalizeTemplateDependency(
+    manifest: Record<string, unknown>,
+    kind: TemplateDependencyKind,
+    dependency: unknown,
+): TemplateDependency {
+    const templateName = String(manifest.name ?? "unknown");
+    if (!dependency || typeof dependency !== "object" || Array.isArray(dependency)) {
+        throw new Error(`Template "${templateName}" ${kind} entries must be objects.`);
+    }
+
+    const record = dependency as Record<string, unknown>;
+    const specifier = normalizeDependencyString(templateName, kind, "specifier", record.specifier);
+    const registry = record.registry;
+    if (registry !== "npm" && registry !== "jsr") {
+        throw new Error(
+            `Template "${templateName}" dependency "${specifier}" must use registry "npm" or "jsr".`,
+        );
+    }
+
+    return {
+        kind,
+        specifier,
+        registry,
+        packageName: normalizeDependencyString(
+            templateName,
+            kind,
+            "package",
+            record.package ?? specifier,
+        ),
+        version: normalizeDependencyString(templateName, kind, "version", record.version),
+        subpaths: normalizeDependencySubpaths(templateName, kind, specifier, record.subpaths),
+    };
+}
+
+function normalizeDependencySubpaths(
+    templateName: string,
+    kind: TemplateDependencyKind,
+    specifier: string,
+    value: unknown,
+): string[] {
+    if (value === undefined) {
+        return [];
+    }
+
+    if (!Array.isArray(value)) {
+        throw new Error(
+            `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be an array.`,
+        );
+    }
+
+    return value.map((subpath) => {
+        if (typeof subpath !== "string" || !subpath.trim()) {
+            throw new Error(
+                `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be strings.`,
+            );
+        }
+
+        const normalized = subpath.trim().replace(/^\/+|\/+$/g, "");
+        if (!normalized || normalized.includes("..") || /\s/.test(normalized)) {
+            throw new Error(
+                `Template "${templateName}" ${kind} entry "${specifier}" has invalid subpath "${subpath}".`,
+            );
+        }
+
+        return normalized;
+    });
+}
+
+function normalizeDependencyString(
+    templateName: string,
+    kind: TemplateDependencyKind,
+    field: string,
+    value: unknown,
+): string {
+    if (typeof value !== "string" || !value.trim()) {
+        throw new Error(`Template "${templateName}" ${kind} entry is missing "${field}".`);
+    }
+
+    const normalized = value.trim();
+    if (/\s/.test(normalized)) {
+        throw new Error(
+            `Template "${templateName}" ${kind} field "${field}" must not contain whitespace.`,
+        );
+    }
+
+    return normalized;
+}
+
+async function prepareDenoAppWorkspaceUpdates(
+    dependencies: readonly TemplateDependency[],
+    runtime: MainzToolingRuntime,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate[]> {
+    const denoJsonPath = resolve(runtime.cwd(), "deno.json");
+    if (!(await pathExists(denoJsonPath, runtime))) {
+        if (dependencies.length === 0) {
+            return [];
+        }
+
+        throw new Error(
+            'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
+        );
+    }
+
+    const denoConfig = await readJsonObjectFile(
+        denoJsonPath,
+        runtime,
+        'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
+    );
+    const workspace = denoConfig.workspace;
+    if (
+        workspace !== undefined &&
+        (!Array.isArray(workspace) || workspace.some((entry) => typeof entry !== "string"))
+    ) {
+        throw new Error('Expected "workspace" in deno.json to be an array of strings.');
+    }
+
+    const appDenoJsonPath = resolve(runtime.cwd(), rootDir, "deno.json");
+    const appDenoConfig = await pathExists(appDenoJsonPath, runtime)
+        ? await readJsonObjectFile(
+            appDenoJsonPath,
+            runtime,
+            `Expected "${appDenoJsonPath}" to exist.`,
+        )
+        : {};
+    const imports = appDenoConfig.imports;
+    if (
+        imports !== undefined &&
+        (!imports || typeof imports !== "object" || Array.isArray(imports))
+    ) {
+        throw new Error(`Expected "imports" in ${appDenoJsonPath} to be an object.`);
+    }
+
+    const workspacePath = renderWorkspacePath(rootDir, runtime);
+    const nextWorkspace = appendUniqueString(
+        workspace as string[] | undefined ?? [],
+        workspacePath,
+    );
+    const nextImports = { ...(imports as Record<string, unknown> | undefined ?? {}) };
+    for (const dependency of dependencies) {
+        const desired = renderDenoDependencySpecifier(dependency);
+        assertDependencySlotAvailable(
+            nextImports,
+            dependency.specifier,
+            desired,
+            `${appDenoJsonPath} imports`,
+        );
+        nextImports[dependency.specifier] = desired;
+
+        for (const subpath of dependency.subpaths) {
+            const subpathSpecifier = `${dependency.specifier}/${subpath}`;
+            const desiredSubpath = `${desired}/${subpath}`;
+            assertDependencySlotAvailable(
+                nextImports,
+                subpathSpecifier,
+                desiredSubpath,
+                `${appDenoJsonPath} imports`,
+            );
+            nextImports[subpathSpecifier] = desiredSubpath;
+        }
+    }
+
+    const updates: TemplateDependencyUpdate[] = [{
+        path: denoJsonPath,
+        content: `${JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)}\n`,
+    }, {
+        path: appDenoJsonPath,
+        content: `${JSON.stringify({ ...appDenoConfig, imports: nextImports }, null, 4)}\n`,
+    }];
+
+    return updates;
+}
+
+async function prepareNodeAppWorkspaceUpdates(
+    dependencies: readonly TemplateDependency[],
+    runtime: MainzToolingRuntime,
+    appName: string,
+    rootDir: string,
+): Promise<TemplateDependencyUpdate[]> {
+    const packageJsonPath = resolve(runtime.cwd(), "package.json");
+    if (!(await pathExists(packageJsonPath, runtime))) {
+        if (dependencies.length === 0) {
+            return [];
+        }
+
+        throw new Error(
+            'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
+        );
+    }
+
+    const packageJson = await readJsonObjectFile(
+        packageJsonPath,
+        runtime,
+        'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
+    );
+    const workspaces = packageJson.workspaces;
+    if (
+        workspaces !== undefined &&
+        (!Array.isArray(workspaces) || workspaces.some((entry) => typeof entry !== "string"))
+    ) {
+        throw new Error('Expected "workspaces" in package.json to be an array of strings.');
+    }
+
+    const appPackageJsonPath = resolve(runtime.cwd(), rootDir, "package.json");
+    const appPackageJson = await pathExists(appPackageJsonPath, runtime)
+        ? await readJsonObjectFile(
+            appPackageJsonPath,
+            runtime,
+            `Expected "${appPackageJsonPath}" to exist.`,
+        )
+        : {
+            name: appName,
+            private: true,
+            type: "module",
+        };
+    const dependencySections = {
+        dependencies: resolvePackageDependencySection(appPackageJson, "dependencies"),
+        devDependencies: resolvePackageDependencySection(appPackageJson, "devDependencies"),
+    };
+
+    for (const dependency of dependencies) {
+        const desired = renderNodeDependencySpecifier(dependency);
+        const targetSection = dependencySections[dependency.kind];
+        const otherKind = dependency.kind === "dependencies" ? "devDependencies" : "dependencies";
+        const otherSection = dependencySections[otherKind];
+
+        assertDependencySlotAvailable(
+            targetSection,
+            dependency.specifier,
+            desired,
+            `${appPackageJsonPath} ${dependency.kind}`,
+        );
+
+        if (
+            Object.hasOwn(otherSection, dependency.specifier) &&
+            otherSection[dependency.specifier] !== desired
+        ) {
+            throw new Error(
+                `Template dependency "${dependency.specifier}" conflicts with existing package.json ${otherKind} value "${
+                    String(otherSection[dependency.specifier])
+                }".`,
+            );
+        }
+
+        if (!Object.hasOwn(otherSection, dependency.specifier)) {
+            targetSection[dependency.specifier] = desired;
+        }
+    }
+
+    const workspacePath = renderWorkspacePath(rootDir, runtime);
+    const updates: TemplateDependencyUpdate[] = [{
+        path: packageJsonPath,
+        content: `${
+            JSON.stringify(
+                {
+                    ...packageJson,
+                    workspaces: appendUniqueString(
+                        workspaces as string[] | undefined ?? [],
+                        workspacePath,
+                    ),
+                },
+                null,
+                4,
+            )
+        }\n`,
+    }, {
+        path: appPackageJsonPath,
+        content: `${
+            JSON.stringify(
+                {
+                    ...appPackageJson,
+                    dependencies: dependencySections.dependencies,
+                    devDependencies: dependencySections.devDependencies,
+                },
+                null,
+                4,
+            )
+        }\n`,
+    }];
+
+    if (dependencies.some((dependency) => dependency.registry === "jsr")) {
+        const npmrcUpdate = await prepareJsrNpmrcUpdate(runtime);
+        if (npmrcUpdate) {
+            updates.push(npmrcUpdate);
+        }
+    }
+
+    return updates;
+}
+
+async function readJsonObjectFile(
+    path: string,
+    runtime: MainzToolingRuntime,
+    missingMessage: string,
+): Promise<Record<string, unknown>> {
+    if (!(await pathExists(path, runtime))) {
+        throw new Error(missingMessage);
+    }
+
+    const parsed = JSON.parse(await runtime.readTextFile(path)) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error(`Expected "${path}" to contain a JSON object.`);
+    }
+
+    return parsed as Record<string, unknown>;
+}
+
+function renderWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
+    const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir)).replaceAll(
+        "\\",
+        "/",
+    );
+    if (!relativePath || relativePath === ".") {
+        return ".";
+    }
+
+    if (relativePath.startsWith("../")) {
+        return relativePath;
+    }
+
+    return relativePath.startsWith("./") ? relativePath : `./${relativePath}`;
+}
+
+function removeWorkspacePath(
+    values: readonly string[],
+    rootDir: string,
+    runtime: MainzToolingRuntime,
+): string[] {
+    const workspacePath = normalizeWorkspacePath(renderWorkspacePath(rootDir, runtime));
+    return values.filter((value) => normalizeWorkspacePath(value) !== workspacePath);
+}
+
+function normalizeWorkspacePath(value: string): string {
+    const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
+    return normalized.startsWith("./") ? normalized.slice(2) : normalized;
+}
+
+function appendUniqueString(values: readonly string[], value: string): string[] {
+    return values.includes(value) ? [...values] : [...values, value];
+}
+
+function resolvePackageDependencySection(
+    packageJson: Record<string, unknown>,
+    kind: TemplateDependencyKind,
+): Record<string, unknown> {
+    const section = packageJson[kind];
+    if (
+        section !== undefined &&
+        (!section || typeof section !== "object" || Array.isArray(section))
+    ) {
+        throw new Error(`Expected "${kind}" in package.json to be an object.`);
+    }
+
+    return { ...(section as Record<string, unknown> | undefined ?? {}) };
+}
+
+function assertDependencySlotAvailable(
+    target: Record<string, unknown>,
+    specifier: string,
+    desired: string,
+    location: string,
+): void {
+    if (!Object.hasOwn(target, specifier) || target[specifier] === desired) {
+        return;
+    }
+
+    throw new Error(
+        `Template dependency "${specifier}" conflicts with existing ${location} value "${
+            String(target[specifier])
+        }".`,
+    );
+}
+
+function renderDenoDependencySpecifier(dependency: TemplateDependency): string {
+    return `${dependency.registry}:${dependency.packageName}@${dependency.version}`;
+}
+
+function renderNodeDependencySpecifier(dependency: TemplateDependency): string {
+    if (dependency.registry === "npm") {
+        return dependency.specifier === dependency.packageName
+            ? dependency.version
+            : `npm:${dependency.packageName}@${dependency.version}`;
+    }
+
+    return `npm:${renderJsrNpmPackageName(dependency.packageName)}@${dependency.version}`;
+}
+
+function renderJsrNpmPackageName(packageName: string): string {
+    const match = packageName.match(/^@([^/]+)\/([^/]+)$/);
+    if (!match) {
+        throw new Error(`JSR dependency "${packageName}" must be scoped as @scope/name.`);
+    }
+
+    return `@jsr/${match[1]}__${match[2]}`;
+}
+
+async function prepareJsrNpmrcUpdate(
+    runtime: MainzToolingRuntime,
+): Promise<TemplateDependencyUpdate | undefined> {
+    const npmrcPath = resolve(runtime.cwd(), ".npmrc");
+    const registryLine = "@jsr:registry=https://npm.jsr.io";
+    const current = await pathExists(npmrcPath, runtime)
+        ? await runtime.readTextFile(npmrcPath)
+        : "";
+
+    if (current.split(/\r?\n/).some((line) => line.trim() === registryLine)) {
+        return undefined;
+    }
+
+    const separator = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
+    return {
+        path: npmrcPath,
+        content: `${current}${separator}${registryLine}\n`,
+    };
+}
+
 function resolveTemplateTarget(manifest: Record<string, unknown>): {
     name: string;
     rootDir: string;
@@ -2649,6 +3550,15 @@ function renderGeneratedNodeMainzSpecifier(mainzSpecifier: string): string {
 
 function toKebabCase(value: string): string {
     return value.replaceAll("_", "-").replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+}
+
+function toCustomElementSegment(value: string): string {
+    const segment = toKebabCase(value)
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+    return segment || "app";
 }
 
 async function pathExists(

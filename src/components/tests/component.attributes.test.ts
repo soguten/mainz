@@ -12,10 +12,11 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./component.attributes.fixture.tsx") as typeof import("./component.attributes.fixture.tsx");
+const fixtures = await import(
+    "./component.attributes.fixture.tsx"
+) as typeof import("./component.attributes.fixture.tsx");
 
 Deno.test("attrs: should be available inside initState before first render", () => {
-
     const screen = renderMainzComponent(fixtures.InitStateReadsAttrComponent, {
         attrs: {
             "data-role": "admin",
@@ -27,7 +28,6 @@ Deno.test("attrs: should be available inside initState before first render", () 
 });
 
 Deno.test("attrs: should be queryable inside onMount", () => {
-
     const screen = renderMainzComponent(fixtures.OnMountReadsAttrComponent, {
         attrs: {
             "data-role": "editor",
@@ -38,8 +38,14 @@ Deno.test("attrs: should be queryable inside onMount", () => {
     screen.cleanup();
 });
 
-Deno.test("attrs: should expose initial attributes on the host element", () => {
+Deno.test("attrs: rendered DOM should be queryable inside onMount", () => {
+    const screen = renderMainzComponent(fixtures.OnMountQueriesRenderedDomComponent);
 
+    assertEquals(screen.component.foundCanvas, true);
+    screen.cleanup();
+});
+
+Deno.test("attrs: should expose initial attributes on the host element", () => {
     const screen = renderMainzComponent(fixtures.HostAttrsComponent, {
         attrs: {
             id: "x-host",
@@ -56,7 +62,6 @@ Deno.test("attrs: should expose initial attributes on the host element", () => {
 });
 
 Deno.test("attrs: render should add attribute when state requires it", () => {
-
     const screen = renderMainzComponent(fixtures.AddAttrOnRenderComponent);
 
     const buttonBefore = screen.getBySelector<HTMLButtonElement>("button");
@@ -72,7 +77,6 @@ Deno.test("attrs: render should add attribute when state requires it", () => {
 });
 
 Deno.test("attrs: render should remove attribute when state no longer requires it", () => {
-
     const screen = renderMainzComponent(fixtures.RemoveAttrOnRenderComponent);
 
     const buttonBefore = screen.getBySelector<HTMLButtonElement>("button");
@@ -88,7 +92,6 @@ Deno.test("attrs: render should remove attribute when state no longer requires i
 });
 
 Deno.test("attrs: render should update attribute value without replacing the element", () => {
-
     const screen = renderMainzComponent(fixtures.UpdateAttrValueComponent);
 
     const nodeBefore = screen.getBySelector<HTMLDivElement>("div");
@@ -105,7 +108,6 @@ Deno.test("attrs: render should update attribute value without replacing the ele
 });
 
 Deno.test("attrs: render should remove old attributes that are not present anymore", () => {
-
     const screen = renderMainzComponent(fixtures.ToggleExclusiveAttrsComponent);
 
     const node = screen.getBySelector<HTMLDivElement>("div");
@@ -122,7 +124,6 @@ Deno.test("attrs: render should remove old attributes that are not present anymo
 });
 
 Deno.test("attrs: host attribute removal should be observable in onMount when attribute is absent", () => {
-
     const screen = renderMainzComponent(fixtures.MissingAttrComponent);
 
     assertEquals(screen.getBySelector("p").textContent, "none");

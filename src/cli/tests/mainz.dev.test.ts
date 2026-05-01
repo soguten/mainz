@@ -86,7 +86,11 @@ Deno.test("cli/mainz: dev should bootstrap existing node projects", async () => 
             ),
         );
 
-        const create = await runMainzCommand(cwd, ["app", "create", "site"]);
+        const create = await runMainzCommand(cwd, [
+            "app",
+            "create",
+            "site",
+        ]);
         assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
 
         const result = await runMainzCommand(cwd, [

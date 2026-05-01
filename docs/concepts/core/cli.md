@@ -6,15 +6,26 @@ summary: Run Mainz targets through build, dev, preview, test, publish-info, and 
 ## App scaffolding
 
 Use `mainz init` to prepare an empty repo for Mainz. It creates `deno.json` with the Mainz import
-map and an empty `mainz.config.ts` ready to receive app targets.
+map and an empty `mainz.config.ts` ready to receive app targets. Pass a name when you want Mainz to
+create a new project directory first.
 
 ```bash
 mainz init
+mainz init my-app
 mainz init --mainz jsr:@mainz/mainz@<version>
 ```
 
-Use `mainz app create --name <name>` to create an app workspace and register a target for it.
-`mainz app create <name>` is also accepted as a short form.
+Use `--template starter` when you want a runnable example project with a routed app and a counter
+component already wired into the home page.
+
+```bash
+mainz init my-app --template starter
+mainz dev --target app
+```
+
+Use `mainz app create <name>` to create an app workspace and register a target for it. When no
+template is passed, Mainz creates the default routed app scaffold. `mainz app create <name>` and
+`mainz app create --name <name>` are both accepted for naming the app.
 
 ```bash
 mainz app create --name site
@@ -23,9 +34,11 @@ mainz app create docs --navigation enhanced-mpa
 mainz app create portal --type root
 mainz app create admin --root ./apps/admin
 mainz app create docs --out-dir public/docs
+mainz app create docs --template default-routed
+mainz app create analytics --template chart
 ```
 
-By default, Mainz creates one source tree for the app:
+The default routed scaffold creates one source tree for the app:
 
 ```txt
 site/
@@ -38,9 +51,18 @@ site/
       NotFound.page.tsx
 ```
 
-`--type routed` is the default. Routed apps include `defineApp(...)`, `startApp(...)`, a pages
-directory, a home page, and a not-found page. Use `--type root` for a root-mounted app without
-routing pages.
+Routed apps include `defineApp(...)`, `startApp(...)`, a pages directory, a home page, and a
+not-found page. Use `--type root` for the default root-mounted scaffold without routing pages.
+
+Use `--template <name|source>` only when selecting an explicit app template or template source.
+`--template` and `--type` are mutually exclusive because `--type` only selects between the built-in
+default scaffolds. The template value can be a built-in name, local path, absolute path, `file://`
+URL, or HTTP template source.
+
+Templates can declare runtime compatibility and dependencies. For example, the built-in `chart`
+template adds Chart.js to the app workspace manifest. Deno projects get a root `workspace` entry and
+an app-level `deno.json` with dependency imports; Node projects get a root `workspaces` entry and an
+app-level `package.json`.
 
 `mainz app create` also creates or updates `mainz.config.ts`:
 

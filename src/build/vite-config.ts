@@ -62,12 +62,6 @@ export function renderGeneratedViteConfigModule(
     runtime: ToolingRuntimeName = "deno",
 ): string {
     const aliases = config.aliases.map((alias) => {
-        if (alias.framework) {
-            return `{ find: ${renderExactSpecifierRegex(alias.find)}, replacement: ${
-                JSON.stringify(alias.replacement)
-            } }`;
-        }
-
         return `{ find: ${JSON.stringify(alias.find)}, replacement: ${
             JSON.stringify(alias.replacement)
         } }`;
@@ -129,7 +123,8 @@ function resolveFrameworkAliases(cwd: string): GeneratedViteAlias[] {
             replacement: normalizePathSlashes(resolve(cwd, entrypoint.sourcePath)),
             framework: true,
         }))
-        .filter((alias) => existsSync(alias.replacement));
+        .filter((alias) => existsSync(alias.replacement))
+        .sort((a, b) => b.find.length - a.find.length);
 }
 
 function resolveTargetAliases(
@@ -182,14 +177,6 @@ function renderObjectLiteral(record: Record<string, string>, indent: number): st
         ),
         `${padding}}`,
     ].join("\n");
-}
-
-function renderExactSpecifierRegex(specifier: string): string {
-    return `/${escapeRegex(specifier)}$/`;
-}
-
-function escapeRegex(value: string): string {
-    return `^${value.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}`;
 }
 
 function normalizePathSlashes(path: string): string {

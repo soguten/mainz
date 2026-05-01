@@ -28,6 +28,20 @@ export class OnMountReadsAttrComponent extends Component {
     }
 }
 
+export class OnMountQueriesRenderedDomComponent extends Component {
+    foundCanvas = false;
+
+    override onMount(): void {
+        this.foundCanvas = this.querySelector("canvas[data-chart='sales']") !== null;
+    }
+
+    override render(): HTMLElement {
+        const canvas = document.createElement("canvas");
+        canvas.dataset.chart = "sales";
+        return canvas;
+    }
+}
+
 export class HostAttrsComponent extends Component {
     override render(): HTMLElement {
         const div = document.createElement("div");
@@ -84,7 +98,6 @@ export class UpdateAttrValueComponent extends Component<{}, { status: string }> 
 }
 
 export class ToggleExclusiveAttrsComponent extends Component<{}, { kind: "a" | "b" }> {
-
     protected override initState() {
         // NOTE: `as const` is required here due to TypeScript literal type widening.
         // Without it, `{ kind: "a" }` would be inferred as `{ kind: string }`,
