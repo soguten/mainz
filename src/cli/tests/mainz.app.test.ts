@@ -603,6 +603,171 @@ Deno.test("cli/mainz app: remove --delete-files should remove the app root", asy
     }
 });
 
+Deno.test("cli/mainz app: list should print configured targets as JSON", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-app-list-" });
+
+    try {
+        await runMainz(cwd, ["app", "create", "site"]);
+        await runMainz(cwd, ["app", "create", "docs"]);
+
+        const result = await runMainz(cwd, ["app", "list"]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const entries = JSON.parse(result.stdout) as Array<{
+            target: string;
+            appId: string;
+            rootDir: string;
+            appFile: string;
+            outDir: string;
+        }>;
+        assertEquals(entries.length, 2);
+        assertEquals(entries[0]?.target, "site");
+        assertEquals(entries[1]?.target, "docs");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz app: info should print one target as JSON", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-app-info-" });
+
+    try {
+        await runMainz(cwd, ["app", "create", "site"]);
+
+        const result = await runMainz(cwd, ["app", "info", "site"]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const info = JSON.parse(result.stdout) as {
+            target: string;
+            appId: string;
+            rootDir: string;
+            appFile: string;
+            outDir: string;
+            vite: { source: string; configPath: string | null };
+        };
+        assertEquals(info.target, "site");
+        assertEquals(info.appId, "site");
+        assertEquals(info.rootDir, "./site");
+        assertEquals(info.appFile, "./site/src/app.ts");
+        assertEquals(info.outDir, "dist/site");
+        assertEquals(info.vite.source, "generated");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz profile: create should create a target build config", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-profile-create-" });
+
+    try {
+        await runMainz(cwd, ["app", "create", "site"]);
+
+        const result = await runMainz(cwd, [
+            "profile",
+            "create",
+            "gh-pages",
+            "--target",
+            "site",
+            "--base-path",
+            "/",
+            "--site-url",
+            "https://example.com",
+        ]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const buildConfig = await Deno.readTextFile(resolve(cwd, "site", "mainz.build.ts"));
+        assertStringIncludes(buildConfig, 'import { defineTargetBuild } from "mainz/config";');
+        assertStringIncludes(buildConfig, '"gh-pages": {');
+        assertStringIncludes(buildConfig, 'basePath: "/"');
+        assertStringIncludes(buildConfig, 'siteUrl: "https://example.com"');
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz workflow: create should generate one GitHub Pages workflow from gh-pages profiles", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-workflow-create-" });
+
+    try {
+        await runMainz(cwd, ["app", "create", "site"]);
+        await runMainz(cwd, ["app", "create", "docs"]);
+        await runMainz(cwd, [
+            "profile",
+            "create",
+            "gh-pages",
+            "--target",
+            "site",
+            "--base-path",
+            "/",
+        ]);
+        await runMainz(cwd, [
+            "profile",
+            "create",
+            "gh-pages",
+            "--target",
+            "docs",
+            "--base-path",
+            "/docs/",
+        ]);
+
+        const result = await runMainz(cwd, ["workflow", "create", "gh-pages"]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const workflow = await Deno.readTextFile(
+            resolve(cwd, ".github", "workflows", "deploy-github-pages.yml"),
+        );
+        assertStringIncludes(workflow, "name: Deploy to GitHub Pages");
+        assertStringIncludes(workflow, "run: deno task build --target site --profile gh-pages");
+        assertStringIncludes(workflow, "run: deno task build --target docs --profile gh-pages");
+        assertStringIncludes(workflow, 'mkdir -p "$staging_dir/docs"');
+        assertStringIncludes(
+            workflow,
+            "jsr:@mainz/cli-deno@alpha publish-info --target site --profile gh-pages",
+        );
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz workflow: update should rewrite an existing GitHub Pages workflow", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-workflow-update-" });
+
+    try {
+        await runMainz(cwd, ["app", "create", "site"]);
+        await runMainz(cwd, [
+            "profile",
+            "create",
+            "gh-pages",
+            "--target",
+            "site",
+            "--base-path",
+            "/",
+        ]);
+        await Deno.mkdir(resolve(cwd, ".github", "workflows"), { recursive: true });
+        await Deno.writeTextFile(
+            resolve(cwd, ".github", "workflows", "deploy-github-pages.yml"),
+            "old workflow\n",
+        );
+
+        const result = await runMainz(cwd, [
+            "workflow",
+            "update",
+            "gh-pages",
+            "--branch",
+            "release",
+        ]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const workflow = await Deno.readTextFile(
+            resolve(cwd, ".github", "workflows", "deploy-github-pages.yml"),
+        );
+        assertStringIncludes(workflow, "            - release");
+        assertEquals(workflow.includes("old workflow"), false);
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 async function runMainz(
     cwd: string,
     args: string[],

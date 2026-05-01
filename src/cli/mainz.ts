@@ -25,7 +25,11 @@ import { serveArtifactPreview } from "../preview/artifact-server.ts";
 import { denoToolingRuntime, nodeToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
-import { materializeTemplate, resolveBuiltInTemplateRoot } from "./templates/index.ts";
+import {
+    instantiateTemplate,
+    materializeTemplate,
+    resolveBuiltInTemplateRoot,
+} from "./templates/index.ts";
 
 type SharedCliOptions = {
     runtime?: MainzRuntime;
@@ -77,8 +81,8 @@ type DiagnoseCommandOptions = SharedCliOptions & {
 
 type AppCommandOptions = {
     command: "app";
-    action: "create" | "remove";
-    name: string;
+    action: "create" | "remove" | "list" | "info";
+    name?: string;
     type?: "routed" | "root";
     root?: string;
     outDir?: string;
@@ -86,6 +90,23 @@ type AppCommandOptions = {
     runtime?: MainzRuntime;
     configPath?: string;
     deleteFiles?: boolean;
+};
+
+type ProfileCommandOptions = SharedCliOptions & {
+    command: "profile";
+    action: "create";
+    name: string;
+    target: string;
+    basePath?: string;
+    siteUrl?: string;
+};
+
+type WorkflowCommandOptions = SharedCliOptions & {
+    command: "workflow";
+    action: "create" | "update";
+    provider: "gh-pages";
+    branch?: string;
+    trigger?: "push" | "manual";
 };
 
 type MainzCliCommand =
@@ -96,7 +117,9 @@ type MainzCliCommand =
     | TestCommandOptions
     | PublishInfoCommandOptions
     | DiagnoseCommandOptions
-    | AppCommandOptions;
+    | AppCommandOptions
+    | ProfileCommandOptions
+    | WorkflowCommandOptions;
 
 type CliRuntimeName = "deno" | "node" | "bun";
 type SupportedCliRuntime = "deno" | "node";
@@ -121,6 +144,13 @@ type HelpTopic =
     | "app"
     | "app-create"
     | "app-remove"
+    | "app-list"
+    | "app-info"
+    | "profile"
+    | "profile-create"
+    | "workflow"
+    | "workflow-create"
+    | "workflow-update"
     | "build"
     | "dev"
     | "preview"
@@ -199,7 +229,28 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
         try {
             await runAppCommand(command, hostRuntime);
         } catch (error) {
-            throw toCliUsageError(error, command.action === "create" ? "app-create" : "app-remove");
+            throw toCliUsageError(error, resolveAppHelpTopic(command.action));
+        }
+        return 0;
+    }
+
+    if (command.command === "profile") {
+        try {
+            await runProfileCommand(command, hostRuntime);
+        } catch (error) {
+            throw toCliUsageError(error, "profile-create");
+        }
+        return 0;
+    }
+
+    if (command.command === "workflow") {
+        try {
+            await runWorkflowCommand(command, hostRuntime);
+        } catch (error) {
+            throw toCliUsageError(
+                error,
+                command.action === "create" ? "workflow-create" : "workflow-update",
+            );
         }
         return 0;
     }
@@ -554,10 +605,12 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         command !== "publish-info" &&
         command !== "diagnose" &&
         command !== "app" &&
-        command !== "init"
+        command !== "init" &&
+        command !== "profile" &&
+        command !== "workflow"
     ) {
         throw new CliUsageError(
-            `Unknown command "${command}". Use "init", "build", "dev", "preview", "test", "publish-info", "diagnose", or "app".`,
+            `Unknown command "${command}". Use "init", "app", "profile", "workflow", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
             "main",
         );
     }
@@ -568,6 +621,14 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 
     if (command === "app") {
         return parseAppCommand(rest);
+    }
+
+    if (command === "profile") {
+        return parseProfileCommand(rest);
+    }
+
+    if (command === "workflow") {
+        return parseWorkflowCommand(rest);
     }
 
     const options = parseCommandOptions(command, rest);
@@ -679,8 +740,8 @@ function parseInitCommand(args: string[]): InitCommandOptions {
 function parseAppCommand(args: string[]): AppCommandOptions {
     const [action, maybeName, ...rest] = args;
 
-    if (action !== "create" && action !== "remove") {
-        throw new Error('Command "app" requires "create" or "remove".');
+    if (action !== "create" && action !== "remove" && action !== "list" && action !== "info") {
+        throw new Error('Command "app" requires "create", "remove", "list", or "info".');
     }
 
     const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
@@ -701,7 +762,7 @@ function parseAppCommand(args: string[]): AppCommandOptions {
             continue;
         }
 
-        if (current === "--target" && action === "remove") {
+        if (current === "--target" && (action === "remove" || action === "info")) {
             flagName = readOptionValue(current, remaining[index + 1]);
             index += 1;
             continue;
@@ -751,7 +812,9 @@ function parseAppCommand(args: string[]): AppCommandOptions {
         throw new Error(`Unknown option "${current}".`);
     }
 
-    const name = resolveAppCommandName(action, positionalName, flagName);
+    const name = action === "list"
+        ? undefined
+        : resolveAppCommandName(action, positionalName, flagName);
 
     return {
         command: "app",
@@ -761,20 +824,157 @@ function parseAppCommand(args: string[]): AppCommandOptions {
     };
 }
 
+function parseProfileCommand(args: string[]): ProfileCommandOptions {
+    const [action, maybeName, ...rest] = args;
+    if (action !== "create") {
+        throw new Error('Command "profile" requires "create".');
+    }
+
+    const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
+    const remaining = positionalName ? rest : [maybeName, ...rest].filter(Boolean);
+    const options: Pick<ProfileCommandOptions, "basePath" | "siteUrl" | "configPath" | "runtime"> =
+        {};
+    let flagName: string | undefined;
+    let target: string | undefined;
+
+    for (let index = 0; index < remaining.length; index += 1) {
+        const current = remaining[index];
+
+        if (current === "--name") {
+            flagName = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--target") {
+            target = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--base-path") {
+            options.basePath = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--site-url") {
+            options.siteUrl = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--config") {
+            options.configPath = readOptionValue(current, remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--runtime") {
+            options.runtime = parseRuntimeOption(remaining[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        throw new Error(`Unknown option "${current}".`);
+    }
+
+    if (!target?.trim()) {
+        throw new Error('Command "profile create" requires --target <name>.');
+    }
+
+    return {
+        command: "profile",
+        action,
+        name: resolveNamedCommandValue("profile create", positionalName, flagName),
+        target,
+        ...options,
+    };
+}
+
+function parseWorkflowCommand(args: string[]): WorkflowCommandOptions {
+    const [action, maybeProvider, ...rest] = args;
+    if (action !== "create" && action !== "update") {
+        throw new Error('Command "workflow" requires "create" or "update".');
+    }
+
+    const providerInput = maybeProvider?.trim();
+    if (providerInput !== "gh-pages" && providerInput !== "github-pages") {
+        throw new Error(
+            `Unsupported workflow provider "${providerInput ?? ""}". Use "gh-pages".`,
+        );
+    }
+    const provider = "gh-pages";
+
+    const options: Omit<WorkflowCommandOptions, "command" | "action" | "provider"> = {};
+
+    for (let index = 0; index < rest.length; index += 1) {
+        const current = rest[index];
+
+        if (current === "--branch") {
+            options.branch = readOptionValue(current, rest[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--trigger") {
+            const trigger = readOptionValue(current, rest[index + 1]);
+            if (trigger !== "push" && trigger !== "manual") {
+                throw new Error(
+                    `Unsupported workflow trigger "${trigger}". Use "push" or "manual".`,
+                );
+            }
+
+            options.trigger = trigger;
+            index += 1;
+            continue;
+        }
+
+        if (current === "--config") {
+            options.configPath = readOptionValue(current, rest[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--runtime") {
+            options.runtime = parseRuntimeOption(rest[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        throw new Error(`Unknown option "${current}".`);
+    }
+
+    return {
+        command: "workflow",
+        action,
+        provider,
+        ...options,
+    };
+}
+
 function resolveAppCommandName(
     action: AppCommandOptions["action"],
     positionalName: string | undefined,
     flagName: string | undefined,
 ): string {
+    return resolveNamedCommandValue(`app ${action}`, positionalName, flagName);
+}
+
+function resolveNamedCommandValue(
+    commandLabel: string,
+    positionalName: string | undefined,
+    flagName: string | undefined,
+): string {
     if (positionalName?.trim() && flagName?.trim() && positionalName.trim() !== flagName.trim()) {
         throw new Error(
-            `Command "app ${action}" received conflicting names "${positionalName}" and "${flagName}".`,
+            `Command "${commandLabel}" received conflicting names "${positionalName}" and "${flagName}".`,
         );
     }
 
     const resolved = flagName?.trim() || positionalName?.trim();
     if (!resolved) {
-        throw new Error(`Command "app ${action}" requires a name.`);
+        throw new Error(`Command "${commandLabel}" requires a name.`);
     }
 
     return resolved;
@@ -961,7 +1161,17 @@ async function runAppCommand(
         return;
     }
 
-    await runAppRemoveCommand(options);
+    if (options.action === "remove") {
+        await runAppRemoveCommand(options);
+        return;
+    }
+
+    if (options.action === "list") {
+        await runAppListCommand(options, hostRuntime);
+        return;
+    }
+
+    await runAppInfoCommand(options, hostRuntime);
 }
 
 async function runAppCreateCommand(
@@ -970,7 +1180,7 @@ async function runAppCreateCommand(
 ): Promise<void> {
     const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
     const runtime = resolveToolingRuntime(projectRuntime);
-    const appName = normalizeAppName(options.name);
+    const appName = normalizeAppName(options.name!);
     const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
     const rootPath = resolve(rootDir);
     const outDir = normalizeOutDir(options.outDir ?? `dist/${appName}`);
@@ -1004,7 +1214,7 @@ async function runAppCreateCommand(
 
 async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
     const runtime = denoToolingRuntime;
-    const appName = normalizeAppName(options.name);
+    const appName = normalizeAppName(options.name!);
     const configPath = options.configPath ?? "mainz.config.ts";
     const absoluteConfigPath = resolve(configPath);
     const content = await runtime.readTextFile(absoluteConfigPath);
@@ -1032,6 +1242,154 @@ async function runAppRemoveCommand(options: AppCommandOptions): Promise<void> {
     if (options.deleteFiles) {
         console.log(`[mainz] Deleted app files for "${appName}".`);
     }
+}
+
+async function runAppListCommand(
+    options: AppCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+
+    console.log(JSON.stringify(
+        normalizedConfig.targets.map((target) => ({
+            target: target.name,
+            appId: target.appId ?? null,
+            rootDir: target.rootDir,
+            appFile: target.appFile ?? null,
+            outDir: target.outDir,
+        })),
+        null,
+        2,
+    ));
+}
+
+async function runAppInfoCommand(
+    options: AppCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    const target = resolveRequiredTarget(normalizedConfig, options.name, "app-info");
+
+    console.log(JSON.stringify(
+        {
+            target: target.name,
+            appId: target.appId ?? null,
+            rootDir: target.rootDir,
+            appFile: target.appFile ?? null,
+            outDir: target.outDir,
+            vite: target.viteConfig
+                ? {
+                    source: "explicit",
+                    configPath: target.viteConfig,
+                }
+                : {
+                    source: "generated",
+                    configPath: null,
+                },
+            build: {
+                configPath: resolveTargetBuildConfigFile(target, runtime.cwd()) ?? null,
+            },
+        },
+        null,
+        2,
+    ));
+}
+
+async function runProfileCommand(
+    options: ProfileCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    if (projectRuntime !== "deno") {
+        throw new Error(
+            `Command "profile create" is not implemented yet for runtime "${projectRuntime}".`,
+        );
+    }
+
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    const target = resolveRequiredTarget(normalizedConfig, options.target, "profile-create");
+    const profileName = options.name.trim();
+    const buildConfigPath = resolveTargetBuildConfigFile(target, runtime.cwd());
+    const profileSource = renderBuildProfileProperty(profileName, {
+        basePath: options.basePath ?? inferDefaultProfileBasePath(target.name),
+        siteUrl: options.siteUrl,
+    });
+
+    if (await pathExists(buildConfigPath, runtime)) {
+        const content = await runtime.readTextFile(buildConfigPath);
+        await runtime.writeTextFile(
+            buildConfigPath,
+            upsertBuildProfile(content, profileName, profileSource),
+        );
+    } else {
+        await runtime.mkdir(dirname(buildConfigPath), { recursive: true });
+        await runtime.writeTextFile(buildConfigPath, renderGeneratedBuildConfig(profileSource));
+    }
+
+    console.log(
+        `[mainz] Updated profile "${profileName}" for target "${target.name}" in ${
+            normalizePathSlashes(relative(runtime.cwd(), buildConfigPath) || buildConfigPath)
+        }.`,
+    );
+}
+
+async function runWorkflowCommand(
+    options: WorkflowCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    if (projectRuntime !== "deno") {
+        throw new Error(
+            `Command "workflow ${options.action}" is not implemented yet for runtime "${projectRuntime}".`,
+        );
+    }
+
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    const workflowTemplateRoot = resolveBuiltInTemplateRoot("workflow", options.provider);
+    const workflowPath = resolve(runtime.cwd(), ".github", "workflows", "deploy-github-pages.yml");
+    const workflowExists = await pathExists(workflowPath, runtime);
+
+    if (options.action === "create" && workflowExists) {
+        throw new Error(`Workflow file "${workflowPath}" already exists.`);
+    }
+
+    if (options.action === "update" && !workflowExists) {
+        throw new Error(`Workflow file "${workflowPath}" does not exist yet.`);
+    }
+
+    const publishTargets = await resolveGithubPagesWorkflowTargets(normalizedConfig, runtime);
+    if (publishTargets.length === 0) {
+        throw new Error('No targets define a "gh-pages" profile.');
+    }
+
+    const plan = await instantiateTemplate({
+        runtime,
+        templateRoot: workflowTemplateRoot,
+        outputDir: runtime.cwd(),
+        params: renderGithubPagesWorkflowTemplateParams({
+            branch: options.branch?.trim() || "main",
+            trigger: options.trigger ?? "push",
+            targets: publishTargets,
+        }),
+    });
+
+    await runtime.mkdir(dirname(workflowPath), { recursive: true });
+    for (const file of plan.files) {
+        await runtime.mkdir(dirname(file.path), { recursive: true });
+        await runtime.writeTextFile(file.path, file.content);
+    }
+
+    console.log(`[mainz] Wrote GitHub Pages workflow to ${workflowPath}.`);
 }
 
 async function runBuildCommand(
@@ -1203,7 +1561,7 @@ async function runTestCommand(
 function resolveRequiredTarget(
     config: NormalizedMainzConfig,
     targetName: string | undefined,
-    command: "dev" | "preview" | "publish-info",
+    command: "dev" | "preview" | "publish-info" | "app-info" | "profile-create",
 ): NormalizedMainzTarget {
     const normalizedTargetName = targetName?.trim();
     if (!normalizedTargetName || normalizedTargetName === "all") {
@@ -1249,6 +1607,8 @@ function getHelpText(topic: HelpTopic): string[] {
             "Usage:",
             "  mainz app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
             "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+            "  mainz app list [--config <path>]",
+            "  mainz app info [<target>|--target <target>] [--config <path>]",
         ];
     }
 
@@ -1267,6 +1627,70 @@ function getHelpText(topic: HelpTopic): string[] {
             "",
             "Usage:",
             "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+        ];
+    }
+
+    if (topic === "app-list") {
+        return [
+            "Mainz CLI - app list",
+            "",
+            "Usage:",
+            "  mainz app list [--config <path>]",
+        ];
+    }
+
+    if (topic === "app-info") {
+        return [
+            "Mainz CLI - app info",
+            "",
+            "Usage:",
+            "  mainz app info [<target>|--target <target>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "profile") {
+        return [
+            "Mainz CLI - profile",
+            "",
+            "Usage:",
+            "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "profile-create") {
+        return [
+            "Mainz CLI - profile create",
+            "",
+            "Usage:",
+            "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "workflow") {
+        return [
+            "Mainz CLI - workflow",
+            "",
+            "Usage:",
+            "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+            "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "workflow-create") {
+        return [
+            "Mainz CLI - workflow create",
+            "",
+            "Usage:",
+            "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+        ];
+    }
+
+    if (topic === "workflow-update") {
+        return [
+            "Mainz CLI - workflow update",
+            "",
+            "Usage:",
+            "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
         ];
     }
 
@@ -1331,6 +1755,11 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz [--cli <deno|node|bun>] init [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
         "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] app list [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] app info [<target>|--target <target>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
@@ -1358,6 +1787,10 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz app create portal --type root",
         "  mainz app remove site",
         "  mainz app remove --target site",
+        "  mainz app list",
+        "  mainz app info site",
+        "  mainz profile create gh-pages --target site --base-path /",
+        "  mainz workflow create gh-pages",
         "  mainz build",
         "  mainz build --target site --profile gh-pages",
         "  mainz build --target playground",
@@ -1405,6 +1838,27 @@ function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
     }
     if (command === "app" && subcommand === "remove") {
         return "app-remove";
+    }
+    if (command === "app" && subcommand === "list") {
+        return "app-list";
+    }
+    if (command === "app" && subcommand === "info") {
+        return "app-info";
+    }
+    if (command === "profile" && subcommand === "create") {
+        return "profile-create";
+    }
+    if (command === "profile") {
+        return "profile";
+    }
+    if (command === "workflow" && subcommand === "create") {
+        return "workflow-create";
+    }
+    if (command === "workflow" && subcommand === "update") {
+        return "workflow-update";
+    }
+    if (command === "workflow") {
+        return "workflow";
     }
     if (command === "app") {
         return "app";
@@ -1463,6 +1917,21 @@ function renderHelpCommand(helpTopic: HelpTopic): string {
     }
     if (helpTopic === "app-remove") {
         return "app remove --help";
+    }
+    if (helpTopic === "app-list") {
+        return "app list --help";
+    }
+    if (helpTopic === "app-info") {
+        return "app info --help";
+    }
+    if (helpTopic === "profile-create") {
+        return "profile create --help";
+    }
+    if (helpTopic === "workflow-create") {
+        return "workflow create --help";
+    }
+    if (helpTopic === "workflow-update") {
+        return "workflow update --help";
     }
     return `${helpTopic} --help`;
 }
@@ -1807,6 +2276,316 @@ function renderConfigTarget(target: {
         `            outDir: ${JSON.stringify(target.outDir)},`,
         "        },",
     ].join("\n");
+}
+
+function resolveAppHelpTopic(action: AppCommandOptions["action"]): HelpTopic {
+    if (action === "create") {
+        return "app-create";
+    }
+
+    if (action === "remove") {
+        return "app-remove";
+    }
+
+    if (action === "list") {
+        return "app-list";
+    }
+
+    return "app-info";
+}
+
+function renderGeneratedBuildConfig(profileSource: string): string {
+    return [
+        'import { defineTargetBuild } from "mainz/config";',
+        "",
+        "export default defineTargetBuild({",
+        "    profiles: {",
+        profileSource,
+        "    },",
+        "});",
+        "",
+    ].join("\n");
+}
+
+function renderBuildProfileProperty(
+    profileName: string,
+    options: { basePath?: string; siteUrl?: string },
+): string {
+    const properties: string[] = [];
+    if (options.basePath) {
+        properties.push(`            basePath: ${JSON.stringify(options.basePath)},`);
+    }
+    if (options.siteUrl) {
+        properties.push(`            siteUrl: ${JSON.stringify(options.siteUrl)},`);
+    }
+
+    return [
+        `        ${JSON.stringify(profileName)}: {`,
+        ...properties,
+        "        },",
+    ].join("\n");
+}
+
+function upsertBuildProfile(content: string, profileName: string, profileSource: string): string {
+    const profilesObject = findNamedObject(content, "profiles");
+    const existingRange = findNamedPropertyRange(
+        content,
+        profilesObject.openIndex,
+        profilesObject.closeIndex,
+        profileName,
+    );
+
+    if (existingRange) {
+        return `${content.slice(0, existingRange.start)}${profileSource}${
+            content.slice(existingRange.end)
+        }`;
+    }
+
+    const beforeClose = content.slice(0, profilesObject.closeIndex).replace(/\s*$/, "");
+    const afterClose = content.slice(profilesObject.closeIndex);
+    const closeLineStart = content.lastIndexOf("\n", profilesObject.closeIndex) + 1;
+    const closeIndent = content.slice(closeLineStart, profilesObject.closeIndex);
+    const needsComma = !beforeClose.endsWith("{") && !beforeClose.endsWith(",");
+    const separator = beforeClose.endsWith("{") ? "\n" : `${needsComma ? "," : ""}\n`;
+
+    return `${beforeClose}${separator}${profileSource}\n${closeIndent}${afterClose}`;
+}
+
+function findNamedObject(
+    content: string,
+    propertyName: string,
+): { openIndex: number; closeIndex: number } {
+    const propertyIndex = content.search(new RegExp(`\\b${propertyName}\\s*:`));
+    if (propertyIndex < 0) {
+        throw new Error(`Expected "${propertyName}" to be an object.`);
+    }
+
+    const openIndex = content.indexOf("{", propertyIndex);
+    if (openIndex < 0) {
+        throw new Error(`Expected "${propertyName}" to be an object.`);
+    }
+
+    return {
+        openIndex,
+        closeIndex: findMatchingBracket(content, openIndex, "{", "}"),
+    };
+}
+
+function findNamedPropertyRange(
+    content: string,
+    openIndex: number,
+    closeIndex: number,
+    propertyName: string,
+): { start: number; end: number } | undefined {
+    let quote: '"' | "'" | "`" | undefined;
+    let escaped = false;
+    let depth = 0;
+
+    for (let index = openIndex + 1; index < closeIndex; index += 1) {
+        const char = content[index];
+
+        if (quote) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (char === "\\") {
+                escaped = true;
+                continue;
+            }
+
+            if (char === quote) {
+                quote = undefined;
+            }
+
+            continue;
+        }
+
+        if (char === '"' || char === "'" || char === "`") {
+            quote = char;
+            continue;
+        }
+
+        if (char === "{") {
+            depth += 1;
+            continue;
+        }
+
+        if (char === "}") {
+            depth -= 1;
+            continue;
+        }
+
+        if (depth !== 0) {
+            continue;
+        }
+
+        const propertyNeedles = [`"${propertyName}"`, `'${propertyName}'`];
+        const matchingNeedle = propertyNeedles.find((needle) => content.startsWith(needle, index));
+        if (!matchingNeedle) {
+            continue;
+        }
+
+        const afterNeedle = content.slice(index + matchingNeedle.length);
+        if (!afterNeedle.match(/^\s*:/)) {
+            continue;
+        }
+
+        const valueStart = content.indexOf("{", index + matchingNeedle.length);
+        if (valueStart < 0 || valueStart > closeIndex) {
+            throw new Error(`Profile "${propertyName}" must use an object value.`);
+        }
+
+        const valueEnd = findMatchingBracket(content, valueStart, "{", "}") + 1;
+        let propertyStart = index;
+        const lineStart = content.lastIndexOf("\n", index) + 1;
+        if (content.slice(lineStart, index).trim() === "") {
+            propertyStart = lineStart;
+        }
+
+        let propertyEnd = valueEnd;
+        const afterValue = content.slice(propertyEnd, closeIndex);
+        const trailingCommaMatch = afterValue.match(/^\s*,/);
+        if (trailingCommaMatch) {
+            propertyEnd += trailingCommaMatch[0].length;
+            const newlineIndex = content.indexOf("\n", propertyEnd);
+            if (newlineIndex >= 0 && newlineIndex < closeIndex) {
+                propertyEnd = newlineIndex + 1;
+            }
+        }
+
+        return {
+            start: propertyStart,
+            end: propertyEnd,
+        };
+    }
+
+    return undefined;
+}
+
+function resolveTargetBuildConfigFile(
+    target: NormalizedMainzTarget,
+    cwd: string,
+): string {
+    return target.buildConfig?.trim()
+        ? resolve(cwd, target.buildConfig)
+        : resolve(cwd, target.rootDir, "mainz.build.ts");
+}
+
+function inferDefaultProfileBasePath(targetName: string): string {
+    return targetName === "site" ? "/" : `/${targetName}/`;
+}
+
+async function resolveGithubPagesWorkflowTargets(
+    normalizedConfig: NormalizedMainzConfig,
+    runtime: MainzToolingRuntime,
+): Promise<Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>> {
+    const cwd = runtime.cwd();
+    const targets: Array<{ name: string; basePath: string; outDir: string; stagingPath: string }> =
+        [];
+    const stagingPaths = new Map<string, string>();
+
+    for (const target of normalizedConfig.targets) {
+        let metadata: Awaited<ReturnType<typeof resolveEnginePublicationMetadata>>;
+        try {
+            metadata = await resolveEnginePublicationMetadata(target, "gh-pages", cwd, runtime);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes('does not define profile "gh-pages"')) {
+                continue;
+            }
+
+            throw error;
+        }
+
+        const stagingPath = normalizeWorkflowStagingPath(metadata.basePath);
+        const conflict = stagingPaths.get(stagingPath);
+        if (conflict) {
+            throw new Error(
+                `Targets "${conflict}" and "${target.name}" both resolve to the GitHub Pages staging path "${
+                    stagingPath || "/"
+                }".`,
+            );
+        }
+
+        stagingPaths.set(stagingPath, target.name);
+        targets.push({
+            name: target.name,
+            basePath: metadata.basePath,
+            outDir: metadata.outDir,
+            stagingPath,
+        });
+    }
+
+    return targets;
+}
+
+function normalizeWorkflowStagingPath(basePath: string): string {
+    const trimmed = basePath.trim();
+    if (!trimmed || trimmed === "/") {
+        return "";
+    }
+
+    return trimmed.replace(/^\/+|\/+$/g, "");
+}
+
+function renderGithubPagesWorkflowTemplateParams(options: {
+    branch: string;
+    trigger: "push" | "manual";
+    targets: Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>;
+}): Record<string, string> {
+    const triggerBlock = options.trigger === "manual"
+        ? [
+            "on:",
+            "    workflow_dispatch:",
+        ].join("\n")
+        : [
+            "on:",
+            "    push:",
+            "        branches:",
+            `            - ${options.branch}`,
+            "    workflow_dispatch:",
+        ].join("\n");
+
+    const buildSteps = options.targets.map((target) =>
+        [
+            `            - name: Build ${target.name}`,
+            `              run: deno task build --target ${target.name} --profile gh-pages`,
+        ].join("\n")
+    ).join("\n\n");
+
+    const metadataCommands = options.targets.map((target) =>
+        `                  ${target.name}_metadata="$(deno run -A --config deno.json jsr:@mainz/cli-deno@alpha publish-info --target ${target.name} --profile gh-pages)"`
+    ).join("\n");
+
+    const metadataEchoes = options.targets.map((target) =>
+        `                  echo "$${target.name}_metadata"`
+    ).join("\n");
+
+    const artifactCommands = options.targets.map((target) =>
+        `                  ${target.name}_artifact_dir="$(METADATA="$${target.name}_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"`
+    ).join("\n");
+
+    const stagingCommands = options.targets.map((target) => {
+        if (!target.stagingPath) {
+            return `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir"/`;
+        }
+
+        return [
+            `                  mkdir -p "$staging_dir/${target.stagingPath}"`,
+            `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir/${target.stagingPath}"/`,
+        ].join("\n");
+    }).join("\n");
+
+    return {
+        triggerBlock,
+        buildSteps,
+        metadataCommands,
+        metadataEchoes,
+        artifactCommands,
+        stagingCommands,
+    };
 }
 
 function resolveTemplateTarget(manifest: Record<string, unknown>): {

@@ -10,6 +10,6 @@ export default defineTargetBuild({
             basePath: "/",
             // Used by to generate hreflang with absolute url
             siteUrl: "https://mainz.dev",
-        },
+        }
     },
 });

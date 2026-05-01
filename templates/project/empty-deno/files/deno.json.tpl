@@ -16,6 +16,7 @@
         "build": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} build",
         "preview": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} preview",
         "test": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} test",
+        "publish-info": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} publish-info",
         "diagnose": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} diagnose"
     }
 }

@@ -58,6 +58,10 @@
         "app-scoped-commands.md": {
             "slug": "app-scoped-commands",
             "order": 14
+        },
+        "templates.md": {
+            "slug": "templates",
+            "order": 15
         }
     }
 }
