@@ -1497,7 +1497,6 @@ async function runWorkflowCommand(
     const plan = await instantiateTemplate({
         runtime,
         templateRoot: workflowTemplateRoot,
-        outputDir: runtime.cwd(),
         params: renderGithubPagesWorkflowTemplateParams({
             branch: options.branch?.trim() || "main",
             trigger: options.trigger ?? "push",
@@ -1505,11 +1504,11 @@ async function runWorkflowCommand(
         }),
     });
 
-    await runtime.mkdir(dirname(workflowPath), { recursive: true });
-    for (const file of plan.files) {
-        await runtime.mkdir(dirname(file.path), { recursive: true });
-        await runtime.writeTextFile(file.path, file.content);
-    }
+    await materializeTemplatePlan({
+        runtime,
+        plan,
+        outputDir: runtime.cwd(),
+    });
 
     console.log(`[mainz] Wrote GitHub Pages workflow to ${workflowPath}.`);
 }
