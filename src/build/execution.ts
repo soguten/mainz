@@ -14,6 +14,7 @@ import type { BuildJob } from "./jobs.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 import { resolveEffectiveNavigationMode } from "./profiles.ts";
 import { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./vite-config.ts";
+import { createGeneratedViteConfigDir } from "./vite-workspace.ts";
 
 export async function runBuildJobs(
     config: NormalizedMainzConfig,
@@ -210,7 +211,9 @@ async function resolveViteConfigPathForTarget(args: {
     }
 
     const tempDir = await createGeneratedViteConfigDir(args.cwd, args.runtime);
-    const viteConfigPath = normalizePathSlashes(resolve(tempDir, "vite.config.generated.mjs"));
+    const viteConfigPath = normalizePathSlashes(
+        resolve(tempDir, `vite.config.${args.target.name}.generated.mjs`),
+    );
     const generatedConfig = resolveGeneratedViteConfig({
         cwd: args.cwd,
         target: args.target,
@@ -222,6 +225,9 @@ async function resolveViteConfigPathForTarget(args: {
         defaultLocale: args.defaultLocale,
         localePrefix: args.localePrefix,
         siteUrl: args.siteUrl,
+        cacheDir: args.runtime.name === "node"
+            ? join("node_modules", ".vite", "mainz", args.target.name)
+            : undefined,
     });
 
     await args.runtime.writeTextFile(
@@ -235,25 +241,6 @@ async function resolveViteConfigPathForTarget(args: {
             await args.runtime.remove(tempDir, { recursive: true });
         },
     };
-}
-
-export async function createGeneratedViteConfigDir(
-    cwd: string,
-    runtime: MainzToolingRuntime,
-): Promise<string> {
-    if (runtime.name === "node") {
-        const tempDir = resolve(
-            cwd,
-            ".mainz",
-            `vite-config-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        );
-        await runtime.mkdir(tempDir, { recursive: true });
-        return tempDir;
-    }
-
-    return await runtime.makeTempDir({
-        prefix: "mainz-vite-config-",
-    });
 }
 
 async function runViteBuild(args: {

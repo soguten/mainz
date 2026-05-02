@@ -17,6 +17,7 @@ export type {
 export { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
 export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 export { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./vite-config.ts";
+export { createGeneratedViteConfigDir } from "./vite-workspace.ts";
 export type { GeneratedViteAlias, GeneratedViteConfig } from "./vite-config.ts";
 export {
     resolveEffectiveNavigationMode,

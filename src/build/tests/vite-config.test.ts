@@ -174,6 +174,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
             basePath: "/",
             appLocales: [],
             localePrefix: "except-default",
+            cacheDir: "node_modules/.vite/mainz/site",
         });
         const moduleSource = renderGeneratedViteConfigModule(generated, "node");
 
@@ -181,6 +182,12 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
         assertEquals(moduleSource.includes(`import deno from "@deno/vite-plugin";`), false);
         assertEquals(moduleSource.includes(`plugins: deno({`), false);
         assertStringIncludes(moduleSource, `appType: "spa"`);
+        assertStringIncludes(
+            moduleSource,
+            `cacheDir: ${
+                JSON.stringify(normalizePath(resolve(cwd, "node_modules/.vite/mainz/site")))
+            }`,
+        );
         assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);
     } finally {
         Deno.removeSync(cwd, { recursive: true });

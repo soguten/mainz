@@ -22,6 +22,7 @@ export interface GeneratedViteConfigInput {
     defaultLocale?: string;
     localePrefix: "except-default" | "always";
     siteUrl?: string;
+    cacheDir?: string;
 }
 
 export interface GeneratedViteConfig {
@@ -29,6 +30,7 @@ export interface GeneratedViteConfig {
     base: string;
     appType: "spa" | "mpa";
     outDir: string;
+    cacheDir?: string;
     aliases: readonly GeneratedViteAlias[];
     define: Record<string, string>;
 }
@@ -39,6 +41,9 @@ export function resolveGeneratedViteConfig(input: GeneratedViteConfigInput): Gen
         base: input.basePath,
         appType: input.navigationMode === "spa" ? "spa" : "mpa",
         outDir: normalizePathSlashes(resolve(input.cwd, input.modeOutDir)),
+        cacheDir: input.cacheDir
+            ? normalizePathSlashes(resolve(input.cwd, input.cacheDir))
+            : undefined,
         aliases: [
             ...resolveFrameworkAliases(input.cwd),
             ...resolveTargetAliases(input.cwd, input.target),
@@ -73,6 +78,9 @@ export function renderGeneratedViteConfigModule(
         `    appType: ${JSON.stringify(config.appType)},`,
         `    base: ${JSON.stringify(config.base)},`,
     ];
+    if (config.cacheDir) {
+        configLines.push(`    cacheDir: ${JSON.stringify(config.cacheDir)},`);
+    }
 
     if (runtime === "deno") {
         imports.unshift(`import deno from "@deno/vite-plugin";`);

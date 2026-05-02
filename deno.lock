@@ -4,7 +4,7 @@
     "jsr:@std/assert@*": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@deno/vite-plugin@2.0.2": "2.0.2_vite@7.3.1",
-    "npm:happy-dom@20.1.0": "20.1.0",
+    "npm:happy-dom@20.1.1": "20.1.1",
     "npm:typescript@5.9.3": "5.9.3",
     "npm:vite@7.3.1": "7.3.1"
   },
@@ -315,8 +315,8 @@
     "@types/estree@1.0.8": {
       "integrity": "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="
     },
-    "@types/node@20.19.35": {
-      "integrity": "sha512-Uarfe6J91b9HAUXxjvSOdiO2UPOKLm07Q1oh0JHxoZ1y8HoqxDAu3gVrsrOHeiio0kSsoVBt4wFrKOm0dKxVPQ==",
+    "@types/node@20.19.39": {
+      "integrity": "sha512-orrrD74MBUyK8jOAD/r0+lfa1I2MO6I+vAkmAWzMYbCcgrN4lCrmK52gRFQq/JRxfYPfonkr4b0jcY7Olqdqbw==",
       "dependencies": [
         "undici-types"
       ]
@@ -377,8 +377,8 @@
       "os": ["darwin"],
       "scripts": true
     },
-    "happy-dom@20.1.0": {
-      "integrity": "sha512-ebvqjBqzenBk2LjzNEAzoj7yhw7rW/R2/wVevMu6Mrq3MXtcI/RUz4+ozpcOcqVLEWPqLfg2v9EAU7fFXZUUJw==",
+    "happy-dom@20.1.1": {
+      "integrity": "sha512-jVSnpH/5lR97B7m2dg6bXCF462jiZvkoTQkMcRmM6hMo0YQpRkIewvfiGfSNLMpwBidmF/AEIrPKVdhXLZRRtw==",
       "dependencies": [
         "@types/node",
         "@types/whatwg-mimetype",
@@ -475,15 +475,15 @@
     "whatwg-mimetype@3.0.0": {
       "integrity": "sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q=="
     },
-    "ws@8.19.0": {
-      "integrity": "sha512-blAT2mjOEIi0ZzruJfIhb3nps74PRWTCz1IjglWEEpQl5XS/UNama6u2/rjFkDDouqr4L67ry+1aGIALViWjDg=="
+    "ws@8.20.0": {
+      "integrity": "sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA=="
     }
   },
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@*",
       "npm:@deno/vite-plugin@2.0.2",
-      "npm:happy-dom@20.1.0",
+      "npm:happy-dom@20.1.1",
       "npm:vite@7.3.1"
     ]
   }

@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { assert, assertStringIncludes } from "@std/assert";
 import { DenoToolingRuntime, NodeToolingRuntime } from "../../tooling/runtime/index.ts";
-import { createGeneratedViteConfigDir } from "../execution.ts";
+import { createGeneratedViteConfigDir } from "../vite-workspace.ts";
 
 Deno.test("build/execution: should forward dev host and port to Vite", () => {
     const runtime = new DenoToolingRuntime();
@@ -74,7 +74,10 @@ Deno.test("build/execution: node runtime should keep generated Vite configs insi
         const runtime = new NodeToolingRuntime();
         const tempDir = await createGeneratedViteConfigDir(cwd, runtime);
 
-        assertStringIncludes(tempDir.replaceAll("\\", "/"), `${cwd.replaceAll("\\", "/")}/.mainz/`);
+        assertEquals(
+            tempDir.replaceAll("\\", "/"),
+            `${cwd.replaceAll("\\", "/")}/node_modules/.mainz/vite`,
+        );
         const stat = await Deno.stat(tempDir);
         assert(stat.isDirectory);
     } finally {

@@ -427,7 +427,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
         };
         denoConfig.imports = {
             "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-            "happy-dom": "npm:happy-dom@20.1.0",
+            "happy-dom": "npm:happy-dom@20.1.1",
             mainz: toFileSpecifier(resolve(cliTestsRepoRoot, "mod.ts")),
             "mainz/config": toFileSpecifier(resolve(cliTestsRepoRoot, "src", "config", "index.ts")),
             "mainz/jsx-dev-runtime": toFileSpecifier(
@@ -445,7 +445,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
             JSON.stringify(
                 {
                     imports: {
-                        "happy-dom": "npm:happy-dom@20.1.0",
+                        "happy-dom": "npm:happy-dom@20.1.1",
                     },
                 },
                 null,

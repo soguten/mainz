@@ -582,7 +582,7 @@ async function createNodeProjectBootstrapConfig(
                     ...mainzImports,
                     vite: "npm:vite@7.3.1",
                     "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-                    "happy-dom": "npm:happy-dom@20.1.0",
+                    "happy-dom": "npm:happy-dom@20.1.1",
                 },
             },
             null,
