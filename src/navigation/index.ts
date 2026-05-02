@@ -64,7 +64,8 @@ const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
-const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol("mainz.appDefinitionKind");
+const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol.for("mainz.appDefinitionKind") as
+    typeof MAINZ_APP_DEFINITION_KIND;
 type InternalDefinedRoutedApp = DefinedRoutedApp & {
     readonly [MAINZ_APP_DEFINITION_KIND]: "routed";
 };

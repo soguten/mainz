@@ -5,7 +5,10 @@ import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import { resolveBuiltInTemplateBundle } from "../templates/built-in-templates.generated.ts";
 import {
+    builtInTemplateExists,
     instantiateTemplate,
+    joinTemplateRoot,
+    listBuiltInTemplateNames,
     materializeTemplate,
     resolveBuiltInTemplateRoot,
 } from "../templates/index.ts";
@@ -33,6 +36,22 @@ Deno.test("cli/templates: built-in bundle should match the template tree", async
             files,
         }, `Bundle drift for ${kind}/${name}`);
     }
+});
+
+Deno.test("cli/templates: built-in helper functions should resolve and enumerate names", () => {
+    const projectRoot = resolveBuiltInTemplateRoot("project", ".");
+    const appRoot = resolveBuiltInTemplateRoot("app", ".");
+    const denoProjectRoot = joinTemplateRoot(projectRoot, "deno");
+    const starterTemplateRoot = joinTemplateRoot(denoProjectRoot, "starter");
+
+    assertEquals(listBuiltInTemplateNames(projectRoot), ["deno", "node"]);
+    assertEquals(listBuiltInTemplateNames(appRoot), ["chart", "default-root", "default-routed"]);
+    assertEquals(listBuiltInTemplateNames(denoProjectRoot), ["empty", "starter"]);
+    assertEquals(builtInTemplateExists(starterTemplateRoot), true);
+    assertEquals(
+        builtInTemplateExists(joinTemplateRoot(denoProjectRoot, "missing")),
+        false,
+    );
 });
 
 Deno.test("cli/templates/project: empty deno should materialize the shared project template", async () => {

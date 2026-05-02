@@ -1,4 +1,10 @@
-export { loadTemplate, resolveBuiltInTemplateRoot } from "./load-template.ts";
+export {
+    builtInTemplateExists,
+    joinTemplateRoot,
+    listBuiltInTemplateNames,
+    loadTemplate,
+    resolveBuiltInTemplateRoot,
+} from "./load-template.ts";
 export {
     instantiateTemplate,
     materializeTemplate,

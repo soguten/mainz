@@ -113,6 +113,9 @@ function renderModule(entries: TemplateEntry[]): string {
         `    files: Array<{ path: string; content: string }>;\n` +
         `}\n\n` +
         `const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([\n${body}\n]);\n\n` +
+        `export function listBuiltInTemplateBundleKeys(): string[] {\n` +
+        `    return [...builtInTemplates.keys()];\n` +
+        `}\n\n` +
         `export function resolveBuiltInTemplateBundle(kind: string, name: string): BuiltInTemplateBundleEntry | undefined {\n` +
         `    return builtInTemplates.get(\`${"${kind}/${name}"}\`.replaceAll("\\\\", "/"));\n` +
         `}\n`;

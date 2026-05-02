@@ -26,7 +26,10 @@ import { denoToolingRuntime, nodeToolingRuntime } from "../tooling/runtime/index
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 import {
+    builtInTemplateExists,
     instantiateTemplate,
+    joinTemplateRoot,
+    listBuiltInTemplateNames as listBuiltInTemplateNamesFromBundle,
     materializeTemplatePlan,
     resolveBuiltInTemplateRoot,
 } from "./templates/index.ts";
@@ -2452,8 +2455,8 @@ async function resolveInitProjectTemplateSource(
     }
 
     const runtimeRoot = resolveBuiltInTemplateRoot("project", projectRuntime);
-    const templateRoot = resolve(runtimeRoot, template);
-    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+    const templateRoot = joinTemplateRoot(runtimeRoot, template);
+    if (builtInTemplateExists(templateRoot)) {
         return { templateRoot };
     }
 
@@ -2483,8 +2486,8 @@ async function resolveAppTemplateSource(
     }
 
     const appTemplatesRoot = resolveBuiltInTemplateRoot("app", ".");
-    const templateRoot = resolve(appTemplatesRoot, template);
-    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+    const templateRoot = joinTemplateRoot(appTemplatesRoot, template);
+    if (builtInTemplateExists(templateRoot)) {
         return { templateRoot };
     }
 
@@ -2539,17 +2542,10 @@ function isHttpTemplateSource(value: string): boolean {
 
 async function listProjectTemplateNames(runtime: MainzToolingRuntime): Promise<string[]> {
     const projectTemplatesRoot = resolveBuiltInTemplateRoot("project", ".");
-    if (!(await pathExists(projectTemplatesRoot, runtime))) {
-        return [];
-    }
-
     const names = new Set<string>();
-    for await (const entry of runtime.readDir(projectTemplatesRoot)) {
-        if (!entry.isDirectory) {
-            continue;
-        }
 
-        const runtimeRoot = resolve(projectTemplatesRoot, entry.name);
+    for (const runtimeName of await listBuiltInTemplateNames(projectTemplatesRoot, runtime)) {
+        const runtimeRoot = joinTemplateRoot(projectTemplatesRoot, runtimeName);
         for (const templateName of await listBuiltInTemplateNames(runtimeRoot, runtime)) {
             names.add(templateName);
         }
@@ -2562,6 +2558,10 @@ async function listBuiltInTemplateNames(
     root: string,
     runtime: MainzToolingRuntime,
 ): Promise<string[]> {
+    if (root.startsWith("builtin:")) {
+        return listBuiltInTemplateNamesFromBundle(root);
+    }
+
     if (!(await pathExists(root, runtime))) {
         return [];
     }

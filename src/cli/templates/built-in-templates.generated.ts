@@ -245,6 +245,10 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     ],
 ]);
 
+export function listBuiltInTemplateBundleKeys(): string[] {
+    return [...builtInTemplates.keys()];
+}
+
 export function resolveBuiltInTemplateBundle(kind: string, name: string): BuiltInTemplateBundleEntry | undefined {
     return builtInTemplates.get(`${kind}/${name}`.replaceAll("\\", "/"));
 }

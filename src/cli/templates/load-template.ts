@@ -1,7 +1,10 @@
 import { dirname, resolve } from "node:path";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
-import { resolveBuiltInTemplateBundle } from "./built-in-templates.generated.ts";
+import {
+    listBuiltInTemplateBundleKeys,
+    resolveBuiltInTemplateBundle,
+} from "./built-in-templates.generated.ts";
 
 export interface LoadedTemplate {
     manifest: Record<string, unknown>;
@@ -30,6 +33,49 @@ export function resolveBuiltInTemplateRoot(kind: string, name: string): string {
     return `builtin:${kind}/${name}`.replaceAll("\\", "/");
 }
 
+export function joinTemplateRoot(root: string, child: string): string {
+    if (isBuiltInTemplateRoot(root)) {
+        const normalizedRoot = normalizeBuiltInTemplateKey(root);
+        const normalizedChild = normalizeBuiltInTemplateKey(child);
+        const key = [normalizedRoot, normalizedChild].filter((segment) => segment.length > 0).join("/");
+        return `builtin:${key}`;
+    }
+
+    return resolve(root, child);
+}
+
+export function builtInTemplateExists(templateRoot: string): boolean {
+    if (!isBuiltInTemplateRoot(templateRoot)) {
+        return false;
+    }
+
+    return resolveBuiltInTemplateBundleByKey(normalizeBuiltInTemplateKey(templateRoot)) !== undefined;
+}
+
+export function listBuiltInTemplateNames(templateRoot: string): string[] {
+    if (!isBuiltInTemplateRoot(templateRoot)) {
+        return [];
+    }
+
+    const prefix = normalizeBuiltInTemplateKey(templateRoot);
+    const prefixWithSlash = prefix.length > 0 ? `${prefix}/` : "";
+    const names = new Set<string>();
+
+    for (const key of listBuiltInTemplateBundleKeys()) {
+        if (prefix.length > 0 && !key.startsWith(prefixWithSlash)) {
+            continue;
+        }
+
+        const suffix = prefix.length > 0 ? key.slice(prefixWithSlash.length) : key;
+        const [name] = suffix.split("/");
+        if (name) {
+            names.add(name);
+        }
+    }
+
+    return [...names].sort();
+}
+
 export async function loadTemplate(
     templateRoot: string,
     runtime: MainzToolingRuntime = denoToolingRuntime,
@@ -55,10 +101,8 @@ export async function loadTemplate(
 }
 
 function loadBuiltInTemplate(templateRoot: string): LoadedTemplate {
-    const key = templateRoot.slice("builtin:".length).replace(/^\/+/, "").replace(/\/+$/, "");
-    const [kind, ...nameParts] = key.split("/");
-    const name = nameParts.join("/");
-    const bundle = resolveBuiltInTemplateBundle(kind ?? "", name);
+    const key = normalizeBuiltInTemplateKey(templateRoot);
+    const bundle = resolveBuiltInTemplateBundleByKey(key);
     if (!bundle) {
         throw new Error(`Built-in template "${key}" was not found.`);
     }
@@ -119,8 +163,27 @@ function resolveRemoteTemplateArchiveUrl(templateSourceUrl: string): URL {
     );
 }
 
-function isBuiltInTemplateRoot(templateRoot: string): boolean {
+export function isBuiltInTemplateRoot(templateRoot: string): boolean {
     return templateRoot.startsWith("builtin:");
+}
+
+function normalizeBuiltInTemplateKey(templateRoot: string): string {
+    const key = templateRoot.startsWith("builtin:")
+        ? templateRoot.slice("builtin:".length)
+        : templateRoot;
+
+    return key
+        .replaceAll("\\", "/")
+        .split("/")
+        .filter((segment) => segment.length > 0 && segment !== ".")
+        .join("/");
+}
+
+function resolveBuiltInTemplateBundleByKey(
+    key: string,
+): ReturnType<typeof resolveBuiltInTemplateBundle> {
+    const [kind, ...nameParts] = key.split("/");
+    return resolveBuiltInTemplateBundle(kind ?? "", nameParts.join("/"));
 }
 
 async function fetchRemoteTemplateBytes(url: URL): Promise<Uint8Array> {

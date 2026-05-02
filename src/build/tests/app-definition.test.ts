@@ -7,6 +7,7 @@ import {
     loadTargetBuildAppDefinition,
     loadTargetBuildRoutedAppDefinition,
 } from "../app-definition.ts";
+import { resolveDefinedAppDefinitionsFromModuleExports } from "../../navigation/index.ts";
 
 Deno.test("build/app-definition: should load root app definitions selected by appId", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-root-app-definition-" });
@@ -57,4 +58,18 @@ Deno.test("build/app-definition: should load root app definitions selected by ap
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }
+});
+
+Deno.test("build/app-definition: should detect exported apps branded from another package instance", () => {
+    const foreignApp = {
+        id: "foreign-app",
+        pages: [],
+        [Symbol.for("mainz.appDefinitionKind")]: "routed",
+    };
+
+    const resolved = resolveDefinedAppDefinitionsFromModuleExports({
+        app: foreignApp,
+    });
+
+    assertEquals(resolved, [foreignApp]);
 });
