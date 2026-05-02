@@ -3,11 +3,37 @@
 import { resolve } from "node:path";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
+import { resolveBuiltInTemplateBundle } from "../templates/built-in-templates.generated.ts";
 import {
     instantiateTemplate,
     materializeTemplate,
     resolveBuiltInTemplateRoot,
 } from "../templates/index.ts";
+
+Deno.test("cli/templates: built-in bundle should match the template tree", async () => {
+    const expectations = [
+        ["app", "chart"],
+        ["app", "default-root"],
+        ["app", "default-routed"],
+        ["project", "deno/empty"],
+        ["project", "deno/starter"],
+        ["project", "node/empty"],
+        ["project", "node/starter"],
+        ["workflow", "gh-pages"],
+    ] as const;
+
+    for (const [kind, name] of expectations) {
+        const bundle = resolveBuiltInTemplateBundle(kind, name);
+        const templateDir = resolve("templates", kind, ...name.split("/"));
+        const manifestSource = await Deno.readTextFile(resolve(templateDir, "template.json"));
+        const files = await collectFiles(resolve(templateDir, "files"));
+
+        assertEquals(bundle, {
+            manifestSource,
+            files,
+        }, `Bundle drift for ${kind}/${name}`);
+    }
+});
 
 Deno.test("cli/templates/project: empty deno should materialize the shared project template", async () => {
     const plan = await instantiateTemplate({
@@ -190,3 +216,27 @@ Deno.test("cli/templates/project: materialize should preflight every destination
         await Deno.remove(outputDir, { recursive: true });
     }
 });
+
+async function collectFiles(
+    root: string,
+    prefix = "",
+): Promise<Array<{ path: string; content: string }>> {
+    const files: Array<{ path: string; content: string }> = [];
+
+    for await (const entry of Deno.readDir(root)) {
+        const absolutePath = resolve(root, entry.name);
+        const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory) {
+            files.push(...await collectFiles(absolutePath, relativePath));
+            continue;
+        }
+
+        files.push({
+            path: relativePath.replaceAll("\\", "/"),
+            content: await Deno.readTextFile(absolutePath),
+        });
+    }
+
+    files.sort((left, right) => left.path.localeCompare(right.path));
+    return files;
+}

@@ -1,13 +1,14 @@
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
+import { resolveBuiltInTemplateBundle } from "./built-in-templates.generated.ts";
 
 export interface LoadedTemplate {
     manifest: Record<string, unknown>;
     manifestSource: string;
     root: string;
     filesRoot: string;
+    files?: LoadedRemoteTemplateFile[];
 }
 
 export interface LoadedRemoteTemplateFile {
@@ -23,18 +24,20 @@ export interface LoadedRemoteTemplate {
     files: LoadedRemoteTemplateFile[];
 }
 
-const moduleDir = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(moduleDir, "..", "..", "..");
 const tarBlockSize = 512;
 
 export function resolveBuiltInTemplateRoot(kind: string, name: string): string {
-    return resolve(repoRoot, "templates", kind, name);
+    return `builtin:${kind}/${name}`.replaceAll("\\", "/");
 }
 
 export async function loadTemplate(
     templateRoot: string,
     runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<LoadedTemplate> {
+    if (isBuiltInTemplateRoot(templateRoot)) {
+        return loadBuiltInTemplate(templateRoot);
+    }
+
     const manifestPath = resolve(templateRoot, "template.json");
     const manifestSource = await runtime.readTextFile(manifestPath);
     const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
@@ -48,6 +51,27 @@ export async function loadTemplate(
         manifestSource,
         root: templateRoot,
         filesRoot: resolve(templateRoot, "files"),
+    };
+}
+
+function loadBuiltInTemplate(templateRoot: string): LoadedTemplate {
+    const key = templateRoot.slice("builtin:".length).replace(/^\/+/, "").replace(/\/+$/, "");
+    const [kind, ...nameParts] = key.split("/");
+    const name = nameParts.join("/");
+    const bundle = resolveBuiltInTemplateBundle(kind ?? "", name);
+    if (!bundle) {
+        throw new Error(`Built-in template "${key}" was not found.`);
+    }
+
+    const manifestSource = bundle.manifestSource;
+    const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
+
+    return {
+        manifest,
+        manifestSource,
+        root: templateRoot,
+        filesRoot: `${templateRoot}/files`,
+        files: bundle.files.map((file) => ({ ...file })),
     };
 }
 
@@ -93,6 +117,10 @@ function resolveRemoteTemplateArchiveUrl(templateSourceUrl: string): URL {
     throw new Error(
         `Remote template source "${templateSourceUrl}" must point to a .tar.gz or .tgz archive.`,
     );
+}
+
+function isBuiltInTemplateRoot(templateRoot: string): boolean {
+    return templateRoot.startsWith("builtin:");
 }
 
 async function fetchRemoteTemplateBytes(url: URL): Promise<Uint8Array> {

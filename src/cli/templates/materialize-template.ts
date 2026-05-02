@@ -29,8 +29,8 @@ export async function instantiateTemplate(
     const template = options.templateUrl
         ? await loadRemoteTemplate(options.templateUrl)
         : await loadTemplate(resolveRequiredTemplateRoot(options.templateRoot), runtime);
-    const remoteFiles: LoadedRemoteTemplateFile[] | undefined = options.templateUrl
-        ? (template as unknown as { files: LoadedRemoteTemplateFile[] }).files
+    const remoteFiles: LoadedRemoteTemplateFile[] | undefined = "files" in template
+        ? template.files
         : undefined;
     const relativePaths: string[] = remoteFiles
         ? remoteFiles.map((file) => file.path)
