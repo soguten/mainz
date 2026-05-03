@@ -155,8 +155,8 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
 
 Deno.test("routing/target-page-discovery: should discover app-level notFound pages without requiring @Route(...)", async () => {
     const fixture = await createFixtureTargetConfig({
-        fixtureName: "base-path",
-        targetName: "base-path-app-file",
+        fixtureName: "not-found-csr-default",
+        targetName: "not-found-csr-default-app-file",
     });
 
     try {
@@ -178,17 +178,20 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
             discoveredPages?.map((page) => ({
                 exportName: page.exportName,
                 path: page.path,
+                mode: page.mode,
                 notFound: page.notFound,
             })),
             [
                 {
-                    exportName: "FixtureBasePathHomePage",
+                    exportName: "HomePage",
                     path: "/",
+                    mode: "csr",
                     notFound: undefined,
                 },
                 {
-                    exportName: "FixtureBasePathNotFoundPage",
+                    exportName: "NotFoundPage",
                     path: "/404",
+                    mode: "csr",
                     notFound: true,
                 },
             ],

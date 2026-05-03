@@ -185,6 +185,25 @@ Deno.test("build/jobs: should keep explicit csr routed apps on the csr build rec
     ]);
 });
 
+Deno.test("build/jobs: should keep undecorated notFound pages on the csr build recipe by default", async () => {
+    const fixtureRoot = resolve(cliTestsRepoRoot, "tests", "fixtures", "not-found-csr-default");
+    const config = normalizeMainzConfig({
+        targets: [
+            {
+                name: "not-found-csr-default-app-file",
+                rootDir: fixtureRoot,
+                appFile: resolve(fixtureRoot, "src", "main.tsx"),
+            },
+        ],
+    });
+
+    const jobs = await resolveBuildJobs(config, {});
+
+    assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
+        "not-found-csr-default-app-file:csr",
+    ]);
+});
+
 Deno.test("build/jobs: should keep mixed routed targets when undecorated pages default to csr but notFound stays ssg", async () => {
     const config = normalizeMainzConfig({
         targets: [

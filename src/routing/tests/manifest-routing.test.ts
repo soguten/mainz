@@ -274,29 +274,35 @@ Deno.test("routing/manifest: should reject multiple notFound pages", () => {
     );
 });
 
-Deno.test("routing/manifest: should require notFound pages to use ssg mode", () => {
-    assertThrows(
-        () => {
-            buildTargetRouteManifest({
-                target: {
-                    name: "site",
-                    rootDir: "./site",
-                },
-                appLocales: ["en"],
-                discoveredPages: [
-                    {
-                        file: "./site/pages/not-found.page.tsx",
-                        exportName: "NotFoundPage",
-                        path: "/404",
-                        mode: "csr",
-                        notFound: true,
-                    },
-                ],
-            });
+Deno.test("routing/manifest: should preserve csr mode on notFound pages", () => {
+    const manifest = buildTargetRouteManifest({
+        target: {
+            name: "site",
+            rootDir: "./site",
         },
-        Error,
-        'must use mode "ssg"',
-    );
+        appLocales: ["en"],
+        discoveredPages: [
+            {
+                file: "./site/pages/not-found.page.tsx",
+                exportName: "NotFoundPage",
+                path: "/404",
+                mode: "csr",
+                notFound: true,
+            },
+        ],
+    });
+
+    assertEquals(manifest.routes.map((route) => ({
+        path: route.path,
+        mode: route.mode,
+        notFound: route.notFound,
+    })), [
+        {
+            path: "/404",
+            mode: "csr",
+            notFound: true,
+        },
+    ]);
 });
 
 Deno.test("routing/manifest: should build routes from discovered page metadata", () => {
@@ -656,6 +662,55 @@ Deno.test("routing/manifest: should emit a root 404.html for notFound routes", (
     };
 
     const outputs = buildSsgOutputEntries(manifest, "dist/site", {
+        defaultLocale: "pt-BR",
+    });
+
+    assertEquals(outputs, [
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "en",
+            outputHtmlPath: "dist/site/en/404/index.html",
+            renderPath: "/en/404",
+            notFound: true,
+        },
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "pt-BR",
+            outputHtmlPath: "dist/site/404/index.html",
+            renderPath: "/404",
+            notFound: true,
+        },
+        {
+            target: "site",
+            routeId: "not-found",
+            locale: "pt-BR",
+            outputHtmlPath: "dist/site/404.html",
+            renderPath: "/404",
+            notFound: true,
+        },
+    ]);
+});
+
+Deno.test("routing/manifest: should emit csr outputs for csr notFound routes when requested", () => {
+    const manifest: TargetRouteManifest = {
+        target: "site",
+        routes: [
+            {
+                id: "not-found",
+                source: "filesystem",
+                path: "/404",
+                pattern: "/404",
+                mode: "csr",
+                notFound: true,
+                locales: ["en", "pt-BR"],
+            },
+        ],
+    };
+
+    const outputs = buildSsgOutputEntries(manifest, "dist/site", {
+        renderMode: "csr",
         defaultLocale: "pt-BR",
     });
 

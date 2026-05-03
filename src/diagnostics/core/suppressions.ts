@@ -17,7 +17,6 @@ import { dynamicSsgMissingEntriesDiagnosticCode } from "../routing/rules/dynamic
 import { dynamicSsgMissingLoadDiagnosticCode } from "../routing/rules/dynamic-ssg-missing-load.rule.ts";
 import { invalidLocaleTagDiagnosticCode } from "../routing/rules/invalid-locale-tag.rule.ts";
 import { multipleNotFoundPagesDiagnosticCode } from "../routing/rules/multiple-not-found-pages.rule.ts";
-import { notFoundMustUseSsgDiagnosticCode } from "../routing/rules/not-found-must-use-ssg.rule.ts";
 import { pageAuthorizationAnonymousConflictDiagnosticCode } from "../routing/rules/page-authorization-anonymous-conflict.rule.ts";
 import { pageAuthorizationSsgWarningDiagnosticCode } from "../routing/rules/page-authorization-ssg-warning.rule.ts";
 import { pageStaticLoadUnsupportedDiagnosticCode } from "../routing/rules/page-static-load-unsupported.rule.ts";
@@ -83,7 +82,6 @@ const knownDiagnosticCodes = new Set<string>([
     dynamicSsgMissingLoadDiagnosticCode,
     invalidLocaleTagDiagnosticCode,
     multipleNotFoundPagesDiagnosticCode,
-    notFoundMustUseSsgDiagnosticCode,
     pageAuthorizationAnonymousConflictDiagnosticCode,
     pageAuthorizationSsgWarningDiagnosticCode,
     pageStaticLoadUnsupportedDiagnosticCode,

@@ -5,7 +5,6 @@ import { dynamicSsgMissingEntriesDiagnosticCode } from "./rules/dynamic-ssg-miss
 import { dynamicSsgMissingLoadDiagnosticCode } from "./rules/dynamic-ssg-missing-load.rule.ts";
 import { invalidLocaleTagDiagnosticCode } from "./rules/invalid-locale-tag.rule.ts";
 import { multipleNotFoundPagesDiagnosticCode } from "./rules/multiple-not-found-pages.rule.ts";
-import { notFoundMustUseSsgDiagnosticCode } from "./rules/not-found-must-use-ssg.rule.ts";
 import { pageAuthorizationAnonymousConflictDiagnosticCode } from "./rules/page-authorization-anonymous-conflict.rule.ts";
 import { pageAuthorizationSsgWarningDiagnosticCode } from "./rules/page-authorization-ssg-warning.rule.ts";
 import { pageRenderDataWithoutExplicitDataDiagnosticCode } from "./rules/page-render-data-without-explicit-data.rule.ts";
@@ -28,7 +27,6 @@ export type MainzDiagnosticCode =
     | typeof invalidDiagnosticSuppressionCode
     | typeof pageDiscoveryFailedDiagnosticCode
     | typeof multipleNotFoundPagesDiagnosticCode
-    | typeof notFoundMustUseSsgDiagnosticCode
     | typeof pageAuthorizationAnonymousConflictDiagnosticCode
     | typeof pageAuthorizationSsgWarningDiagnosticCode
     | typeof pageRenderDataWithoutExplicitDataDiagnosticCode

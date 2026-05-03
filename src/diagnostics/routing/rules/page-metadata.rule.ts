@@ -6,7 +6,6 @@ import { collectPageAuthorizationSsgDiagnostics } from "./page-authorization-ssg
 import type { MainzDiagnostic, RouteDiagnosticsPageInput } from "../facts.ts";
 import { collectInvalidLocaleTagDiagnostics } from "./invalid-locale-tag.rule.ts";
 import { collectMultipleNotFoundPagesDiagnostics } from "./multiple-not-found-pages.rule.ts";
-import { collectNotFoundMustUseSsgDiagnostics } from "./not-found-must-use-ssg.rule.ts";
 
 export function collectPageMetadataDiagnostics(
     pages: readonly RouteDiagnosticsPageInput[],
@@ -22,7 +21,6 @@ export function collectPageMetadataDiagnostics(
 
     for (const page of pages) {
         diagnostics.push(...collectInvalidLocaleTagDiagnostics(page));
-        diagnostics.push(...collectNotFoundMustUseSsgDiagnostics(page));
         diagnostics.push(...collectPageAuthorizationAnonymousConflictDiagnostics(page));
         diagnostics.push(
             ...collectPageAuthorizationPolicyDiagnostics(

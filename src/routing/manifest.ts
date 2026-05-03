@@ -52,6 +52,8 @@ interface ExpandedRouteLocale {
 }
 
 interface BuildSsgOutputEntriesOptions {
+    includeAllModes?: boolean;
+    renderMode?: RenderMode;
     localePrefix?: I18nConfig["localePrefix"];
     defaultLocale?: string;
     routeEntriesByRouteId?: ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>;
@@ -94,6 +96,8 @@ export function buildSsgOutputEntries(
     options: BuildSsgOutputEntriesOptions = {},
 ): SsgOutputEntry[] {
     const outputEntries: SsgOutputEntry[] = [];
+    const includeAllModes = options.includeAllModes === true;
+    const renderMode = options.renderMode ?? "ssg";
     const localePrefix = options.localePrefix ?? "except-default";
     const notFoundRoutes = manifest.routes.filter((route) => route.notFound === true);
 
@@ -102,7 +106,7 @@ export function buildSsgOutputEntries(
     }
 
     for (const route of manifest.routes) {
-        if (route.mode !== "ssg") continue;
+        if (!includeAllModes && route.mode !== renderMode) continue;
 
         const normalizedPath = normalizeRoutePath(route.path);
         const routeEntries = options.routeEntriesByRouteId?.get(route.id);
@@ -157,7 +161,7 @@ export function buildSsgOutputEntries(
     }
 
     const notFoundRoute = notFoundRoutes[0];
-    if (notFoundRoute) {
+    if (notFoundRoute && (includeAllModes || notFoundRoute.mode === renderMode)) {
         const locale = resolveNotFoundOutputLocale(notFoundRoute.locales, options.defaultLocale);
         const localePathSegment = toLocalePathSegment(locale);
         const shouldPrefixLocale = shouldPrefixLocaleForRouteLocale({
@@ -550,13 +554,6 @@ function validateManifestRoutes(routes: readonly RouteManifestEntry[], targetNam
 
     if (notFoundRoutes.length > 1) {
         throw new Error(`Target "${targetName}" defines multiple notFound routes.`);
-    }
-
-    const notFoundRoute = notFoundRoutes[0];
-    if (notFoundRoute && notFoundRoute.mode !== "ssg") {
-        throw new Error(
-            `Target "${targetName}" notFound route "${notFoundRoute.path}" must use mode "ssg".`,
-        );
     }
 }
 

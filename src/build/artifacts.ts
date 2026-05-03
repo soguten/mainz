@@ -331,6 +331,7 @@ async function resolveStaticRouteBuildContext(
         runtime,
     );
     const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
+        ...(job.mode === "csr" ? { includeAllModes: true } : { renderMode: job.mode }),
         localePrefix: targetI18n?.localePrefix,
         defaultLocale: targetI18n?.defaultLocale,
         routeEntriesByRouteId,

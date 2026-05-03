@@ -64,14 +64,10 @@ Deno.test("diagnostics/routing/rules: page metadata should report notFound confl
         },
     );
 
-    assertEquals(diagnostics.length, 6);
+    assertEquals(diagnostics.length, 5);
     assertEquals(
         diagnostics.filter((diagnostics) => diagnostics.code === "multiple-not-found-pages").length,
         2,
-    );
-    assertEquals(
-        diagnostics.some((diagnostics) => diagnostics.code === "not-found-must-use-ssg"),
-        true,
     );
     assertEquals(
         diagnostics.filter((diagnostics) =>

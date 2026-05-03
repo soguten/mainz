@@ -486,7 +486,6 @@ async function resolveAppCandidate(
                     ? {
                         allowMissingRoute: true,
                         fallbackPath: "/404",
-                        fallbackMode: "ssg",
                     }
                     : {},
             );
