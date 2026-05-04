@@ -8,7 +8,7 @@ export class DecoratedHomePage extends Page {
 }
 
 @Route("/search")
-@RenderMode("ssg")
+@RenderMode("ssg", { fallback: "csr" })
 @Locales("pt-BR", "en-US")
 export class DecoratedSearchPage extends Page {
     override head() {

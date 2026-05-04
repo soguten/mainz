@@ -7,7 +7,7 @@ import { LoginPage } from "./pages/Login.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { ReportsPage } from "./pages/Reports.page.tsx";
 
-const app = defineApp({
+export const app = defineApp({
     id: "authorize-site",
     authorization: {
         policyNames: ["org-member"],

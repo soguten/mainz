@@ -101,6 +101,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
         defaultLocale: "en",
         localePrefix: "always",
         siteUrl: "https://mainz.dev",
+        devSsgDebug: true,
     });
 
     assertEquals(generated.root, normalizePath(resolve(cwd, "docs-site")));
@@ -112,6 +113,8 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
     assertEquals(generated.define.__MAINZ_TARGET_NAME__, JSON.stringify("docs"));
     assertEquals(generated.define.__MAINZ_APP_LOCALES__, JSON.stringify(["en", "pt-BR"]));
     assertEquals(generated.define.__DOCS_VERSION__, JSON.stringify("dev"));
+    assertStringIncludes(generated.devMiddleware.modulePath, "/src/build/dev-vite-plugin.ts");
+    assertEquals(generated.devMiddleware.options.debugSsg, true);
 
     const appAlias = generated.aliases.find((alias) => alias.find === "@docs");
     assert(appAlias);
@@ -143,7 +146,10 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
 
     assertStringIncludes(moduleSource, `import deno from "@deno/vite-plugin";`);
     assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
-    assertStringIncludes(moduleSource, `plugins: deno({`);
+    assertStringIncludes(moduleSource, `import { createMainzDevRouteMiddlewarePlugin } from `);
+    assertStringIncludes(moduleSource, `plugins: [`);
+    assertStringIncludes(moduleSource, `createMainzDevRouteMiddlewarePlugin({`);
+    assertStringIncludes(moduleSource, `"debugSsg": false`);
     assertStringIncludes(moduleSource, `preserveJsx: true`);
     assertStringIncludes(moduleSource, `appType: "spa"`);
     assertStringIncludes(moduleSource, `{ find: "mainz", replacement:`);
@@ -180,7 +186,8 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
 
         assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
         assertEquals(moduleSource.includes(`import deno from "@deno/vite-plugin";`), false);
-        assertEquals(moduleSource.includes(`plugins: deno({`), false);
+        assertStringIncludes(moduleSource, `createMainzDevRouteMiddlewarePlugin({`);
+        assertStringIncludes(moduleSource, `"debugSsg": false`);
         assertStringIncludes(moduleSource, `appType: "spa"`);
         assertStringIncludes(
             moduleSource,

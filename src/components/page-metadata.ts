@@ -1,12 +1,17 @@
 import { normalizeLocaleTag } from "../i18n/core.ts";
 
-const PAGE_ROUTE_PATH = Symbol("mainz.page.route-path");
-const PAGE_RENDER_MODE = Symbol("mainz.page.render-mode");
-const PAGE_LOCALES = Symbol("mainz.page.locales");
+const PAGE_ROUTE_PATH = Symbol.for("mainz.page.route-path");
+const PAGE_RENDER_MODE = Symbol.for("mainz.page.render-mode");
+const PAGE_LOCALES = Symbol.for("mainz.page.locales");
 type DecoratedPageClass = abstract new (...args: unknown[]) => object;
 
 /** Public page render-mode contract used by page decorators and metadata helpers. */
 export type PageRenderMode = "csr" | "ssg";
+export type PageSsgFallback = "404" | "csr";
+export interface PageRenderConfig {
+    mode: PageRenderMode;
+    fallback?: PageSsgFallback;
+}
 
 /**
  * Declares the application route served by a page class.
@@ -38,9 +43,28 @@ export function Route(path: string): <T extends abstract new (...args: unknown[]
  * - `"csr"`: the page renders in the client runtime
  * - `"ssg"`: the page participates in static generation
  *
+ * `ssg` pages default to strict `404` behavior for missing dynamic entries.
+ * Use `{ fallback: "csr" }` to keep known entries prerendered while allowing
+ * missing concrete entries to boot through the client path in dev/runtime flows
+ * that support that contract.
+ *
  * Use `@RenderMode(...)` to describe the page-level render contract.
  */
-export function RenderMode(mode: PageRenderMode): <T extends abstract new (...args: unknown[]) => object>(
+export function RenderMode(mode: "csr"): <T extends abstract new (...args: unknown[]) => object>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void;
+export function RenderMode(
+    mode: "ssg",
+    options?: { fallback?: PageSsgFallback },
+): <T extends abstract new (...args: unknown[]) => object>(
+    value: T,
+    _context?: ClassDecoratorContext<T>,
+) => void;
+export function RenderMode(
+    mode: PageRenderMode,
+    options?: { fallback?: PageSsgFallback },
+): <T extends abstract new (...args: unknown[]) => object>(
     value: T,
     _context?: ClassDecoratorContext<T>,
 ) => void {
@@ -48,7 +72,7 @@ export function RenderMode(mode: PageRenderMode): <T extends abstract new (...ar
         value: T,
         _context?: ClassDecoratorContext<T>,
     ): void {
-        applyPageRenderMode(value, mode);
+        applyPageRenderMode(value, normalizePageRenderConfig(mode, options));
     };
 }
 
@@ -94,8 +118,22 @@ export function requirePageRoutePath(pageCtor: object, errorMessage: string): st
 
 /** Resolves the explicit render mode declared on a page constructor, when present. */
 export function resolvePageRenderMode(pageCtor: object): PageRenderMode | undefined {
-    const routeOwner = pageCtor as { [PAGE_RENDER_MODE]?: PageRenderMode };
-    return routeOwner[PAGE_RENDER_MODE];
+    return resolvePageRenderConfig(pageCtor)?.mode;
+}
+
+/** Resolves the explicit render config declared on a page constructor, when present. */
+export function resolvePageRenderConfig(pageCtor: object): PageRenderConfig | undefined {
+    const routeOwner = pageCtor as { [PAGE_RENDER_MODE]?: PageRenderMode | PageRenderConfig };
+    const resolved = routeOwner[PAGE_RENDER_MODE];
+    if (!resolved) {
+        return undefined;
+    }
+
+    if (typeof resolved === "string") {
+        return { mode: resolved };
+    }
+
+    return normalizeStoredPageRenderConfig(resolved);
 }
 
 /** Resolves the normalized locales declared on a page constructor, when present. */
@@ -108,8 +146,8 @@ function applyPageRoutePath(pageCtor: object, path: string): void {
     (pageCtor as { [PAGE_ROUTE_PATH]?: string })[PAGE_ROUTE_PATH] = path;
 }
 
-function applyPageRenderMode(pageCtor: object, mode: PageRenderMode): void {
-    (pageCtor as { [PAGE_RENDER_MODE]?: PageRenderMode })[PAGE_RENDER_MODE] = mode;
+function applyPageRenderMode(pageCtor: object, config: PageRenderConfig): void {
+    (pageCtor as { [PAGE_RENDER_MODE]?: PageRenderConfig })[PAGE_RENDER_MODE] = config;
 }
 
 function applyPageLocales(pageCtor: object, locales: readonly string[]): void {
@@ -133,4 +171,31 @@ function toErrorMessage(error: unknown): string {
     }
 
     return String(error);
+}
+
+function normalizePageRenderConfig(
+    mode: PageRenderMode,
+    options?: { fallback?: PageSsgFallback },
+): PageRenderConfig {
+    if (mode === "csr") {
+        return { mode };
+    }
+
+    return {
+        mode,
+        fallback: options?.fallback ?? "404",
+    };
+}
+
+function normalizeStoredPageRenderConfig(config: PageRenderConfig): PageRenderConfig {
+    if (config.mode === "ssg") {
+        return {
+            mode: "ssg",
+            fallback: config.fallback === "csr" ? "csr" : "404",
+        };
+    }
+
+    return {
+        mode: "csr",
+    };
 }

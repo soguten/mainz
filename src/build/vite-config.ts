@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
@@ -22,6 +23,7 @@ export interface GeneratedViteConfigInput {
     defaultLocale?: string;
     localePrefix: "except-default" | "always";
     siteUrl?: string;
+    devSsgDebug?: boolean;
     cacheDir?: string;
 }
 
@@ -33,6 +35,10 @@ export interface GeneratedViteConfig {
     cacheDir?: string;
     aliases: readonly GeneratedViteAlias[];
     define: Record<string, string>;
+    devMiddleware: {
+        modulePath: string;
+        options: Record<string, unknown>;
+    };
 }
 
 export function resolveGeneratedViteConfig(input: GeneratedViteConfigInput): GeneratedViteConfig {
@@ -59,6 +65,29 @@ export function resolveGeneratedViteConfig(input: GeneratedViteConfigInput): Gen
             __MAINZ_SITE_URL__: JSON.stringify(input.siteUrl),
             ...input.target.vite?.define,
         },
+        devMiddleware: {
+            modulePath: resolveMainzBuildModulePath("./dev-vite-plugin.ts"),
+            options: {
+                cwd: normalizePathSlashes(input.cwd),
+                runtimeName: input.cacheDir ? "node" : "deno",
+                target: {
+                    name: input.target.name,
+                    rootDir: input.target.rootDir,
+                    appFile: input.target.appFile,
+                    appId: input.target.appId,
+                    outDir: input.target.outDir,
+                    viteConfig: input.target.viteConfig,
+                },
+                profile: {
+                    name: "development",
+                    basePath: input.basePath,
+                    siteUrl: input.siteUrl,
+                },
+                debugSsg: input.devSsgDebug === true,
+                defaultLocale: input.defaultLocale,
+                localePrefix: input.localePrefix,
+            },
+        },
     };
 }
 
@@ -72,7 +101,12 @@ export function renderGeneratedViteConfigModule(
         } }`;
     });
 
-    const imports = [`import { defineConfig } from "vite";`];
+    const imports = [
+        `import { createMainzDevRouteMiddlewarePlugin } from ${
+            JSON.stringify(config.devMiddleware.modulePath)
+        };`,
+        `import { defineConfig } from "vite";`,
+    ];
     const configLines = [
         `export default defineConfig({`,
         `    appType: ${JSON.stringify(config.appType)},`,
@@ -85,13 +119,26 @@ export function renderGeneratedViteConfigModule(
     if (runtime === "deno") {
         imports.unshift(`import deno from "@deno/vite-plugin";`);
         configLines.push(
-            `    plugins: deno({`,
+            `    plugins: [`,
+            `        deno({`,
             `        workspaceOptions: {`,
             `            noLock: true,`,
             `            platform: "browser",`,
             `            preserveJsx: true,`,
             `        },`,
-            `    }),`,
+            `        }),`,
+            `        createMainzDevRouteMiddlewarePlugin(${
+                renderObjectLiteral(config.devMiddleware.options as Record<string, string>, 12)
+            }),`,
+            `    ],`,
+        );
+    } else {
+        configLines.push(
+            `    plugins: [`,
+            `        createMainzDevRouteMiddlewarePlugin(${
+                renderObjectLiteral(config.devMiddleware.options as Record<string, string>, 12)
+            }),`,
+            `    ],`,
         );
     }
 
@@ -170,7 +217,7 @@ function normalizeAliasReplacement(cwd: string, replacement: string): string {
     return replacement;
 }
 
-function renderObjectLiteral(record: Record<string, string>, indent: number): string {
+function renderObjectLiteral(record: Record<string, unknown>, indent: number): string {
     const entries = Object.entries(record);
     if (entries.length === 0) {
         return "{}";
@@ -189,4 +236,9 @@ function renderObjectLiteral(record: Record<string, string>, indent: number): st
 
 function normalizePathSlashes(path: string): string {
     return path.replaceAll("\\", "/");
+}
+
+function resolveMainzBuildModulePath(relativePath: string): string {
+    const currentDir = dirname(fileURLToPath(import.meta.url));
+    return normalizePathSlashes(resolve(currentDir, relativePath));
 }

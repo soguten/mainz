@@ -15,10 +15,12 @@ export type {
     BuildEngineRenderMode,
 } from "./engine.ts";
 export { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
+export { resolveRoutePrerenderContext, resolveTargetI18nConfig } from "./prerender-context.ts";
 export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 export { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./vite-config.ts";
 export { createGeneratedViteConfigDir } from "./vite-workspace.ts";
 export type { GeneratedViteAlias, GeneratedViteConfig } from "./vite-config.ts";
+export type { ResolvedRoutePrerenderContext, RoutePrerenderBuildJob } from "./prerender-context.ts";
 export {
     resolveEffectiveNavigationMode,
     resolvePublicationMetadata,

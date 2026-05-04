@@ -64,6 +64,8 @@ const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
+const MAINZ_DEFINED_APP_CAPTURE_STACK_KEY: unique symbol = Symbol.for("mainz.definedAppCaptureStack") as
+    typeof MAINZ_DEFINED_APP_CAPTURE_STACK_KEY;
 const MAINZ_APP_DEFINITION_KIND: unique symbol = Symbol.for("mainz.appDefinitionKind") as
     typeof MAINZ_APP_DEFINITION_KIND;
 type InternalDefinedRoutedApp = DefinedRoutedApp & {
@@ -72,7 +74,7 @@ type InternalDefinedRoutedApp = DefinedRoutedApp & {
 type InternalDefinedRootApp = DefinedRootApp & {
     readonly [MAINZ_APP_DEFINITION_KIND]: "root";
 };
-const ROUTED_APP_CAPTURE_STACK: Array<(app: InternalDefinedRoutedApp) => void> = [];
+const DEFINED_APP_CAPTURE_STACK = resolveGlobalDefinedAppCaptureStack();
 
 /**
  * Route params extracted from a matched SPA route pattern.
@@ -401,22 +403,24 @@ export function defineApp(
     if (isRoutedAppDefinitionShape(app)) {
         validateRoutedAppDefinition(app);
         const definedApp = brandDefinedApp(app, "routed") as InternalDefinedRoutedApp;
-        captureDefinedRoutedApp(definedApp);
+        captureDefinedApp(definedApp);
         return definedApp;
     }
 
     if (isRootAppDefinitionShape(app)) {
-        return brandDefinedApp(app, "root") as InternalDefinedRootApp;
+        const definedApp = brandDefinedApp(app, "root") as InternalDefinedRootApp;
+        captureDefinedApp(definedApp);
+        return definedApp;
     }
 
     return app as DefinedRoutedApp | DefinedRootApp;
 }
 
-export async function captureDefinedRoutedAppDuring<Value>(
+export async function captureDefinedAppDuring<Value>(
     action: () => Value | Promise<Value>,
-): Promise<{ value: Value; app?: DefinedRoutedApp }> {
-    let capturedApp: InternalDefinedRoutedApp | undefined;
-    ROUTED_APP_CAPTURE_STACK.push((app) => {
+): Promise<{ value: Value; app?: DefinedApp }> {
+    let capturedApp: DefinedApp | undefined;
+    DEFINED_APP_CAPTURE_STACK.push((app) => {
         capturedApp ??= app;
     });
 
@@ -427,8 +431,30 @@ export async function captureDefinedRoutedAppDuring<Value>(
             app: capturedApp,
         };
     } finally {
-        ROUTED_APP_CAPTURE_STACK.pop();
+        DEFINED_APP_CAPTURE_STACK.pop();
     }
+}
+
+export async function captureDefinedRoutedAppDuring<Value>(
+    action: () => Value | Promise<Value>,
+): Promise<{ value: Value; app?: DefinedRoutedApp }> {
+    const { value, app } = await captureDefinedAppDuring(action);
+    return {
+        value,
+        app: app && isDefinedRoutedApp(app) ? app : undefined,
+    }
+}
+
+function resolveGlobalDefinedAppCaptureStack(): Array<(app: DefinedApp) => void> {
+    const globalScope = globalThis as Record<PropertyKey, unknown>;
+    const existing = globalScope[MAINZ_DEFINED_APP_CAPTURE_STACK_KEY];
+    if (Array.isArray(existing)) {
+        return existing as Array<(app: DefinedApp) => void>;
+    }
+
+    const created: Array<(app: DefinedApp) => void> = [];
+    globalScope[MAINZ_DEFINED_APP_CAPTURE_STACK_KEY] = created;
+    return created;
 }
 
 export function resolveRoutedAppDefinitionFromModuleExports(
@@ -527,7 +553,7 @@ export function startApp(
         );
     }
 
-    captureDefinedRoutedApp(appOrRoot);
+    captureDefinedApp(appOrRoot);
 
     return __internalStartNavigation({
         mode: resolveMainzNavigationMode(),
@@ -598,8 +624,8 @@ function startRootApp(
     };
 }
 
-function captureDefinedRoutedApp(app: InternalDefinedRoutedApp): void {
-    ROUTED_APP_CAPTURE_STACK.at(-1)?.(app);
+function captureDefinedApp(app: DefinedApp): void {
+    DEFINED_APP_CAPTURE_STACK.at(-1)?.(app);
 }
 
 function isRoutedAppDefinitionShape(value: unknown): value is RoutedAppDefinition {

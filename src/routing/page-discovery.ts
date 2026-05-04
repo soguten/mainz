@@ -8,10 +8,11 @@ import {
     type PageHeadDefinition,
     requirePageRoutePath,
     resolvePageLocales,
+    resolvePageRenderConfig,
     resolvePageRenderMode,
     resolvePageRoutePath,
 } from "../components/page.ts";
-import type { RenderMode } from "./types.ts";
+import type { RenderMode, RenderModeFallback } from "./types.ts";
 import { isFilesystemPageFile } from "./filesystem.ts";
 
 export interface DiscoveredPage {
@@ -20,6 +21,7 @@ export interface DiscoveredPage {
     page: {
         path: string;
         mode: RenderMode;
+        fallback?: RenderModeFallback;
         locales?: readonly string[];
         head?: PageHeadDefinition;
         authorization?: PageAuthorizationMetadata;
@@ -141,11 +143,13 @@ function normalizePageDefinition(
 function resolveDiscoveryMode(
     ctor: PageConstructor,
     options: DiscoverPageOptions = {},
-): { mode: RenderMode } {
-    const decoratorMode = resolvePageRenderMode(ctor);
+): { mode: RenderMode; fallback?: RenderModeFallback } {
+    const decoratorConfig = resolvePageRenderConfig(ctor);
+    const decoratorMode = decoratorConfig?.mode ?? resolvePageRenderMode(ctor);
 
     return {
         mode: normalizeMode(decoratorMode ?? options.fallbackMode),
+        fallback: decoratorConfig?.mode === "ssg" ? decoratorConfig.fallback : undefined,
     };
 }
 

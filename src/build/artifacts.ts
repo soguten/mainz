@@ -4,35 +4,29 @@ import {
     buildRouteHead,
     buildSsgOutputEntries,
     buildTargetRouteManifest,
-    isDynamicRoutePath,
     materializeRoutePath,
     type RenderMode,
-    type ResolvedSsgRouteEntry,
     resolveLocaleRedirectPath,
     shouldPrefixLocaleForRoute,
     toLocalePathSegment,
-    validateRouteEntryParams,
 } from "../routing/index.ts";
 import {
     MAINZ_HEAD_MANAGED_ATTR,
-    type PageConstructor,
     type PageHeadDefinition,
 } from "../components/page.ts";
 import { type NormalizedMainzConfig, type NormalizedMainzTarget } from "../config/index.ts";
-import { withServiceContainer } from "../di/context.ts";
-import { createServiceContainer, type ServiceContainer } from "../di/container.ts";
 import { ResourceAccessError } from "../resources/index.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
-import {
-    resolveTargetAppFile,
-    resolveTargetDiscoveredPagesForTarget,
-} from "../routing/target-page-discovery.ts";
-import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
-import { type RoutedAppDefinition } from "../navigation/index.ts";
+import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
 import { type ResolvedBuildProfile, resolveEffectiveNavigationMode } from "./profiles.ts";
-import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 import { denoToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
+import {
+    resolveRoutePrerenderContext,
+    resolveTargetI18nConfig,
+} from "./prerender-context.ts";
+
+export { resolveTargetI18nConfig } from "./prerender-context.ts";
 
 export interface ArtifactBuildJob {
     target: NormalizedMainzTarget;
@@ -313,161 +307,26 @@ async function resolveStaticRouteBuildContext(
         buildLabel,
         runtime,
     );
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(job.target, cwd, runtime);
-    const manifest = await resolveTargetRouteBuildContext(
+    const prerenderContext = await resolveRoutePrerenderContext(
         config,
         job,
         cwd,
-        appDefinition,
         runtime,
     );
-    const targetI18n = resolveTargetI18nConfig(appDefinition);
-    const buildServiceContainer = await resolveTargetBuildServiceContainer(job.target, cwd);
-    const routeEntriesByRouteId = await resolveSsgRouteEntriesByRouteId(
-        manifest,
-        cwd,
-        buildServiceContainer,
-        job.profile,
-        runtime,
-    );
-    const outputEntries = buildSsgOutputEntries(manifest, modeOutDir, {
+    const outputEntries = buildSsgOutputEntries(prerenderContext.manifest, modeOutDir, {
         ...(job.mode === "csr" ? { includeAllModes: true } : { renderMode: job.mode }),
-        localePrefix: targetI18n?.localePrefix,
-        defaultLocale: targetI18n?.defaultLocale,
-        routeEntriesByRouteId,
+        localePrefix: prerenderContext.targetI18n?.localePrefix,
+        defaultLocale: prerenderContext.targetI18n?.defaultLocale,
+        routeEntriesByRouteId: prerenderContext.routeEntriesByRouteId,
     });
-    const routeById = new Map(manifest.routes.map((route) => [route.id, route]));
 
     return {
         templateHtml,
-        manifest,
+        manifest: prerenderContext.manifest,
         outputEntries,
-        routeById,
-        targetI18n,
+        routeById: new Map(prerenderContext.routeById),
+        targetI18n: prerenderContext.targetI18n,
     };
-}
-
-async function resolveSsgRouteEntriesByRouteId(
-    manifest: ReturnType<typeof buildTargetRouteManifest>,
-    cwd: string,
-    buildServiceContainer?: ServiceContainer,
-    profile?: ResolvedBuildProfile,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>> {
-    const routeEntriesByRouteId = new Map<string, readonly ResolvedSsgRouteEntry[]>();
-
-    for (const route of manifest.routes) {
-        if (route.mode !== "ssg" || !isDynamicRoutePath(route.path)) {
-            continue;
-        }
-
-        const pageCtor = await loadRoutePageConstructor(route, cwd, runtime);
-        if (typeof pageCtor.entries !== "function") {
-            throw new Error(
-                `SSG route "${route.path}" must define static entries() to expand dynamic params.`,
-            );
-        }
-
-        const resolvedEntries: ResolvedSsgRouteEntry[] = [];
-        for (const locale of route.locales) {
-            const localizedEntries = await withServiceContainer(
-                buildServiceContainer,
-                () =>
-                    pageCtor.entries!({
-                        locale,
-                        profile: profile
-                            ? {
-                                name: profile.name,
-                                basePath: profile.basePath,
-                                siteUrl: profile.siteUrl,
-                            }
-                            : undefined,
-                    }),
-            );
-            for (const [entryIndex, entry] of localizedEntries.entries()) {
-                const normalizedParams = normalizeStaticEntryParams(entry.params, route.path);
-                try {
-                    validateRouteEntryParams(route.path, normalizedParams);
-                } catch (error) {
-                    throw new Error(
-                        `entries() for route "${route.path}" returned an invalid entry at index ${entryIndex} for locale "${locale}": ${
-                            toErrorMessage(error)
-                        }`,
-                    );
-                }
-
-                resolvedEntries.push({
-                    locale,
-                    params: normalizedParams,
-                });
-            }
-        }
-
-        routeEntriesByRouteId.set(route.id, resolvedEntries);
-    }
-
-    return routeEntriesByRouteId;
-}
-
-async function resolveTargetBuildServiceContainer(
-    target: NormalizedMainzTarget,
-    cwd: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<ServiceContainer | undefined> {
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, cwd, runtime);
-    return appDefinition?.services?.length
-        ? createServiceContainer(appDefinition.services)
-        : undefined;
-}
-
-async function loadRoutePageConstructor(
-    route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
-    cwd: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<PageConstructor> {
-    if (!route.file || !route.exportName) {
-        throw new Error(
-            `Route "${route.path}" must include file and export metadata to resolve dynamic entries().`,
-        );
-    }
-
-    const moduleUrl = `${pathToFileURL(resolve(cwd, route.file)).href}?route-page=${Date.now()}-${
-        Math.random().toString(36).slice(2)
-    }`;
-    const moduleExports = await runtime.importModule<Record<string, unknown>>(moduleUrl);
-    const exportedValue = moduleExports[route.exportName];
-
-    if (typeof exportedValue !== "function") {
-        throw new Error(
-            `Route "${route.path}" export "${route.exportName}" could not be resolved as a Page constructor.`,
-        );
-    }
-
-    return exportedValue as PageConstructor;
-}
-
-function normalizeStaticEntryParams(
-    params: Record<string, string>,
-    routePath: string,
-): Record<string, string> {
-    if (typeof params !== "object" || params === null || Array.isArray(params)) {
-        throw new Error(
-            `entries() for route "${routePath}" must return objects with a params record.`,
-        );
-    }
-
-    const normalizedParams: Record<string, string> = {};
-    for (const [key, value] of Object.entries(params)) {
-        if (typeof value !== "string") {
-            throw new Error(
-                `entries() for route "${routePath}" must return string params only. Received "${key}".`,
-            );
-        }
-
-        normalizedParams[key] = value;
-    }
-
-    return normalizedParams;
 }
 
 async function readBuildTemplateHtml(
@@ -488,94 +347,106 @@ async function readBuildTemplateHtml(
     }
 }
 
-async function resolveTargetRouteBuildContext(
-    config: NormalizedMainzConfig,
-    job: ArtifactBuildJob,
-    cwd: string,
-    appDefinition?: RoutedAppDefinition,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<ReturnType<typeof buildTargetRouteManifest>> {
-    const { discoveredPages, discoveryErrors } = await resolveTargetDiscoveredPagesForTarget(
-        job.target,
-        cwd,
-        runtime,
-    );
-    if (discoveryErrors?.length) {
-        throw new Error(
-            discoveryErrors.map((entry) => `${entry.file}: ${entry.message}`).join("\n"),
-        );
-    }
-
-    return buildTargetRouteManifest({
-        ...resolveRouteManifestBuildInput({
-            target: job.target,
-            appDefinition,
-            discoveredPages,
-        }),
-    });
-}
-
-export function resolveTargetI18nConfig(
-    appDefinition?: Pick<RoutedAppDefinition, "documentLanguage" | "i18n">,
-): {
-    defaultLocale?: string;
-    localePrefix?: "except-default" | "always";
-    fallbackLocale?: string;
-} | undefined {
-    const appI18n = appDefinition?.i18n;
-    if (appI18n) {
-        return {
-            defaultLocale: appI18n.defaultLocale,
-            localePrefix: appI18n.localePrefix,
-            fallbackLocale: appI18n.defaultLocale,
-        };
-    }
-
-    const documentLanguage = appDefinition?.documentLanguage?.trim();
-    if (documentLanguage) {
-        return {
-            defaultLocale: documentLanguage,
-            localePrefix: "except-default",
-            fallbackLocale: documentLanguage,
-        };
-    }
-
-    return undefined;
-}
 
 function toViteBasePath(basePath: string): string {
     return basePath === "/" ? "./" : basePath;
 }
 
-async function renderSsgAppHtml(args: {
+export async function renderSsgAppHtml(args: {
     html: string;
     absoluteOutputPath: string;
     modeOutDir: string;
     locale: string;
     basePath: string;
     renderPath: string;
+    loadModule?: (specifier: string) => Promise<unknown>;
 }): Promise<{ appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }> {
-    const moduleScriptSrc = extractModuleScriptSrc(args.html);
-    if (!moduleScriptSrc) {
+    const moduleScriptSrcs = Array.from(
+        args.html.matchAll(/<script[^>]*type=["']module["'][^>]*>/gi),
+    ).map((match) => match[0])
+        .map((tag) => tag.match(/src=["']([^"']+)["']/i)?.[1] ?? null)
+        .filter((src): src is string => Boolean(src));
+    if (moduleScriptSrcs.length === 0) {
         throw new Error(
             `Could not find module script in prerender template "${args.absoluteOutputPath}".`,
         );
     }
 
-    const moduleScriptPath = resolveModuleScriptPath({
-        moduleScriptSrc,
-        absoluteOutputPath: args.absoluteOutputPath,
-        modeOutDir: args.modeOutDir,
-        basePath: args.basePath,
-    });
-    const moduleScriptUrl = `${toFileUrl(moduleScriptPath)}?ssg=${Date.now()}-${
-        Math.random().toString(36).slice(2)
-    }`;
-    const pageUrl = buildRenderPageUrl(args.renderPath);
-    const htmlWithoutScripts = stripScriptTags(args.html);
+    const moduleScriptUrls = moduleScriptSrcs
+        .filter((src) => {
+            const normalizedSrc = stripModuleScriptQuery(src.trim());
+            return normalizedSrc !== "/@vite/client" && !normalizedSrc.endsWith("/@vite/client");
+        })
+        .map((moduleScriptSrc) => {
+            const normalizedSrc = moduleScriptSrc.trim();
+            const srcQuery = extractModuleScriptQuery(normalizedSrc);
+            const cacheBustQuery = `ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const importQuery = srcQuery ? `${srcQuery}&${cacheBustQuery}` : cacheBustQuery;
+
+            if (args.loadModule) {
+                const srcPath = stripModuleScriptQuery(normalizedSrc);
+                return `${srcPath}?${importQuery}`;
+            }
+
+            const resolvedSrc = stripModuleScriptQuery(normalizedSrc);
+            const moduleScriptPath = normalizedSrc.startsWith("/")
+                ? (() => {
+                    const normalizedBasePath = args.basePath === "/"
+                        ? "/"
+                        : args.basePath.replace(/\/+$/, "/");
+                    const srcWithoutBasePath =
+                        normalizedBasePath !== "/" &&
+                            resolvedSrc.startsWith(normalizedBasePath)
+                            ? resolvedSrc.slice(normalizedBasePath.length - 1)
+                            : resolvedSrc;
+                    return resolve(args.modeOutDir, `.${srcWithoutBasePath}`);
+                })()
+                : resolve(dirname(args.absoluteOutputPath), resolvedSrc);
+
+            return `${toFileUrl(moduleScriptPath)}?${importQuery}`;
+        });
+    if (moduleScriptUrls.length === 0) {
+        throw new Error(
+            `Could not find an application module script in prerender template "${args.absoluteOutputPath}".`,
+        );
+    }
+
+    const normalizedRenderPath = args.renderPath.trim() || "/";
+    const withLeadingSlash = normalizedRenderPath.startsWith("/")
+        ? normalizedRenderPath
+        : `/${normalizedRenderPath}`;
+    const pathname = withLeadingSlash === "/" || withLeadingSlash === ""
+        ? "/"
+        : withLeadingSlash.endsWith("/")
+        ? withLeadingSlash
+        : `${withLeadingSlash}/`;
+    const pageUrl = `https://mainz.local${pathname}`;
+    const htmlWithoutScripts = args.html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
 
     return await withHappyDom(async (window) => {
-        setNavigatorLocale(window, args.locale);
+        const navigatorLike = window.navigator as object;
+
+        try {
+            Object.defineProperty(navigatorLike, "language", {
+                configurable: true,
+                value: args.locale,
+                writable: true,
+            });
+
+            Object.defineProperty(navigatorLike, "languages", {
+                configurable: true,
+                value: [args.locale],
+                writable: true,
+            });
+
+            Object.defineProperty(globalThis, "navigator", {
+                configurable: true,
+                value: navigatorLike,
+                writable: true,
+            });
+        } catch {
+            // Ignore locale override failures; the app may use other locale resolution strategies.
+        }
         const warnings: string[] = [];
         const errors: unknown[] = [];
         const originalWarn = console.warn;
@@ -584,7 +455,12 @@ async function renderSsgAppHtml(args: {
             warnings.push(entries.map((entry) => String(entry)).join(" "));
         };
         console.error = (...entries: unknown[]) => {
-            const mainzNavigationError = resolveCapturedMainzNavigationError(entries);
+            const [firstEntry, secondEntry] = entries;
+            const mainzNavigationError =
+                firstEntry === "[mainz] SPA navigation failed." &&
+                    typeof secondEntry !== "undefined"
+                    ? secondEntry
+                    : undefined;
             errors.push(mainzNavigationError ?? entries.map((entry) => String(entry)).join(" "));
             originalError(...entries);
         };
@@ -600,7 +476,14 @@ async function renderSsgAppHtml(args: {
                 );
             }
 
-            await import(moduleScriptUrl);
+            for (const moduleScriptUrl of moduleScriptUrls) {
+                if (args.loadModule) {
+                    await args.loadModule(moduleScriptUrl);
+                    continue;
+                }
+
+                await import(moduleScriptUrl);
+            }
             await Promise.resolve();
             await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
 
@@ -615,9 +498,12 @@ async function renderSsgAppHtml(args: {
                 );
             }
 
+            const appHtml = hydratedContainer.innerHTML;
+            const routeSnapshot = extractInitialRouteSnapshot(hydratedContainer);
+
             return {
-                appHtml: hydratedContainer.innerHTML,
-                routeSnapshot: extractInitialRouteSnapshot(hydratedContainer),
+                appHtml,
+                routeSnapshot,
                 warnings,
             };
         } finally {
@@ -674,14 +560,36 @@ function extractInitialRouteSnapshot(appContainer: Element): InitialRouteSnapsho
     };
 }
 
-function extractModuleScriptSrc(html: string): string | null {
-    const moduleScriptTag = html.match(/<script[^>]*type=["']module["'][^>]*>/i)?.[0];
-    if (!moduleScriptTag) {
-        return null;
+function extractModuleScriptSrcs(html: string): string[] {
+    const moduleScriptTags = Array.from(
+        html.matchAll(/<script[^>]*type=["']module["'][^>]*>/gi),
+    ).map((match) => match[0]);
+
+    return moduleScriptTags
+        .map((tag) => tag.match(/src=["']([^"']+)["']/i)?.[1] ?? null)
+        .filter((src): src is string => Boolean(src));
+}
+
+function isDevHmrClientScript(moduleScriptSrc: string): boolean {
+    const normalizedSrc = stripModuleScriptQuery(moduleScriptSrc.trim());
+    return normalizedSrc === "/@vite/client" || normalizedSrc.endsWith("/@vite/client");
+}
+
+function stripModuleScriptQuery(moduleScriptSrc: string): string {
+    const [pathWithoutQuery] = moduleScriptSrc.split(/[?#]/, 1);
+    return pathWithoutQuery ?? moduleScriptSrc;
+}
+
+function extractModuleScriptQuery(moduleScriptSrc: string): string {
+    const queryIndex = moduleScriptSrc.indexOf("?");
+    if (queryIndex === -1) {
+        return "";
     }
 
-    const srcMatch = moduleScriptTag.match(/src=["']([^"']+)["']/i);
-    return srcMatch?.[1] ?? null;
+    const hashIndex = moduleScriptSrc.indexOf("#", queryIndex);
+    return hashIndex === -1
+        ? moduleScriptSrc.slice(queryIndex + 1)
+        : moduleScriptSrc.slice(queryIndex + 1, hashIndex);
 }
 
 function stripScriptTags(html: string): string {

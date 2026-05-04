@@ -30,6 +30,7 @@ interface CandidateRoute {
     pattern: string;
     routeKey: string;
     mode: RenderMode;
+    fallback?: "404" | "csr";
     notFound?: boolean;
     locales: string[];
     head?: PageHeadDefinition;
@@ -45,6 +46,7 @@ interface ExpandedRouteLocale {
     pattern: string;
     routeKey: string;
     mode: RenderMode;
+    fallback?: "404" | "csr";
     notFound?: boolean;
     locale: string;
     head?: PageHeadDefinition;
@@ -444,6 +446,7 @@ function buildDiscoveredPageCandidate(
         pattern: path,
         routeKey,
         mode: page.mode,
+        fallback: page.mode === "ssg" ? page.fallback : undefined,
         notFound: page.notFound === true ? true : undefined,
         locales,
         head: page.head,
@@ -471,6 +474,7 @@ function upsertByLocale(
                 pattern: candidate.pattern,
                 routeKey: candidate.routeKey,
                 mode: candidate.mode,
+                fallback: candidate.mode === "ssg" ? candidate.fallback : undefined,
                 notFound: candidate.notFound === true ? true : undefined,
                 locale,
                 head: candidate.head,
@@ -503,6 +507,7 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
             route.path,
             route.pattern,
             route.mode,
+            route.fallback ?? "",
             route.idHint ?? "",
         ].join("::");
 
@@ -516,6 +521,7 @@ function aggregateRoutes(expandedRoutes: ExpandedRouteLocale[]): RouteManifestEn
                 path: route.path,
                 pattern: route.pattern,
                 mode: route.mode,
+                fallback: route.mode === "ssg" ? route.fallback : undefined,
                 notFound: route.notFound === true ? true : undefined,
                 locales: [route.locale],
                 head: route.head ? cloneHead(route.head) : undefined,

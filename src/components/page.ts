@@ -20,16 +20,20 @@ import type {
 import { isRouteContext } from "./route-context.ts";
 import {
     Locales,
+    type PageRenderConfig,
     type PageRenderMode,
+    type PageSsgFallback,
     RenderMode,
     Route,
     requirePageRoutePath,
     resolvePageLocales,
+    resolvePageRenderConfig,
     resolvePageRenderMode,
     resolvePageRoutePath,
 } from "./page-metadata.ts";
 
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
+const MAINZ_PAGE_CONSTRUCTOR = Symbol.for("mainz.page.constructor");
 
 export {
     Locales,
@@ -37,9 +41,11 @@ export {
     Route,
     requirePageRoutePath,
     resolvePageLocales,
+    resolvePageRenderConfig,
     resolvePageRenderMode,
     resolvePageRoutePath,
 } from "./page-metadata.ts";
+export type { PageRenderConfig, PageRenderMode, PageSsgFallback } from "./page-metadata.ts";
 export type {
     PageEntryDefinition,
     PageHeadDefinition,
@@ -354,13 +360,17 @@ export function createPageLoadContext(init: PageLoadContextInit): PageLoadContex
     };
 }
 
+(Page as unknown as Record<PropertyKey, unknown>)[MAINZ_PAGE_CONSTRUCTOR] = true;
+
 /** Determines whether a value is a Mainz `Page` constructor. */
 export function isPageConstructor(value: unknown): value is PageConstructor {
     if (typeof value !== "function") {
         return false;
     }
 
-    return value === Page || value.prototype instanceof Page;
+    return value === Page ||
+        value.prototype instanceof Page ||
+        (value as unknown as Record<PropertyKey, unknown>)[MAINZ_PAGE_CONSTRUCTOR] === true;
 }
 
 export function applyPageHeadToDocument(page: Page<any, any, any>, props?: unknown): void {

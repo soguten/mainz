@@ -199,15 +199,16 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
                 exportName: "DocsPage",
                 path: "/docs",
                 mode: "ssg",
+                fallback: "csr",
             },
         ],
     });
 
     assertEquals(
-        manifest.routes.map((route) => ({ path: route.path, mode: route.mode })),
+        manifest.routes.map((route) => ({ path: route.path, mode: route.mode, fallback: route.fallback })),
         [
-            { path: "/docs", mode: "ssg" },
-            { path: "/live", mode: "csr" },
+            { path: "/docs", mode: "ssg", fallback: "csr" },
+            { path: "/live", mode: "csr", fallback: undefined },
         ],
     );
 });
@@ -347,6 +348,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             path: "/",
             pattern: "/",
             mode: "csr",
+            fallback: undefined,
             notFound: undefined,
             locales: ["en", "pt-BR"],
             head: {
@@ -371,6 +373,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
             path: "/docs",
             pattern: "/docs",
             mode: "ssg",
+            fallback: undefined,
             notFound: undefined,
             locales: ["pt-BR"],
             head: undefined,

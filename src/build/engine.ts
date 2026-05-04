@@ -72,6 +72,7 @@ export async function runEngineDevServer(
     options: {
         host?: DevServerHostOption;
         port?: number;
+        debugSsg?: boolean;
     } = {},
     cwd: string = denoToolingRuntime.cwd(),
     runtime: MainzToolingRuntime = denoToolingRuntime,
@@ -82,6 +83,7 @@ export async function runEngineDevServer(
         profile,
         host: options.host,
         port: options.port,
+        debugSsg: options.debugSsg,
         cwd,
         runtime,
     });

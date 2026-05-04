@@ -24,6 +24,7 @@ export type {
     RouteManifestEntry,
     RouteSource,
     RenderMode,
+    RenderModeFallback,
     SsgOutputEntry,
     TargetDefinition,
     TargetRouteManifest,

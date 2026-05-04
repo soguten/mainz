@@ -18,6 +18,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/",
                 mode: "csr",
+                fallback: undefined,
                 head: undefined,
                 locales: undefined,
                 authorization: undefined,
@@ -29,6 +30,7 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
             page: {
                 path: "/search",
                 mode: "ssg",
+                fallback: "404",
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
                 authorization: undefined,
@@ -52,6 +54,7 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/",
                 mode: "csr",
+                fallback: undefined,
                 locales: undefined,
                 head: undefined,
                 authorization: undefined,
@@ -63,6 +66,7 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
             page: {
                 path: "/search",
                 mode: "ssg",
+                fallback: "csr",
                 locales: ["pt-BR", "en-US"],
                 head: undefined,
                 authorization: undefined,
@@ -86,6 +90,7 @@ Deno.test("routing/page-discovery: should discover authorization metadata declar
             page: {
                 path: "/admin",
                 mode: "csr",
+                fallback: undefined,
                 locales: undefined,
                 head: undefined,
                 authorization: {
@@ -104,6 +109,7 @@ Deno.test("routing/page-discovery: should discover authorization metadata declar
             page: {
                 path: "/signin",
                 mode: "ssg",
+                fallback: "404",
                 locales: undefined,
                 head: undefined,
                 authorization: {
@@ -169,6 +175,7 @@ Deno.test("routing/page-discovery: should discover decorator-only render mode de
             page: {
                 path: "/conflict",
                 mode: "csr",
+                fallback: undefined,
                 locales: undefined,
                 head: undefined,
                 authorization: undefined,

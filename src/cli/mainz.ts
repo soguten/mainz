@@ -55,6 +55,7 @@ type DevCommandOptions = SharedCliOptions & {
     command: "dev";
     host?: CliHostOption;
     port?: number;
+    debugSsg?: boolean;
 };
 
 type PreviewCommandOptions = SharedCliOptions & {
@@ -1083,11 +1084,11 @@ function parseCommandOptions(
 ):
     & SharedCliOptions
     & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-    & Pick<DevCommandOptions, "host" | "port"> {
+    & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> {
     const options:
         & SharedCliOptions
         & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-        & Pick<DevCommandOptions, "host" | "port"> = {};
+        & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> = {};
 
     for (let index = 0; index < args.length; index += 1) {
         const current = args[index];
@@ -1162,6 +1163,15 @@ function parseCommandOptions(
 
             options.port = parsedPort;
             index += 1;
+            continue;
+        }
+
+        if (current === "--debug-ssg") {
+            if (command !== "dev") {
+                throw new Error(`Unknown option "${current}".`);
+            }
+
+            options.debugSsg = true;
             continue;
         }
 
@@ -1586,6 +1596,7 @@ async function runDevCommand(
         {
             host: options.host,
             port: options.port,
+            debugSsg: options.debugSsg,
         },
         cwd,
         runtime,
@@ -1831,7 +1842,7 @@ function getHelpText(topic: HelpTopic): string[] {
             "Mainz CLI - dev",
             "",
             "Usage:",
-            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>]",
         ];
     }
 
@@ -1893,7 +1904,7 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz [--cli <deno|node|bun>] workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",

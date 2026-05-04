@@ -98,8 +98,40 @@ export type {
  * This falls back to an empty class in environments where `HTMLElement` is not available during
  * type analysis or server-side execution.
  */
+const DeferredComponentElementBase = class {
+    constructor() {
+        const runtimeHTMLElement = globalThis.HTMLElement;
+        if (typeof runtimeHTMLElement !== "function") {
+            return;
+        }
+
+        return Reflect.construct(runtimeHTMLElement, [], new.target);
+    }
+} as unknown as typeof HTMLElement;
+
 export const ComponentElementBase =
-    (globalThis.HTMLElement ?? class {}) as typeof HTMLElement;
+    (globalThis.HTMLElement ?? DeferredComponentElementBase) as typeof HTMLElement;
+
+let componentElementBaseHydrated = typeof globalThis.HTMLElement === "function";
+
+/**
+ * Rebinds the component base class to the active global `HTMLElement` when Mainz was imported
+ * before a DOM-like environment existed.
+ */
+export function ensureComponentElementBaseHydrated(): void {
+    if (componentElementBaseHydrated) {
+        return;
+    }
+
+    const runtimeHTMLElement = globalThis.HTMLElement;
+    if (typeof runtimeHTMLElement !== "function") {
+        return;
+    }
+
+    Object.setPrototypeOf(ComponentElementBase, runtimeHTMLElement);
+    Object.setPrototypeOf(ComponentElementBase.prototype, runtimeHTMLElement.prototype);
+    componentElementBaseHydrated = true;
+}
 
 /**
  * Context object passed to `Component.load()`.

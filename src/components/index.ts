@@ -21,6 +21,7 @@ export {
     Page,
     RenderMode,
     Route,
+    resolvePageRenderConfig,
 } from "./page.ts";
 export { ensureMainzCustomElementDefined } from "./registry.ts";
 export type { ChildrenOnlyProps, DefaultProps, DefaultState, NoProps, NoState } from "./types.ts";
@@ -45,6 +46,9 @@ export type {
     PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
+    PageRenderConfig,
+    PageRenderMode,
+    PageSsgFallback,
     PageRouteParams,
     RouteContext,
     RouteProfileContext,

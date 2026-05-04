@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
-    captureDefinedRoutedAppDuring,
+    captureDefinedAppDuring,
     type DefinedApp,
     resolveDefinedAppDefinitionsFromModuleExports,
     resolveRoutedAppDefinitionsFromModuleExports,
@@ -36,7 +36,7 @@ export async function loadTargetBuildAppDefinition(
     }`;
 
     try {
-        const { value: moduleExports, app } = await captureDefinedRoutedAppDuring(async () => {
+        const { value: moduleExports, app } = await captureDefinedAppDuring(async () => {
             return await runtime.importModule<Record<string, unknown>>(moduleUrl);
         });
         const candidates = resolveDefinedAppDefinitionsFromModuleExports(moduleExports);

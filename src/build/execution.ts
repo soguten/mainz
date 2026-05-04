@@ -102,6 +102,7 @@ export async function runDevServer(args: {
     profile: ResolvedBuildProfile;
     host?: string | true;
     port?: number;
+    debugSsg?: boolean;
     cwd?: string;
     runtime?: MainzToolingRuntime;
 }): Promise<void> {
@@ -134,6 +135,7 @@ export async function runDevServer(args: {
         localePrefix: targetI18n?.localePrefix ?? "except-default",
         siteUrl: args.profile.siteUrl,
         basePath: resolveViteBasePath(args.profile.basePath, navigationMode),
+        devSsgDebug: args.debugSsg,
     });
 
     try {
@@ -203,6 +205,7 @@ async function resolveViteConfigPathForTarget(args: {
     defaultLocale?: string;
     localePrefix: "except-default" | "always";
     siteUrl?: string;
+    devSsgDebug?: boolean;
 }): Promise<{ path: string; cleanup?: () => Promise<void> }> {
     if (args.target.viteConfig) {
         return {
@@ -225,6 +228,7 @@ async function resolveViteConfigPathForTarget(args: {
         defaultLocale: args.defaultLocale,
         localePrefix: args.localePrefix,
         siteUrl: args.siteUrl,
+        devSsgDebug: args.devSsgDebug,
         cacheDir: args.runtime.name === "node"
             ? join("node_modules", ".vite", "mainz", args.target.name)
             : undefined,

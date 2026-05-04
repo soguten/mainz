@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { ts } from "../compiler/typescript.ts";
 import { discoverPageExportFromFile, discoverPagesFromFile } from "./server.ts";
-import type { RenderMode } from "./index.ts";
+import type { RenderMode, RenderModeFallback } from "./index.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { PageHeadDefinition } from "../components/page.ts";
 import type { NormalizedMainzTarget } from "../config/index.ts";
@@ -19,6 +19,7 @@ export interface CliDiscoveredPage {
     exportName: string;
     path: string;
     mode: RenderMode;
+    fallback?: RenderModeFallback;
     notFound?: boolean;
     locales?: readonly string[];
     head?: PageHeadDefinition;

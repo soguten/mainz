@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
-import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import { join } from "node:path";
+import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import {
     applyRouteHead,
     emitCsrSpaAppShellMetadata,
@@ -8,6 +9,7 @@ import {
     formatSsgPrerenderWarning,
     injectAppHtml,
     injectRouteSnapshot,
+    renderSsgAppHtml,
     resolveTargetI18nConfig,
     rewriteAssetPaths,
     setHtmlLang,
@@ -51,6 +53,59 @@ Deno.test("build/artifacts: injects route snapshot into html", () => {
     assertStringIncludes(output, 'id="mainz-route-snapshot"');
     assertStringIncludes(output, '"matchedPath":"/docs/intro"');
     assertStringIncludes(output, '"head":{"title":"Intro | Docs"}');
+});
+
+Deno.test("build/artifacts: prerender captures nested JSX custom elements before reading route snapshot", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-artifacts-ssg-" });
+
+    try {
+        const appDir = await writePrerenderFixtureApp(cwd, "./src/main.tsx");
+        const html = await Deno.readTextFile(join(appDir, "index.html"));
+        const rendered = await renderSsgAppHtml({
+            html,
+            absoluteOutputPath: join(appDir, "index.html"),
+            modeOutDir: appDir,
+            locale: "en",
+            basePath: "/",
+            renderPath: "/",
+        });
+
+        assertStringIncludes(rendered.appHtml, "<x-tutorial-card>");
+        assertStringIncludes(rendered.appHtml, 'data-ssg-card="ready"');
+        assertEquals(rendered.routeSnapshot?.pageTagName, "x-home-page");
+        assertEquals(rendered.routeSnapshot?.matchedPath, "/");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("build/artifacts: prerender supports app module scripts that already include vite timestamp queries", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-artifacts-ssg-query-" });
+
+    try {
+        const appDir = await writePrerenderFixtureApp(cwd, "./src/main.tsx?t=1777814219266");
+        const html = await Deno.readTextFile(join(appDir, "index.html"));
+        const rendered = await renderSsgAppHtml({
+            html,
+            absoluteOutputPath: join(appDir, "index.html"),
+            modeOutDir: appDir,
+            locale: "en",
+            basePath: "/",
+            renderPath: "/",
+        });
+
+        assertStringIncludes(rendered.appHtml, 'data-ssg-card="ready"');
+        assert(
+            rendered.appHtml.includes("<x-home-page") || rendered.appHtml.includes("<x-home-page-"),
+            "Expected prerendered HTML to include the page custom element tag.",
+        );
+        assert(
+            rendered.routeSnapshot?.pageTagName.startsWith("x-home-page"),
+            "Expected the extracted page tag name to retain the HomePage prefix.",
+        );
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
 });
 
 Deno.test("build/artifacts: formats route-aware prerender errors", () => {
@@ -520,3 +575,72 @@ Deno.test("build/artifacts: should resolve build language from documentLanguage 
         fallbackLocale: "pt-BR",
     });
 });
+
+async function writePrerenderFixtureApp(cwd: string, appModuleScriptSrc: string): Promise<string> {
+    const appDir = join(cwd, "app");
+    const srcDir = join(appDir, "src");
+    const pagesDir = join(srcDir, "pages");
+    const componentsDir = join(srcDir, "components");
+
+    await Deno.mkdir(pagesDir, { recursive: true });
+    await Deno.mkdir(componentsDir, { recursive: true });
+
+    await Deno.writeTextFile(
+        join(appDir, "index.html"),
+        [
+            "<!doctype html>",
+            "<html>",
+            "  <body>",
+            '    <main id="app"></main>',
+            `    <script type="module" src="${appModuleScriptSrc}"></script>`,
+            "  </body>",
+            "</html>",
+        ].join("\n"),
+    );
+
+    await Deno.writeTextFile(
+        join(srcDir, "main.tsx"),
+        [
+            'import { defineApp, startApp } from "mainz";',
+            'import { HomePage } from "./pages/Home.page.tsx";',
+            "",
+            "const app = defineApp({",
+            '    id: "test-app",',
+            "    pages: [HomePage],",
+            "});",
+            "",
+            "startApp(app, { mount: '#app' });",
+        ].join("\n"),
+    );
+
+    await Deno.writeTextFile(
+        join(pagesDir, "Home.page.tsx"),
+        [
+            'import { Page, Route } from "mainz";',
+            'import { TutorialCard } from "../components/TutorialCard.tsx";',
+            "",
+            '@Route("/")',
+            "export class HomePage extends Page {",
+            "    override render() {",
+            "        return <TutorialCard />;",
+            "    }",
+            "}",
+        ].join("\n"),
+    );
+
+    await Deno.writeTextFile(
+        join(componentsDir, "TutorialCard.tsx"),
+        [
+            'import { Component, CustomElement } from "mainz";',
+            "",
+            '@CustomElement("x-tutorial-card")',
+            "export class TutorialCard extends Component {",
+            "    override render(): HTMLElement {",
+            '        return <section data-ssg-card="ready">Rendered content</section>;',
+            "    }",
+            "}",
+        ].join("\n"),
+    );
+
+    return appDir;
+}

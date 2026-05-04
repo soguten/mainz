@@ -167,5 +167,22 @@ function resolveCurrentRenderDocument(): Document {
 
 function isNodeLike(value: unknown, ownerDocument: Document): value is Node {
     const ownerNode = ownerDocument.defaultView?.Node;
-    return !!ownerNode && value instanceof ownerNode;
+    if (!!ownerNode && value instanceof ownerNode) {
+        return true;
+    }
+
+    if (typeof value !== "object" || value === null) {
+        return false;
+    }
+
+    const candidate = value as {
+        nodeType?: unknown;
+        nodeName?: unknown;
+        ownerDocument?: unknown;
+    };
+
+    return typeof candidate.nodeType === "number" &&
+        typeof candidate.nodeName === "string" &&
+        typeof candidate.ownerDocument === "object" &&
+        candidate.ownerDocument !== null;
 }

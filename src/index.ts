@@ -16,6 +16,7 @@ export {
     Locales,
     Page,
     RenderMode,
+    resolvePageRenderConfig,
     resolveComponentAuthorization,
     resolvePageAuthorization,
     Route,
@@ -100,6 +101,9 @@ export type {
     PageLoadContext,
     PageLoadContextInit,
     PageLoadResources,
+    PageRenderConfig,
+    PageRenderMode,
+    PageSsgFallback,
     PageRouteParams,
     RouteContext,
     RouteProfileContext,
@@ -148,5 +152,6 @@ export type {
     SsgOutputEntry,
     TargetDefinition,
     TargetRouteManifest,
+    RenderModeFallback,
 } from "./routing/index.ts";
 export type RenderMode = import("./routing/index.ts").RenderMode;

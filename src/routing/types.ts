@@ -3,6 +3,7 @@ import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
 /** Page-level render mode used by Mainz routing and build pipelines. */
 export type RenderMode = "csr" | "ssg";
+export type RenderModeFallback = "404" | "csr";
 /** Navigation behavior used by Mainz runtime and build outputs. */
 export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
 export type RouteSource = "filesystem";
@@ -25,6 +26,7 @@ export interface DiscoveredPageDefinition {
     exportName: string;
     path: string;
     mode: RenderMode;
+    fallback?: RenderModeFallback;
     notFound?: boolean;
     head?: PageHeadDefinition;
     locales?: readonly string[];
@@ -45,6 +47,7 @@ export interface RouteManifestEntry {
     path: string;
     pattern: string;
     mode: RenderMode;
+    fallback?: RenderModeFallback;
     notFound?: boolean;
     locales: string[];
     head?: PageHeadDefinition;
