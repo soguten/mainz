@@ -5,7 +5,7 @@ import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { DocsService } from "./services/DocsService.ts";
 
-export const app = defineApp({
+const app = defineApp({
     id: "docs-site",
     navigation: "enhanced-mpa",
     i18n: {

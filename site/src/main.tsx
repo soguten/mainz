@@ -2,7 +2,7 @@ import { defineApp, startApp } from "mainz";
 import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
-export const app = defineApp({
+const app = defineApp({
     id: "site",
     navigation: "enhanced-mpa",
     i18n: {
