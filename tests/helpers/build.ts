@@ -14,6 +14,7 @@ import type {
     TestRenderMode,
 } from "./types.ts";
 import { cliTestsRepoRoot } from "./types.ts";
+import { makeMainzTempDir } from "./temp.ts";
 
 const engineBuildLocks = new Map<string, Promise<void>>();
 const fixtureCleanupRetryDelaysMs = [25, 75, 150] as const;
@@ -98,15 +99,20 @@ export async function buildGeneratedTagStabilityAppForCombination(
         appNavigation: combination.navigation,
     });
 
-    const context = await buildFixtureForCombination({
-        fixture,
-        combination,
-    });
+    try {
+        const context = await buildFixtureForCombination({
+            fixture,
+            combination,
+        });
 
-    return {
-        ...context,
-        cleanup: fixture.cleanup,
-    };
+        return {
+            ...context,
+            cleanup: fixture.cleanup,
+        };
+    } catch (error) {
+        await fixture.cleanup();
+        throw error;
+    }
 }
 
 export async function buildSingleLocaleRoutedAppForCombination(
@@ -118,15 +124,20 @@ export async function buildSingleLocaleRoutedAppForCombination(
         appNavigation: combination.navigation,
     });
 
-    const context = await buildFixtureForCombination({
-        fixture,
-        combination,
-    });
+    try {
+        const context = await buildFixtureForCombination({
+            fixture,
+            combination,
+        });
 
-    return {
-        ...context,
-        cleanup: fixture.cleanup,
-    };
+        return {
+            ...context,
+            cleanup: fixture.cleanup,
+        };
+    } catch (error) {
+        await fixture.cleanup();
+        throw error;
+    }
 }
 
 export async function buildDocumentLanguageRoutedAppForCombination(
@@ -138,15 +149,20 @@ export async function buildDocumentLanguageRoutedAppForCombination(
         appNavigation: combination.navigation,
     });
 
-    const context = await buildFixtureForCombination({
-        fixture,
-        combination,
-    });
+    try {
+        const context = await buildFixtureForCombination({
+            fixture,
+            combination,
+        });
 
-    return {
-        ...context,
-        cleanup: fixture.cleanup,
-    };
+        return {
+            ...context,
+            cleanup: fixture.cleanup,
+        };
+    } catch (error) {
+        await fixture.cleanup();
+        throw error;
+    }
 }
 
 export async function buildFixtureForCombination(args: {
@@ -271,17 +287,16 @@ export async function createFixtureTargetDefinition(args: {
         args.fixtureName,
     );
     const targetName = args.targetName ?? args.fixtureName;
-    const tempRoot = await Deno.makeTempDir({
-        dir: cliTestsRepoRoot,
-        prefix: `.mainz-fixture-${args.fixtureName}-`,
+    const tempRoot = await makeMainzTempDir({
+        cwd: cliTestsRepoRoot,
+        prefix: `${args.fixtureName}-`,
+        subdirectories: ["tests", "fixtures"],
     });
-    const fixtureRoot = args.appNavigation
-        ? await createNavigationFixtureCopy({
-            sourceFixtureRoot,
-            tempRoot,
-            navigation: args.appNavigation,
-        })
-        : sourceFixtureRoot;
+    const fixtureRoot = resolve(tempRoot, "fixture");
+    await copyDirectory(sourceFixtureRoot, fixtureRoot);
+    if (args.appNavigation) {
+        await applyAppNavigationToFixture(fixtureRoot, args.appNavigation);
+    }
     const outputDir = resolve(tempRoot, "dist", targetName);
     const requestedAppFile = args.appFile
         ? resolve(fixtureRoot, args.appFile)

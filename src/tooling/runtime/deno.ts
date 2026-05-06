@@ -78,7 +78,7 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
             args: [
                 "run",
                 "-A",
-                "npm:vite@7.3.1",
+                "npm:vite@8.0.10",
                 "build",
                 "--config",
                 options.viteConfigPath,
@@ -90,7 +90,7 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
         const args = [
             "run",
             "-A",
-            "npm:vite@7.3.1",
+            "npm:vite@8.0.10",
             "--config",
             options.viteConfigPath,
         ];

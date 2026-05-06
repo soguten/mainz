@@ -379,8 +379,12 @@ export async function renderSsgAppHtml(args: {
         })
         .map((moduleScriptSrc) => {
             const normalizedSrc = moduleScriptSrc.trim();
-            const srcQuery = extractModuleScriptQuery(normalizedSrc);
-            const cacheBustQuery = `ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const srcQuery = args.loadModule
+                ? stripViteTimestampQuery(extractModuleScriptQuery(normalizedSrc))
+                : extractModuleScriptQuery(normalizedSrc);
+            const cacheBustQuery = args.loadModule
+                ? "ssg=mainz-dev"
+                : `ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
             const importQuery = srcQuery ? `${srcQuery}&${cacheBustQuery}` : cacheBustQuery;
 
             if (args.loadModule) {
@@ -590,6 +594,16 @@ function extractModuleScriptQuery(moduleScriptSrc: string): string {
     return hashIndex === -1
         ? moduleScriptSrc.slice(queryIndex + 1)
         : moduleScriptSrc.slice(queryIndex + 1, hashIndex);
+}
+
+function stripViteTimestampQuery(query: string): string {
+    if (!query) {
+        return "";
+    }
+
+    const params = new URLSearchParams(query);
+    params.delete("t");
+    return params.toString();
 }
 
 function stripScriptTags(html: string): string {

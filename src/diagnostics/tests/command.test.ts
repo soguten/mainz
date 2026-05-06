@@ -9,6 +9,7 @@ import {
     shouldFailDiagnostics,
 } from "../index.ts";
 import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 
 Deno.test("diagnostics/command: should collect route diagnostics for a fixture target", async () => {
     const fixture = await createFixtureTargetConfig({
@@ -100,8 +101,10 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
 });
 
 Deno.test("diagnostics/command: should report duplicate stable command ids from app-scoped command registration", async () => {
-    const tempRoot = await Deno.makeTempDir({
-        prefix: ".mainz-command-diagnostics-",
+    const tempRoot = await makeMainzTempDir({
+        cwd: Deno.cwd(),
+        prefix: "command-diagnostics-",
+        subdirectories: ["tests", "diagnostics"],
     });
     const srcDir = resolve(tempRoot, "src");
 

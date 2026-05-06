@@ -9,7 +9,7 @@
         "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
         "mainz": "{{mainzSpecifier}}",
         "mainz/": "{{mainzSubpathPrefix}}",
-        "vite": "npm:vite@7.3.1"
+        "vite": "npm:vite@8.0.10"
     },
     "tasks": {
         "dev": "deno run -A --config {{denoConfigPath}} {{mainzCliSpecifier}} dev",

@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { renderMainzComponent, setupMainzDom } from "../../../../src/testing/mainz-testing.ts";
+import { waitFor } from "mainz/testing";
+import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
@@ -75,11 +76,16 @@ Deno.test("DocsCodeBlock copies code and shows copied feedback", async () => {
         assertStringIncludes(view.getBySelector("code").className, "hljs");
         assertStringIncludes(view.getBySelector("code").innerHTML, "hljs-variable");
 
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await waitFor(
+            () => view.getBySelector("button").textContent === "Copy",
+            "Expected copied feedback to reset.",
+        );
+        await setupMainzDom();
     } finally {
         cleanupHighlight();
         DocsCodeBlock.copyFeedbackDurationMs = 1200;
         view.cleanup();
+        await setupMainzDom();
     }
 });
 

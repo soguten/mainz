@@ -34,6 +34,14 @@ const GLOBAL_DOM_KEYS = [
 type GlobalDomKey = (typeof GLOBAL_DOM_KEYS)[number];
 let happyDomLock: Promise<void> = Promise.resolve();
 
+type HappyDOMController = {
+    waitUntilComplete?: () => Promise<void>;
+    whenAsyncComplete?: () => Promise<void>;
+    abort?: () => void;
+    cancelAsync?: () => void;
+    close?: () => void;
+};
+
 export async function withHappyDom<T>(
     fn: (window: Window) => Promise<T> | T,
     options?: { url?: string },
@@ -73,6 +81,8 @@ export async function withHappyDom<T>(
         };
     }
 
+    installSafeDocumentWrite(window);
+
     const previousRuntime = (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
     (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = "build";
 
@@ -95,7 +105,7 @@ export async function withHappyDom<T>(
             (globalThis as Record<string, unknown>)[key] = previous;
         }
 
-        window.close();
+        await cleanupHappyDomWindow(window);
         releaseLock();
     }
 }
@@ -108,4 +118,49 @@ async function acquireHappyDomLock(): Promise<() => void> {
     });
     await previousLock;
     return releaseLock;
+}
+
+function installSafeDocumentWrite(window: Window): void {
+    const documentRecord = window.document as unknown as {
+        write(...text: string[]): void;
+        writeln?(...text: string[]): void;
+    };
+    const originalWrite = documentRecord.write.bind(documentRecord);
+
+    documentRecord.write = (...text: string[]) => {
+        originalWrite(...text.map(stripExternalDocumentResources));
+    };
+
+    if (typeof documentRecord.writeln === "function") {
+        const originalWriteln = documentRecord.writeln.bind(documentRecord);
+        documentRecord.writeln = (...text: string[]) => {
+            originalWriteln(...text.map(stripExternalDocumentResources));
+        };
+    }
+}
+
+function stripExternalDocumentResources(html: string): string {
+    return html
+        .replace(/<link\b[^>]*\bhref=["']https?:\/\/[^"']+["'][^>]*>/gi, "")
+        .replace(/<script\b[^>]*\bsrc=["']https?:\/\/[^"']+["'][^>]*>\s*<\/script>/gi, "");
+}
+
+export async function cleanupHappyDomWindow(window: Window): Promise<void> {
+    const happyDOM = (window as unknown as { happyDOM?: HappyDOMController }).happyDOM;
+
+    happyDOM?.cancelAsync?.();
+    happyDOM?.abort?.();
+
+    try {
+        if (typeof happyDOM?.whenAsyncComplete === "function") {
+            await happyDOM.whenAsyncComplete();
+        } else if (typeof happyDOM?.waitUntilComplete === "function") {
+            await happyDOM.waitUntilComplete();
+        }
+    } catch {
+        // Ignore cleanup-time async abort errors from Happy DOM.
+    } finally {
+        happyDOM?.close?.();
+        window.close();
+    }
 }

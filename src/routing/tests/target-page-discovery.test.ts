@@ -2,6 +2,7 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import {
     invalidLocalePageDiscoveryErrorKind,
@@ -12,6 +13,7 @@ import {
     resolveTargetDiscoveredPagesForTarget,
 } from "../target-page-discovery.ts";
 import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test("routing/target-page-discovery: should classify invalid locale discovery failures with a structured kind", async () => {
@@ -37,9 +39,10 @@ Deno.test("routing/target-page-discovery: should classify invalid locale discove
 });
 
 Deno.test("routing/target-page-discovery: should classify generic page discovery failures with a structured kind", async () => {
-    const tempRoot = await Deno.makeTempDir({
-        dir: cliTestsRepoRoot,
-        prefix: ".mainz-route-pages-",
+    const tempRoot = await makeMainzTempDir({
+        cwd: cliTestsRepoRoot,
+        prefix: "route-pages-",
+        subdirectories: ["tests", "routing"],
     });
     const pagesDir = resolve(tempRoot, "src", "pages");
     const pageFile = resolve(pagesDir, "Broken.page.tsx");
@@ -49,7 +52,9 @@ Deno.test("routing/target-page-discovery: should classify generic page discovery
         await Deno.writeTextFile(
             pageFile,
             [
-                'import { Page } from "../../../src/components/page.ts";',
+                `import { Page } from ${JSON.stringify(
+                    pathToFileURL(resolve(cliTestsRepoRoot, "src", "components", "page.ts")).href,
+                )};`,
                 "",
                 "export class BrokenPage extends Page {}",
                 "",

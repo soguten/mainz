@@ -13,6 +13,6 @@
         "mainz": "{{mainzSpecifier}}"
     },
     "devDependencies": {
-        "vite": "^7.3.1"
+        "vite": "^8.0.10"
     }
 }

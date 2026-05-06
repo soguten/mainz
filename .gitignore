@@ -142,6 +142,7 @@ vite.config.ts.timestamp-*
 /dist/
 /dist-site/
 /dist-playground/
+/.mainz_temp/
 
 # Internal workspace-only docs and agent notes
 /AGENTS.md

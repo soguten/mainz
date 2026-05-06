@@ -9,9 +9,15 @@ import type {
 } from "../config/index.ts";
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
 import {
+    loadTargetBuildRoutedAppDefinition,
+    renderMaterializedViteConfigModule,
+    resolveEffectiveNavigationMode,
     resolveEngineBuildJobs,
     resolveEngineBuildProfile,
     resolveEnginePublicationMetadata,
+    resolveGeneratedViteConfig,
+    resolveTargetBuildProfile,
+    resolveTargetI18nConfig,
     runEngineBuildJobs,
     runEngineDevServer,
 } from "../build/index.ts";
@@ -24,6 +30,7 @@ import {
 import { serveArtifactPreview } from "../preview/artifact-server.ts";
 import { denoToolingRuntime, nodeToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
+import { resolveMainzTempPath } from "../tooling/temp-paths.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 import {
     builtInTemplateExists,
@@ -120,6 +127,12 @@ type WorkflowCommandOptions = SharedCliOptions & {
     trigger?: "push" | "manual";
 };
 
+type ViteCommandOptions = SharedCliOptions & {
+    command: "vite";
+    action: "materialize" | "dematerialize";
+    target: string;
+};
+
 type MainzCliCommand =
     | InitCommandOptions
     | BuildCommandOptions
@@ -130,7 +143,8 @@ type MainzCliCommand =
     | DiagnoseCommandOptions
     | AppCommandOptions
     | ProfileCommandOptions
-    | WorkflowCommandOptions;
+    | WorkflowCommandOptions
+    | ViteCommandOptions;
 
 type CliRuntimeName = "deno" | "node" | "bun";
 type SupportedCliRuntime = "deno" | "node";
@@ -151,6 +165,19 @@ type TemplateDependencyUpdate = {
     path: string;
     content: string;
 };
+
+type MaterializedTargetViteOptions = {
+    alias?: Array<{ find: string; replacement: string }>;
+    define?: Record<string, string>;
+};
+
+type MaterializedViteMetadata = {
+    version: 1;
+    target: string;
+    vite?: MaterializedTargetViteOptions;
+};
+
+const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 
@@ -179,6 +206,9 @@ type HelpTopic =
     | "workflow"
     | "workflow-create"
     | "workflow-update"
+    | "vite"
+    | "vite-materialize"
+    | "vite-dematerialize"
     | "build"
     | "dev"
     | "preview"
@@ -278,6 +308,18 @@ async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise
             throw toCliUsageError(
                 error,
                 command.action === "create" ? "workflow-create" : "workflow-update",
+            );
+        }
+        return 0;
+    }
+
+    if (command.command === "vite") {
+        try {
+            await runViteCommand(command, hostRuntime);
+        } catch (error) {
+            throw toCliUsageError(
+                error,
+                command.action === "materialize" ? "vite-materialize" : "vite-dematerialize",
             );
         }
         return 0;
@@ -584,9 +626,9 @@ async function createNodeProjectBootstrapConfig(
                 },
                 imports: {
                     ...mainzImports,
-                    vite: "npm:vite@7.3.1",
+                    vite: "npm:vite@8.0.10",
                     "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-                    "happy-dom": "npm:happy-dom@20.1.1",
+                    "happy-dom": "npm:happy-dom@20.9.0",
                 },
             },
             null,
@@ -635,10 +677,11 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
         command !== "app" &&
         command !== "init" &&
         command !== "profile" &&
-        command !== "workflow"
+        command !== "workflow" &&
+        command !== "vite"
     ) {
         throw new CliUsageError(
-            `Unknown command "${command}". Use "init", "app", "profile", "workflow", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
+            `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
             "main",
         );
     }
@@ -657,6 +700,10 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 
     if (command === "workflow") {
         return parseWorkflowCommand(rest);
+    }
+
+    if (command === "vite") {
+        return parseViteCommand(rest);
     }
 
     const options = parseCommandOptions(command, rest);
@@ -1011,6 +1058,54 @@ function parseWorkflowCommand(args: string[]): WorkflowCommandOptions {
         command: "workflow",
         action,
         provider,
+        ...options,
+    };
+}
+
+function parseViteCommand(args: string[]): ViteCommandOptions {
+    const [action, ...rest] = args;
+    if (action !== "materialize" && action !== "dematerialize") {
+        throw new Error('Command "vite" requires "materialize" or "dematerialize".');
+    }
+
+    let target: string | undefined;
+    const options: Pick<ViteCommandOptions, "configPath" | "runtime"> = {};
+
+    for (let index = 0; index < rest.length; index += 1) {
+        const current = rest[index];
+        if (!current) {
+            continue;
+        }
+
+        if (current === "--target") {
+            target = readOptionValue(current, rest[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--config") {
+            options.configPath = readOptionValue(current, rest[index + 1]);
+            index += 1;
+            continue;
+        }
+
+        if (current === "--runtime") {
+            options.runtime = readOptionValue(current, rest[index + 1]) as MainzRuntime;
+            index += 1;
+            continue;
+        }
+
+        throw new Error(`Unknown option "${current}" for "vite ${action}".`);
+    }
+
+    if (!target?.trim()) {
+        throw new Error(`Command "vite ${action}" requires --target <name>.`);
+    }
+
+    return {
+        command: "vite",
+        action,
+        target,
         ...options,
     };
 }
@@ -1526,6 +1621,158 @@ async function runWorkflowCommand(
     console.log(`[mainz] Wrote GitHub Pages workflow to ${workflowPath}.`);
 }
 
+async function runViteCommand(
+    options: ViteCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    if (options.action === "materialize") {
+        await runViteMaterializeCommand(options, hostRuntime);
+        return;
+    }
+
+    await runViteDematerializeCommand(options, hostRuntime);
+}
+
+async function runViteMaterializeCommand(
+    options: ViteCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    const target = resolveRequiredTarget(normalizedConfig, options.target, "vite-materialize");
+    const materialized = resolveMaterializedVitePaths(loadedConfig.path, target.rootDir);
+    const targetViteConfig = target.viteConfig?.trim();
+
+    if (targetViteConfig && targetViteConfig !== materialized.relativeConfigPath) {
+        throw new Error(
+            `Target "${target.name}" already defines viteConfig "${targetViteConfig}". Materialize only manages ${materialized.relativeConfigPath}.`,
+        );
+    }
+
+    const profile = await resolveTargetBuildProfile(target, undefined, runtime.cwd(), runtime);
+    const navigationMode = await resolveEffectiveNavigationMode(
+        target,
+        profile,
+        runtime.cwd(),
+        runtime,
+    );
+    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, runtime.cwd(), runtime);
+    const targetI18n = resolveTargetI18nConfig(appDefinition);
+    const generatedConfig = resolveGeneratedViteConfig({
+        cwd: runtime.cwd(),
+        target,
+        modeOutDir: normalizePathSlashes(join(target.outDir, "csr")),
+        renderMode: "csr",
+        navigationMode,
+        basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
+        appLocales: appDefinition?.i18n?.locales ??
+            (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
+        defaultLocale: targetI18n?.defaultLocale,
+        localePrefix: targetI18n?.localePrefix ?? "except-default",
+        siteUrl: profile.siteUrl,
+        devSsgDebug: false,
+        cacheDir: projectRuntime === "node"
+            ? normalizePathSlashes(resolveMainzTempPath(runtime.cwd(), "vite-cache", target.name))
+            : undefined,
+    });
+
+    const materializedModule = [
+        "// @mainz-materialized-vite-config",
+        `${materializedViteMetadataPrefix}${
+            JSON.stringify(
+                {
+                    version: 1,
+                    target: target.name,
+                    vite: target.vite ? cloneMaterializedTargetViteOptions(target.vite) : undefined,
+                } satisfies MaterializedViteMetadata,
+            )
+        }`,
+        `// target: ${target.name}`,
+        "",
+        renderMaterializedViteConfigModule(generatedConfig, runtime.name),
+    ].join("\n");
+
+    const existingMaterializedSource = await pathExists(materialized.absoluteConfigPath, runtime)
+        ? await runtime.readTextFile(materialized.absoluteConfigPath)
+        : undefined;
+    if (
+        existingMaterializedSource &&
+        !existingMaterializedSource.startsWith("// @mainz-materialized-vite-config") &&
+        !existingMaterializedSource.startsWith("// @mainz-generated-vite-config")
+    ) {
+        throw new Error(
+            `Refusing to overwrite existing workspace Vite config at "${materialized.absoluteConfigPath}".`,
+        );
+    }
+
+    await runtime.writeTextFile(materialized.absoluteConfigPath, materializedModule);
+
+    const configContent = await runtime.readTextFile(loadedConfig.path);
+    const updatedConfig = updateConfigTarget(configContent, target.name, (targetSource) => {
+        let nextSource = removeObjectProperty(targetSource, "vite");
+        nextSource = upsertObjectProperty(
+            nextSource,
+            "viteConfig",
+            JSON.stringify(materialized.relativeConfigPath),
+        );
+        return nextSource;
+    });
+    await runtime.writeTextFile(loadedConfig.path, updatedConfig);
+
+    await clearGeneratedViteArtifacts(runtime, runtime.cwd());
+
+    console.log(
+        `[mainz] Materialized Vite config for target "${target.name}" at ${materialized.absoluteConfigPath}.`,
+    );
+}
+
+async function runViteDematerializeCommand(
+    options: ViteCommandOptions,
+    hostRuntime: SupportedCliRuntime,
+): Promise<void> {
+    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
+    const runtime = resolveToolingRuntime(projectRuntime);
+    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+    const target = resolveRequiredTarget(normalizedConfig, options.target, "vite-dematerialize");
+    const materialized = resolveMaterializedVitePaths(loadedConfig.path, target.rootDir);
+
+    if (target.viteConfig?.trim() !== materialized.relativeConfigPath) {
+        throw new Error(
+            `Target "${target.name}" is not using the managed materialized viteConfig "${materialized.relativeConfigPath}".`,
+        );
+    }
+
+    const metadata = await readMaterializedViteMetadata(materialized.absoluteConfigPath, runtime);
+
+    const configContent = await runtime.readTextFile(loadedConfig.path);
+    const updatedConfig = updateConfigTarget(configContent, target.name, (targetSource) => {
+        let nextSource = removeObjectProperty(targetSource, "viteConfig");
+        nextSource = removeObjectProperty(nextSource, "vite");
+        if (metadata?.vite) {
+            nextSource = upsertObjectProperty(
+                nextSource,
+                "vite",
+                renderViteOptionsSource(metadata.vite),
+            );
+        }
+        return nextSource;
+    });
+    await runtime.writeTextFile(loadedConfig.path, updatedConfig);
+
+    if (await pathExists(materialized.absoluteConfigPath, runtime)) {
+        await runtime.remove(materialized.absoluteConfigPath);
+    }
+
+    await clearGeneratedViteArtifacts(runtime, runtime.cwd());
+
+    console.log(
+        `[mainz] Removed materialized Vite config for target "${target.name}" and restored generated config mode.`,
+    );
+}
+
 async function runBuildCommand(
     options: BuildCommandOptions,
     loadedConfig: LoadedMainzConfig,
@@ -1696,7 +1943,14 @@ async function runTestCommand(
 function resolveRequiredTarget(
     config: NormalizedMainzConfig,
     targetName: string | undefined,
-    command: "dev" | "preview" | "publish-info" | "app-info" | "profile-create",
+    command:
+        | "dev"
+        | "preview"
+        | "publish-info"
+        | "app-info"
+        | "profile-create"
+        | "vite-materialize"
+        | "vite-dematerialize",
 ): NormalizedMainzTarget {
     const normalizedTargetName = targetName?.trim();
     if (!normalizedTargetName || normalizedTargetName === "all") {
@@ -1837,6 +2091,40 @@ function getHelpText(topic: HelpTopic): string[] {
         ];
     }
 
+    if (topic === "vite") {
+        return [
+            "Mainz CLI - vite",
+            "",
+            "Usage:",
+            "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+            "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+        ];
+    }
+
+    if (topic === "vite-materialize") {
+        return [
+            "Mainz CLI - vite materialize",
+            "",
+            "Usage:",
+            "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+            "",
+            "Notes:",
+            "  Generates ./<workspace>/vite.config.ts and switches the target to viteConfig mode.",
+        ];
+    }
+
+    if (topic === "vite-dematerialize") {
+        return [
+            "Mainz CLI - vite dematerialize",
+            "",
+            "Usage:",
+            "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+            "",
+            "Notes:",
+            "  Removes the managed ./<workspace>/vite.config.ts file and restores generated-config mode for that target.",
+        ];
+    }
+
     if (topic === "dev") {
         return [
             "Mainz CLI - dev",
@@ -1903,6 +2191,8 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz [--cli <deno|node|bun>] profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+        "  mainz [--cli <deno|node|bun>] vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>] [--runtime <deno|node|bun>]",
         "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
@@ -1937,6 +2227,8 @@ function getHelpText(topic: HelpTopic): string[] {
         "  mainz app info site",
         "  mainz profile create gh-pages --target site --base-path /",
         "  mainz workflow create gh-pages",
+        "  mainz vite materialize --target site",
+        "  mainz vite dematerialize --target site",
         "  mainz build",
         "  mainz build --target site --profile gh-pages",
         "  mainz build --target playground",
@@ -2005,6 +2297,15 @@ function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
     }
     if (command === "workflow") {
         return "workflow";
+    }
+    if (command === "vite" && subcommand === "materialize") {
+        return "vite-materialize";
+    }
+    if (command === "vite" && subcommand === "dematerialize") {
+        return "vite-dematerialize";
+    }
+    if (command === "vite") {
+        return "vite";
     }
     if (command === "app") {
         return "app";
@@ -2078,6 +2379,12 @@ function renderHelpCommand(helpTopic: HelpTopic): string {
     }
     if (helpTopic === "workflow-update") {
         return "workflow update --help";
+    }
+    if (helpTopic === "vite-materialize") {
+        return "vite materialize --help";
+    }
+    if (helpTopic === "vite-dematerialize") {
+        return "vite dematerialize --help";
     }
     return `${helpTopic} --help`;
 }
@@ -2198,6 +2505,42 @@ function normalizeOutDir(outDir: string): string {
     return normalized.startsWith(".") ? normalized.slice(2) : normalized;
 }
 
+function resolveMaterializedVitePaths(
+    configPath: string,
+    targetRootDir: string,
+): {
+    absoluteConfigPath: string;
+    relativeConfigPath: string;
+} {
+    const absoluteConfigPath = resolve(configPath);
+    const configDir = dirname(absoluteConfigPath);
+    const absoluteWorkspaceDir = resolve(configDir, targetRootDir);
+    const fileName = "vite.config.ts";
+    const relativeWorkspaceDir = normalizePathSlashes(relative(configDir, absoluteWorkspaceDir));
+    const relativeConfigPath = relativeWorkspaceDir && relativeWorkspaceDir !== "."
+        ? `./${relativeWorkspaceDir}/${fileName}`
+        : `./${fileName}`;
+    return {
+        absoluteConfigPath: resolve(absoluteWorkspaceDir, fileName),
+        relativeConfigPath,
+    };
+}
+
+function updateConfigTarget(
+    content: string,
+    targetName: string,
+    update: (targetSource: string) => string,
+): string {
+    const range = findConfigTargetRange(content, targetName);
+    if (!range) {
+        throw new Error(`No target named "${targetName}" found in Mainz config.`);
+    }
+
+    return `${content.slice(0, range.start)}${update(content.slice(range.start, range.end))}${
+        content.slice(range.end)
+    }`;
+}
+
 async function upsertConfigTarget(
     configPath: string,
     target: string,
@@ -2308,6 +2651,14 @@ function removeConfigTarget(content: string, targetName: string): string {
 }
 
 function findConfigTargetSource(content: string, targetName: string): string | undefined {
+    const range = findConfigTargetRange(content, targetName);
+    return range ? content.slice(range.start, range.end) : undefined;
+}
+
+function findConfigTargetRange(
+    content: string,
+    targetName: string,
+): { start: number; end: number } | undefined {
     const targetsArray = findTargetsArray(content);
     const objectRanges = findTopLevelObjectRanges(
         content,
@@ -2318,7 +2669,7 @@ function findConfigTargetSource(content: string, targetName: string): string | u
         content.slice(range.start, range.end).includes(`name: ${JSON.stringify(targetName)}`)
     );
 
-    return matchingRange ? content.slice(matchingRange.start, matchingRange.end) : undefined;
+    return matchingRange;
 }
 
 function extractTargetRootDir(targetSource: string): string | undefined {
@@ -2432,6 +2783,370 @@ function findMatchingBracket(
 function targetNameNeedle(target: string): string {
     const match = target.match(/name:\s*("[^"]+")/);
     return match?.[1] ? `name: ${match[1]}` : "target";
+}
+
+function removeObjectProperty(objectSource: string, propertyName: string): string {
+    const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
+    if (!propertyRange) {
+        return objectSource;
+    }
+
+    return `${objectSource.slice(0, propertyRange.start)}${objectSource.slice(propertyRange.end)}`;
+}
+
+function upsertObjectProperty(
+    objectSource: string,
+    propertyName: string,
+    propertyValueSource: string,
+): string {
+    const propertyIndent = inferObjectPropertyIndent(objectSource);
+    const propertySource = `${propertyIndent}${propertyName}: ${
+        indentObjectPropertyValue(propertyValueSource, propertyIndent)
+    },`;
+    const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
+    if (propertyRange) {
+        return `${objectSource.slice(0, propertyRange.start)}${propertySource}${
+            objectSource.slice(propertyRange.end)
+        }`;
+    }
+
+    const closeIndex = objectSource.lastIndexOf("}");
+    if (closeIndex < 0) {
+        throw new Error("Expected target object source.");
+    }
+
+    const beforeClose = objectSource.slice(0, closeIndex).replace(/\s*$/, "");
+    const afterClose = objectSource.slice(closeIndex);
+    const separator = beforeClose.trimEnd().endsWith("{") ? "\n" : "\n";
+    return `${beforeClose}${separator}${propertySource}\n${afterClose}`;
+}
+
+function findTopLevelPropertyRange(
+    objectSource: string,
+    propertyName: string,
+): { start: number; end: number } | undefined {
+    const openIndex = objectSource.indexOf("{");
+    const closeIndex = objectSource.lastIndexOf("}");
+    if (openIndex < 0 || closeIndex < 0 || closeIndex <= openIndex) {
+        throw new Error("Expected target object source.");
+    }
+
+    let quote: '"' | "'" | "`" | undefined;
+    let escaped = false;
+    let depth = 0;
+
+    for (let index = openIndex + 1; index < closeIndex; index += 1) {
+        const char = objectSource[index];
+
+        if (quote) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (char === "\\") {
+                escaped = true;
+                continue;
+            }
+
+            if (char === quote) {
+                quote = undefined;
+            }
+
+            continue;
+        }
+
+        if (char === '"' || char === "'" || char === "`") {
+            quote = char;
+            continue;
+        }
+
+        if (char === "{") {
+            depth += 1;
+            continue;
+        }
+
+        if (char === "}") {
+            depth -= 1;
+            continue;
+        }
+
+        if (depth !== 0) {
+            continue;
+        }
+
+        if (!startsObjectProperty(objectSource, index, propertyName)) {
+            continue;
+        }
+
+        const lineStart = objectSource.lastIndexOf("\n", index) + 1;
+        let propertyStart = index;
+        if (objectSource.slice(lineStart, index).trim() === "") {
+            propertyStart = lineStart;
+        }
+
+        const colonIndex = objectSource.indexOf(":", index + propertyName.length);
+        let valueIndex = colonIndex + 1;
+        while (valueIndex < closeIndex && /\s/.test(objectSource[valueIndex]!)) {
+            valueIndex += 1;
+        }
+
+        const valueEnd = findObjectPropertyValueEnd(objectSource, valueIndex, closeIndex);
+        let propertyEnd = valueEnd;
+        while (propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)) {
+            propertyEnd += 1;
+        }
+
+        if (objectSource[propertyEnd] === ",") {
+            propertyEnd += 1;
+            while (propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)) {
+                propertyEnd += 1;
+            }
+        } else {
+            let previous = propertyStart - 1;
+            while (previous > openIndex && /\s/.test(objectSource[previous]!)) {
+                previous -= 1;
+            }
+            if (objectSource[previous] === ",") {
+                propertyStart = previous;
+                while (propertyStart > openIndex && /\s/.test(objectSource[propertyStart - 1]!)) {
+                    propertyStart -= 1;
+                }
+            }
+        }
+
+        return {
+            start: propertyStart,
+            end: propertyEnd,
+        };
+    }
+
+    return undefined;
+}
+
+function startsObjectProperty(
+    objectSource: string,
+    index: number,
+    propertyName: string,
+): boolean {
+    if (objectSource.startsWith(`${propertyName}:`, index)) {
+        return true;
+    }
+    if (objectSource.startsWith(`${propertyName} :`, index)) {
+        return true;
+    }
+    if (objectSource.startsWith(`"${propertyName}"`, index)) {
+        return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
+    }
+    if (objectSource.startsWith(`'${propertyName}'`, index)) {
+        return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
+    }
+
+    return false;
+}
+
+function findObjectPropertyValueEnd(
+    objectSource: string,
+    valueIndex: number,
+    closeIndex: number,
+): number {
+    let quote: '"' | "'" | "`" | undefined;
+    let escaped = false;
+    let parenDepth = 0;
+    let braceDepth = 0;
+    let bracketDepth = 0;
+
+    for (let index = valueIndex; index < closeIndex; index += 1) {
+        const char = objectSource[index];
+
+        if (quote) {
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (char === "\\") {
+                escaped = true;
+                continue;
+            }
+
+            if (char === quote) {
+                quote = undefined;
+            }
+
+            continue;
+        }
+
+        if (char === '"' || char === "'" || char === "`") {
+            quote = char;
+            continue;
+        }
+
+        if (char === "(") {
+            parenDepth += 1;
+            continue;
+        }
+        if (char === ")") {
+            parenDepth -= 1;
+            continue;
+        }
+        if (char === "{") {
+            braceDepth += 1;
+            continue;
+        }
+        if (char === "}") {
+            if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+                return index;
+            }
+            braceDepth -= 1;
+            continue;
+        }
+        if (char === "[") {
+            bracketDepth += 1;
+            continue;
+        }
+        if (char === "]") {
+            bracketDepth -= 1;
+            continue;
+        }
+
+        if (char === "," && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0) {
+            return index;
+        }
+    }
+
+    return closeIndex;
+}
+
+function inferObjectPropertyIndent(objectSource: string): string {
+    const propertyMatch = objectSource.match(/\n(\s+)[A-Za-z"'`]/);
+    if (propertyMatch?.[1]) {
+        return propertyMatch[1];
+    }
+
+    const closeMatch = objectSource.match(/\n(\s*)\}$/);
+    return `${closeMatch?.[1] ?? ""}    `;
+}
+
+function indentObjectPropertyValue(valueSource: string, propertyIndent: string): string {
+    const nestedIndent = `${propertyIndent}    `;
+    return valueSource.replaceAll("\n", `\n${nestedIndent}`);
+}
+
+function cloneMaterializedTargetViteOptions(
+    vite: NormalizedMainzTarget["vite"],
+): MaterializedTargetViteOptions {
+    return {
+        alias: Array.isArray(vite?.alias)
+            ? vite.alias.map((entry) => ({
+                find: entry.find,
+                replacement: entry.replacement,
+            }))
+            : undefined,
+        define: vite?.define ? { ...vite.define } : undefined,
+    };
+}
+
+function renderViteOptionsSource(vite: MaterializedTargetViteOptions): string {
+    const lines = ["{"];
+
+    if (Array.isArray(vite.alias) && vite.alias.length > 0) {
+        lines.push("    alias: [");
+        for (const entry of vite.alias) {
+            lines.push(
+                `        { find: ${JSON.stringify(entry.find)}, replacement: ${
+                    JSON.stringify(entry.replacement)
+                } },`,
+            );
+        }
+        lines.push("    ],");
+    }
+
+    if (vite.define && Object.keys(vite.define).length > 0) {
+        lines.push("    define: {");
+        for (const [key, value] of Object.entries(vite.define)) {
+            lines.push(`        ${JSON.stringify(key)}: ${JSON.stringify(value)},`);
+        }
+        lines.push("    },");
+    }
+
+    lines.push("}");
+    return lines.join("\n");
+}
+
+async function readMaterializedViteMetadata(
+    configPath: string,
+    runtime: MainzToolingRuntime,
+): Promise<MaterializedViteMetadata | undefined> {
+    if (!(await pathExists(configPath, runtime))) {
+        return undefined;
+    }
+
+    const source = await runtime.readTextFile(configPath);
+    const metadataLine = source.split(/\r?\n/u).find((line) =>
+        line.startsWith(materializedViteMetadataPrefix)
+    );
+    if (!metadataLine) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(
+            metadataLine.slice(materializedViteMetadataPrefix.length),
+        ) as MaterializedViteMetadata;
+    } catch {
+        return undefined;
+    }
+}
+
+async function clearGeneratedViteArtifacts(
+    runtime: MainzToolingRuntime,
+    cwd: string,
+): Promise<void> {
+    const generatedDirs = [
+        resolveMainzTempPath(cwd, "vite-configs"),
+        resolveMainzTempPath(cwd, "vite-cache"),
+        resolve(cwd, ".mainz-temp", "vite-configs"),
+        resolve(cwd, ".mainz-temp", "vite-cache"),
+        resolve(cwd, "node_modules", ".mainz", "vite"),
+        resolve(cwd, "node_modules", ".mainz-temp", "vite-configs"),
+        resolve(cwd, "node_modules", ".mainz-temp", "vite-cache"),
+    ];
+    for (const generatedDir of generatedDirs) {
+        if (await pathExists(generatedDir, runtime)) {
+            await runtime.remove(generatedDir, { recursive: true });
+        }
+    }
+}
+
+function resolveCliViteBasePath(
+    basePath: string,
+    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+): string {
+    if (navigationMode === "spa") {
+        return normalizeCliAbsoluteBasePath(basePath);
+    }
+
+    return toCliViteBasePath(basePath);
+}
+
+function normalizeCliAbsoluteBasePath(basePath: string): string {
+    const trimmed = basePath.trim();
+    if (!trimmed || trimmed === "." || trimmed === "./") {
+        return "/";
+    }
+
+    let normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+    if (!normalized.endsWith("/")) {
+        normalized = `${normalized}/`;
+    }
+
+    return normalized.replace(/\/{2,}/g, "/");
+}
+
+function toCliViteBasePath(basePath: string): string {
+    const normalized = normalizeCliAbsoluteBasePath(basePath);
+    return normalized === "/" ? "./" : normalized;
 }
 
 function renderConfigTarget(target: {

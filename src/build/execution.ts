@@ -13,8 +13,7 @@ import {
 import type { BuildJob } from "./jobs.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 import { resolveEffectiveNavigationMode } from "./profiles.ts";
-import { renderGeneratedViteConfigModule, resolveGeneratedViteConfig } from "./vite-config.ts";
-import { createGeneratedViteConfigDir } from "./vite-workspace.ts";
+import { resolveViteConfigArtifact } from "./vite-resolution.ts";
 
 export async function runBuildJobs(
     config: NormalizedMainzConfig,
@@ -207,44 +206,7 @@ async function resolveViteConfigPathForTarget(args: {
     siteUrl?: string;
     devSsgDebug?: boolean;
 }): Promise<{ path: string; cleanup?: () => Promise<void> }> {
-    if (args.target.viteConfig) {
-        return {
-            path: normalizePathSlashes(resolve(args.cwd, args.target.viteConfig)),
-        };
-    }
-
-    const tempDir = await createGeneratedViteConfigDir(args.cwd, args.runtime);
-    const viteConfigPath = normalizePathSlashes(
-        resolve(tempDir, `vite.config.${args.target.name}.generated.mjs`),
-    );
-    const generatedConfig = resolveGeneratedViteConfig({
-        cwd: args.cwd,
-        target: args.target,
-        modeOutDir: args.modeOutDir,
-        renderMode: args.renderMode,
-        navigationMode: args.navigationMode,
-        basePath: args.basePath,
-        appLocales: args.appLocales,
-        defaultLocale: args.defaultLocale,
-        localePrefix: args.localePrefix,
-        siteUrl: args.siteUrl,
-        devSsgDebug: args.devSsgDebug,
-        cacheDir: args.runtime.name === "node"
-            ? join("node_modules", ".vite", "mainz", args.target.name)
-            : undefined,
-    });
-
-    await args.runtime.writeTextFile(
-        viteConfigPath,
-        renderGeneratedViteConfigModule(generatedConfig, args.runtime.name),
-    );
-
-    return {
-        path: viteConfigPath,
-        async cleanup() {
-            await args.runtime.remove(tempDir, { recursive: true });
-        },
-    };
+    return await resolveViteConfigArtifact(args);
 }
 
 async function runViteBuild(args: {

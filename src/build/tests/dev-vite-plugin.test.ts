@@ -991,6 +991,288 @@ Deno.test("build/dev-vite-plugin: should invalidate cached prerendered html duri
     }
 });
 
+Deno.test("build/dev-vite-plugin: should ignore changing Vite timestamp queries when loading SSR modules", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-stable-ssr-" });
+
+    try {
+        const rootDir = `${cwd.replaceAll("\\", "/")}/app`;
+        await Deno.mkdir(`${rootDir}/src`, { recursive: true });
+        await writeTestAppDefinition(rootDir);
+        await Deno.writeTextFile(
+            `${rootDir}/index.html`,
+            [
+                "<!doctype html>",
+                "<html>",
+                "  <body>",
+                '    <main id="app"></main>',
+                '    <script type="module" src="/src/main.js"></script>',
+                "  </body>",
+                "</html>",
+            ].join("\n"),
+        );
+
+        const plugin = createMainzDevRouteMiddlewarePlugin({
+            cwd,
+            runtimeName: "deno",
+            target: {
+                name: "app",
+                rootDir: "app",
+                appFile: "app/src/app.tsx",
+                appId: "app",
+                outDir: "dist/app",
+            },
+            profile: {
+                name: "development",
+                basePath: "/",
+            },
+            defaultLocale: "en",
+            localePrefix: "except-default",
+        });
+
+        const middlewareHandlers: Array<
+            (
+                req: { method?: string; headers: Record<string, string>; url?: string },
+                res: ReturnType<typeof createMockResponse>,
+                next: (error?: Error) => void,
+            ) => Promise<void> | void
+        > = [];
+        let transformCallCount = 0;
+        const loadedSpecifiers: string[] = [];
+
+        invokeConfigureServer(plugin, {
+            config: {
+                server: {
+                    https: false,
+                },
+            },
+            watcher: {
+                on() {
+                    return this;
+                },
+            },
+            middlewares: {
+                use(handler: unknown) {
+                    middlewareHandlers.push(handler as typeof middlewareHandlers[number]);
+                    return this;
+                },
+            },
+            async transformIndexHtml(_url: string, html: string) {
+                transformCallCount += 1;
+                return html.replace(
+                    'src="/src/main.js"',
+                    `src="/src/main.js?t=${transformCallCount}"`,
+                );
+            },
+            async ssrLoadModule(specifier: string) {
+                loadedSpecifiers.push(specifier);
+                const app = document.querySelector("#app");
+                if (!app) {
+                    throw new Error("Missing #app");
+                }
+
+                app.innerHTML = "<section data-page=\"docs\">Stable SSR module</section>";
+                const element = app.firstElementChild as (Element & { props?: unknown }) | null;
+                if (!element) {
+                    throw new Error("Missing rendered page element.");
+                }
+
+                element.props = {
+                    route: {
+                        path: "/docs",
+                        matchedPath: "/docs",
+                        params: {},
+                        locale: "en",
+                    },
+                };
+            },
+        } as never);
+
+        const middleware = middlewareHandlers[0];
+        if (!middleware) {
+            throw new Error("Expected Mainz dev middleware to be registered.");
+        }
+
+        const first = createMockResponse();
+        await middleware(
+            {
+                method: "GET",
+                headers: {
+                    accept: "text/html",
+                    host: "localhost:5173",
+                },
+                url: "/docs",
+            },
+            first,
+            (error?: Error) => {
+                if (error) {
+                    throw error;
+                }
+            },
+        );
+        assertStringIncludes(first.body, "Stable SSR module");
+
+        invokeHandleHotUpdate(plugin, {
+            file: `${rootDir}/src/main.js`,
+        });
+
+        const second = createMockResponse();
+        await middleware(
+            {
+                method: "GET",
+                headers: {
+                    accept: "text/html",
+                    host: "localhost:5173",
+                },
+                url: "/docs",
+            },
+            second,
+            (error?: Error) => {
+                if (error) {
+                    throw error;
+                }
+            },
+        );
+        assertStringIncludes(second.body, "Stable SSR module");
+
+        assertEquals(loadedSpecifiers, [
+            "/src/main.js?ssg=mainz-dev",
+            "/src/main.js?ssg=mainz-dev",
+        ]);
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("build/dev-vite-plugin: should strip changing Vite timestamp queries from the served dev HTML", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-stable-html-" });
+
+    try {
+        const rootDir = `${cwd.replaceAll("\\", "/")}/app`;
+        await Deno.mkdir(`${rootDir}/src`, { recursive: true });
+        await writeTestAppDefinition(rootDir);
+        await Deno.writeTextFile(
+            `${rootDir}/index.html`,
+            [
+                "<!doctype html>",
+                "<html>",
+                "  <body>",
+                '    <main id="app"></main>',
+                '    <script type="module" src="/src/main.js"></script>',
+                "  </body>",
+                "</html>",
+            ].join("\n"),
+        );
+
+        const plugin = createMainzDevRouteMiddlewarePlugin({
+            cwd,
+            runtimeName: "deno",
+            target: {
+                name: "app",
+                rootDir: "app",
+                appFile: "app/src/app.tsx",
+                appId: "app",
+                outDir: "dist/app",
+            },
+            profile: {
+                name: "development",
+                basePath: "/",
+            },
+            defaultLocale: "en",
+            localePrefix: "except-default",
+        });
+
+        const middlewareHandlers: Array<
+            (
+                req: { method?: string; headers: Record<string, string>; url?: string },
+                res: ReturnType<typeof createMockResponse>,
+                next: (error?: Error) => void,
+            ) => Promise<void> | void
+        > = [];
+        let transformCallCount = 0;
+
+        invokeConfigureServer(plugin, {
+            config: {
+                server: {
+                    https: false,
+                },
+            },
+            watcher: {
+                on() {
+                    return this;
+                },
+            },
+            middlewares: {
+                use(handler: unknown) {
+                    middlewareHandlers.push(handler as typeof middlewareHandlers[number]);
+                    return this;
+                },
+            },
+            async transformIndexHtml(_url: string, html: string) {
+                transformCallCount += 1;
+                return html.replace(
+                    'src="/src/main.js"',
+                    `src="/src/main.js?foo=bar&t=${transformCallCount}"`,
+                );
+            },
+            async ssrLoadModule() {
+                const app = document.querySelector("#app");
+                if (!app) {
+                    throw new Error("Missing #app");
+                }
+
+                app.innerHTML = "<section data-page=\"docs\">Stable HTML</section>";
+                const element = app.firstElementChild as (Element & { props?: unknown }) | null;
+                if (!element) {
+                    throw new Error("Missing rendered page element.");
+                }
+
+                element.props = {
+                    route: {
+                        path: "/docs",
+                        matchedPath: "/docs",
+                        params: {},
+                        locale: "en",
+                    },
+                };
+            },
+        } as never);
+
+        const middleware = middlewareHandlers[0];
+        if (!middleware) {
+            throw new Error("Expected Mainz dev middleware to be registered.");
+        }
+
+        for (let index = 0; index < 2; index += 1) {
+            invokeHandleHotUpdate(plugin, {
+                file: `${rootDir}/src/main.js`,
+            });
+
+            const res = createMockResponse();
+            await middleware(
+                {
+                    method: "GET",
+                    headers: {
+                        accept: "text/html",
+                        host: "localhost:5173",
+                    },
+                    url: "/docs",
+                },
+                res,
+                (error?: Error) => {
+                    if (error) {
+                        throw error;
+                    }
+                },
+            );
+
+            assertStringIncludes(res.body, 'src="/src/main.js?foo=bar"');
+            assertEquals(res.body.includes('src="/src/main.js?foo=bar&t='), false);
+        }
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
 Deno.test("build/dev-vite-plugin: should refresh title and managed head metadata after watcher invalidation", async () => {
     const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-head-cache-" });
 

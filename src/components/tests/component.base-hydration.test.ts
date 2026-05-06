@@ -4,10 +4,12 @@ import { assertEquals } from "@std/assert";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Window } from "happy-dom";
+import { cleanupHappyDomWindow } from "../../ssg/happy-dom.ts";
 
 Deno.test("components/component: should hydrate deferred HTMLElement base before custom element registration", async () => {
     const globalScope = globalThis as Record<string, unknown>;
     const preservedGlobals = new Map<string, unknown>();
+    let windowInstance: Window | undefined;
     const managedGlobals = [
         "window",
         "document",
@@ -46,7 +48,7 @@ Deno.test("components/component: should hydrate deferred HTMLElement base before
             }
         }
 
-        const windowInstance = new Window({
+        windowInstance = new Window({
             url: "http://localhost/",
         });
 
@@ -85,6 +87,10 @@ Deno.test("components/component: should hydrate deferred HTMLElement base before
         assertEquals(element instanceof windowInstance.HTMLElement, true);
         assertEquals(element instanceof DeferredComponent, true);
     } finally {
+        if (windowInstance) {
+            await cleanupHappyDomWindow(windowInstance);
+        }
+
         for (const key of managedGlobals) {
             const previousValue = preservedGlobals.get(key);
             if (typeof previousValue === "undefined") {

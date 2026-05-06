@@ -144,17 +144,28 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     });
     const moduleSource = renderGeneratedViteConfigModule(generated);
 
-    assertStringIncludes(moduleSource, `import deno from "@deno/vite-plugin";`);
-    assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
-    assertStringIncludes(moduleSource, `import { createMainzDevRouteMiddlewarePlugin } from `);
-    assertStringIncludes(moduleSource, `plugins: [`);
-    assertStringIncludes(moduleSource, `createMainzDevRouteMiddlewarePlugin({`);
+    assertStringIncludes(
+        moduleSource,
+        `import { createMainzGeneratedVitePlugins } from `,
+    );
+    assertStringIncludes(moduleSource, `import ts from "file:///`);
+    assertStringIncludes(moduleSource, `import deno from "file:///`);
+    assertStringIncludes(moduleSource, `// @mainz-generated-vite-config`);
+    assertStringIncludes(
+        moduleSource,
+        `import { defineConfig } from "vite";`,
+    );
+    assertStringIncludes(moduleSource, `plugins: createMainzGeneratedVitePlugins({`);
+    assertStringIncludes(moduleSource, `"runtimeName": "deno"`);
     assertStringIncludes(moduleSource, `"debugSsg": false`);
-    assertStringIncludes(moduleSource, `preserveJsx: true`);
     assertStringIncludes(moduleSource, `appType: "spa"`);
     assertStringIncludes(moduleSource, `{ find: "mainz", replacement:`);
     assertStringIncludes(moduleSource, `{ find: "mainz/jsx-runtime", replacement:`);
     assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);
+    assertStringIncludes(moduleSource, `awaitWriteFinish: {`);
+    assertStringIncludes(moduleSource, `stabilityThreshold: 250`);
+    assertStringIncludes(moduleSource, `pollInterval: 25`);
+    assertEquals(moduleSource.includes(`mainz-typescript-decorators`), false);
 });
 
 Deno.test("build/vite-config: should render a Node Vite config module without the Deno plugin", () => {
@@ -180,19 +191,22 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
             basePath: "/",
             appLocales: [],
             localePrefix: "except-default",
-            cacheDir: "node_modules/.vite/mainz/site",
+            cacheDir: ".mainz_temp/vite-cache/site",
         });
         const moduleSource = renderGeneratedViteConfigModule(generated, "node");
 
         assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
-        assertEquals(moduleSource.includes(`import deno from "@deno/vite-plugin";`), false);
-        assertStringIncludes(moduleSource, `createMainzDevRouteMiddlewarePlugin({`);
+        assertStringIncludes(moduleSource, `import { createMainzGeneratedVitePlugins } from `);
+        assertStringIncludes(moduleSource, `plugins: createMainzGeneratedVitePlugins({`);
+        assertStringIncludes(moduleSource, `"runtimeName": "node"`);
         assertStringIncludes(moduleSource, `"debugSsg": false`);
         assertStringIncludes(moduleSource, `appType: "spa"`);
         assertStringIncludes(
             moduleSource,
             `cacheDir: ${
-                JSON.stringify(normalizePath(resolve(cwd, "node_modules/.vite/mainz/site")))
+                JSON.stringify(
+                    normalizePath(resolve(cwd, ".mainz_temp/vite-cache/site")),
+                )
             }`,
         );
         assertStringIncludes(moduleSource, `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`);

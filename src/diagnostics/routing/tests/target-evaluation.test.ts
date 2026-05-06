@@ -4,6 +4,7 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { normalizeMainzConfig } from "../../../config/index.ts";
 import { createFixtureTargetConfig } from "../../../../tests/helpers/fixture-config.ts";
+import { makeMainzTempDir } from "../../../../tests/helpers/temp.ts";
 import { cliTestsRepoRoot } from "../../../../tests/helpers/types.ts";
 import { resolveTargetDiagnosticsEvaluationsForTarget } from "../target-evaluation.ts";
 
@@ -112,9 +113,10 @@ Deno.test("diagnostics/routing: target evaluation should read app-owned authoriz
 });
 
 Deno.test("diagnostics/routing: target evaluation should report when a discovered routed app is missing id", async () => {
-    const tempRoot = await Deno.makeTempDir({
-        dir: cliTestsRepoRoot,
-        prefix: ".mainz-route-app-id-",
+    const tempRoot = await makeMainzTempDir({
+        cwd: cliTestsRepoRoot,
+        prefix: "route-app-id-",
+        subdirectories: ["tests", "routing"],
     });
     const srcDir = resolve(tempRoot, "src");
     const pagesDir = resolve(srcDir, "pages");

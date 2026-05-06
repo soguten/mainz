@@ -25,71 +25,57 @@ export type RenderMainzOptions<T extends HTMLElement> = {
     >;
 };
 
+let domInitialized = false;
+
 type HappyDOMLike = {
+    whenAsyncComplete?: () => Promise<void>;
     waitUntilComplete?: () => Promise<void>;
 };
 
-let domInitialized = false;
-let domSettled = false;
-let domSetupPromise: Promise<void> | null = null;
-
 /** Sets up the Happy DOM globals used by Mainz component tests. */
-export function setupMainzDom(): Promise<void> {
-    if (domSettled) {
-        return Promise.resolve();
-    }
-
-    if (domSetupPromise) {
-        return domSetupPromise;
-    }
-
+export async function setupMainzDom(): Promise<void> {
     if (!domInitialized) {
-        const windowInstance = new Window({
-            url: "http://localhost/",
-        });
-
-        const globalScope = globalThis as Record<string, unknown>;
-
-        globalScope.window = windowInstance;
-        globalScope.document = windowInstance.document;
-        globalScope.customElements = windowInstance.customElements;
-        globalScope.HTMLElement = windowInstance.HTMLElement;
-        globalScope.HTMLInputElement = windowInstance.HTMLInputElement;
-        globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
-        globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
-        globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
-        globalScope.Node = windowInstance.Node;
-        globalScope.Element = windowInstance.Element;
-        globalScope.Text = windowInstance.Text;
-        globalScope.DocumentFragment = windowInstance.DocumentFragment;
-        globalScope.EventTarget = windowInstance.EventTarget;
-        globalScope.Event = windowInstance.Event;
-        globalScope.MouseEvent = windowInstance.MouseEvent;
-        globalScope.KeyboardEvent = windowInstance.KeyboardEvent;
-        globalScope.CustomEvent = windowInstance.CustomEvent;
-
-        domInitialized = true;
-
-        const happyDOM = (windowInstance as unknown as { happyDOM?: HappyDOMLike }).happyDOM;
-
-        domSetupPromise = (async () => {
-            if (happyDOM?.waitUntilComplete) {
-                await happyDOM.waitUntilComplete();
-            }
-            domSettled = true;
-        })()
-            .catch((error) => {
-                domInitialized = false;
-                throw error;
-            })
-            .finally(() => {
-                domSetupPromise = null;
-            });
-
-        return domSetupPromise;
+        initializeMainzDom();
     }
 
-    return Promise.resolve();
+    const happyDOM = (window as unknown as { happyDOM?: HappyDOMLike }).happyDOM;
+
+    if (typeof happyDOM?.whenAsyncComplete === "function") {
+        await happyDOM.whenAsyncComplete();
+        return;
+    }
+
+    if (typeof happyDOM?.waitUntilComplete === "function") {
+        await happyDOM.waitUntilComplete();
+    }
+}
+
+function initializeMainzDom(): void {
+    const windowInstance = new Window({
+        url: "http://localhost/",
+    });
+
+    const globalScope = globalThis as Record<string, unknown>;
+
+    globalScope.window = windowInstance;
+    globalScope.document = windowInstance.document;
+    globalScope.customElements = windowInstance.customElements;
+    globalScope.HTMLElement = windowInstance.HTMLElement;
+    globalScope.HTMLInputElement = windowInstance.HTMLInputElement;
+    globalScope.HTMLButtonElement = windowInstance.HTMLButtonElement;
+    globalScope.HTMLTextAreaElement = windowInstance.HTMLTextAreaElement;
+    globalScope.HTMLSelectElement = windowInstance.HTMLSelectElement;
+    globalScope.Node = windowInstance.Node;
+    globalScope.Element = windowInstance.Element;
+    globalScope.Text = windowInstance.Text;
+    globalScope.DocumentFragment = windowInstance.DocumentFragment;
+    globalScope.EventTarget = windowInstance.EventTarget;
+    globalScope.Event = windowInstance.Event;
+    globalScope.MouseEvent = windowInstance.MouseEvent;
+    globalScope.KeyboardEvent = windowInstance.KeyboardEvent;
+    globalScope.CustomEvent = windowInstance.CustomEvent;
+
+    domInitialized = true;
 }
 
 function ensureTestRoot(): HTMLElement {
@@ -125,7 +111,9 @@ export function renderMainzComponent<T extends HTMLElement>(
     Ctor: MainzComponentCtor<T>,
     options: RenderMainzOptions<T> = {},
 ): RenderResult<T> {
-    void setupMainzDom();
+    if (!domInitialized) {
+        initializeMainzDom();
+    }
 
     const host = document.createElement("div");
     host.setAttribute("data-testid", "mainz-host");

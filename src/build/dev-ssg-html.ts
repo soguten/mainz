@@ -28,7 +28,9 @@ export async function renderDevSsgHtml(args: {
 }): Promise<string> {
     const absoluteIndexHtmlPath = resolve(args.cwd, args.targetRootDir, "index.html");
     const templateHtml = await args.runtime.readTextFile(absoluteIndexHtmlPath);
-    const transformedHtml = await args.transformIndexHtml(args.requestUrl.pathname, templateHtml);
+    const transformedHtml = stripViteTimestampFromModuleScripts(
+        await args.transformIndexHtml(args.requestUrl.pathname, templateHtml),
+    );
     const locale = args.locale ?? args.route.locales[0] ?? "en";
 
     let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
@@ -78,4 +80,27 @@ export async function renderDevSsgHtml(args: {
     });
 
     return html;
+}
+
+function stripViteTimestampFromModuleScripts(html: string): string {
+    return html.replace(
+        /(<script\b[^>]*type=["']module["'][^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi,
+        (_match, prefix: string, src: string, suffix: string) => {
+            return `${prefix}${stripViteTimestampFromSrc(src)}${suffix}`;
+        },
+    );
+}
+
+function stripViteTimestampFromSrc(src: string): string {
+    const [pathAndQuery, hash = ""] = src.split("#", 2);
+    const [pathname, query = ""] = pathAndQuery.split("?", 2);
+    if (!query) {
+        return src;
+    }
+
+    const params = new URLSearchParams(query);
+    params.delete("t");
+    const normalizedQuery = params.toString();
+    const normalizedHash = hash ? `#${hash}` : "";
+    return normalizedQuery ? `${pathname}?${normalizedQuery}${normalizedHash}` : `${pathname}${normalizedHash}`;
 }

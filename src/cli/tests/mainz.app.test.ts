@@ -427,7 +427,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
         };
         denoConfig.imports = {
             "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-            "happy-dom": "npm:happy-dom@20.1.1",
+            "happy-dom": "npm:happy-dom@20.9.0",
             mainz: toFileSpecifier(resolve(cliTestsRepoRoot, "mod.ts")),
             "mainz/config": toFileSpecifier(resolve(cliTestsRepoRoot, "src", "config", "index.ts")),
             "mainz/jsx-dev-runtime": toFileSpecifier(
@@ -436,7 +436,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
             "mainz/jsx-runtime": toFileSpecifier(
                 resolve(cliTestsRepoRoot, "src", "jsx-runtime.ts"),
             ),
-            vite: "npm:vite@7.3.1",
+            vite: "npm:vite@8.0.10",
         };
         await Deno.writeTextFile(denoConfigPath, JSON.stringify(denoConfig, null, 4));
         const bootstrapConfigPath = resolve(cwd, "mainz-cli-bootstrap.deno.json");
@@ -445,7 +445,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
             JSON.stringify(
                 {
                     imports: {
-                        "happy-dom": "npm:happy-dom@20.1.1",
+                        "happy-dom": "npm:happy-dom@20.9.0",
                     },
                 },
                 null,
@@ -1105,6 +1105,136 @@ Deno.test("cli/mainz app: info should print one target as JSON", async () => {
         assertEquals(info.appFile, "./site/src/app.ts");
         assertEquals(info.outDir, "dist/site");
         assertEquals(info.vite.source, "generated");
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz vite: materialize should write a managed Vite config and switch the target", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-vite-materialize-" });
+
+    try {
+        const init = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+
+        const create = await runCreateRoutedApp(cwd, "site");
+        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
+
+        await Deno.writeTextFile(
+            resolve(cwd, "mainz.config.ts"),
+            [
+                'import { defineMainzConfig } from "mainz/config";',
+                "",
+                "export default defineMainzConfig({",
+                '    runtime: "deno",',
+                "    targets: [",
+                "        {",
+                '            name: "site",',
+                '            rootDir: "./site",',
+                '            appFile: "./site/src/app.ts",',
+                '            appId: "site",',
+                '            outDir: "dist/site",',
+                "            vite: {",
+                "                alias: [",
+                '                    { find: "@content", replacement: "./site/src/content" },',
+                "                ],",
+                "                define: {",
+                '                    "__SITE_FLAG__": "true",',
+                "                },",
+                "            },",
+                "        },",
+                "    ],",
+                "});",
+                "",
+            ].join("\n"),
+        );
+
+        const result = await runMainz(cwd, ["vite", "materialize", "--target", "site"]);
+        assertEquals(result.code, 0, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertStringIncludes(config, 'viteConfig: "./site/vite.config.ts"');
+        assertEquals(config.includes("vite: {"), false);
+
+        const materialized = await Deno.readTextFile(resolve(cwd, "site", "vite.config.ts"));
+        assertStringIncludes(materialized, "@mainz-materialized-vite-config");
+        assertStringIncludes(materialized, "@mainz-materialized-vite-metadata");
+        assertStringIncludes(materialized, 'import { defineConfig } from "vite";');
+        assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
+        assertStringIncludes(materialized, '"@content"');
+    } finally {
+        await Deno.remove(cwd, { recursive: true });
+    }
+});
+
+Deno.test("cli/mainz vite: dematerialize should remove the managed Vite config and restore vite extensions", async () => {
+    const cwd = await Deno.makeTempDir({ prefix: "mainz-vite-dematerialize-" });
+
+    try {
+        const init = await runMainz(cwd, [
+            "init",
+            "--mainz",
+            "jsr:@mainz/mainz@0.1.0-alpha.99",
+        ]);
+        assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+
+        const create = await runCreateRoutedApp(cwd, "site");
+        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
+
+        await Deno.writeTextFile(
+            resolve(cwd, "mainz.config.ts"),
+            [
+                'import { defineMainzConfig } from "mainz/config";',
+                "",
+                "export default defineMainzConfig({",
+                '    runtime: "deno",',
+                "    targets: [",
+                "        {",
+                '            name: "site",',
+                '            rootDir: "./site",',
+                '            appFile: "./site/src/app.ts",',
+                '            appId: "site",',
+                '            outDir: "dist/site",',
+                "            vite: {",
+                "                alias: [",
+                '                    { find: "@content", replacement: "./site/src/content" },',
+                "                ],",
+                "                define: {",
+                '                    "__SITE_FLAG__": "true",',
+                "                },",
+                "            },",
+                "        },",
+                "    ],",
+                "});",
+                "",
+            ].join("\n"),
+        );
+
+        const materialize = await runMainz(cwd, ["vite", "materialize", "--target", "site"]);
+        assertEquals(
+            materialize.code,
+            0,
+            `stdout:\n${materialize.stdout}\nstderr:\n${materialize.stderr}`,
+        );
+
+        const dematerialize = await runMainz(cwd, ["vite", "dematerialize", "--target", "site"]);
+        assertEquals(
+            dematerialize.code,
+            0,
+            `stdout:\n${dematerialize.stdout}\nstderr:\n${dematerialize.stderr}`,
+        );
+
+        const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+        assertEquals(config.includes('viteConfig: "./site/vite.config.ts"'), false);
+        assertStringIncludes(config, "vite: {");
+        assertStringIncludes(config, 'find: "@content"');
+        assertStringIncludes(config, '"__SITE_FLAG__": "true"');
+
+        await assertRejectsNotFound(resolve(cwd, "site", "vite.config.ts"));
     } finally {
         await Deno.remove(cwd, { recursive: true });
     }

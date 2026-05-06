@@ -13,8 +13,8 @@
     },
     "imports": {
         "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-        "happy-dom": "npm:happy-dom@20.1.1",
-        "vite": "npm:vite@7.3.1"
+        "happy-dom": "npm:happy-dom@20.9.0",
+        "vite": "npm:vite@8.0.10"
     },
     "exports": {
         ".": "./mod.cli-deno.ts"

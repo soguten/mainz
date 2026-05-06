@@ -3,13 +3,6 @@ import { extname } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import { denoToolingRuntime, nodeToolingRuntime, type ToolingRuntimeName } from "../tooling/runtime/index.ts";
 import { normalizeMainzConfig } from "../config/index.ts";
-import { resolveRoutePrerenderContext } from "./prerender-context.ts";
-import {
-    buildDevSsgCacheKey,
-    findDevNotFoundRoute,
-    resolveDevRouteRequest,
-} from "./dev-route-request.ts";
-import { renderDevSsgHtml } from "./dev-ssg-html.ts";
 
 export interface MainzDevRouteMiddlewarePluginOptions {
     cwd: string;
@@ -35,9 +28,13 @@ export interface MainzDevRouteMiddlewarePluginOptions {
 export function createMainzDevRouteMiddlewarePlugin(
     options: MainzDevRouteMiddlewarePluginOptions,
 ): Plugin {
-    let cachedContext: Awaited<ReturnType<typeof resolveRoutePrerenderContext>> | undefined;
-    let contextPromise: Promise<Awaited<ReturnType<typeof resolveRoutePrerenderContext>>> | undefined;
+    const invalidateCooldownMs = 25;
+    let cachedContext: Awaited<ReturnType<DevPluginRuntime["resolveRoutePrerenderContext"]>> | undefined;
+    let contextPromise:
+        | Promise<Awaited<ReturnType<DevPluginRuntime["resolveRoutePrerenderContext"]>>>
+        | undefined;
     const cachedHtmlByRequestKey = new Map<string, string>();
+    let lastInvalidateAt = 0;
     const normalizedConfig = normalizeMainzConfig({
         runtime: options.runtimeName,
         targets: [options.target],
@@ -45,6 +42,11 @@ export function createMainzDevRouteMiddlewarePlugin(
     const target = normalizedConfig.targets[0];
 
     const invalidate = () => {
+        const now = Date.now();
+        if (now - lastInvalidateAt < invalidateCooldownMs) {
+            return;
+        }
+        lastInvalidateAt = now;
         cachedContext = undefined;
         contextPromise = undefined;
         cachedHtmlByRequestKey.clear();
@@ -70,7 +72,8 @@ export function createMainzDevRouteMiddlewarePlugin(
 
                 try {
                     const context = await loadPrerenderContext();
-                    const resolution = resolveDevRouteRequest({
+                    const helpers = await loadDevPluginRuntime();
+                    const resolution = helpers.resolveDevRouteRequest({
                         requestUrl,
                         basePath: options.profile.basePath,
                         manifest: context.manifest,
@@ -80,7 +83,7 @@ export function createMainzDevRouteMiddlewarePlugin(
                     });
 
                     if (resolution.kind === "ssg-missing-entry") {
-                        const notFoundRoute = findDevNotFoundRoute({
+                        const notFoundRoute = helpers.findDevNotFoundRoute({
                             manifest: context.manifest,
                             locale: resolution.locale,
                             mode: "ssg",
@@ -125,7 +128,7 @@ export function createMainzDevRouteMiddlewarePlugin(
                     }
 
                     if (resolution.kind === "unmatched") {
-                        const notFoundRoute = findDevNotFoundRoute({
+                        const notFoundRoute = helpers.findDevNotFoundRoute({
                             manifest: context.manifest,
                             locale: resolution.locale,
                             mode: "ssg",
@@ -160,7 +163,8 @@ export function createMainzDevRouteMiddlewarePlugin(
 
         if (!contextPromise) {
             const runtime = options.runtimeName === "node" ? nodeToolingRuntime : denoToolingRuntime;
-            contextPromise = resolveRoutePrerenderContext(
+            const helpers = await loadDevPluginRuntime();
+            contextPromise = helpers.resolveRoutePrerenderContext(
                 normalizedConfig,
                 {
                     target,
@@ -187,12 +191,13 @@ export function createMainzDevRouteMiddlewarePlugin(
         };
         server: ViteDevServer;
         requestUrl: URL;
-        route: Awaited<ReturnType<typeof resolveRoutePrerenderContext>>["manifest"]["routes"][number];
+        route: Awaited<ReturnType<DevPluginRuntime["resolveRoutePrerenderContext"]>>["manifest"]["routes"][number];
         params: Record<string, string>;
         locale?: string;
         statusCode: number;
     }): Promise<void> {
-        const requestKey = buildDevSsgCacheKey({
+        const helpers = await loadDevPluginRuntime();
+        const requestKey = helpers.buildDevSsgCacheKey({
             requestUrl: args.requestUrl,
             routeId: args.route.id,
             locale: args.locale,
@@ -207,7 +212,7 @@ export function createMainzDevRouteMiddlewarePlugin(
             const runtime = options.runtimeName === "node"
                 ? nodeToolingRuntime
                 : denoToolingRuntime;
-            html = await renderDevSsgHtml({
+            html = await helpers.renderDevSsgHtml({
                 cwd: options.cwd,
                 targetRootDir: target.rootDir,
                 basePath: options.profile.basePath,
@@ -297,4 +302,39 @@ function isLikelyHtmlDocumentPath(pathname: string): boolean {
     }
 
     return extname(pathname) === "";
+}
+
+type DevPluginRuntime = {
+    resolveRoutePrerenderContext: typeof import("./prerender-context.ts").resolveRoutePrerenderContext;
+    resolveDevRouteRequest: typeof import("./dev-route-request.ts").resolveDevRouteRequest;
+    findDevNotFoundRoute: typeof import("./dev-route-request.ts").findDevNotFoundRoute;
+    buildDevSsgCacheKey: typeof import("./dev-route-request.ts").buildDevSsgCacheKey;
+    renderDevSsgHtml: typeof import("./dev-ssg-html.ts").renderDevSsgHtml;
+};
+
+let devPluginRuntimePromise: Promise<DevPluginRuntime> | undefined;
+
+function loadDevPluginRuntime(): Promise<DevPluginRuntime> {
+    if (!devPluginRuntimePromise) {
+        devPluginRuntimePromise = (async () => {
+            const prerenderSpecifier = new URL("./prerender-context.ts", import.meta.url).href;
+            const routeRequestSpecifier = new URL("./dev-route-request.ts", import.meta.url).href;
+            const htmlSpecifier = new URL("./dev-ssg-html.ts", import.meta.url).href;
+            const [prerenderContext, routeRequest, devSsgHtml] = await Promise.all([
+                import(/* @vite-ignore */ prerenderSpecifier),
+                import(/* @vite-ignore */ routeRequestSpecifier),
+                import(/* @vite-ignore */ htmlSpecifier),
+            ]);
+
+            return {
+                resolveRoutePrerenderContext: prerenderContext.resolveRoutePrerenderContext,
+                resolveDevRouteRequest: routeRequest.resolveDevRouteRequest,
+                findDevNotFoundRoute: routeRequest.findDevNotFoundRoute,
+                buildDevSsgCacheKey: routeRequest.buildDevSsgCacheKey,
+                renderDevSsgHtml: devSsgHtml.renderDevSsgHtml,
+            };
+        })();
+    }
+
+    return devPluginRuntimePromise;
 }

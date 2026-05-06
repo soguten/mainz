@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
 import type { NavigationMode, RenderMode } from "../routing/index.ts";
@@ -95,6 +95,24 @@ export function renderGeneratedViteConfigModule(
     config: GeneratedViteConfig,
     runtime: ToolingRuntimeName = "deno",
 ): string {
+    return [
+        "// @mainz-generated-vite-config",
+        renderViteConfigModule(config, runtime, "generated"),
+    ].join("\n");
+}
+
+export function renderMaterializedViteConfigModule(
+    config: GeneratedViteConfig,
+    runtime: ToolingRuntimeName = "deno",
+): string {
+    return renderViteConfigModule(config, runtime, "materialized");
+}
+
+function renderViteConfigModule(
+    config: GeneratedViteConfig,
+    runtime: ToolingRuntimeName,
+    mode: "generated" | "materialized",
+): string {
     const aliases = config.aliases.map((alias) => {
         return `{ find: ${JSON.stringify(alias.find)}, replacement: ${
             JSON.stringify(alias.replacement)
@@ -102,10 +120,14 @@ export function renderGeneratedViteConfigModule(
     });
 
     const imports = [
-        `import { createMainzDevRouteMiddlewarePlugin } from ${
-            JSON.stringify(config.devMiddleware.modulePath)
+        `import { createMainzGeneratedVitePlugins } from ${
+            JSON.stringify(
+                resolveVitePluginImportSpecifier(config.devMiddleware.modulePath, runtime, mode),
+            )
         };`,
-        `import { defineConfig } from "vite";`,
+        `import { defineConfig } from ${
+            JSON.stringify(resolveGeneratedViteImportSpecifier("vite", runtime, mode))
+        };`,
     ];
     const configLines = [
         `export default defineConfig({`,
@@ -117,30 +139,36 @@ export function renderGeneratedViteConfigModule(
     }
 
     if (runtime === "deno") {
-        imports.unshift(`import deno from "@deno/vite-plugin";`);
-        configLines.push(
-            `    plugins: [`,
-            `        deno({`,
-            `        workspaceOptions: {`,
-            `            noLock: true,`,
-            `            platform: "browser",`,
-            `            preserveJsx: true,`,
-            `        },`,
-            `        }),`,
-            `        createMainzDevRouteMiddlewarePlugin(${
-                renderObjectLiteral(config.devMiddleware.options as Record<string, string>, 12)
-            }),`,
-            `    ],`,
+        imports.unshift(
+            `import deno from ${
+                JSON.stringify(
+                    resolveGeneratedViteImportSpecifier("@deno/vite-plugin", runtime, mode),
+                )
+            };`,
         );
-    } else {
-        configLines.push(
-            `    plugins: [`,
-            `        createMainzDevRouteMiddlewarePlugin(${
-                renderObjectLiteral(config.devMiddleware.options as Record<string, string>, 12)
-            }),`,
-            `    ],`,
+        imports.unshift(
+            `import ts from ${
+                JSON.stringify(
+                    resolveGeneratedViteImportSpecifier("npm:typescript@5.9.3", runtime, mode),
+                )
+            };`,
         );
     }
+
+    configLines.push(
+        `    plugins: createMainzGeneratedVitePlugins({`,
+        `        runtimeName: ${JSON.stringify(runtime)},`,
+        ...(runtime === "deno"
+            ? [
+                `        denoPluginFactory: deno,`,
+                `        typescript: ts,`,
+            ]
+            : []),
+        `        devMiddlewareOptions: ${
+            renderObjectLiteral(config.devMiddleware.options as Record<string, string>, 12)
+        },`,
+        `    }),`,
+    );
 
     configLines.push(
         `    resolve: {`,
@@ -148,10 +176,19 @@ export function renderGeneratedViteConfigModule(
         ...aliases.map((alias) => `            ${alias},`),
         `        ],`,
         `    },`,
+        `    server: {`,
+        `        watch: {`,
+        `            awaitWriteFinish: {`,
+        `                stabilityThreshold: 250,`,
+        `                pollInterval: 25,`,
+        `            },`,
+        `        },`,
+        `    },`,
         `    root: ${JSON.stringify(config.root)},`,
         `    build: {`,
         `        outDir: ${JSON.stringify(config.outDir)},`,
         `        emptyOutDir: true,`,
+        ...(runtime === "deno" ? [`        minify: false,`] : []),
         `        sourcemap: true,`,
         `    },`,
         `    define: ${renderObjectLiteral(config.define, 4)},`,
@@ -241,4 +278,39 @@ function normalizePathSlashes(path: string): string {
 function resolveMainzBuildModulePath(relativePath: string): string {
     const currentDir = dirname(fileURLToPath(import.meta.url));
     return normalizePathSlashes(resolve(currentDir, relativePath));
+}
+
+function resolveGeneratedViteImportSpecifier(
+    specifier: "vite" | "@deno/vite-plugin" | "npm:typescript@5.9.3",
+    runtime: ToolingRuntimeName,
+    mode: "generated" | "materialized" = "generated",
+): string {
+    if (runtime === "deno" && mode === "generated" && specifier !== "vite") {
+        return import.meta.resolve(specifier);
+    }
+
+    return specifier;
+}
+
+function resolveGeneratedModuleImportSpecifier(path: string, runtime: ToolingRuntimeName): string {
+    if (runtime === "deno") {
+        return pathToFileURL(path).href;
+    }
+
+    return path;
+}
+
+function resolveVitePluginImportSpecifier(
+    path: string,
+    runtime: ToolingRuntimeName,
+    mode: "generated" | "materialized",
+): string {
+    if (mode === "materialized") {
+        return "mainz/tooling/build";
+    }
+
+    return resolveGeneratedModuleImportSpecifier(
+        path.replace("dev-vite-plugin.ts", "vite-plugin-factory.ts"),
+        runtime,
+    );
 }

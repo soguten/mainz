@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
 import { runMainzCliCommand } from "../../../tests/helpers/cli.ts";
+import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 
 const cliTestsRepoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const decoder = new TextDecoder();
@@ -217,8 +218,10 @@ Deno.test("cli/mainz: diagnose should support selecting one root-only app by id"
 });
 
 Deno.test("cli/mainz: diagnose should surface duplicate stable command ids for the selected app", async () => {
-    const tempRoot = await Deno.makeTempDir({
-        prefix: ".mainz-cli-command-diagnostics-",
+    const tempRoot = await makeMainzTempDir({
+        cwd: cliTestsRepoRoot,
+        prefix: "cli-command-diagnostics-",
+        subdirectories: ["tests", "cli-diagnostics"],
     });
     const srcDir = resolve(tempRoot, "src");
 

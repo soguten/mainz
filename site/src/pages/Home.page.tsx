@@ -6,20 +6,20 @@ import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-    override head() {
-        return {
-            title: "Mainz",
-            meta: [
-                {
-                    name: "description",
-                    content:
-                        "Mainz tutorial experience with component-first UI and page-first routing.",
-                },
-            ],
-        };
-    }
+  override head() {
+    return {
+      title: "Mainz",
+      meta: [
+        {
+          name: "description",
+          content:
+            "Mainz tutorial experience with component-first UI and page-first routing.",
+        },
+      ],
+    };
+  }
 
-    override render() {
-        return <MainzTutorialPage />;
-    }
+  override render() {
+    return <MainzTutorialPage />;
+  }
 }
