@@ -1,5 +1,5 @@
 {
-    "kind": "project",
-    "name": "starter",
-    "runtime": "node"
+  "kind": "project",
+  "name": "starter",
+  "runtime": "node"
 }

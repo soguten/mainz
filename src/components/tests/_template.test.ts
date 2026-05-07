@@ -13,16 +13,18 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 await setupMainzDom();
 
 // Replace `[group]` and rename this file for the suite.
-const fixtures = await import("./_template.fixture.tsx") as typeof import("./_template.fixture.tsx");
+const fixtures = await import(
+  "./_template.fixture.tsx"
+) as typeof import("./_template.fixture.tsx");
 
 Deno.test.ignore("[group]: should ...", () => {
-    const screen = renderMainzComponent(fixtures.ExampleComponent);
+  const screen = renderMainzComponent(fixtures.ExampleComponent);
 
-    // act
-    screen.click("button");
+  // act
+  screen.click("button");
 
-    // assert
-    assertEquals(screen.getBySelector("button").textContent, "1");
+  // assert
+  assertEquals(screen.getBySelector("button").textContent, "1");
 
-    screen.cleanup();
+  screen.cleanup();
 });

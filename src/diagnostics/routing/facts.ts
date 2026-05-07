@@ -11,89 +11,90 @@ import { pageRenderDataWithoutExplicitDataDiagnosticCode } from "./rules/page-re
 import { pageRenderDataWithoutLoadDiagnosticCode } from "./rules/page-render-data-without-load.rule.ts";
 import { pageStaticLoadUnsupportedDiagnosticCode } from "./rules/page-static-load-unsupported.rule.ts";
 import {
-    invalidDiagnosticSuppressionCode,
-    unknownDiagnosticSuppressionCode,
-    unusedDiagnosticSuppressionCode,
+  invalidDiagnosticSuppressionCode,
+  unknownDiagnosticSuppressionCode,
+  unusedDiagnosticSuppressionCode,
 } from "../core/suppressions.ts";
 
 export type MainzDiagnosticSeverity = "warning" | "error";
-export const pageDiscoveryFailedDiagnosticCode = "page-discovery-failed" as const;
+export const pageDiscoveryFailedDiagnosticCode =
+  "page-discovery-failed" as const;
 export type MainzDiagnosticCode =
-    | typeof authorizationPolicyNotRegisteredPageDiagnosticCode
-    | typeof dynamicSsgInvalidEntriesDiagnosticCode
-    | typeof dynamicSsgMissingEntriesDiagnosticCode
-    | typeof dynamicSsgMissingLoadDiagnosticCode
-    | typeof invalidLocaleTagDiagnosticCode
-    | typeof invalidDiagnosticSuppressionCode
-    | typeof pageDiscoveryFailedDiagnosticCode
-    | typeof multipleNotFoundPagesDiagnosticCode
-    | typeof pageAuthorizationAnonymousConflictDiagnosticCode
-    | typeof pageAuthorizationSsgWarningDiagnosticCode
-    | typeof pageRenderDataWithoutExplicitDataDiagnosticCode
-    | typeof pageRenderDataWithoutLoadDiagnosticCode
-    | typeof pageStaticLoadUnsupportedDiagnosticCode
-    | typeof unknownDiagnosticSuppressionCode
-    | typeof unusedDiagnosticSuppressionCode;
+  | typeof authorizationPolicyNotRegisteredPageDiagnosticCode
+  | typeof dynamicSsgInvalidEntriesDiagnosticCode
+  | typeof dynamicSsgMissingEntriesDiagnosticCode
+  | typeof dynamicSsgMissingLoadDiagnosticCode
+  | typeof invalidLocaleTagDiagnosticCode
+  | typeof invalidDiagnosticSuppressionCode
+  | typeof pageDiscoveryFailedDiagnosticCode
+  | typeof multipleNotFoundPagesDiagnosticCode
+  | typeof pageAuthorizationAnonymousConflictDiagnosticCode
+  | typeof pageAuthorizationSsgWarningDiagnosticCode
+  | typeof pageRenderDataWithoutExplicitDataDiagnosticCode
+  | typeof pageRenderDataWithoutLoadDiagnosticCode
+  | typeof pageStaticLoadUnsupportedDiagnosticCode
+  | typeof unknownDiagnosticSuppressionCode
+  | typeof unusedDiagnosticSuppressionCode;
 
 export interface MainzDiagnostic {
-    code: MainzDiagnosticCode;
-    severity: MainzDiagnosticSeverity;
-    message: string;
-    file: string;
-    exportName: string;
-    routePath?: string;
-    subject?: string;
+  code: MainzDiagnosticCode;
+  severity: MainzDiagnosticSeverity;
+  message: string;
+  file: string;
+  exportName: string;
+  routePath?: string;
+  subject?: string;
 }
 
 export interface RouteDiagnosticsPageInput {
-    file: string;
-    exportName: string;
-    page: {
-        path: string;
-        mode: "csr" | "ssg";
-        notFound?: boolean;
-        locales?: readonly string[];
-        authorization?: PageAuthorizationMetadata;
-    };
+  file: string;
+  exportName: string;
+  page: {
+    path: string;
+    mode: "csr" | "ssg";
+    notFound?: boolean;
+    locales?: readonly string[];
+    authorization?: PageAuthorizationMetadata;
+  };
 }
 
 export interface RouteEntryDefinition {
-    params: Record<string, string>;
+  params: Record<string, string>;
 }
 
 export interface RouteEntriesUnknownFact {
-    kind: "unknown";
+  kind: "unknown";
 }
 
 export interface RouteEntriesNonArrayFact {
-    kind: "non-array";
+  kind: "non-array";
 }
 
 export interface RouteEntriesArrayFact {
-    kind: "array";
-    entries: readonly RouteEntryDefinition[];
+  kind: "array";
+  entries: readonly RouteEntryDefinition[];
 }
 
 export type RouteEntriesEvaluationFact =
-    | RouteEntriesUnknownFact
-    | RouteEntriesNonArrayFact
-    | RouteEntriesArrayFact;
+  | RouteEntriesUnknownFact
+  | RouteEntriesNonArrayFact
+  | RouteEntriesArrayFact;
 
 export interface RouteStaticMembersFact {
-    hasEntriesMember: boolean;
-    hasStaticLoadMember: boolean;
-    hasInstanceLoadMember: boolean;
+  hasEntriesMember: boolean;
+  hasStaticLoadMember: boolean;
+  hasInstanceLoadMember: boolean;
 }
 
 export interface RouteEntriesFact {
-    hasEntriesMember: boolean;
-    evaluation?: RouteEntriesEvaluationFact;
+  hasEntriesMember: boolean;
+  evaluation?: RouteEntriesEvaluationFact;
 }
 
 export interface RoutePageFacts {
-    staticMembers: RouteStaticMembersFact;
-    entriesFact: RouteEntriesFact;
-    hasRenderDataParameter: boolean;
-    renderDataParameterTypeIsUnknown: boolean;
-    hasExplicitDataContract: boolean;
+  staticMembers: RouteStaticMembersFact;
+  entriesFact: RouteEntriesFact;
+  hasRenderDataParameter: boolean;
+  renderDataParameterTypeIsUnknown: boolean;
+  hasExplicitDataContract: boolean;
 }

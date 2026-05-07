@@ -2,7 +2,8 @@
 
 A class-based TSX runtime built on Web Components.
 
-Mainz is for page-first apps where routing, page metadata, async loading, and hydration should stay close to the class that owns them.
+Mainz is for page-first apps where routing, page metadata, async loading, and
+hydration should stay close to the class that owns them.
 
 The model is intentionally small:
 
@@ -19,63 +20,67 @@ A Mainz component is just a class with props, optional state, and `render()`.
 import { Component, type NoProps } from "mainz";
 
 interface CounterState {
-    count: number;
+  count: number;
 }
 
 export class CounterCard extends Component<NoProps, CounterState> {
-    protected override initState() {
-        return { count: 0 };
-    }
+  protected override initState() {
+    return { count: 0 };
+  }
 
-    override render() {
-        return <button>{String(this.state.count)}</button>;
-    }
+  override render() {
+    return <button>{String(this.state.count)}</button>;
+  }
 }
 ```
 
 When a component owns async work, add `load()`.
 
-When a component declares `load()`, Mainz treats `blocking` as the default rendering strategy.
+When a component declares `load()`, Mainz treats `blocking` as the default
+rendering strategy.
 
 ```tsx
 import { Component, type NoState } from "mainz";
 
 interface Product {
-    title: string;
+  title: string;
 }
 
-export class ProductPanel extends Component<{ slug: string }, NoState, Product> {
-    override async load() {
-        return await getProduct(this.props.slug);
-    }
+export class ProductPanel
+  extends Component<{ slug: string }, NoState, Product> {
+  override async load() {
+    return await getProduct(this.props.slug);
+  }
 
-    override render(data: Product) {
-        return <article>{data.title}</article>;
-    }
+  override render(data: Product) {
+    return <article>{data.title}</article>;
+  }
 }
 ```
 
-If the same component also provides `placeholder()`, Mainz can infer a deferred loading shape:
+If the same component also provides `placeholder()`, Mainz can infer a deferred
+loading shape:
 
 ```tsx
 import { Component, type NoState } from "mainz";
 
 interface Product {
-    title: string;
+  title: string;
 }
 
-export class ProductPanel extends Component<{ slug: string }, NoState, Product> {
-    override async load() {
-        return await getProduct(this.props.slug);
-    }
+export class ProductPanel
+  extends Component<{ slug: string }, NoState, Product> {
+  override async load() {
+    return await getProduct(this.props.slug);
+  }
 
-    override placeholder() {
-        return <p>Loading product...</p>;
-    }
+  override placeholder() {
+    return <p>Loading product...</p>;
+  }
 
-    override render(data: Product) {
-        return <article>{data.title}</article>;
-    }
+  override render(data: Product) {
+    return <article>{data.title}</article>;
+  }
 }
 ```
 
@@ -83,22 +88,23 @@ export class ProductPanel extends Component<{ slug: string }, NoState, Product> 
 
 ## A page is just a route-owning component
 
-`Page` keeps the same class model, but adds route metadata and page concerns like `head()`.
+`Page` keeps the same class model, but adds route metadata and page concerns
+like `head()`.
 
 ```tsx
 import { Page, Route } from "mainz";
 
 @Route("/")
 export class HomePage extends Page {
-    override head() {
-        return {
-            title: "Hello Mainz",
-        };
-    }
+  override head() {
+    return {
+      title: "Hello Mainz",
+    };
+  }
 
-    override render() {
-        return <section>Hello from Mainz</section>;
-    }
+  override render() {
+    return <section>Hello from Mainz</section>;
+  }
 }
 ```
 
@@ -112,7 +118,8 @@ A page owns:
 
 By default, pages use `csr`.
 
-That means the route is rendered on the client unless the page explicitly opts into static output.
+That means the route is rendered on the client unless the page explicitly opts
+into static output.
 
 When a route should be prerendered as static HTML, add `@RenderMode("ssg")`:
 
@@ -122,13 +129,14 @@ import { Page, RenderMode, Route } from "mainz";
 @Route("/about")
 @RenderMode("ssg")
 export class AboutPage extends Page {
-    override render() {
-        return <section>About</section>;
-    }
+  override render() {
+    return <section>About</section>;
+  }
 }
 ```
 
-If the SSG route is dynamic, `entries()` expands the concrete params that should exist at build time:
+If the SSG route is dynamic, `entries()` expands the concrete params that should
+exist at build time:
 
 ```tsx
 import { Page, RenderMode, Route } from "mainz";
@@ -136,25 +144,25 @@ import { Page, RenderMode, Route } from "mainz";
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page<{}, {}, { title: string }> {
-    static entries() {
-        return docs.map((doc) => ({
-            params: { slug: doc.slug },
-        }));
-    }
+  static entries() {
+    return docs.map((doc) => ({
+      params: { slug: doc.slug },
+    }));
+  }
 
-    override async load() {
-        return await fetchDoc(this.route.params.slug);
-    }
+  override async load() {
+    return await fetchDoc(this.route.params.slug);
+  }
 
-    override head() {
-        return {
-            title: this.data.title,
-        };
-    }
+  override head() {
+    return {
+      title: this.data.title,
+    };
+  }
 
-    override render(data: { title: string }) {
-        return <article>{data.title}</article>;
-    }
+  override render(data: { title: string }) {
+    return <article>{data.title}</article>;
+  }
 }
 ```
 
@@ -171,9 +179,9 @@ import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 const app = defineApp({
-    pages: [HomePage, DocsPage],
-    notFound: NotFoundPage,
-    navigation: "spa",
+  pages: [HomePage, DocsPage],
+  notFound: NotFoundPage,
+  navigation: "spa",
 });
 
 startApp(app);
@@ -192,7 +200,8 @@ Navigation can be configured as:
 
 ## Dependency injection stays infrastructure-scoped
 
-Use DI for infrastructure like HTTP clients, API gateways, logging, and feature flags.
+Use DI for infrastructure like HTTP clients, API gateways, logging, and feature
+flags.
 
 ```tsx
 import { defineApp, startApp } from "mainz";
@@ -200,19 +209,19 @@ import { inject, singleton } from "mainz/di";
 import { HttpClient } from "mainz/http";
 
 class ArticlesApi {
-    private readonly http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
 
-    async getBySlug(slug: string) {
-        return await this.http.get(`/articles/${slug}`).json<{ title: string }>();
-    }
+  async getBySlug(slug: string) {
+    return await this.http.get(`/articles/${slug}`).json<{ title: string }>();
+  }
 }
 
 const app = defineApp({
-    pages: [HomePage],
-    services: [
-        singleton(HttpClient),
-        singleton(ArticlesApi),
-    ],
+  pages: [HomePage],
+  services: [
+    singleton(HttpClient),
+    singleton(ArticlesApi),
+  ],
 });
 
 startApp(app);
@@ -229,11 +238,13 @@ Pages and components can declare authorization metadata with decorators such as:
 - `@Authorize({ policy: "..." })`
 - `@AllowAnonymous()`
 
-That same metadata is reusable by runtime enforcement, navigation visibility, and diagnostics.
+That same metadata is reusable by runtime enforcement, navigation visibility,
+and diagnostics.
 
 ## CLI
 
-Mainz also ships with a CLI for building apps, previewing artifacts, and validating route and framework contracts.
+Mainz also ships with a CLI for building apps, previewing artifacts, and
+validating route and framework contracts.
 
 The most useful command is `diagnose`.
 
@@ -253,10 +264,10 @@ That makes it useful both in local development and in CI.
 
 ## Examples
 
-- [`examples/authorize-site`](./examples/authorize-site)
-  Authorization on pages and components with route visibility derived from the same metadata.
-- [`examples/di-http-site`](./examples/di-http-site)
-  DI, HTTP clients, service replacement, and async page/component loading.
+- [`examples/authorize-site`](./examples/authorize-site) Authorization on pages
+  and components with route visibility derived from the same metadata.
+- [`examples/di-http-site`](./examples/di-http-site) DI, HTTP clients, service
+  replacement, and async page/component loading.
 
 ## Docs
 

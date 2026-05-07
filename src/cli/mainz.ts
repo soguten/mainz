@@ -1,150 +1,161 @@
-import { basename, delimiter, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import {
+  basename,
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import process from "node:process";
 import type {
-    LoadedMainzConfig,
-    MainzRuntime,
-    NormalizedMainzConfig,
-    NormalizedMainzTarget,
+  LoadedMainzConfig,
+  MainzRuntime,
+  NormalizedMainzConfig,
+  NormalizedMainzTarget,
 } from "../config/index.ts";
 import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
 import {
-    loadTargetBuildRoutedAppDefinition,
-    renderMaterializedViteConfigModule,
-    resolveEffectiveNavigationMode,
-    resolveEngineBuildJobs,
-    resolveEngineBuildProfile,
-    resolveEnginePublicationMetadata,
-    resolveGeneratedViteConfig,
-    resolveTargetBuildProfile,
-    resolveTargetI18nConfig,
-    runEngineBuildJobs,
-    runEngineDevServer,
+  loadTargetBuildRoutedAppDefinition,
+  renderMaterializedViteConfigModule,
+  resolveEffectiveNavigationMode,
+  resolveEngineBuildJobs,
+  resolveEngineBuildProfile,
+  resolveEnginePublicationMetadata,
+  resolveGeneratedViteConfig,
+  resolveTargetBuildProfile,
+  resolveTargetI18nConfig,
+  runEngineBuildJobs,
+  runEngineDevServer,
 } from "../build/index.ts";
 import {
-    collectDiagnosticsForConfig,
-    formatDiagnosticsHuman,
-    formatDiagnosticsJson,
-    shouldFailDiagnostics,
+  collectDiagnosticsForConfig,
+  formatDiagnosticsHuman,
+  formatDiagnosticsJson,
+  shouldFailDiagnostics,
 } from "../diagnostics/index.ts";
 import { serveArtifactPreview } from "../preview/artifact-server.ts";
-import { denoToolingRuntime, nodeToolingRuntime } from "../tooling/runtime/index.ts";
+import {
+  denoToolingRuntime,
+  nodeToolingRuntime,
+} from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolveMainzTempPath } from "../tooling/temp-paths.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
 import {
-    builtInTemplateExists,
-    instantiateTemplate,
-    joinTemplateRoot,
-    listBuiltInTemplateNames as listBuiltInTemplateNamesFromBundle,
-    materializeTemplatePlan,
-    resolveBuiltInTemplateRoot,
+  builtInTemplateExists,
+  instantiateTemplate,
+  joinTemplateRoot,
+  listBuiltInTemplateNames as listBuiltInTemplateNamesFromBundle,
+  materializeTemplatePlan,
+  resolveBuiltInTemplateRoot,
 } from "./templates/index.ts";
 
 type SharedCliOptions = {
-    runtime?: MainzRuntime;
-    target?: string;
-    profile?: string;
-    configPath?: string;
+  runtime?: MainzRuntime;
+  target?: string;
+  profile?: string;
+  configPath?: string;
 };
 
 type TemplateMaterializationSource =
-    | { templateRoot: string }
-    | { templateUrl: string };
+  | { templateRoot: string }
+  | { templateUrl: string };
 
 type CliHostOption = string | true;
 
 type BuildCommandOptions = SharedCliOptions & {
-    command: "build";
+  command: "build";
 };
 
 type DevCommandOptions = SharedCliOptions & {
-    command: "dev";
-    host?: CliHostOption;
-    port?: number;
-    debugSsg?: boolean;
+  command: "dev";
+  host?: CliHostOption;
+  port?: number;
+  debugSsg?: boolean;
 };
 
 type PreviewCommandOptions = SharedCliOptions & {
-    command: "preview";
-    host?: CliHostOption;
-    port?: number;
+  command: "preview";
+  host?: CliHostOption;
+  port?: number;
 };
 
 type TestCommandOptions = SharedCliOptions & {
-    command: "test";
+  command: "test";
 };
 
 type PublishInfoCommandOptions = SharedCliOptions & {
-    command: "publish-info";
+  command: "publish-info";
 };
 
 type InitCommandOptions = {
-    command: "init";
-    name?: string;
-    runtime?: MainzRuntime;
-    configPath?: string;
-    denoConfigPath?: string;
-    mainzSpecifier?: string;
-    template?: string;
+  command: "init";
+  name?: string;
+  runtime?: MainzRuntime;
+  configPath?: string;
+  denoConfigPath?: string;
+  mainzSpecifier?: string;
+  template?: string;
 };
 
 type DiagnoseCommandOptions = SharedCliOptions & {
-    command: "diagnose";
-    app?: string;
-    format?: "json" | "human";
-    failOn?: "never" | "error" | "warning";
+  command: "diagnose";
+  app?: string;
+  format?: "json" | "human";
+  failOn?: "never" | "error" | "warning";
 };
 
 type AppCommandOptions = {
-    command: "app";
-    action: "create" | "remove" | "list" | "info";
-    name?: string;
-    template?: string;
-    type?: "routed" | "root";
-    root?: string;
-    outDir?: string;
-    navigation?: "spa" | "mpa" | "enhanced-mpa";
-    runtime?: MainzRuntime;
-    configPath?: string;
-    deleteFiles?: boolean;
+  command: "app";
+  action: "create" | "remove" | "list" | "info";
+  name?: string;
+  template?: string;
+  type?: "routed" | "root";
+  root?: string;
+  outDir?: string;
+  navigation?: "spa" | "mpa" | "enhanced-mpa";
+  runtime?: MainzRuntime;
+  configPath?: string;
+  deleteFiles?: boolean;
 };
 
 type ProfileCommandOptions = SharedCliOptions & {
-    command: "profile";
-    action: "create";
-    name: string;
-    target: string;
-    basePath?: string;
-    siteUrl?: string;
+  command: "profile";
+  action: "create";
+  name: string;
+  target: string;
+  basePath?: string;
+  siteUrl?: string;
 };
 
 type WorkflowCommandOptions = SharedCliOptions & {
-    command: "workflow";
-    action: "create" | "update";
-    provider: "gh-pages";
-    branch?: string;
-    trigger?: "push" | "manual";
+  command: "workflow";
+  action: "create" | "update";
+  provider: "gh-pages";
+  branch?: string;
+  trigger?: "push" | "manual";
 };
 
 type ViteCommandOptions = SharedCliOptions & {
-    command: "vite";
-    action: "materialize" | "dematerialize";
-    target: string;
+  command: "vite";
+  action: "materialize" | "dematerialize";
+  target: string;
 };
 
 type MainzCliCommand =
-    | InitCommandOptions
-    | BuildCommandOptions
-    | DevCommandOptions
-    | PreviewCommandOptions
-    | TestCommandOptions
-    | PublishInfoCommandOptions
-    | DiagnoseCommandOptions
-    | AppCommandOptions
-    | ProfileCommandOptions
-    | WorkflowCommandOptions
-    | ViteCommandOptions;
+  | InitCommandOptions
+  | BuildCommandOptions
+  | DevCommandOptions
+  | PreviewCommandOptions
+  | TestCommandOptions
+  | PublishInfoCommandOptions
+  | DiagnoseCommandOptions
+  | AppCommandOptions
+  | ProfileCommandOptions
+  | WorkflowCommandOptions
+  | ViteCommandOptions;
 
 type CliRuntimeName = "deno" | "node" | "bun";
 type SupportedCliRuntime = "deno" | "node";
@@ -153,28 +164,28 @@ type TemplateDependencyRegistry = "npm" | "jsr";
 type TemplateDependencyKind = "dependencies" | "devDependencies";
 
 type TemplateDependency = {
-    kind: TemplateDependencyKind;
-    specifier: string;
-    registry: TemplateDependencyRegistry;
-    packageName: string;
-    version: string;
-    subpaths: string[];
+  kind: TemplateDependencyKind;
+  specifier: string;
+  registry: TemplateDependencyRegistry;
+  packageName: string;
+  version: string;
+  subpaths: string[];
 };
 
 type TemplateDependencyUpdate = {
-    path: string;
-    content: string;
+  path: string;
+  content: string;
 };
 
 type MaterializedTargetViteOptions = {
-    alias?: Array<{ find: string; replacement: string }>;
-    define?: Record<string, string>;
+  alias?: Array<{ find: string; replacement: string }>;
+  define?: Record<string, string>;
 };
 
 type MaterializedViteMetadata = {
-    version: 1;
-    target: string;
-    vite?: MaterializedTargetViteOptions;
+  version: 1;
+  target: string;
+  vite?: MaterializedTargetViteOptions;
 };
 
 const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
@@ -182,4280 +193,4708 @@ const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 
 class CliExitError extends Error {
-    constructor(readonly code: number) {
-        super(`CLI exited with code ${code}.`);
-    }
+  constructor(readonly code: number) {
+    super(`CLI exited with code ${code}.`);
+  }
 }
 
 class CliUsageError extends Error {
-    constructor(message: string, readonly helpTopic: HelpTopic = "main") {
-        super(message);
-    }
+  constructor(message: string, readonly helpTopic: HelpTopic = "main") {
+    super(message);
+  }
 }
 
 type HelpTopic =
-    | "main"
-    | "init"
-    | "app"
-    | "app-create"
-    | "app-remove"
-    | "app-list"
-    | "app-info"
-    | "profile"
-    | "profile-create"
-    | "workflow"
-    | "workflow-create"
-    | "workflow-update"
-    | "vite"
-    | "vite-materialize"
-    | "vite-dematerialize"
-    | "build"
-    | "dev"
-    | "preview"
-    | "test"
-    | "publish-info"
-    | "diagnose";
+  | "main"
+  | "init"
+  | "app"
+  | "app-create"
+  | "app-remove"
+  | "app-list"
+  | "app-info"
+  | "profile"
+  | "profile-create"
+  | "workflow"
+  | "workflow-create"
+  | "workflow-update"
+  | "vite"
+  | "vite-materialize"
+  | "vite-dematerialize"
+  | "build"
+  | "dev"
+  | "preview"
+  | "test"
+  | "publish-info"
+  | "diagnose";
 
 if (import.meta.main && detectHostRuntime() === "deno") {
-    const exitCode = await main(Deno.args, { hostRuntime: "deno" });
-    if (exitCode !== 0) {
-        Deno.exit(exitCode);
-    }
+  const exitCode = await main(Deno.args, { hostRuntime: "deno" });
+  if (exitCode !== 0) {
+    Deno.exit(exitCode);
+  }
 }
 
 /**
  * Runs the Mainz command-line interface with the provided process arguments.
  */
 export async function main(
-    args: string[],
-    options: { hostRuntime?: SupportedCliRuntime } = {},
+  args: string[],
+  options: { hostRuntime?: SupportedCliRuntime } = {},
 ): Promise<number> {
-    return await runCliEntryPoint(args, options.hostRuntime ?? detectHostRuntime());
+  return await runCliEntryPoint(
+    args,
+    options.hostRuntime ?? detectHostRuntime(),
+  );
 }
 
 async function runCliEntryPoint(
-    args: string[],
-    hostRuntime: SupportedCliRuntime,
+  args: string[],
+  hostRuntime: SupportedCliRuntime,
 ): Promise<number> {
-    try {
-        return await runCli(args, hostRuntime);
-    } catch (error) {
-        if (error instanceof CliExitError) {
-            return error.code;
-        }
-        if (error instanceof Error) {
-            printSoftError(
-                error.message,
-                error instanceof CliUsageError ? error.helpTopic : "main",
-            );
-            return 1;
-        }
-
-        throw error;
+  try {
+    return await runCli(args, hostRuntime);
+  } catch (error) {
+    if (error instanceof CliExitError) {
+      return error.code;
     }
+    if (error instanceof Error) {
+      printSoftError(
+        error.message,
+        error instanceof CliUsageError ? error.helpTopic : "main",
+      );
+      return 1;
+    }
+
+    throw error;
+  }
 }
 
-async function runCli(args: string[], hostRuntime: SupportedCliRuntime): Promise<number> {
-    const cliSelection = parseLeadingCliSelection(args);
-    if (cliSelection.cli && cliSelection.cli !== hostRuntime) {
-        return await delegateToCli(cliSelection.cli, cliSelection.args, hostRuntime);
-    }
+async function runCli(
+  args: string[],
+  hostRuntime: SupportedCliRuntime,
+): Promise<number> {
+  const cliSelection = parseLeadingCliSelection(args);
+  if (cliSelection.cli && cliSelection.cli !== hostRuntime) {
+    return await delegateToCli(
+      cliSelection.cli,
+      cliSelection.args,
+      hostRuntime,
+    );
+  }
 
-    const effectiveArgs = cliSelection.args;
-    const helpTopic = resolveHelpTopic(effectiveArgs);
-    if (helpTopic) {
-        printHelp(helpTopic);
-        return 0;
-    }
+  const effectiveArgs = cliSelection.args;
+  const helpTopic = resolveHelpTopic(effectiveArgs);
+  if (helpTopic) {
+    printHelp(helpTopic);
+    return 0;
+  }
 
-    const command = parseCliCommand(effectiveArgs);
-    if (!command) {
-        printHelp();
-        return 0;
-    }
+  const command = parseCliCommand(effectiveArgs);
+  if (!command) {
+    printHelp();
+    return 0;
+  }
 
-    if (command.command === "init") {
-        try {
-            await runInitCommand(command, hostRuntime);
-        } catch (error) {
-            throw toCliUsageError(error, "init");
-        }
-        return 0;
+  if (command.command === "init") {
+    try {
+      await runInitCommand(command, hostRuntime);
+    } catch (error) {
+      throw toCliUsageError(error, "init");
     }
+    return 0;
+  }
 
-    if (command.command === "app") {
-        try {
-            await runAppCommand(command, hostRuntime);
-        } catch (error) {
-            throw toCliUsageError(error, resolveAppHelpTopic(command.action));
-        }
-        return 0;
+  if (command.command === "app") {
+    try {
+      await runAppCommand(command, hostRuntime);
+    } catch (error) {
+      throw toCliUsageError(error, resolveAppHelpTopic(command.action));
     }
+    return 0;
+  }
 
-    if (command.command === "profile") {
-        try {
-            await runProfileCommand(command, hostRuntime);
-        } catch (error) {
-            throw toCliUsageError(error, "profile-create");
-        }
-        return 0;
+  if (command.command === "profile") {
+    try {
+      await runProfileCommand(command, hostRuntime);
+    } catch (error) {
+      throw toCliUsageError(error, "profile-create");
     }
+    return 0;
+  }
 
-    if (command.command === "workflow") {
-        try {
-            await runWorkflowCommand(command, hostRuntime);
-        } catch (error) {
-            throw toCliUsageError(
-                error,
-                command.action === "create" ? "workflow-create" : "workflow-update",
-            );
-        }
-        return 0;
+  if (command.command === "workflow") {
+    try {
+      await runWorkflowCommand(command, hostRuntime);
+    } catch (error) {
+      throw toCliUsageError(
+        error,
+        command.action === "create" ? "workflow-create" : "workflow-update",
+      );
     }
+    return 0;
+  }
 
-    if (command.command === "vite") {
-        try {
-            await runViteCommand(command, hostRuntime);
-        } catch (error) {
-            throw toCliUsageError(
-                error,
-                command.action === "materialize" ? "vite-materialize" : "vite-dematerialize",
-            );
-        }
-        return 0;
+  if (command.command === "vite") {
+    try {
+      await runViteCommand(command, hostRuntime);
+    } catch (error) {
+      throw toCliUsageError(
+        error,
+        command.action === "materialize"
+          ? "vite-materialize"
+          : "vite-dematerialize",
+      );
     }
+    return 0;
+  }
 
-    if (await rerunWithProjectBootstrapIfNeeded(command, effectiveArgs, hostRuntime)) {
-        return 0;
-    }
+  if (
+    await rerunWithProjectBootstrapIfNeeded(command, effectiveArgs, hostRuntime)
+  ) {
+    return 0;
+  }
 
-    const runtime = await resolveCommandToolingRuntime(command, hostRuntime);
-    const loadedConfig = await loadMainzConfig(command.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const runtime = await resolveCommandToolingRuntime(command, hostRuntime);
+  const loadedConfig = await loadMainzConfig(command.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
-    switch (command.command) {
-        case "publish-info":
-            try {
-                await runPublishInfoCommand(command, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "publish-info");
-            }
-            return 0;
-        case "diagnose":
-            try {
-                return await runDiagnoseCommand(command, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "diagnose");
-            }
-        case "dev":
-            try {
-                await runDevCommand(command, loadedConfig, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "dev");
-            }
-            return 0;
-        case "preview":
-            try {
-                await runPreviewCommand(command, loadedConfig, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "preview");
-            }
-            return 0;
-        case "test":
-            try {
-                return await runTestCommand(command, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "test");
-            }
-        case "build":
-            try {
-                await runBuildCommand(command, loadedConfig, normalizedConfig, runtime);
-            } catch (error) {
-                throw toCliUsageError(error, "build");
-            }
-            return 0;
-    }
+  switch (command.command) {
+    case "publish-info":
+      try {
+        await runPublishInfoCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "publish-info");
+      }
+      return 0;
+    case "diagnose":
+      try {
+        return await runDiagnoseCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "diagnose");
+      }
+    case "dev":
+      try {
+        await runDevCommand(command, loadedConfig, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "dev");
+      }
+      return 0;
+    case "preview":
+      try {
+        await runPreviewCommand(
+          command,
+          loadedConfig,
+          normalizedConfig,
+          runtime,
+        );
+      } catch (error) {
+        throw toCliUsageError(error, "preview");
+      }
+      return 0;
+    case "test":
+      try {
+        return await runTestCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "test");
+      }
+    case "build":
+      try {
+        await runBuildCommand(command, loadedConfig, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "build");
+      }
+      return 0;
+  }
 }
 
 async function delegateToCli(
-    cli: CliRuntimeName,
-    args: readonly string[],
-    hostRuntime: SupportedCliRuntime,
+  cli: CliRuntimeName,
+  args: readonly string[],
+  hostRuntime: SupportedCliRuntime,
 ): Promise<number> {
-    const runtime = hostRuntime === "deno" ? denoToolingRuntime : nodeToolingRuntime;
-    const candidates = resolveCliDelegationCandidates(cli, args);
+  const runtime = hostRuntime === "deno"
+    ? denoToolingRuntime
+    : nodeToolingRuntime;
+  const candidates = resolveCliDelegationCandidates(cli, args);
 
-    for (let index = 0; index < candidates.length; index += 1) {
-        const candidate = candidates[index];
-        if (
-            candidate.requiresPathLookup &&
-            !(await canResolveExecutable(candidate.command, runtime))
-        ) {
-            continue;
-        }
-
-        try {
-            const invocation = resolveCliInvocation(candidate.command, candidate.args);
-            const status = await runtime.run({
-                command: invocation.command,
-                cwd: runtime.cwd(),
-                args: invocation.args,
-                stdin: "inherit",
-                stdout: "inherit",
-                stderr: "inherit",
-            });
-            return status.code;
-        } catch (error) {
-            if (isCommandNotFoundError(error) && index < candidates.length - 1) {
-                continue;
-            }
-
-            if (isCommandNotFoundError(error)) {
-                throw new CliUsageError(
-                    `Could not execute a ${cli}-hosted Mainz CLI. Install the required ${cli} runtime or install the ${cli}-hosted Mainz CLI globally.`,
-                    "main",
-                );
-            }
-
-            throw error;
-        }
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    if (
+      candidate.requiresPathLookup &&
+      !(await canResolveExecutable(candidate.command, runtime))
+    ) {
+      continue;
     }
 
-    throw new CliUsageError(`Could not resolve a ${cli}-hosted Mainz CLI delegation target.`);
+    try {
+      const invocation = resolveCliInvocation(
+        candidate.command,
+        candidate.args,
+      );
+      const status = await runtime.run({
+        command: invocation.command,
+        cwd: runtime.cwd(),
+        args: invocation.args,
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+      });
+      return status.code;
+    } catch (error) {
+      if (isCommandNotFoundError(error) && index < candidates.length - 1) {
+        continue;
+      }
+
+      if (isCommandNotFoundError(error)) {
+        throw new CliUsageError(
+          `Could not execute a ${cli}-hosted Mainz CLI. Install the required ${cli} runtime or install the ${cli}-hosted Mainz CLI globally.`,
+          "main",
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  throw new CliUsageError(
+    `Could not resolve a ${cli}-hosted Mainz CLI delegation target.`,
+  );
 }
 
 function resolveCliDelegationCandidates(
-    cli: CliRuntimeName,
-    args: readonly string[],
-): Array<{ command: string; args: readonly string[]; requiresPathLookup?: boolean }> {
-    const explicit = {
-        command: `mainz-cli-${cli}`,
-        args,
-        requiresPathLookup: true,
-    };
+  cli: CliRuntimeName,
+  args: readonly string[],
+): Array<
+  { command: string; args: readonly string[]; requiresPathLookup?: boolean }
+> {
+  const explicit = {
+    command: `mainz-cli-${cli}`,
+    args,
+    requiresPathLookup: true,
+  };
 
-    if (cli === "deno") {
-        return [
-            explicit,
-            {
-                command: "deno",
-                args: ["run", "-A", "jsr:@mainz/cli-deno@alpha", ...args],
-            },
-        ];
-    }
-
-    if (cli === "node") {
-        return [
-            explicit,
-            {
-                command: "npx",
-                args: ["-y", "@mainzjs/cli-node@alpha", ...args],
-            },
-        ];
-    }
-
+  if (cli === "deno") {
     return [
-        explicit,
-        {
-            command: "bunx",
-            args: ["@mainzjs/cli-bun@alpha", ...args],
-        },
+      explicit,
+      {
+        command: "deno",
+        args: ["run", "-A", "jsr:@mainz/cli-deno@alpha", ...args],
+      },
     ];
+  }
+
+  if (cli === "node") {
+    return [
+      explicit,
+      {
+        command: "npx",
+        args: ["-y", "@mainzjs/cli-node@alpha", ...args],
+      },
+    ];
+  }
+
+  return [
+    explicit,
+    {
+      command: "bunx",
+      args: ["@mainzjs/cli-bun@alpha", ...args],
+    },
+  ];
 }
 
 async function canResolveExecutable(
-    command: string,
-    runtime: MainzToolingRuntime,
+  command: string,
+  runtime: MainzToolingRuntime,
 ): Promise<boolean> {
-    const pathValue = process.env.PATH ?? "";
-    const extensions = process.platform === "win32"
-        ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
-            .split(";")
-            .filter(Boolean)
-        : [""];
-    const commandHasExtension = /\.[^\\/]+$/.test(command);
+  const pathValue = process.env.PATH ?? "";
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD")
+      .split(";")
+      .filter(Boolean)
+    : [""];
+  const commandHasExtension = /\.[^\\/]+$/.test(command);
 
-    for (const directory of pathValue.split(delimiter).filter(Boolean)) {
-        const names = process.platform === "win32" && !commandHasExtension
-            ? extensions.map((extension) => `${command}${extension.toLowerCase()}`)
-            : [command];
+  for (const directory of pathValue.split(delimiter).filter(Boolean)) {
+    const names = process.platform === "win32" && !commandHasExtension
+      ? extensions.map((extension) => `${command}${extension.toLowerCase()}`)
+      : [command];
 
-        for (const name of names) {
-            if (await pathExists(join(directory, name), runtime)) {
-                return true;
-            }
-        }
+    for (const name of names) {
+      if (await pathExists(join(directory, name), runtime)) {
+        return true;
+      }
     }
+  }
 
-    return false;
+  return false;
 }
 
 function resolveCliInvocation(
-    executable: string,
-    args: readonly string[],
+  executable: string,
+  args: readonly string[],
 ): { command: string; args: readonly string[] } {
-    if (process.platform !== "win32") {
-        return { command: executable, args };
-    }
+  if (process.platform !== "win32") {
+    return { command: executable, args };
+  }
 
-    return {
-        command: process.env.ComSpec ?? "cmd.exe",
-        args: ["/d", "/s", "/c", executable, ...args],
-    };
+  return {
+    command: process.env.ComSpec ?? "cmd.exe",
+    args: ["/d", "/s", "/c", executable, ...args],
+  };
 }
 
 async function rerunWithProjectBootstrapIfNeeded(
-    command:
-        | BuildCommandOptions
-        | DevCommandOptions
-        | PreviewCommandOptions
-        | TestCommandOptions
-        | PublishInfoCommandOptions
-        | DiagnoseCommandOptions,
-    args: readonly string[],
-    hostRuntime: SupportedCliRuntime,
+  command:
+    | BuildCommandOptions
+    | DevCommandOptions
+    | PreviewCommandOptions
+    | TestCommandOptions
+    | PublishInfoCommandOptions
+    | DiagnoseCommandOptions,
+  args: readonly string[],
+  hostRuntime: SupportedCliRuntime,
 ): Promise<boolean> {
-    if (hostRuntime !== "deno") {
-        return false;
+  if (hostRuntime !== "deno") {
+    return false;
+  }
+
+  const runtime = denoToolingRuntime;
+  if (getCliBootstrapEnv() === "1") {
+    return false;
+  }
+
+  const projectRuntime = await resolveProjectRuntimePreference(
+    command,
+    hostRuntime,
+  );
+  if (projectRuntime === "node") {
+    const bootstrap = await createNodeProjectBootstrapConfig(
+      command.configPath ?? "mainz.config.ts",
+    );
+    if (!bootstrap) {
+      return false;
     }
 
-    const runtime = denoToolingRuntime;
-    if (getCliBootstrapEnv() === "1") {
-        return false;
-    }
-
-    const projectRuntime = await resolveProjectRuntimePreference(command, hostRuntime);
-    if (projectRuntime === "node") {
-        const bootstrap = await createNodeProjectBootstrapConfig(
-            command.configPath ?? "mainz.config.ts",
-        );
-        if (!bootstrap) {
-            return false;
-        }
-
-        try {
-            const status = await runtime.run({
-                command: "deno",
-                cwd: runtime.cwd(),
-                args: [
-                    "run",
-                    "-A",
-                    "--config",
-                    bootstrap.configPath,
-                    import.meta.url,
-                    ...args,
-                ],
-                env: {
-                    [projectConfigBootstrapEnv]: "1",
-                },
-                stdin: "inherit",
-                stdout: "inherit",
-                stderr: "inherit",
-            });
-            if (!status.success) {
-                throw new CliExitError(status.code);
-            }
-
-            return true;
-        } finally {
-            await runtime.remove(bootstrap.tempDir, { recursive: true });
-        }
-    }
-
-    const denoConfigPath = await findNearestDenoConfig(command.configPath ?? "mainz.config.ts");
-    if (!denoConfigPath) {
-        return false;
-    }
-
-    const status = await runtime.run({
+    try {
+      const status = await runtime.run({
         command: "deno",
         cwd: runtime.cwd(),
         args: [
-            "run",
-            "-A",
-            "--config",
-            denoConfigPath,
-            import.meta.url,
-            ...args,
+          "run",
+          "-A",
+          "--config",
+          bootstrap.configPath,
+          import.meta.url,
+          ...args,
         ],
         env: {
-            [projectConfigBootstrapEnv]: "1",
+          [projectConfigBootstrapEnv]: "1",
         },
         stdin: "inherit",
         stdout: "inherit",
         stderr: "inherit",
-    });
-    if (!status.success) {
+      });
+      if (!status.success) {
         throw new CliExitError(status.code);
-    }
+      }
 
-    return true;
+      return true;
+    } finally {
+      await runtime.remove(bootstrap.tempDir, { recursive: true });
+    }
+  }
+
+  const denoConfigPath = await findNearestDenoConfig(
+    command.configPath ?? "mainz.config.ts",
+  );
+  if (!denoConfigPath) {
+    return false;
+  }
+
+  const status = await runtime.run({
+    command: "deno",
+    cwd: runtime.cwd(),
+    args: [
+      "run",
+      "-A",
+      "--config",
+      denoConfigPath,
+      import.meta.url,
+      ...args,
+    ],
+    env: {
+      [projectConfigBootstrapEnv]: "1",
+    },
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (!status.success) {
+    throw new CliExitError(status.code);
+  }
+
+  return true;
 }
 
 async function createNodeProjectBootstrapConfig(
-    configPath: string,
+  configPath: string,
 ): Promise<{ configPath: string; tempDir: string } | undefined> {
-    const absoluteConfigPath = resolve(configPath);
-    const projectDir = dirname(absoluteConfigPath);
-    const packageJsonPath = resolve(projectDir, "package.json");
-    if (!(await pathExists(packageJsonPath))) {
-        return undefined;
-    }
+  const absoluteConfigPath = resolve(configPath);
+  const projectDir = dirname(absoluteConfigPath);
+  const packageJsonPath = resolve(projectDir, "package.json");
+  if (!(await pathExists(packageJsonPath))) {
+    return undefined;
+  }
 
-    const packageJson = JSON.parse(await denoToolingRuntime.readTextFile(packageJsonPath)) as {
-        dependencies?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-    };
-    const mainzDependency = packageJson.dependencies?.mainz ?? packageJson.devDependencies?.mainz;
-    const mainzImports = resolveBootstrapMainzImports(mainzDependency);
-    if (!mainzImports) {
-        throw new Error(
-            `Could not resolve the Mainz package version from "${packageJsonPath}".`,
-        );
-    }
-
-    const tempDir = await denoToolingRuntime.makeTempDir({ prefix: "mainz-node-bootstrap-" });
-    const bootstrapConfigPath = resolve(tempDir, "deno.json");
-    await denoToolingRuntime.writeTextFile(
-        bootstrapConfigPath,
-        JSON.stringify(
-            {
-                compilerOptions: {
-                    jsx: "react-jsx",
-                    jsxImportSource: "mainz",
-                },
-                imports: {
-                    ...mainzImports,
-                    vite: "npm:vite@8.0.10",
-                    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-                    "happy-dom": "npm:happy-dom@20.9.0",
-                },
-            },
-            null,
-            4,
-        ),
+  const packageJson = JSON.parse(
+    await denoToolingRuntime.readTextFile(packageJsonPath),
+  ) as {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
+  const mainzDependency = packageJson.dependencies?.mainz ??
+    packageJson.devDependencies?.mainz;
+  const mainzImports = resolveBootstrapMainzImports(mainzDependency);
+  if (!mainzImports) {
+    throw new Error(
+      `Could not resolve the Mainz package version from "${packageJsonPath}".`,
     );
+  }
 
-    return {
-        configPath: bootstrapConfigPath,
-        tempDir,
-    };
+  const tempDir = await denoToolingRuntime.makeTempDir({
+    prefix: "mainz-node-bootstrap-",
+  });
+  const bootstrapConfigPath = resolve(tempDir, "deno.json");
+  await denoToolingRuntime.writeTextFile(
+    bootstrapConfigPath,
+    JSON.stringify(
+      {
+        compilerOptions: {
+          jsx: "react-jsx",
+          jsxImportSource: "mainz",
+        },
+        imports: {
+          ...mainzImports,
+          vite: "npm:vite@8.0.10",
+          "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+          "happy-dom": "npm:happy-dom@20.9.0",
+        },
+      },
+      null,
+      4,
+    ),
+  );
+
+  return {
+    configPath: bootstrapConfigPath,
+    tempDir,
+  };
 }
 
-async function findNearestDenoConfig(configPath: string): Promise<string | undefined> {
-    let current = dirname(resolve(configPath));
+async function findNearestDenoConfig(
+  configPath: string,
+): Promise<string | undefined> {
+  let current = dirname(resolve(configPath));
 
-    while (true) {
-        for (const fileName of ["deno.json", "deno.jsonc"]) {
-            const candidate = resolve(current, fileName);
-            if (await pathExists(candidate)) {
-                return candidate;
-            }
-        }
-
-        const parent = dirname(current);
-        if (parent === current) {
-            return undefined;
-        }
-
-        current = parent;
+  while (true) {
+    for (const fileName of ["deno.json", "deno.jsonc"]) {
+      const candidate = resolve(current, fileName);
+      if (await pathExists(candidate)) {
+        return candidate;
+      }
     }
+
+    const parent = dirname(current);
+    if (parent === current) {
+      return undefined;
+    }
+
+    current = parent;
+  }
 }
 
 function parseCliCommand(args: string[]): MainzCliCommand | undefined {
-    const remainingArgs = parseLeadingCliOptions(args);
-    const [command, ...rest] = remainingArgs;
+  const remainingArgs = parseLeadingCliOptions(args);
+  const [command, ...rest] = remainingArgs;
 
-    if (!command || command === "help" || command === "--help" || command === "-h") {
-        return undefined;
-    }
+  if (
+    !command || command === "help" || command === "--help" || command === "-h"
+  ) {
+    return undefined;
+  }
 
-    if (
-        command !== "build" && command !== "dev" && command !== "preview" && command !== "test" &&
-        command !== "publish-info" &&
-        command !== "diagnose" &&
-        command !== "app" &&
-        command !== "init" &&
-        command !== "profile" &&
-        command !== "workflow" &&
-        command !== "vite"
-    ) {
-        throw new CliUsageError(
-            `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
-            "main",
-        );
-    }
+  if (
+    command !== "build" && command !== "dev" && command !== "preview" &&
+    command !== "test" &&
+    command !== "publish-info" &&
+    command !== "diagnose" &&
+    command !== "app" &&
+    command !== "init" &&
+    command !== "profile" &&
+    command !== "workflow" &&
+    command !== "vite"
+  ) {
+    throw new CliUsageError(
+      `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
+      "main",
+    );
+  }
 
-    if (command === "init") {
-        return parseInitCommand(rest);
-    }
+  if (command === "init") {
+    return parseInitCommand(rest);
+  }
 
-    if (command === "app") {
-        return parseAppCommand(rest);
-    }
+  if (command === "app") {
+    return parseAppCommand(rest);
+  }
 
-    if (command === "profile") {
-        return parseProfileCommand(rest);
-    }
+  if (command === "profile") {
+    return parseProfileCommand(rest);
+  }
 
-    if (command === "workflow") {
-        return parseWorkflowCommand(rest);
-    }
+  if (command === "workflow") {
+    return parseWorkflowCommand(rest);
+  }
 
-    if (command === "vite") {
-        return parseViteCommand(rest);
-    }
+  if (command === "vite") {
+    return parseViteCommand(rest);
+  }
 
-    const options = parseCommandOptions(command, rest);
+  const options = parseCommandOptions(command, rest);
 
-    if (command === "build") {
-        return { command, ...options };
-    }
+  if (command === "build") {
+    return { command, ...options };
+  }
 
-    if (command === "publish-info") {
-        return { command, ...options };
-    }
+  if (command === "publish-info") {
+    return { command, ...options };
+  }
 
-    if (command === "dev") {
-        return { command, ...options };
-    }
+  if (command === "dev") {
+    return { command, ...options };
+  }
 
-    if (command === "preview") {
-        return { command, ...options };
-    }
+  if (command === "preview") {
+    return { command, ...options };
+  }
 
-    if (command === "test") {
-        return { command, ...options };
-    }
+  if (command === "test") {
+    return { command, ...options };
+  }
 
-    return {
-        command,
-        ...options,
-        format: options.format,
-        failOn: options.failOn,
-    };
+  return {
+    command,
+    ...options,
+    format: options.format,
+    failOn: options.failOn,
+  };
 }
 
 function parseLeadingCliSelection(args: readonly string[]): {
-    cli?: CliRuntimeName;
-    args: string[];
+  cli?: CliRuntimeName;
+  args: string[];
 } {
-    const remainingArgs = [...args];
-    let cli: CliRuntimeName | undefined;
+  const remainingArgs = [...args];
+  let cli: CliRuntimeName | undefined;
 
-    while (remainingArgs[0] === "--cli") {
-        const value = remainingArgs[1];
-        if (value !== "deno" && value !== "node" && value !== "bun") {
-            throw new CliUsageError(
-                `Unsupported CLI "${value ?? ""}". Use "deno", "node", or "bun".`,
-                "main",
-            );
-        }
-
-        cli = value;
-        remainingArgs.splice(0, 2);
+  while (remainingArgs[0] === "--cli") {
+    const value = remainingArgs[1];
+    if (value !== "deno" && value !== "node" && value !== "bun") {
+      throw new CliUsageError(
+        `Unsupported CLI "${value ?? ""}". Use "deno", "node", or "bun".`,
+        "main",
+      );
     }
 
-    return { cli, args: remainingArgs };
+    cli = value;
+    remainingArgs.splice(0, 2);
+  }
+
+  return { cli, args: remainingArgs };
 }
 
 function parseLeadingCliOptions(args: readonly string[]): string[] {
-    const { cli, args: remainingArgs } = parseLeadingCliSelection(args);
-    if (cli) {
-        if (cli !== "deno") {
-            throw new CliUsageError(
-                `This executable is the Deno-hosted Mainz CLI. Received "--cli ${cli}".`,
-                "main",
-            );
-        }
+  const { cli, args: remainingArgs } = parseLeadingCliSelection(args);
+  if (cli) {
+    if (cli !== "deno") {
+      throw new CliUsageError(
+        `This executable is the Deno-hosted Mainz CLI. Received "--cli ${cli}".`,
+        "main",
+      );
     }
+  }
 
-    return remainingArgs;
+  return remainingArgs;
 }
 
 function parseInitCommand(args: string[]): InitCommandOptions {
-    const options: Omit<InitCommandOptions, "command"> = {};
-    let positionalName: string | undefined;
+  const options: Omit<InitCommandOptions, "command"> = {};
+  let positionalName: string | undefined;
 
-    for (let index = 0; index < args.length; index += 1) {
-        const current = args[index];
+  for (let index = 0; index < args.length; index += 1) {
+    const current = args[index];
 
-        if (current === "--config") {
-            options.configPath = readOptionValue(current, args[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--deno-config") {
-            options.denoConfigPath = readOptionValue(current, args[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--mainz") {
-            options.mainzSpecifier = readOptionValue(current, args[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--template") {
-            options.template = normalizeTemplateName(readOptionValue(current, args[index + 1]));
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = parseRuntimeOption(args[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (!current.startsWith("--")) {
-            if (positionalName) {
-                throw new Error(
-                    `Command "init" received multiple project names "${positionalName}" and "${current}".`,
-                );
-            }
-
-            positionalName = current;
-            continue;
-        }
-
-        throw new Error(`Unknown option "${current}".`);
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
     }
 
-    return {
-        command: "init",
-        name: positionalName,
-        ...options,
-    };
+    if (current === "--deno-config") {
+      options.denoConfigPath = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--mainz") {
+      options.mainzSpecifier = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--template") {
+      options.template = normalizeTemplateName(
+        readOptionValue(current, args[index + 1]),
+      );
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (!current.startsWith("--")) {
+      if (positionalName) {
+        throw new Error(
+          `Command "init" received multiple project names "${positionalName}" and "${current}".`,
+        );
+      }
+
+      positionalName = current;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  return {
+    command: "init",
+    name: positionalName,
+    ...options,
+  };
 }
 
 function parseAppCommand(args: string[]): AppCommandOptions {
-    const [action, maybeName, ...rest] = args;
+  const [action, maybeName, ...rest] = args;
 
-    if (action !== "create" && action !== "remove" && action !== "list" && action !== "info") {
-        throw new Error('Command "app" requires "create", "remove", "list", or "info".');
+  if (
+    action !== "create" && action !== "remove" && action !== "list" &&
+    action !== "info"
+  ) {
+    throw new Error(
+      'Command "app" requires "create", "remove", "list", or "info".',
+    );
+  }
+
+  const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
+  const remaining = positionalName
+    ? rest
+    : [maybeName, ...rest].filter(Boolean);
+
+  const options: Pick<
+    AppCommandOptions,
+    | "template"
+    | "type"
+    | "root"
+    | "outDir"
+    | "navigation"
+    | "configPath"
+    | "deleteFiles"
+    | "runtime"
+  > = {};
+  let flagName: string | undefined;
+
+  for (let index = 0; index < remaining.length; index += 1) {
+    const current = remaining[index];
+
+    if (current === "--name" && action === "create") {
+      flagName = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
     }
 
-    const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
-    const remaining = positionalName ? rest : [maybeName, ...rest].filter(Boolean);
-
-    const options: Pick<
-        AppCommandOptions,
-        | "template"
-        | "type"
-        | "root"
-        | "outDir"
-        | "navigation"
-        | "configPath"
-        | "deleteFiles"
-        | "runtime"
-    > = {};
-    let flagName: string | undefined;
-
-    for (let index = 0; index < remaining.length; index += 1) {
-        const current = remaining[index];
-
-        if (current === "--name" && action === "create") {
-            flagName = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--target" && (action === "remove" || action === "info")) {
-            flagName = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--template" && action === "create") {
-            options.template = normalizeTemplateName(
-                readOptionValue(current, remaining[index + 1]),
-            );
-            index += 1;
-            continue;
-        }
-
-        if (current === "--type" && action === "create") {
-            options.type = parseAppType(remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--root") {
-            options.root = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--out-dir") {
-            options.outDir = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--navigation") {
-            options.navigation = parseAppNavigation(remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--config") {
-            options.configPath = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = parseRuntimeOption(remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--delete-files" && action === "remove") {
-            options.deleteFiles = true;
-            continue;
-        }
-
-        throw new Error(`Unknown option "${current}".`);
+    if (current === "--target" && (action === "remove" || action === "info")) {
+      flagName = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
     }
 
-    const name = action === "list"
-        ? undefined
-        : resolveAppCommandName(action, positionalName, flagName);
+    if (current === "--template" && action === "create") {
+      options.template = normalizeTemplateName(
+        readOptionValue(current, remaining[index + 1]),
+      );
+      index += 1;
+      continue;
+    }
 
-    return {
-        command: "app",
-        action,
-        name,
-        ...options,
-    };
+    if (current === "--type" && action === "create") {
+      options.type = parseAppType(remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--root") {
+      options.root = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--out-dir") {
+      options.outDir = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--navigation") {
+      options.navigation = parseAppNavigation(remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--delete-files" && action === "remove") {
+      options.deleteFiles = true;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  const name = action === "list"
+    ? undefined
+    : resolveAppCommandName(action, positionalName, flagName);
+
+  return {
+    command: "app",
+    action,
+    name,
+    ...options,
+  };
 }
 
 function parseProfileCommand(args: string[]): ProfileCommandOptions {
-    const [action, maybeName, ...rest] = args;
-    if (action !== "create") {
-        throw new Error('Command "profile" requires "create".');
+  const [action, maybeName, ...rest] = args;
+  if (action !== "create") {
+    throw new Error('Command "profile" requires "create".');
+  }
+
+  const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
+  const remaining = positionalName
+    ? rest
+    : [maybeName, ...rest].filter(Boolean);
+  const options: Pick<
+    ProfileCommandOptions,
+    "basePath" | "siteUrl" | "configPath" | "runtime"
+  > = {};
+  let flagName: string | undefined;
+  let target: string | undefined;
+
+  for (let index = 0; index < remaining.length; index += 1) {
+    const current = remaining[index];
+
+    if (current === "--name") {
+      flagName = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
     }
 
-    const positionalName = maybeName?.startsWith("--") ? undefined : maybeName;
-    const remaining = positionalName ? rest : [maybeName, ...rest].filter(Boolean);
-    const options: Pick<ProfileCommandOptions, "basePath" | "siteUrl" | "configPath" | "runtime"> =
-        {};
-    let flagName: string | undefined;
-    let target: string | undefined;
-
-    for (let index = 0; index < remaining.length; index += 1) {
-        const current = remaining[index];
-
-        if (current === "--name") {
-            flagName = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--target") {
-            target = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--base-path") {
-            options.basePath = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--site-url") {
-            options.siteUrl = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--config") {
-            options.configPath = readOptionValue(current, remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = parseRuntimeOption(remaining[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        throw new Error(`Unknown option "${current}".`);
+    if (current === "--target") {
+      target = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
     }
 
-    if (!target?.trim()) {
-        throw new Error('Command "profile create" requires --target <name>.');
+    if (current === "--base-path") {
+      options.basePath = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
     }
 
-    return {
-        command: "profile",
-        action,
-        name: resolveNamedCommandValue("profile create", positionalName, flagName),
-        target,
-        ...options,
-    };
+    if (current === "--site-url") {
+      options.siteUrl = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(remaining[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  if (!target?.trim()) {
+    throw new Error('Command "profile create" requires --target <name>.');
+  }
+
+  return {
+    command: "profile",
+    action,
+    name: resolveNamedCommandValue("profile create", positionalName, flagName),
+    target,
+    ...options,
+  };
 }
 
 function parseWorkflowCommand(args: string[]): WorkflowCommandOptions {
-    const [action, maybeProvider, ...rest] = args;
-    if (action !== "create" && action !== "update") {
-        throw new Error('Command "workflow" requires "create" or "update".');
+  const [action, maybeProvider, ...rest] = args;
+  if (action !== "create" && action !== "update") {
+    throw new Error('Command "workflow" requires "create" or "update".');
+  }
+
+  const providerInput = maybeProvider?.trim();
+  if (providerInput !== "gh-pages" && providerInput !== "github-pages") {
+    throw new Error(
+      `Unsupported workflow provider "${providerInput ?? ""}". Use "gh-pages".`,
+    );
+  }
+  const provider = "gh-pages";
+
+  const options: Omit<
+    WorkflowCommandOptions,
+    "command" | "action" | "provider"
+  > = {};
+
+  for (let index = 0; index < rest.length; index += 1) {
+    const current = rest[index];
+
+    if (current === "--branch") {
+      options.branch = readOptionValue(current, rest[index + 1]);
+      index += 1;
+      continue;
     }
 
-    const providerInput = maybeProvider?.trim();
-    if (providerInput !== "gh-pages" && providerInput !== "github-pages") {
+    if (current === "--trigger") {
+      const trigger = readOptionValue(current, rest[index + 1]);
+      if (trigger !== "push" && trigger !== "manual") {
         throw new Error(
-            `Unsupported workflow provider "${providerInput ?? ""}". Use "gh-pages".`,
+          `Unsupported workflow trigger "${trigger}". Use "push" or "manual".`,
         );
-    }
-    const provider = "gh-pages";
+      }
 
-    const options: Omit<WorkflowCommandOptions, "command" | "action" | "provider"> = {};
-
-    for (let index = 0; index < rest.length; index += 1) {
-        const current = rest[index];
-
-        if (current === "--branch") {
-            options.branch = readOptionValue(current, rest[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--trigger") {
-            const trigger = readOptionValue(current, rest[index + 1]);
-            if (trigger !== "push" && trigger !== "manual") {
-                throw new Error(
-                    `Unsupported workflow trigger "${trigger}". Use "push" or "manual".`,
-                );
-            }
-
-            options.trigger = trigger;
-            index += 1;
-            continue;
-        }
-
-        if (current === "--config") {
-            options.configPath = readOptionValue(current, rest[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = parseRuntimeOption(rest[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        throw new Error(`Unknown option "${current}".`);
+      options.trigger = trigger;
+      index += 1;
+      continue;
     }
 
-    return {
-        command: "workflow",
-        action,
-        provider,
-        ...options,
-    };
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, rest[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(rest[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  return {
+    command: "workflow",
+    action,
+    provider,
+    ...options,
+  };
 }
 
 function parseViteCommand(args: string[]): ViteCommandOptions {
-    const [action, ...rest] = args;
-    if (action !== "materialize" && action !== "dematerialize") {
-        throw new Error('Command "vite" requires "materialize" or "dematerialize".');
+  const [action, ...rest] = args;
+  if (action !== "materialize" && action !== "dematerialize") {
+    throw new Error(
+      'Command "vite" requires "materialize" or "dematerialize".',
+    );
+  }
+
+  let target: string | undefined;
+  const options: Pick<ViteCommandOptions, "configPath" | "runtime"> = {};
+
+  for (let index = 0; index < rest.length; index += 1) {
+    const current = rest[index];
+    if (!current) {
+      continue;
     }
 
-    let target: string | undefined;
-    const options: Pick<ViteCommandOptions, "configPath" | "runtime"> = {};
-
-    for (let index = 0; index < rest.length; index += 1) {
-        const current = rest[index];
-        if (!current) {
-            continue;
-        }
-
-        if (current === "--target") {
-            target = readOptionValue(current, rest[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--config") {
-            options.configPath = readOptionValue(current, rest[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = readOptionValue(current, rest[index + 1]) as MainzRuntime;
-            index += 1;
-            continue;
-        }
-
-        throw new Error(`Unknown option "${current}" for "vite ${action}".`);
+    if (current === "--target") {
+      target = readOptionValue(current, rest[index + 1]);
+      index += 1;
+      continue;
     }
 
-    if (!target?.trim()) {
-        throw new Error(`Command "vite ${action}" requires --target <name>.`);
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, rest[index + 1]);
+      index += 1;
+      continue;
     }
 
-    return {
-        command: "vite",
-        action,
-        target,
-        ...options,
-    };
+    if (current === "--runtime") {
+      options.runtime = readOptionValue(
+        current,
+        rest[index + 1],
+      ) as MainzRuntime;
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}" for "vite ${action}".`);
+  }
+
+  if (!target?.trim()) {
+    throw new Error(`Command "vite ${action}" requires --target <name>.`);
+  }
+
+  return {
+    command: "vite",
+    action,
+    target,
+    ...options,
+  };
 }
 
 function resolveAppCommandName(
-    action: AppCommandOptions["action"],
-    positionalName: string | undefined,
-    flagName: string | undefined,
+  action: AppCommandOptions["action"],
+  positionalName: string | undefined,
+  flagName: string | undefined,
 ): string {
-    return resolveNamedCommandValue(`app ${action}`, positionalName, flagName);
+  return resolveNamedCommandValue(`app ${action}`, positionalName, flagName);
 }
 
 function resolveNamedCommandValue(
-    commandLabel: string,
-    positionalName: string | undefined,
-    flagName: string | undefined,
+  commandLabel: string,
+  positionalName: string | undefined,
+  flagName: string | undefined,
 ): string {
-    if (positionalName?.trim() && flagName?.trim() && positionalName.trim() !== flagName.trim()) {
-        throw new Error(
-            `Command "${commandLabel}" received conflicting names "${positionalName}" and "${flagName}".`,
-        );
-    }
+  if (
+    positionalName?.trim() && flagName?.trim() &&
+    positionalName.trim() !== flagName.trim()
+  ) {
+    throw new Error(
+      `Command "${commandLabel}" received conflicting names "${positionalName}" and "${flagName}".`,
+    );
+  }
 
-    const resolved = flagName?.trim() || positionalName?.trim();
-    if (!resolved) {
-        throw new Error(`Command "${commandLabel}" requires a name.`);
-    }
+  const resolved = flagName?.trim() || positionalName?.trim();
+  if (!resolved) {
+    throw new Error(`Command "${commandLabel}" requires a name.`);
+  }
 
-    return resolved;
+  return resolved;
 }
 
 function readOptionValue(option: string, value: string | undefined): string {
-    if (!value?.trim()) {
-        throw new Error(`Option "${option}" requires a value.`);
-    }
+  if (!value?.trim()) {
+    throw new Error(`Option "${option}" requires a value.`);
+  }
 
-    return value;
+  return value;
 }
 
-function parseAppNavigation(value: string | undefined): AppCommandOptions["navigation"] {
-    if (value === "spa" || value === "mpa" || value === "enhanced-mpa") {
-        return value;
-    }
+function parseAppNavigation(
+  value: string | undefined,
+): AppCommandOptions["navigation"] {
+  if (value === "spa" || value === "mpa" || value === "enhanced-mpa") {
+    return value;
+  }
 
-    throw new Error(
-        `Unsupported app navigation "${value ?? ""}". Use "spa", "mpa", or "enhanced-mpa".`,
-    );
+  throw new Error(
+    `Unsupported app navigation "${
+      value ?? ""
+    }". Use "spa", "mpa", or "enhanced-mpa".`,
+  );
 }
 
 function parseAppType(value: string | undefined): "routed" | "root" {
-    if (value === "routed" || value === "root") {
-        return value;
-    }
+  if (value === "routed" || value === "root") {
+    return value;
+  }
 
-    throw new Error(`Unsupported app type "${value ?? ""}". Use "routed" or "root".`);
+  throw new Error(
+    `Unsupported app type "${value ?? ""}". Use "routed" or "root".`,
+  );
 }
 
 function parseRuntimeOption(value: string | undefined): MainzRuntime {
-    if (value === "deno" || value === "node" || value === "bun") {
-        return value;
-    }
+  if (value === "deno" || value === "node" || value === "bun") {
+    return value;
+  }
 
-    throw new Error(
-        `Unsupported runtime "${value ?? ""}". Use "deno", "node", or "bun".`,
-    );
+  throw new Error(
+    `Unsupported runtime "${value ?? ""}". Use "deno", "node", or "bun".`,
+  );
 }
 
 function parseCommandOptions(
-    command: Exclude<MainzCliCommand["command"], "app">,
-    args: string[],
+  command: Exclude<MainzCliCommand["command"], "app">,
+  args: string[],
 ):
+  & SharedCliOptions
+  & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
+  & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> {
+  const options:
     & SharedCliOptions
     & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-    & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> {
-    const options:
-        & SharedCliOptions
-        & Pick<DiagnoseCommandOptions, "app" | "format" | "failOn">
-        & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> = {};
+    & Pick<DevCommandOptions, "host" | "port" | "debugSsg"> = {};
 
-    for (let index = 0; index < args.length; index += 1) {
-        const current = args[index];
+  for (let index = 0; index < args.length; index += 1) {
+    const current = args[index];
 
-        if (current === "--target") {
-            options.target = args[index + 1];
-            index += 1;
-            continue;
-        }
-
-        if (current === "--profile") {
-            options.profile = args[index + 1];
-            index += 1;
-            continue;
-        }
-
-        if (current === "--config") {
-            options.configPath = args[index + 1];
-            index += 1;
-            continue;
-        }
-
-        if (current === "--runtime") {
-            options.runtime = parseRuntimeOption(args[index + 1]);
-            index += 1;
-            continue;
-        }
-
-        if (current === "--format") {
-            options.format = args[index + 1] as "json" | "human" | undefined;
-            index += 1;
-            continue;
-        }
-
-        if (current === "--app") {
-            options.app = args[index + 1];
-            index += 1;
-            continue;
-        }
-
-        if (current === "--fail-on") {
-            options.failOn = args[index + 1] as "never" | "error" | "warning" | undefined;
-            index += 1;
-            continue;
-        }
-
-        if (current === "--host") {
-            if (command !== "dev" && command !== "preview") {
-                throw new Error(`Unknown option "${current}".`);
-            }
-
-            const nextValue = args[index + 1];
-            if (nextValue?.trim() && !nextValue.startsWith("--")) {
-                options.host = nextValue;
-                index += 1;
-            } else {
-                options.host = true;
-            }
-            continue;
-        }
-
-        if (current === "--port") {
-            if (command !== "dev" && command !== "preview") {
-                throw new Error(`Unknown option "${current}".`);
-            }
-
-            const nextValue = args[index + 1];
-            const parsedPort = Number(nextValue);
-            if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
-                throw new Error(`Invalid --port value "${nextValue ?? ""}".`);
-            }
-
-            options.port = parsedPort;
-            index += 1;
-            continue;
-        }
-
-        if (current === "--debug-ssg") {
-            if (command !== "dev") {
-                throw new Error(`Unknown option "${current}".`);
-            }
-
-            options.debugSsg = true;
-            continue;
-        }
-
-        if (current === "--suite") {
-            throw new Error(
-                `Unknown option "${current}". Test suites are project-specific; keep them in deno.json tasks.`,
-            );
-        }
-
-        throw new Error(`Unknown option "${current}".`);
+    if (current === "--target") {
+      options.target = args[index + 1];
+      index += 1;
+      continue;
     }
 
-    return options;
+    if (current === "--profile") {
+      options.profile = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (current === "--config") {
+      options.configPath = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--format") {
+      options.format = args[index + 1] as "json" | "human" | undefined;
+      index += 1;
+      continue;
+    }
+
+    if (current === "--app") {
+      options.app = args[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (current === "--fail-on") {
+      options.failOn = args[index + 1] as
+        | "never"
+        | "error"
+        | "warning"
+        | undefined;
+      index += 1;
+      continue;
+    }
+
+    if (current === "--host") {
+      if (command !== "dev" && command !== "preview") {
+        throw new Error(`Unknown option "${current}".`);
+      }
+
+      const nextValue = args[index + 1];
+      if (nextValue?.trim() && !nextValue.startsWith("--")) {
+        options.host = nextValue;
+        index += 1;
+      } else {
+        options.host = true;
+      }
+      continue;
+    }
+
+    if (current === "--port") {
+      if (command !== "dev" && command !== "preview") {
+        throw new Error(`Unknown option "${current}".`);
+      }
+
+      const nextValue = args[index + 1];
+      const parsedPort = Number(nextValue);
+      if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
+        throw new Error(`Invalid --port value "${nextValue ?? ""}".`);
+      }
+
+      options.port = parsedPort;
+      index += 1;
+      continue;
+    }
+
+    if (current === "--debug-ssg") {
+      if (command !== "dev") {
+        throw new Error(`Unknown option "${current}".`);
+      }
+
+      options.debugSsg = true;
+      continue;
+    }
+
+    if (current === "--suite") {
+      throw new Error(
+        `Unknown option "${current}". Test suites are project-specific; keep them in deno.json tasks.`,
+      );
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  return options;
 }
 
 async function runInitCommand(
-    options: InitCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: InitCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = resolveSupportedCliRuntime(options.runtime ?? hostRuntime);
-    const initTemplate = options.template ?? "empty";
-    const runtime = denoToolingRuntime;
-    const outputDir = options.name
-        ? resolve(runtime.cwd(), normalizeInitProjectPath(options.name))
-        : runtime.cwd();
-    const projectName = basename(outputDir) || "mainz-app";
-    const configPath = options.configPath ?? "mainz.config.ts";
-    const denoConfigPath = options.denoConfigPath ?? "deno.json";
-    const mainzSpecifier = options.mainzSpecifier ??
-        await resolvePublishedMainzSpecifier(import.meta.url, runtime);
-    const generatedMainzSpecifier = projectRuntime === "node"
-        ? renderGeneratedNodeMainzSpecifier(mainzSpecifier)
-        : mainzSpecifier;
-    const appName = "app";
-    const templateSource = await resolveInitProjectTemplateSource(
-        initTemplate,
-        projectRuntime,
-        runtime,
-    );
-    const templateParams = {
-        mainzSpecifier: generatedMainzSpecifier,
-        projectName,
-        denoConfigPath,
-        mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
-        mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
-        appName,
-        appId: appName,
-        appNavigation: "enhanced-mpa",
-        appTitle: projectName,
-        customElementPrefix: `x-mainz-${toCustomElementSegment(projectName)}`,
-        rootDir: `./${appName}`,
-        outDir: `dist/${appName}`,
-    };
-    const plan = await instantiateTemplate({
-        runtime,
-        ...templateSource,
-        params: templateParams,
-    });
-    validateTemplateRuntimeCompatibility(plan.manifest, projectRuntime, initTemplate);
+  const projectRuntime = resolveSupportedCliRuntime(
+    options.runtime ?? hostRuntime,
+  );
+  const initTemplate = options.template ?? "empty";
+  const runtime = denoToolingRuntime;
+  const outputDir = options.name
+    ? resolve(runtime.cwd(), normalizeInitProjectPath(options.name))
+    : runtime.cwd();
+  const projectName = basename(outputDir) || "mainz-app";
+  const configPath = options.configPath ?? "mainz.config.ts";
+  const denoConfigPath = options.denoConfigPath ?? "deno.json";
+  const mainzSpecifier = options.mainzSpecifier ??
+    await resolvePublishedMainzSpecifier(import.meta.url, runtime);
+  const generatedMainzSpecifier = projectRuntime === "node"
+    ? renderGeneratedNodeMainzSpecifier(mainzSpecifier)
+    : mainzSpecifier;
+  const appName = "app";
+  const templateSource = await resolveInitProjectTemplateSource(
+    initTemplate,
+    projectRuntime,
+    runtime,
+  );
+  const templateParams = {
+    mainzSpecifier: generatedMainzSpecifier,
+    projectName,
+    denoConfigPath,
+    mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
+    mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
+    appName,
+    appId: appName,
+    appNavigation: "enhanced-mpa",
+    appTitle: projectName,
+    customElementPrefix: `x-mainz-${toCustomElementSegment(projectName)}`,
+    rootDir: `./${appName}`,
+    outDir: `dist/${appName}`,
+  };
+  const plan = await instantiateTemplate({
+    runtime,
+    ...templateSource,
+    params: templateParams,
+  });
+  validateTemplateRuntimeCompatibility(
+    plan.manifest,
+    projectRuntime,
+    initTemplate,
+  );
 
-    await materializeTemplatePlan({
-        runtime,
-        plan,
-        outputDir,
-        beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
-    });
+  await materializeTemplatePlan({
+    runtime,
+    plan,
+    outputDir,
+    beforeWrite: async (path) =>
+      await assertCanCreateTemplateFile(path, runtime),
+  });
 
-    console.log(
-        `[mainz] Initialized Mainz ${
-            initTemplate === "starter" ? "starter project" : "project"
-        } in ${outputDir}.`,
-    );
-    console.log(`[mainz] Created ${plan.files.map((file) => file.path).join(", ")}.`);
-    if (initTemplate === "starter") {
-        console.log('[mainz] Run "mainz dev --target app" to start the app.');
-    } else {
-        console.log('[mainz] Add an app with "mainz app create <name>".');
-    }
+  console.log(
+    `[mainz] Initialized Mainz ${
+      initTemplate === "starter" ? "starter project" : "project"
+    } in ${outputDir}.`,
+  );
+  console.log(
+    `[mainz] Created ${plan.files.map((file) => file.path).join(", ")}.`,
+  );
+  if (initTemplate === "starter") {
+    console.log('[mainz] Run "mainz dev --target app" to start the app.');
+  } else {
+    console.log('[mainz] Add an app with "mainz app create <name>".');
+  }
 }
 
 async function runAppCommand(
-    options: AppCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: AppCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    if (options.action === "create") {
-        await runAppCreateCommand(options, hostRuntime);
-        return;
-    }
+  if (options.action === "create") {
+    await runAppCreateCommand(options, hostRuntime);
+    return;
+  }
 
-    if (options.action === "remove") {
-        await runAppRemoveCommand(options, hostRuntime);
-        return;
-    }
+  if (options.action === "remove") {
+    await runAppRemoveCommand(options, hostRuntime);
+    return;
+  }
 
-    if (options.action === "list") {
-        await runAppListCommand(options, hostRuntime);
-        return;
-    }
+  if (options.action === "list") {
+    await runAppListCommand(options, hostRuntime);
+    return;
+  }
 
-    await runAppInfoCommand(options, hostRuntime);
+  await runAppInfoCommand(options, hostRuntime);
 }
 
 async function runAppCreateCommand(
-    options: AppCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: AppCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const appName = normalizeAppName(options.name!);
-    const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
-    const rootPath = resolve(rootDir);
-    const outDir = normalizeOutDir(options.outDir ?? `dist/${appName}`);
-    const configPath = options.configPath ?? "mainz.config.ts";
-    if (options.template && options.type) {
-        throw new Error('Command "app create" cannot combine --template and --type.');
-    }
-    const templateName = options.template ??
-        resolveDefaultAppTemplateName(options.type ?? "routed");
-    const templateSource = await resolveAppTemplateSource(templateName, runtime);
-    const templateParams = {
-        appName,
-        appId: appName,
-        appNavigation: options.navigation ?? "enhanced-mpa",
-        appTitle: appName,
-        customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
-        rootDir,
-        outDir,
-    };
-    const plan = await instantiateTemplate({
-        runtime,
-        ...templateSource,
-        params: templateParams,
-    });
-    validateTemplateRuntimeCompatibility(plan.manifest, projectRuntime, templateName);
-    const dependencyUpdates = await prepareAppTemplateWorkspaceUpdates(
-        plan.manifest,
-        projectRuntime,
-        runtime,
-        appName,
-        rootDir,
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const appName = normalizeAppName(options.name!);
+  const rootDir = normalizeAppRoot(options.root ?? `./${appName}`);
+  const rootPath = resolve(rootDir);
+  const outDir = normalizeOutDir(options.outDir ?? `dist/${appName}`);
+  const configPath = options.configPath ?? "mainz.config.ts";
+  if (options.template && options.type) {
+    throw new Error(
+      'Command "app create" cannot combine --template and --type.',
     );
+  }
+  const templateName = options.template ??
+    resolveDefaultAppTemplateName(options.type ?? "routed");
+  const templateSource = await resolveAppTemplateSource(templateName, runtime);
+  const templateParams = {
+    appName,
+    appId: appName,
+    appNavigation: options.navigation ?? "enhanced-mpa",
+    appTitle: appName,
+    customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
+    rootDir,
+    outDir,
+  };
+  const plan = await instantiateTemplate({
+    runtime,
+    ...templateSource,
+    params: templateParams,
+  });
+  validateTemplateRuntimeCompatibility(
+    plan.manifest,
+    projectRuntime,
+    templateName,
+  );
+  const dependencyUpdates = await prepareAppTemplateWorkspaceUpdates(
+    plan.manifest,
+    projectRuntime,
+    runtime,
+    appName,
+    rootDir,
+  );
 
-    await materializeTemplatePlan({
-        runtime,
-        plan,
-        outputDir: rootPath,
-        beforeWrite: async (path) => await assertCanCreateTemplateFile(path, runtime),
-    });
-    const target = resolveTemplateTarget(plan.manifest);
+  await materializeTemplatePlan({
+    runtime,
+    plan,
+    outputDir: rootPath,
+    beforeWrite: async (path) =>
+      await assertCanCreateTemplateFile(path, runtime),
+  });
+  const target = resolveTemplateTarget(plan.manifest);
 
-    for (const update of dependencyUpdates) {
-        await runtime.writeTextFile(update.path, update.content);
-    }
+  for (const update of dependencyUpdates) {
+    await runtime.writeTextFile(update.path, update.content);
+  }
 
-    await upsertConfigTarget(
-        configPath,
-        renderConfigTarget(target),
-        projectRuntime,
-        runtime,
-    );
+  await upsertConfigTarget(
+    configPath,
+    renderConfigTarget(target),
+    projectRuntime,
+    runtime,
+  );
 
-    console.log(`[mainz] Created app "${appName}" in ${rootDir}.`);
+  console.log(`[mainz] Created app "${appName}" in ${rootDir}.`);
 }
 
 async function runAppRemoveCommand(
-    options: AppCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: AppCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const appName = normalizeAppName(options.name!);
-    const configPath = options.configPath ?? "mainz.config.ts";
-    const absoluteConfigPath = resolve(configPath);
-    const content = await runtime.readTextFile(absoluteConfigPath);
-    const targetSource = findConfigTargetSource(content, appName);
-    const updated = removeConfigTarget(content, appName);
-    const rootDir = targetSource ? extractTargetRootDir(targetSource) : undefined;
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const appName = normalizeAppName(options.name!);
+  const configPath = options.configPath ?? "mainz.config.ts";
+  const absoluteConfigPath = resolve(configPath);
+  const content = await runtime.readTextFile(absoluteConfigPath);
+  const targetSource = findConfigTargetSource(content, appName);
+  const updated = removeConfigTarget(content, appName);
+  const rootDir = targetSource ? extractTargetRootDir(targetSource) : undefined;
 
-    if (updated === content) {
-        throw new Error(`No target named "${appName}" found in ${configPath}.`);
+  if (updated === content) {
+    throw new Error(`No target named "${appName}" found in ${configPath}.`);
+  }
+
+  if (options.deleteFiles) {
+    if (!rootDir) {
+      throw new Error(
+        `Target "${appName}" does not define rootDir, so files were not deleted.`,
+      );
     }
 
-    if (options.deleteFiles) {
-        if (!rootDir) {
-            throw new Error(
-                `Target "${appName}" does not define rootDir, so files were not deleted.`,
-            );
-        }
+    await removeAppRoot(rootDir, runtime);
+  }
 
-        await removeAppRoot(rootDir, runtime);
-    }
+  const workspaceUpdate = rootDir
+    ? await prepareRemoveAppWorkspaceUpdate(projectRuntime, runtime, rootDir)
+    : undefined;
+  if (workspaceUpdate) {
+    await runtime.writeTextFile(workspaceUpdate.path, workspaceUpdate.content);
+  }
 
-    const workspaceUpdate = rootDir
-        ? await prepareRemoveAppWorkspaceUpdate(projectRuntime, runtime, rootDir)
-        : undefined;
-    if (workspaceUpdate) {
-        await runtime.writeTextFile(workspaceUpdate.path, workspaceUpdate.content);
-    }
+  await runtime.writeTextFile(absoluteConfigPath, updated);
+  console.log(`[mainz] Removed app target "${appName}" from ${configPath}.`);
 
-    await runtime.writeTextFile(absoluteConfigPath, updated);
-    console.log(`[mainz] Removed app target "${appName}" from ${configPath}.`);
-
-    if (options.deleteFiles) {
-        console.log(`[mainz] Deleted app files for "${appName}".`);
-    }
+  if (options.deleteFiles) {
+    console.log(`[mainz] Deleted app files for "${appName}".`);
+  }
 }
 
 async function runAppListCommand(
-    options: AppCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: AppCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
-    console.log(JSON.stringify(
-        normalizedConfig.targets.map((target) => ({
-            target: target.name,
-            appId: target.appId ?? null,
-            rootDir: target.rootDir,
-            appFile: target.appFile ?? null,
-            outDir: target.outDir,
-        })),
-        null,
-        2,
-    ));
+  console.log(JSON.stringify(
+    normalizedConfig.targets.map((target) => ({
+      target: target.name,
+      appId: target.appId ?? null,
+      rootDir: target.rootDir,
+      appFile: target.appFile ?? null,
+      outDir: target.outDir,
+    })),
+    null,
+    2,
+  ));
 }
 
 async function runAppInfoCommand(
-    options: AppCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: AppCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-    const target = resolveRequiredTarget(normalizedConfig, options.name, "app-info");
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.name,
+    "app-info",
+  );
 
-    console.log(JSON.stringify(
-        {
-            target: target.name,
-            appId: target.appId ?? null,
-            rootDir: target.rootDir,
-            appFile: target.appFile ?? null,
-            outDir: target.outDir,
-            vite: target.viteConfig
-                ? {
-                    source: "explicit",
-                    configPath: target.viteConfig,
-                }
-                : {
-                    source: "generated",
-                    configPath: null,
-                },
-            build: {
-                configPath: resolveTargetBuildConfigFile(target, runtime.cwd()) ?? null,
-            },
+  console.log(JSON.stringify(
+    {
+      target: target.name,
+      appId: target.appId ?? null,
+      rootDir: target.rootDir,
+      appFile: target.appFile ?? null,
+      outDir: target.outDir,
+      vite: target.viteConfig
+        ? {
+          source: "explicit",
+          configPath: target.viteConfig,
+        }
+        : {
+          source: "generated",
+          configPath: null,
         },
-        null,
-        2,
-    ));
+      build: {
+        configPath: resolveTargetBuildConfigFile(target, runtime.cwd()) ?? null,
+      },
+    },
+    null,
+    2,
+  ));
 }
 
 async function runProfileCommand(
-    options: ProfileCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: ProfileCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    if (projectRuntime !== "deno") {
-        throw new Error(
-            `Command "profile create" is not implemented yet for runtime "${projectRuntime}".`,
-        );
-    }
-
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "profile-create");
-    const profileName = options.name.trim();
-    const buildConfigPath = resolveTargetBuildConfigFile(target, runtime.cwd());
-    const profileSource = renderBuildProfileProperty(profileName, {
-        basePath: options.basePath ?? inferDefaultProfileBasePath(target.name),
-        siteUrl: options.siteUrl,
-    });
-
-    if (await pathExists(buildConfigPath, runtime)) {
-        const content = await runtime.readTextFile(buildConfigPath);
-        await runtime.writeTextFile(
-            buildConfigPath,
-            upsertBuildProfile(content, profileName, profileSource),
-        );
-    } else {
-        await runtime.mkdir(dirname(buildConfigPath), { recursive: true });
-        await runtime.writeTextFile(buildConfigPath, renderGeneratedBuildConfig(profileSource));
-    }
-
-    console.log(
-        `[mainz] Updated profile "${profileName}" for target "${target.name}" in ${
-            normalizePathSlashes(relative(runtime.cwd(), buildConfigPath) || buildConfigPath)
-        }.`,
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  if (projectRuntime !== "deno") {
+    throw new Error(
+      `Command "profile create" is not implemented yet for runtime "${projectRuntime}".`,
     );
+  }
+
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "profile-create",
+  );
+  const profileName = options.name.trim();
+  const buildConfigPath = resolveTargetBuildConfigFile(target, runtime.cwd());
+  const profileSource = renderBuildProfileProperty(profileName, {
+    basePath: options.basePath ?? inferDefaultProfileBasePath(target.name),
+    siteUrl: options.siteUrl,
+  });
+
+  if (await pathExists(buildConfigPath, runtime)) {
+    const content = await runtime.readTextFile(buildConfigPath);
+    await runtime.writeTextFile(
+      buildConfigPath,
+      upsertBuildProfile(content, profileName, profileSource),
+    );
+  } else {
+    await runtime.mkdir(dirname(buildConfigPath), { recursive: true });
+    await runtime.writeTextFile(
+      buildConfigPath,
+      renderGeneratedBuildConfig(profileSource),
+    );
+  }
+
+  console.log(
+    `[mainz] Updated profile "${profileName}" for target "${target.name}" in ${
+      normalizePathSlashes(
+        relative(runtime.cwd(), buildConfigPath) || buildConfigPath,
+      )
+    }.`,
+  );
 }
 
 async function runWorkflowCommand(
-    options: WorkflowCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: WorkflowCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    if (projectRuntime !== "deno") {
-        throw new Error(
-            `Command "workflow ${options.action}" is not implemented yet for runtime "${projectRuntime}".`,
-        );
-    }
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  if (projectRuntime !== "deno") {
+    throw new Error(
+      `Command "workflow ${options.action}" is not implemented yet for runtime "${projectRuntime}".`,
+    );
+  }
 
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-    const workflowTemplateRoot = resolveBuiltInTemplateRoot("workflow", options.provider);
-    const workflowPath = resolve(runtime.cwd(), ".github", "workflows", "deploy-github-pages.yml");
-    const workflowExists = await pathExists(workflowPath, runtime);
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const workflowTemplateRoot = resolveBuiltInTemplateRoot(
+    "workflow",
+    options.provider,
+  );
+  const workflowPath = resolve(
+    runtime.cwd(),
+    ".github",
+    "workflows",
+    "deploy-github-pages.yml",
+  );
+  const workflowExists = await pathExists(workflowPath, runtime);
 
-    if (options.action === "create" && workflowExists) {
-        throw new Error(`Workflow file "${workflowPath}" already exists.`);
-    }
+  if (options.action === "create" && workflowExists) {
+    throw new Error(`Workflow file "${workflowPath}" already exists.`);
+  }
 
-    if (options.action === "update" && !workflowExists) {
-        throw new Error(`Workflow file "${workflowPath}" does not exist yet.`);
-    }
+  if (options.action === "update" && !workflowExists) {
+    throw new Error(`Workflow file "${workflowPath}" does not exist yet.`);
+  }
 
-    const publishTargets = await resolveGithubPagesWorkflowTargets(normalizedConfig, runtime);
-    if (publishTargets.length === 0) {
-        throw new Error('No targets define a "gh-pages" profile.');
-    }
+  const publishTargets = await resolveGithubPagesWorkflowTargets(
+    normalizedConfig,
+    runtime,
+  );
+  if (publishTargets.length === 0) {
+    throw new Error('No targets define a "gh-pages" profile.');
+  }
 
-    const plan = await instantiateTemplate({
-        runtime,
-        templateRoot: workflowTemplateRoot,
-        params: renderGithubPagesWorkflowTemplateParams({
-            branch: options.branch?.trim() || "main",
-            trigger: options.trigger ?? "push",
-            targets: publishTargets,
-        }),
-    });
+  const plan = await instantiateTemplate({
+    runtime,
+    templateRoot: workflowTemplateRoot,
+    params: renderGithubPagesWorkflowTemplateParams({
+      branch: options.branch?.trim() || "main",
+      trigger: options.trigger ?? "push",
+      targets: publishTargets,
+    }),
+  });
 
-    await materializeTemplatePlan({
-        runtime,
-        plan,
-        outputDir: runtime.cwd(),
-    });
+  await materializeTemplatePlan({
+    runtime,
+    plan,
+    outputDir: runtime.cwd(),
+  });
 
-    console.log(`[mainz] Wrote GitHub Pages workflow to ${workflowPath}.`);
+  console.log(`[mainz] Wrote GitHub Pages workflow to ${workflowPath}.`);
 }
 
 async function runViteCommand(
-    options: ViteCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: ViteCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    if (options.action === "materialize") {
-        await runViteMaterializeCommand(options, hostRuntime);
-        return;
-    }
+  if (options.action === "materialize") {
+    await runViteMaterializeCommand(options, hostRuntime);
+    return;
+  }
 
-    await runViteDematerializeCommand(options, hostRuntime);
+  await runViteDematerializeCommand(options, hostRuntime);
 }
 
 async function runViteMaterializeCommand(
-    options: ViteCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: ViteCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "vite-materialize");
-    const materialized = resolveMaterializedVitePaths(loadedConfig.path, target.rootDir);
-    const targetViteConfig = target.viteConfig?.trim();
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "vite-materialize",
+  );
+  const materialized = resolveMaterializedVitePaths(
+    loadedConfig.path,
+    target.rootDir,
+  );
+  const targetViteConfig = target.viteConfig?.trim();
 
-    if (targetViteConfig && targetViteConfig !== materialized.relativeConfigPath) {
-        throw new Error(
-            `Target "${target.name}" already defines viteConfig "${targetViteConfig}". Materialize only manages ${materialized.relativeConfigPath}.`,
-        );
-    }
-
-    const profile = await resolveTargetBuildProfile(target, undefined, runtime.cwd(), runtime);
-    const navigationMode = await resolveEffectiveNavigationMode(
-        target,
-        profile,
-        runtime.cwd(),
-        runtime,
+  if (
+    targetViteConfig && targetViteConfig !== materialized.relativeConfigPath
+  ) {
+    throw new Error(
+      `Target "${target.name}" already defines viteConfig "${targetViteConfig}". Materialize only manages ${materialized.relativeConfigPath}.`,
     );
-    const appDefinition = await loadTargetBuildRoutedAppDefinition(target, runtime.cwd(), runtime);
-    const targetI18n = resolveTargetI18nConfig(appDefinition);
-    const generatedConfig = resolveGeneratedViteConfig({
-        cwd: runtime.cwd(),
-        target,
-        modeOutDir: normalizePathSlashes(join(target.outDir, "csr")),
-        renderMode: "csr",
-        navigationMode,
-        basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
-        appLocales: appDefinition?.i18n?.locales ??
-            (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
-        defaultLocale: targetI18n?.defaultLocale,
-        localePrefix: targetI18n?.localePrefix ?? "except-default",
-        siteUrl: profile.siteUrl,
-        devSsgDebug: false,
-        cacheDir: projectRuntime === "node"
-            ? normalizePathSlashes(resolveMainzTempPath(runtime.cwd(), "vite-cache", target.name))
+  }
+
+  const profile = await resolveTargetBuildProfile(
+    target,
+    undefined,
+    runtime.cwd(),
+    runtime,
+  );
+  const navigationMode = await resolveEffectiveNavigationMode(
+    target,
+    profile,
+    runtime.cwd(),
+    runtime,
+  );
+  const appDefinition = await loadTargetBuildRoutedAppDefinition(
+    target,
+    runtime.cwd(),
+    runtime,
+  );
+  const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const generatedConfig = resolveGeneratedViteConfig({
+    cwd: runtime.cwd(),
+    target,
+    modeOutDir: normalizePathSlashes(join(target.outDir, "csr")),
+    renderMode: "csr",
+    navigationMode,
+    basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
+    appLocales: appDefinition?.i18n?.locales ??
+      (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
+    defaultLocale: targetI18n?.defaultLocale,
+    localePrefix: targetI18n?.localePrefix ?? "except-default",
+    siteUrl: profile.siteUrl,
+    devSsgDebug: false,
+    cacheDir: projectRuntime === "node"
+      ? normalizePathSlashes(
+        resolveMainzTempPath(runtime.cwd(), "vite-cache", target.name),
+      )
+      : undefined,
+  });
+
+  const materializedModule = [
+    "// @mainz-materialized-vite-config",
+    `${materializedViteMetadataPrefix}${
+      JSON.stringify(
+        {
+          version: 1,
+          target: target.name,
+          vite: target.vite
+            ? cloneMaterializedTargetViteOptions(target.vite)
             : undefined,
-    });
+        } satisfies MaterializedViteMetadata,
+      )
+    }`,
+    `// target: ${target.name}`,
+    "",
+    renderMaterializedViteConfigModule(generatedConfig, runtime.name),
+  ].join("\n");
 
-    const materializedModule = [
-        "// @mainz-materialized-vite-config",
-        `${materializedViteMetadataPrefix}${
-            JSON.stringify(
-                {
-                    version: 1,
-                    target: target.name,
-                    vite: target.vite ? cloneMaterializedTargetViteOptions(target.vite) : undefined,
-                } satisfies MaterializedViteMetadata,
-            )
-        }`,
-        `// target: ${target.name}`,
-        "",
-        renderMaterializedViteConfigModule(generatedConfig, runtime.name),
-    ].join("\n");
-
-    const existingMaterializedSource = await pathExists(materialized.absoluteConfigPath, runtime)
-        ? await runtime.readTextFile(materialized.absoluteConfigPath)
-        : undefined;
-    if (
-        existingMaterializedSource &&
-        !existingMaterializedSource.startsWith("// @mainz-materialized-vite-config") &&
-        !existingMaterializedSource.startsWith("// @mainz-generated-vite-config")
-    ) {
-        throw new Error(
-            `Refusing to overwrite existing workspace Vite config at "${materialized.absoluteConfigPath}".`,
-        );
-    }
-
-    await runtime.writeTextFile(materialized.absoluteConfigPath, materializedModule);
-
-    const configContent = await runtime.readTextFile(loadedConfig.path);
-    const updatedConfig = updateConfigTarget(configContent, target.name, (targetSource) => {
-        let nextSource = removeObjectProperty(targetSource, "vite");
-        nextSource = upsertObjectProperty(
-            nextSource,
-            "viteConfig",
-            JSON.stringify(materialized.relativeConfigPath),
-        );
-        return nextSource;
-    });
-    await runtime.writeTextFile(loadedConfig.path, updatedConfig);
-
-    await clearGeneratedViteArtifacts(runtime, runtime.cwd());
-
-    console.log(
-        `[mainz] Materialized Vite config for target "${target.name}" at ${materialized.absoluteConfigPath}.`,
+  const existingMaterializedSource =
+    await pathExists(materialized.absoluteConfigPath, runtime)
+      ? await runtime.readTextFile(materialized.absoluteConfigPath)
+      : undefined;
+  if (
+    existingMaterializedSource &&
+    !existingMaterializedSource.startsWith(
+      "// @mainz-materialized-vite-config",
+    ) &&
+    !existingMaterializedSource.startsWith("// @mainz-generated-vite-config")
+  ) {
+    throw new Error(
+      `Refusing to overwrite existing workspace Vite config at "${materialized.absoluteConfigPath}".`,
     );
+  }
+
+  await runtime.writeTextFile(
+    materialized.absoluteConfigPath,
+    materializedModule,
+  );
+
+  const configContent = await runtime.readTextFile(loadedConfig.path);
+  const updatedConfig = updateConfigTarget(
+    configContent,
+    target.name,
+    (targetSource) => {
+      let nextSource = removeObjectProperty(targetSource, "vite");
+      nextSource = upsertObjectProperty(
+        nextSource,
+        "viteConfig",
+        JSON.stringify(materialized.relativeConfigPath),
+      );
+      return nextSource;
+    },
+  );
+  await runtime.writeTextFile(loadedConfig.path, updatedConfig);
+
+  await clearGeneratedViteArtifacts(runtime, runtime.cwd());
+
+  console.log(
+    `[mainz] Materialized Vite config for target "${target.name}" at ${materialized.absoluteConfigPath}.`,
+  );
 }
 
 async function runViteDematerializeCommand(
-    options: ViteCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  options: ViteCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<void> {
-    const projectRuntime = await resolveProjectRuntimePreference(options, hostRuntime);
-    const runtime = resolveToolingRuntime(projectRuntime);
-    const loadedConfig = await loadMainzConfig(options.configPath, runtime);
-    const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "vite-dematerialize");
-    const materialized = resolveMaterializedVitePaths(loadedConfig.path, target.rootDir);
+  const projectRuntime = await resolveProjectRuntimePreference(
+    options,
+    hostRuntime,
+  );
+  const runtime = resolveToolingRuntime(projectRuntime);
+  const loadedConfig = await loadMainzConfig(options.configPath, runtime);
+  const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "vite-dematerialize",
+  );
+  const materialized = resolveMaterializedVitePaths(
+    loadedConfig.path,
+    target.rootDir,
+  );
 
-    if (target.viteConfig?.trim() !== materialized.relativeConfigPath) {
-        throw new Error(
-            `Target "${target.name}" is not using the managed materialized viteConfig "${materialized.relativeConfigPath}".`,
-        );
-    }
-
-    const metadata = await readMaterializedViteMetadata(materialized.absoluteConfigPath, runtime);
-
-    const configContent = await runtime.readTextFile(loadedConfig.path);
-    const updatedConfig = updateConfigTarget(configContent, target.name, (targetSource) => {
-        let nextSource = removeObjectProperty(targetSource, "viteConfig");
-        nextSource = removeObjectProperty(nextSource, "vite");
-        if (metadata?.vite) {
-            nextSource = upsertObjectProperty(
-                nextSource,
-                "vite",
-                renderViteOptionsSource(metadata.vite),
-            );
-        }
-        return nextSource;
-    });
-    await runtime.writeTextFile(loadedConfig.path, updatedConfig);
-
-    if (await pathExists(materialized.absoluteConfigPath, runtime)) {
-        await runtime.remove(materialized.absoluteConfigPath);
-    }
-
-    await clearGeneratedViteArtifacts(runtime, runtime.cwd());
-
-    console.log(
-        `[mainz] Removed materialized Vite config for target "${target.name}" and restored generated config mode.`,
+  if (target.viteConfig?.trim() !== materialized.relativeConfigPath) {
+    throw new Error(
+      `Target "${target.name}" is not using the managed materialized viteConfig "${materialized.relativeConfigPath}".`,
     );
+  }
+
+  const metadata = await readMaterializedViteMetadata(
+    materialized.absoluteConfigPath,
+    runtime,
+  );
+
+  const configContent = await runtime.readTextFile(loadedConfig.path);
+  const updatedConfig = updateConfigTarget(
+    configContent,
+    target.name,
+    (targetSource) => {
+      let nextSource = removeObjectProperty(targetSource, "viteConfig");
+      nextSource = removeObjectProperty(nextSource, "vite");
+      if (metadata?.vite) {
+        nextSource = upsertObjectProperty(
+          nextSource,
+          "vite",
+          renderViteOptionsSource(metadata.vite),
+        );
+      }
+      return nextSource;
+    },
+  );
+  await runtime.writeTextFile(loadedConfig.path, updatedConfig);
+
+  if (await pathExists(materialized.absoluteConfigPath, runtime)) {
+    await runtime.remove(materialized.absoluteConfigPath);
+  }
+
+  await clearGeneratedViteArtifacts(runtime, runtime.cwd());
+
+  console.log(
+    `[mainz] Removed materialized Vite config for target "${target.name}" and restored generated config mode.`,
+  );
 }
 
 async function runBuildCommand(
-    options: BuildCommandOptions,
-    loadedConfig: LoadedMainzConfig,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: BuildCommandOptions,
+  loadedConfig: LoadedMainzConfig,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<void> {
-    const cwd = runtime.cwd();
-    const jobs = await resolveEngineBuildJobs(normalizedConfig, options, cwd);
-    const selectedTargets = new Map(jobs.map((job) => [job.target.name, job.target]));
-    const resolvedProfileByTarget = new Map<
-        string,
-        Awaited<ReturnType<typeof resolveEngineBuildProfile>>
-    >();
-    for (const target of selectedTargets.values()) {
-        resolvedProfileByTarget.set(
-            target.name,
-            await resolveEngineBuildProfile(target, options.profile, cwd),
-        );
-    }
-
-    const resolvedJobs = jobs.map((job) => ({
-        ...job,
-        profile: resolvedProfileByTarget.get(job.target.name)!,
-    }));
-
-    console.log(
-        `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
+  const cwd = runtime.cwd();
+  const jobs = await resolveEngineBuildJobs(normalizedConfig, options, cwd);
+  const selectedTargets = new Map(
+    jobs.map((job) => [job.target.name, job.target]),
+  );
+  const resolvedProfileByTarget = new Map<
+    string,
+    Awaited<ReturnType<typeof resolveEngineBuildProfile>>
+  >();
+  for (const target of selectedTargets.values()) {
+    resolvedProfileByTarget.set(
+      target.name,
+      await resolveEngineBuildProfile(target, options.profile, cwd),
     );
+  }
 
-    await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd, runtime);
+  const resolvedJobs = jobs.map((job) => ({
+    ...job,
+    profile: resolvedProfileByTarget.get(job.target.name)!,
+  }));
 
-    console.log("[mainz] Build completed successfully.");
+  console.log(
+    `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
+  );
+
+  await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd, runtime);
+
+  console.log("[mainz] Build completed successfully.");
 }
 
 async function runPublishInfoCommand(
-    options: PublishInfoCommandOptions,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: PublishInfoCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<void> {
-    const cwd = runtime.cwd();
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "publish-info");
-    const metadata = await resolveEnginePublicationMetadata(
-        target,
-        options.profile,
-        cwd,
-    );
-    console.log(JSON.stringify(metadata, null, 2));
+  const cwd = runtime.cwd();
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "publish-info",
+  );
+  const metadata = await resolveEnginePublicationMetadata(
+    target,
+    options.profile,
+    cwd,
+  );
+  console.log(JSON.stringify(metadata, null, 2));
 }
 
 async function runDevCommand(
-    options: DevCommandOptions,
-    loadedConfig: LoadedMainzConfig,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: DevCommandOptions,
+  loadedConfig: LoadedMainzConfig,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<void> {
-    const cwd = runtime.cwd();
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
-    const profile = await resolveEngineBuildProfile(target, options.profile, cwd);
+  const cwd = runtime.cwd();
+  const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
+  const profile = await resolveEngineBuildProfile(target, options.profile, cwd);
 
-    console.log(
-        `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
-    );
+  console.log(
+    `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
+  );
 
-    await runEngineDevServer(
-        normalizedConfig,
-        target,
-        profile,
-        {
-            host: options.host,
-            port: options.port,
-            debugSsg: options.debugSsg,
-        },
-        cwd,
-        runtime,
-    );
+  await runEngineDevServer(
+    normalizedConfig,
+    target,
+    profile,
+    {
+      host: options.host,
+      port: options.port,
+      debugSsg: options.debugSsg,
+    },
+    cwd,
+    runtime,
+  );
 }
 
 async function runPreviewCommand(
-    options: PreviewCommandOptions,
-    loadedConfig: LoadedMainzConfig,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: PreviewCommandOptions,
+  loadedConfig: LoadedMainzConfig,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<void> {
-    const cwd = runtime.cwd();
-    const target = resolveRequiredTarget(normalizedConfig, options.target, "preview");
+  const cwd = runtime.cwd();
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "preview",
+  );
 
-    await runBuildCommand(
-        {
-            command: "build",
-            target: target.name,
-            profile: options.profile,
-            configPath: options.configPath,
-        },
-        loadedConfig,
-        normalizedConfig,
-        runtime,
-    );
+  await runBuildCommand(
+    {
+      command: "build",
+      target: target.name,
+      profile: options.profile,
+      configPath: options.configPath,
+    },
+    loadedConfig,
+    normalizedConfig,
+    runtime,
+  );
 
-    const metadata = await resolveEnginePublicationMetadata(
-        target,
-        options.profile,
-        cwd,
-    );
+  const metadata = await resolveEnginePublicationMetadata(
+    target,
+    options.profile,
+    cwd,
+  );
 
-    serveArtifactPreview({
-        rootDir: metadata.outDir,
-        host: options.host === true ? "0.0.0.0" : options.host,
-        port: options.port,
-    });
+  serveArtifactPreview({
+    rootDir: metadata.outDir,
+    host: options.host === true ? "0.0.0.0" : options.host,
+    port: options.port,
+  });
 
-    await new Promise(() => undefined);
+  await new Promise(() => undefined);
 }
 
 async function runDiagnoseCommand(
-    options: DiagnoseCommandOptions,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: DiagnoseCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<number> {
-    const cwd = runtime.cwd();
-    const diagnostics = await collectDiagnosticsForConfig(
-        normalizedConfig,
-        options,
-        cwd,
-    );
-    const format = resolveDiagnoseFormat(options.format);
-    console.log(
-        format === "human"
-            ? formatDiagnosticsHuman(diagnostics)
-            : formatDiagnosticsJson(diagnostics),
-    );
-    if (shouldFailDiagnostics(diagnostics, resolveDiagnoseFailOn(options.failOn))) {
-        return 1;
-    }
+  const cwd = runtime.cwd();
+  const diagnostics = await collectDiagnosticsForConfig(
+    normalizedConfig,
+    options,
+    cwd,
+  );
+  const format = resolveDiagnoseFormat(options.format);
+  console.log(
+    format === "human"
+      ? formatDiagnosticsHuman(diagnostics)
+      : formatDiagnosticsJson(diagnostics),
+  );
+  if (
+    shouldFailDiagnostics(diagnostics, resolveDiagnoseFailOn(options.failOn))
+  ) {
+    return 1;
+  }
 
-    return 0;
+  return 0;
 }
 
 async function runTestCommand(
-    options: TestCommandOptions,
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
+  options: TestCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
 ): Promise<number> {
-    if (runtime.name !== "deno") {
-        throw new Error('Command "test" is not implemented yet for runtime "node".');
-    }
+  if (runtime.name !== "deno") {
+    throw new Error(
+      'Command "test" is not implemented yet for runtime "node".',
+    );
+  }
 
-    const cwd = runtime.cwd();
-    const testPaths = resolveTestPathsForTarget(normalizedConfig, options.target, cwd);
-    const status = await runtime.run({
-        command: "deno",
-        cwd,
-        args: [
-            "test",
-            "-A",
-            ...testPaths,
-        ],
-        stdin: "inherit",
-        stdout: "inherit",
-        stderr: "inherit",
-    });
-    if (!status.success) {
-        return status.code;
-    }
+  const cwd = runtime.cwd();
+  const testPaths = resolveTestPathsForTarget(
+    normalizedConfig,
+    options.target,
+    cwd,
+  );
+  const status = await runtime.run({
+    command: "deno",
+    cwd,
+    args: [
+      "test",
+      "-A",
+      ...testPaths,
+    ],
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (!status.success) {
+    return status.code;
+  }
 
-    return 0;
+  return 0;
 }
 
 function resolveRequiredTarget(
-    config: NormalizedMainzConfig,
-    targetName: string | undefined,
-    command:
-        | "dev"
-        | "preview"
-        | "publish-info"
-        | "app-info"
-        | "profile-create"
-        | "vite-materialize"
-        | "vite-dematerialize",
+  config: NormalizedMainzConfig,
+  targetName: string | undefined,
+  command:
+    | "dev"
+    | "preview"
+    | "publish-info"
+    | "app-info"
+    | "profile-create"
+    | "vite-materialize"
+    | "vite-dematerialize",
 ): NormalizedMainzTarget {
-    const normalizedTargetName = targetName?.trim();
-    if (!normalizedTargetName || normalizedTargetName === "all") {
-        throw new Error(`Command "${command}" requires a single --target <name>.`);
-    }
+  const normalizedTargetName = targetName?.trim();
+  if (!normalizedTargetName || normalizedTargetName === "all") {
+    throw new Error(`Command "${command}" requires a single --target <name>.`);
+  }
 
-    const target = config.targets.find((entry) => entry.name === normalizedTargetName);
-    if (!target) {
-        throw new Error(
-            `No targets matched "${normalizedTargetName}". Available targets: ${
-                config.targets.map((entry) => entry.name).join(", ")
-            }`,
-        );
-    }
+  const target = config.targets.find((entry) =>
+    entry.name === normalizedTargetName
+  );
+  if (!target) {
+    throw new Error(
+      `No targets matched "${normalizedTargetName}". Available targets: ${
+        config.targets.map((entry) => entry.name).join(", ")
+      }`,
+    );
+  }
 
-    return target;
+  return target;
 }
 
 function printHelp(topic: HelpTopic = "main"): void {
-    console.log(
-        getHelpText(topic).join("\n"),
-    );
+  console.log(
+    getHelpText(topic).join("\n"),
+  );
 }
 
 function getHelpText(topic: HelpTopic): string[] {
-    if (topic === "init") {
-        return [
-            "Mainz CLI - init",
-            "",
-            "Usage:",
-            "  mainz init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-            "",
-            "Notes:",
-            "  <name> creates the project in a new directory; omitting it initializes the current directory.",
-            "  --template starter creates a routed app with a counter component.",
-            "  --template also accepts a local path, file:// URL, or http(s) template source.",
-            "  --runtime selects the runtime of the generated project, not the CLI host.",
-            "  This executable already is the Deno-hosted CLI.",
-        ];
-    }
-
-    if (topic === "app") {
-        return [
-            "Mainz CLI - app",
-            "",
-            "Usage:",
-            "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
-            "  mainz app list [--config <path>]",
-            "  mainz app info [<target>|--target <target>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "app-create") {
-        return [
-            "Mainz CLI - app create",
-            "",
-            "Usage:",
-            "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
-            "",
-            "Notes:",
-            "  Without --template, Mainz uses default-routed; pass --type root for default-root.",
-            "  --template accepts a built-in name, local path, file:// URL, or http(s) template source.",
-            "  --template and --type are mutually exclusive.",
-        ];
-    }
-
-    if (topic === "app-remove") {
-        return [
-            "Mainz CLI - app remove",
-            "",
-            "Usage:",
-            "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
-        ];
-    }
-
-    if (topic === "app-list") {
-        return [
-            "Mainz CLI - app list",
-            "",
-            "Usage:",
-            "  mainz app list [--config <path>]",
-        ];
-    }
-
-    if (topic === "app-info") {
-        return [
-            "Mainz CLI - app info",
-            "",
-            "Usage:",
-            "  mainz app info [<target>|--target <target>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "profile") {
-        return [
-            "Mainz CLI - profile",
-            "",
-            "Usage:",
-            "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "profile-create") {
-        return [
-            "Mainz CLI - profile create",
-            "",
-            "Usage:",
-            "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "workflow") {
-        return [
-            "Mainz CLI - workflow",
-            "",
-            "Usage:",
-            "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
-            "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "workflow-create") {
-        return [
-            "Mainz CLI - workflow create",
-            "",
-            "Usage:",
-            "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "workflow-update") {
-        return [
-            "Mainz CLI - workflow update",
-            "",
-            "Usage:",
-            "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "vite") {
-        return [
-            "Mainz CLI - vite",
-            "",
-            "Usage:",
-            "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-            "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-        ];
-    }
-
-    if (topic === "vite-materialize") {
-        return [
-            "Mainz CLI - vite materialize",
-            "",
-            "Usage:",
-            "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-            "",
-            "Notes:",
-            "  Generates ./<workspace>/vite.config.ts and switches the target to viteConfig mode.",
-        ];
-    }
-
-    if (topic === "vite-dematerialize") {
-        return [
-            "Mainz CLI - vite dematerialize",
-            "",
-            "Usage:",
-            "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-            "",
-            "Notes:",
-            "  Removes the managed ./<workspace>/vite.config.ts file and restores generated-config mode for that target.",
-        ];
-    }
-
-    if (topic === "dev") {
-        return [
-            "Mainz CLI - dev",
-            "",
-            "Usage:",
-            "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>]",
-        ];
-    }
-
-    if (topic === "build") {
-        return [
-            "Mainz CLI - build",
-            "",
-            "Usage:",
-            "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "preview") {
-        return [
-            "Mainz CLI - preview",
-            "",
-            "Usage:",
-            "  mainz preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "test") {
-        return [
-            "Mainz CLI - test",
-            "",
-            "Usage:",
-            "  mainz test [--target <name|all>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "publish-info") {
-        return [
-            "Mainz CLI - publish-info",
-            "",
-            "Usage:",
-            "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
-        ];
-    }
-
-    if (topic === "diagnose") {
-        return [
-            "Mainz CLI - diagnose",
-            "",
-            "Usage:",
-            "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
-        ];
-    }
-
+  if (topic === "init") {
     return [
-        "Mainz CLI",
-        "",
-        "Usage:",
-        "  mainz [--cli <deno|node|bun>] init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-        "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] app list [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] app info [<target>|--target <target>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
-        "  mainz [--cli <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>] [--runtime <deno|node|bun>]",
-        "",
-        "Global options:",
-        "  --cli <deno|node|bun>      Selects which installed Mainz CLI host should execute the command.",
-        "",
-        "Command options:",
-        "  --runtime <deno|node|bun>  Selects the generated or targeted project runtime.",
-        "",
-        "The --runtime option belongs after the command that consumes it. Use --cli before the",
-        "command only when selecting which installed CLI host should execute the operation.",
-        "When --runtime is omitted, Mainz prefers the explicit project runtime and otherwise",
-        "falls back to the host runtime of the installed CLI package.",
-        "",
-        "Examples:",
-        "  mainz init",
-        "  mainz init my-app",
-        "  mainz init my-app --template starter",
-        "  mainz init --mainz jsr:@mainz/mainz@<version>",
-        "  mainz app create site",
-        "  mainz app create --name site",
-        "  mainz app create docs --navigation enhanced-mpa",
-        "  mainz app create portal --type root",
-        "  mainz app create docs --template default-routed",
-        "  mainz app remove site",
-        "  mainz app remove --target site",
-        "  mainz app list",
-        "  mainz app info site",
-        "  mainz profile create gh-pages --target site --base-path /",
-        "  mainz workflow create gh-pages",
-        "  mainz vite materialize --target site",
-        "  mainz vite dematerialize --target site",
-        "  mainz build",
-        "  mainz build --target site --profile gh-pages",
-        "  mainz build --target playground",
-        "  mainz dev --target playground",
-        "  mainz dev --target site --host",
-        "  mainz preview --target site --profile production",
-        "  mainz test --target site",
-        "  mainz publish-info --target site --profile gh-pages",
-        "  mainz diagnose",
-        "  mainz diagnose --target docs",
-        "  mainz diagnose --target docs --app site",
-        "  mainz diagnose --target docs --format human",
-        "  mainz diagnose --target docs --format human --fail-on error",
+      "Mainz CLI - init",
+      "",
+      "Usage:",
+      "  mainz init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+      "",
+      "Notes:",
+      "  <name> creates the project in a new directory; omitting it initializes the current directory.",
+      "  --template starter creates a routed app with a counter component.",
+      "  --template also accepts a local path, file:// URL, or http(s) template source.",
+      "  --runtime selects the runtime of the generated project, not the CLI host.",
+      "  This executable already is the Deno-hosted CLI.",
     ];
+  }
+
+  if (topic === "app") {
+    return [
+      "Mainz CLI - app",
+      "",
+      "Usage:",
+      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+      "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+      "  mainz app list [--config <path>]",
+      "  mainz app info [<target>|--target <target>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "app-create") {
+    return [
+      "Mainz CLI - app create",
+      "",
+      "Usage:",
+      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+      "",
+      "Notes:",
+      "  Without --template, Mainz uses default-routed; pass --type root for default-root.",
+      "  --template accepts a built-in name, local path, file:// URL, or http(s) template source.",
+      "  --template and --type are mutually exclusive.",
+    ];
+  }
+
+  if (topic === "app-remove") {
+    return [
+      "Mainz CLI - app remove",
+      "",
+      "Usage:",
+      "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
+    ];
+  }
+
+  if (topic === "app-list") {
+    return [
+      "Mainz CLI - app list",
+      "",
+      "Usage:",
+      "  mainz app list [--config <path>]",
+    ];
+  }
+
+  if (topic === "app-info") {
+    return [
+      "Mainz CLI - app info",
+      "",
+      "Usage:",
+      "  mainz app info [<target>|--target <target>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "profile") {
+    return [
+      "Mainz CLI - profile",
+      "",
+      "Usage:",
+      "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "profile-create") {
+    return [
+      "Mainz CLI - profile create",
+      "",
+      "Usage:",
+      "  mainz profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "workflow") {
+    return [
+      "Mainz CLI - workflow",
+      "",
+      "Usage:",
+      "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+      "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "workflow-create") {
+    return [
+      "Mainz CLI - workflow create",
+      "",
+      "Usage:",
+      "  mainz workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "workflow-update") {
+    return [
+      "Mainz CLI - workflow update",
+      "",
+      "Usage:",
+      "  mainz workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "vite") {
+    return [
+      "Mainz CLI - vite",
+      "",
+      "Usage:",
+      "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+      "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+    ];
+  }
+
+  if (topic === "vite-materialize") {
+    return [
+      "Mainz CLI - vite materialize",
+      "",
+      "Usage:",
+      "  mainz vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+      "",
+      "Notes:",
+      "  Generates ./<workspace>/vite.config.ts and switches the target to viteConfig mode.",
+    ];
+  }
+
+  if (topic === "vite-dematerialize") {
+    return [
+      "Mainz CLI - vite dematerialize",
+      "",
+      "Usage:",
+      "  mainz vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+      "",
+      "Notes:",
+      "  Removes the managed ./<workspace>/vite.config.ts file and restores generated-config mode for that target.",
+    ];
+  }
+
+  if (topic === "dev") {
+    return [
+      "Mainz CLI - dev",
+      "",
+      "Usage:",
+      "  mainz dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>]",
+    ];
+  }
+
+  if (topic === "build") {
+    return [
+      "Mainz CLI - build",
+      "",
+      "Usage:",
+      "  mainz build [--target <name|all>] [--profile <name>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "preview") {
+    return [
+      "Mainz CLI - preview",
+      "",
+      "Usage:",
+      "  mainz preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "test") {
+    return [
+      "Mainz CLI - test",
+      "",
+      "Usage:",
+      "  mainz test [--target <name|all>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "publish-info") {
+    return [
+      "Mainz CLI - publish-info",
+      "",
+      "Usage:",
+      "  mainz publish-info --target <name> [--profile <name>] [--config <path>]",
+    ];
+  }
+
+  if (topic === "diagnose") {
+    return [
+      "Mainz CLI - diagnose",
+      "",
+      "Usage:",
+      "  mainz diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>]",
+    ];
+  }
+
+  return [
+    "Mainz CLI",
+    "",
+    "Usage:",
+    "  mainz [--cli <deno|node|bun>] init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
+    "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] app list [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] app info [<target>|--target <target>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] profile create [<name>|--name <name>] --target <name> [--base-path <path>] [--site-url <url>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] workflow create gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] workflow update gh-pages [--branch <name>] [--trigger <push|manual>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] vite materialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] vite dematerialize --target <name> [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>] [--runtime <deno|node|bun>]",
+    "",
+    "Global options:",
+    "  --cli <deno|node|bun>      Selects which installed Mainz CLI host should execute the command.",
+    "",
+    "Command options:",
+    "  --runtime <deno|node|bun>  Selects the generated or targeted project runtime.",
+    "",
+    "The --runtime option belongs after the command that consumes it. Use --cli before the",
+    "command only when selecting which installed CLI host should execute the operation.",
+    "When --runtime is omitted, Mainz prefers the explicit project runtime and otherwise",
+    "falls back to the host runtime of the installed CLI package.",
+    "",
+    "Examples:",
+    "  mainz init",
+    "  mainz init my-app",
+    "  mainz init my-app --template starter",
+    "  mainz init --mainz jsr:@mainz/mainz@<version>",
+    "  mainz app create site",
+    "  mainz app create --name site",
+    "  mainz app create docs --navigation enhanced-mpa",
+    "  mainz app create portal --type root",
+    "  mainz app create docs --template default-routed",
+    "  mainz app remove site",
+    "  mainz app remove --target site",
+    "  mainz app list",
+    "  mainz app info site",
+    "  mainz profile create gh-pages --target site --base-path /",
+    "  mainz workflow create gh-pages",
+    "  mainz vite materialize --target site",
+    "  mainz vite dematerialize --target site",
+    "  mainz build",
+    "  mainz build --target site --profile gh-pages",
+    "  mainz build --target playground",
+    "  mainz dev --target playground",
+    "  mainz dev --target site --host",
+    "  mainz preview --target site --profile production",
+    "  mainz test --target site",
+    "  mainz publish-info --target site --profile gh-pages",
+    "  mainz diagnose",
+    "  mainz diagnose --target docs",
+    "  mainz diagnose --target docs --app site",
+    "  mainz diagnose --target docs --format human",
+    "  mainz diagnose --target docs --format human --fail-on error",
+  ];
 }
 
 function resolveDiagnoseFormat(format: string | undefined): "json" | "human" {
-    const normalized = format?.trim();
-    if (!normalized || normalized === "json") {
-        return "json";
-    }
+  const normalized = format?.trim();
+  if (!normalized || normalized === "json") {
+    return "json";
+  }
 
-    if (normalized === "human") {
-        return "human";
-    }
+  if (normalized === "human") {
+    return "human";
+  }
 
-    throw new Error(`Unsupported diagnose format "${format}". Use "json" or "human".`);
+  throw new Error(
+    `Unsupported diagnose format "${format}". Use "json" or "human".`,
+  );
 }
 
 function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
-    const hasHelp = args.includes("--help") || args.includes("-h") || args.includes("help");
-    if (!hasHelp) {
-        return undefined;
-    }
+  const hasHelp = args.includes("--help") || args.includes("-h") ||
+    args.includes("help");
+  if (!hasHelp) {
+    return undefined;
+  }
 
-    const filtered = args.filter((arg) => arg !== "--help" && arg !== "-h" && arg !== "help");
-    const withoutGlobals = skipLeadingGlobalOptions(filtered);
-    const [command, subcommand] = withoutGlobals;
+  const filtered = args.filter((arg) =>
+    arg !== "--help" && arg !== "-h" && arg !== "help"
+  );
+  const withoutGlobals = skipLeadingGlobalOptions(filtered);
+  const [command, subcommand] = withoutGlobals;
 
-    if (command === "init") {
-        return "init";
-    }
-    if (command === "app" && subcommand === "create") {
-        return "app-create";
-    }
-    if (command === "app" && subcommand === "remove") {
-        return "app-remove";
-    }
-    if (command === "app" && subcommand === "list") {
-        return "app-list";
-    }
-    if (command === "app" && subcommand === "info") {
-        return "app-info";
-    }
-    if (command === "profile" && subcommand === "create") {
-        return "profile-create";
-    }
-    if (command === "profile") {
-        return "profile";
-    }
-    if (command === "workflow" && subcommand === "create") {
-        return "workflow-create";
-    }
-    if (command === "workflow" && subcommand === "update") {
-        return "workflow-update";
-    }
-    if (command === "workflow") {
-        return "workflow";
-    }
-    if (command === "vite" && subcommand === "materialize") {
-        return "vite-materialize";
-    }
-    if (command === "vite" && subcommand === "dematerialize") {
-        return "vite-dematerialize";
-    }
-    if (command === "vite") {
-        return "vite";
-    }
-    if (command === "app") {
-        return "app";
-    }
-    if (command === "build") {
-        return "build";
-    }
-    if (command === "dev") {
-        return "dev";
-    }
-    if (command === "preview") {
-        return "preview";
-    }
-    if (command === "test") {
-        return "test";
-    }
-    if (command === "publish-info") {
-        return "publish-info";
-    }
-    if (command === "diagnose") {
-        return "diagnose";
-    }
+  if (command === "init") {
+    return "init";
+  }
+  if (command === "app" && subcommand === "create") {
+    return "app-create";
+  }
+  if (command === "app" && subcommand === "remove") {
+    return "app-remove";
+  }
+  if (command === "app" && subcommand === "list") {
+    return "app-list";
+  }
+  if (command === "app" && subcommand === "info") {
+    return "app-info";
+  }
+  if (command === "profile" && subcommand === "create") {
+    return "profile-create";
+  }
+  if (command === "profile") {
+    return "profile";
+  }
+  if (command === "workflow" && subcommand === "create") {
+    return "workflow-create";
+  }
+  if (command === "workflow" && subcommand === "update") {
+    return "workflow-update";
+  }
+  if (command === "workflow") {
+    return "workflow";
+  }
+  if (command === "vite" && subcommand === "materialize") {
+    return "vite-materialize";
+  }
+  if (command === "vite" && subcommand === "dematerialize") {
+    return "vite-dematerialize";
+  }
+  if (command === "vite") {
+    return "vite";
+  }
+  if (command === "app") {
+    return "app";
+  }
+  if (command === "build") {
+    return "build";
+  }
+  if (command === "dev") {
+    return "dev";
+  }
+  if (command === "preview") {
+    return "preview";
+  }
+  if (command === "test") {
+    return "test";
+  }
+  if (command === "publish-info") {
+    return "publish-info";
+  }
+  if (command === "diagnose") {
+    return "diagnose";
+  }
 
-    return "main";
+  return "main";
 }
 
 function skipLeadingGlobalOptions(args: readonly string[]): string[] {
-    const remaining = [...args];
-    while (remaining[0] === "--cli") {
-        remaining.splice(0, 2);
-    }
-    return remaining;
+  const remaining = [...args];
+  while (remaining[0] === "--cli") {
+    remaining.splice(0, 2);
+  }
+  return remaining;
 }
 
 function toCliUsageError(error: unknown, helpTopic: HelpTopic): Error {
-    if (error instanceof CliUsageError || error instanceof CliExitError) {
-        return error;
-    }
-    if (error instanceof Error) {
-        return new CliUsageError(error.message, helpTopic);
-    }
-    return new CliUsageError(String(error), helpTopic);
+  if (error instanceof CliUsageError || error instanceof CliExitError) {
+    return error;
+  }
+  if (error instanceof Error) {
+    return new CliUsageError(error.message, helpTopic);
+  }
+  return new CliUsageError(String(error), helpTopic);
 }
 
 function printSoftError(message: string, helpTopic: HelpTopic = "main"): void {
-    console.error(`[mainz] ${message}`);
-    console.error(`[mainz] Run "mainz ${renderHelpCommand(helpTopic)}" for usage.`);
+  console.error(`[mainz] ${message}`);
+  console.error(
+    `[mainz] Run "mainz ${renderHelpCommand(helpTopic)}" for usage.`,
+  );
 }
 
 function renderHelpCommand(helpTopic: HelpTopic): string {
-    if (helpTopic === "main") {
-        return "--help";
-    }
-    if (helpTopic === "app-create") {
-        return "app create --help";
-    }
-    if (helpTopic === "app-remove") {
-        return "app remove --help";
-    }
-    if (helpTopic === "app-list") {
-        return "app list --help";
-    }
-    if (helpTopic === "app-info") {
-        return "app info --help";
-    }
-    if (helpTopic === "profile-create") {
-        return "profile create --help";
-    }
-    if (helpTopic === "workflow-create") {
-        return "workflow create --help";
-    }
-    if (helpTopic === "workflow-update") {
-        return "workflow update --help";
-    }
-    if (helpTopic === "vite-materialize") {
-        return "vite materialize --help";
-    }
-    if (helpTopic === "vite-dematerialize") {
-        return "vite dematerialize --help";
-    }
-    return `${helpTopic} --help`;
+  if (helpTopic === "main") {
+    return "--help";
+  }
+  if (helpTopic === "app-create") {
+    return "app create --help";
+  }
+  if (helpTopic === "app-remove") {
+    return "app remove --help";
+  }
+  if (helpTopic === "app-list") {
+    return "app list --help";
+  }
+  if (helpTopic === "app-info") {
+    return "app info --help";
+  }
+  if (helpTopic === "profile-create") {
+    return "profile create --help";
+  }
+  if (helpTopic === "workflow-create") {
+    return "workflow create --help";
+  }
+  if (helpTopic === "workflow-update") {
+    return "workflow update --help";
+  }
+  if (helpTopic === "vite-materialize") {
+    return "vite materialize --help";
+  }
+  if (helpTopic === "vite-dematerialize") {
+    return "vite dematerialize --help";
+  }
+  return `${helpTopic} --help`;
 }
 
 function resolveTestPathsForTarget(
-    config: NormalizedMainzConfig,
-    targetName: string | undefined,
-    cwd: string,
+  config: NormalizedMainzConfig,
+  targetName: string | undefined,
+  cwd: string,
 ): string[] {
-    const normalizedTargetName = targetName?.trim();
-    if (!normalizedTargetName) {
-        return [];
-    }
+  const normalizedTargetName = targetName?.trim();
+  if (!normalizedTargetName) {
+    return [];
+  }
 
-    if (normalizedTargetName === "all") {
-        return Array.from(
-            new Set(
-                config.targets.map((target) => normalizePathSlashes(resolve(cwd, target.rootDir))),
-            ),
-        );
-    }
+  if (normalizedTargetName === "all") {
+    return Array.from(
+      new Set(
+        config.targets.map((target) =>
+          normalizePathSlashes(resolve(cwd, target.rootDir))
+        ),
+      ),
+    );
+  }
 
-    const target = config.targets.find((entry) => entry.name === normalizedTargetName);
-    if (!target) {
-        throw new Error(
-            `No targets matched "${normalizedTargetName}". Available targets: ${
-                config.targets.map((entry) => entry.name).join(", ")
-            }`,
-        );
-    }
+  const target = config.targets.find((entry) =>
+    entry.name === normalizedTargetName
+  );
+  if (!target) {
+    throw new Error(
+      `No targets matched "${normalizedTargetName}". Available targets: ${
+        config.targets.map((entry) => entry.name).join(", ")
+      }`,
+    );
+  }
 
-    return [normalizePathSlashes(resolve(cwd, target.rootDir))];
+  return [normalizePathSlashes(resolve(cwd, target.rootDir))];
 }
 
 function normalizePathSlashes(path: string): string {
-    return path.replaceAll("\\", "/");
+  return path.replaceAll("\\", "/");
 }
 
 function resolveDiagnoseFailOn(
-    failOn: string | undefined,
+  failOn: string | undefined,
 ): "never" | "error" | "warning" {
-    const normalized = failOn?.trim();
-    if (!normalized || normalized === "never") {
-        return "never";
-    }
+  const normalized = failOn?.trim();
+  if (!normalized || normalized === "never") {
+    return "never";
+  }
 
-    if (normalized === "error" || normalized === "warning") {
-        return normalized;
-    }
+  if (normalized === "error" || normalized === "warning") {
+    return normalized;
+  }
 
-    throw new Error(
-        `Unsupported diagnose fail mode "${failOn}". Use "never", "error", or "warning".`,
-    );
+  throw new Error(
+    `Unsupported diagnose fail mode "${failOn}". Use "never", "error", or "warning".`,
+  );
 }
 
 function normalizeAppName(name: string): string {
-    const normalized = name.trim();
-    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
-        throw new Error(
-            `Invalid app name "${name}". Use letters, numbers, dashes, or underscores, starting with a letter.`,
-        );
-    }
+  const normalized = name.trim();
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
+    throw new Error(
+      `Invalid app name "${name}". Use letters, numbers, dashes, or underscores, starting with a letter.`,
+    );
+  }
 
-    return normalized;
+  return normalized;
 }
 
 function normalizeTemplateName(name: string): string {
-    const normalized = name.trim();
-    if (isTemplateSourceSpecifier(normalized)) {
-        return normalized;
-    }
-
-    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
-        throw new Error(
-            `Invalid template name or source "${name}". Use a built-in template name, a local path, a file:// URL, or an http(s) URL.`,
-        );
-    }
-
+  const normalized = name.trim();
+  if (isTemplateSourceSpecifier(normalized)) {
     return normalized;
+  }
+
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(normalized)) {
+    throw new Error(
+      `Invalid template name or source "${name}". Use a built-in template name, a local path, a file:// URL, or an http(s) URL.`,
+    );
+  }
+
+  return normalized;
 }
 
 function normalizeInitProjectPath(name: string): string {
-    const normalized = normalizePathSlashes(name.trim()).replace(/\/+$/, "");
-    if (!normalized) {
-        throw new Error("Project name must not be empty.");
-    }
+  const normalized = normalizePathSlashes(name.trim()).replace(/\/+$/, "");
+  if (!normalized) {
+    throw new Error("Project name must not be empty.");
+  }
 
-    if (isAbsolute(normalized)) {
-        throw new Error("Project name must be a relative path.");
-    }
+  if (isAbsolute(normalized)) {
+    throw new Error("Project name must be a relative path.");
+  }
 
-    return normalized;
+  return normalized;
 }
 
 function normalizeAppRoot(root: string): string {
-    const normalized = normalizePathSlashes(root.trim()).replace(/\/+$/, "");
-    if (!normalized) {
-        throw new Error("App root must not be empty.");
-    }
+  const normalized = normalizePathSlashes(root.trim()).replace(/\/+$/, "");
+  if (!normalized) {
+    throw new Error("App root must not be empty.");
+  }
 
-    if (isAbsolute(normalized)) {
-        throw new Error("App root must be a relative path.");
-    }
+  if (isAbsolute(normalized)) {
+    throw new Error("App root must be a relative path.");
+  }
 
-    return normalized.startsWith(".") ? normalized : `./${normalized}`;
+  return normalized.startsWith(".") ? normalized : `./${normalized}`;
 }
 
 function normalizeOutDir(outDir: string): string {
-    const normalized = normalizePathSlashes(outDir.trim()).replace(/\/+$/, "");
-    if (!normalized) {
-        throw new Error("App outDir must not be empty.");
-    }
+  const normalized = normalizePathSlashes(outDir.trim()).replace(/\/+$/, "");
+  if (!normalized) {
+    throw new Error("App outDir must not be empty.");
+  }
 
-    if (isAbsolute(normalized)) {
-        throw new Error("App outDir must be a relative path.");
-    }
+  if (isAbsolute(normalized)) {
+    throw new Error("App outDir must be a relative path.");
+  }
 
-    return normalized.startsWith(".") ? normalized.slice(2) : normalized;
+  return normalized.startsWith(".") ? normalized.slice(2) : normalized;
 }
 
 function resolveMaterializedVitePaths(
-    configPath: string,
-    targetRootDir: string,
+  configPath: string,
+  targetRootDir: string,
 ): {
-    absoluteConfigPath: string;
-    relativeConfigPath: string;
+  absoluteConfigPath: string;
+  relativeConfigPath: string;
 } {
-    const absoluteConfigPath = resolve(configPath);
-    const configDir = dirname(absoluteConfigPath);
-    const absoluteWorkspaceDir = resolve(configDir, targetRootDir);
-    const fileName = "vite.config.ts";
-    const relativeWorkspaceDir = normalizePathSlashes(relative(configDir, absoluteWorkspaceDir));
-    const relativeConfigPath = relativeWorkspaceDir && relativeWorkspaceDir !== "."
-        ? `./${relativeWorkspaceDir}/${fileName}`
-        : `./${fileName}`;
-    return {
-        absoluteConfigPath: resolve(absoluteWorkspaceDir, fileName),
-        relativeConfigPath,
-    };
+  const absoluteConfigPath = resolve(configPath);
+  const configDir = dirname(absoluteConfigPath);
+  const absoluteWorkspaceDir = resolve(configDir, targetRootDir);
+  const fileName = "vite.config.ts";
+  const relativeWorkspaceDir = normalizePathSlashes(
+    relative(configDir, absoluteWorkspaceDir),
+  );
+  const relativeConfigPath =
+    relativeWorkspaceDir && relativeWorkspaceDir !== "."
+      ? `./${relativeWorkspaceDir}/${fileName}`
+      : `./${fileName}`;
+  return {
+    absoluteConfigPath: resolve(absoluteWorkspaceDir, fileName),
+    relativeConfigPath,
+  };
 }
 
 function updateConfigTarget(
-    content: string,
-    targetName: string,
-    update: (targetSource: string) => string,
+  content: string,
+  targetName: string,
+  update: (targetSource: string) => string,
 ): string {
-    const range = findConfigTargetRange(content, targetName);
-    if (!range) {
-        throw new Error(`No target named "${targetName}" found in Mainz config.`);
-    }
+  const range = findConfigTargetRange(content, targetName);
+  if (!range) {
+    throw new Error(`No target named "${targetName}" found in Mainz config.`);
+  }
 
-    return `${content.slice(0, range.start)}${update(content.slice(range.start, range.end))}${
-        content.slice(range.end)
-    }`;
+  return `${content.slice(0, range.start)}${
+    update(content.slice(range.start, range.end))
+  }${content.slice(range.end)}`;
 }
 
 async function upsertConfigTarget(
-    configPath: string,
-    target: string,
-    projectRuntime: "deno" | "node" = "deno",
-    runtime: MainzToolingRuntime = denoToolingRuntime,
+  configPath: string,
+  target: string,
+  projectRuntime: "deno" | "node" = "deno",
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
-    const absoluteConfigPath = resolve(configPath);
+  const absoluteConfigPath = resolve(configPath);
 
-    if (!(await pathExists(absoluteConfigPath, runtime))) {
-        await runtime.mkdir(dirname(absoluteConfigPath), { recursive: true });
-        await runtime.writeTextFile(
-            absoluteConfigPath,
-            renderGeneratedConfig(target, projectRuntime),
-        );
-        return;
-    }
+  if (!(await pathExists(absoluteConfigPath, runtime))) {
+    await runtime.mkdir(dirname(absoluteConfigPath), { recursive: true });
+    await runtime.writeTextFile(
+      absoluteConfigPath,
+      renderGeneratedConfig(target, projectRuntime),
+    );
+    return;
+  }
 
-    const content = await runtime.readTextFile(absoluteConfigPath);
-    await runtime.writeTextFile(absoluteConfigPath, insertConfigTarget(content, target));
+  const content = await runtime.readTextFile(absoluteConfigPath);
+  await runtime.writeTextFile(
+    absoluteConfigPath,
+    insertConfigTarget(content, target),
+  );
 }
 
 async function assertCanCreateTemplateFile(
-    path: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
+  path: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
-    const absolutePath = resolve(path);
-    if (await pathExists(absolutePath, runtime)) {
-        throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
-    }
+  const absolutePath = resolve(path);
+  if (await pathExists(absolutePath, runtime)) {
+    throw new Error(`Refusing to overwrite existing file "${absolutePath}".`);
+  }
 }
 
 function renderGeneratedConfig(
-    target: string,
-    projectRuntime: "deno" | "node" = "deno",
+  target: string,
+  projectRuntime: "deno" | "node" = "deno",
 ): string {
-    return [
-        'import { defineMainzConfig } from "mainz/config";',
-        "",
-        "export default defineMainzConfig({",
-        `    runtime: ${JSON.stringify(projectRuntime)},`,
-        "    targets: [",
-        target,
-        "    ],",
-        "});",
-        "",
-    ].join("\n");
+  return [
+    'import { defineMainzConfig } from "mainz/config";',
+    "",
+    "export default defineMainzConfig({",
+    `    runtime: ${JSON.stringify(projectRuntime)},`,
+    "    targets: [",
+    target,
+    "    ],",
+    "});",
+    "",
+  ].join("\n");
 }
 
 function insertConfigTarget(content: string, target: string): string {
-    const targetsArray = findTargetsArray(content);
-    const existingBody = content.slice(targetsArray.openIndex + 1, targetsArray.closeIndex);
+  const targetsArray = findTargetsArray(content);
+  const existingBody = content.slice(
+    targetsArray.openIndex + 1,
+    targetsArray.closeIndex,
+  );
 
-    if (existingBody.includes(targetNameNeedle(target))) {
-        throw new Error(`Target ${targetNameNeedle(target)} already exists in Mainz config.`);
-    }
+  if (existingBody.includes(targetNameNeedle(target))) {
+    throw new Error(
+      `Target ${targetNameNeedle(target)} already exists in Mainz config.`,
+    );
+  }
 
-    const beforeClose = content.slice(0, targetsArray.closeIndex).replace(/\s*$/, "");
-    const afterClose = content.slice(targetsArray.closeIndex);
-    const closeLineStart = content.lastIndexOf("\n", targetsArray.closeIndex) + 1;
-    const closeIndent = content.slice(closeLineStart, targetsArray.closeIndex);
-    const needsComma = !beforeClose.endsWith("[") && !beforeClose.endsWith(",");
-    const separator = beforeClose.endsWith("[") ? "\n" : `${needsComma ? "," : ""}\n`;
+  const beforeClose = content.slice(0, targetsArray.closeIndex).replace(
+    /\s*$/,
+    "",
+  );
+  const afterClose = content.slice(targetsArray.closeIndex);
+  const closeLineStart = content.lastIndexOf("\n", targetsArray.closeIndex) + 1;
+  const closeIndent = content.slice(closeLineStart, targetsArray.closeIndex);
+  const needsComma = !beforeClose.endsWith("[") && !beforeClose.endsWith(",");
+  const separator = beforeClose.endsWith("[")
+    ? "\n"
+    : `${needsComma ? "," : ""}\n`;
 
-    return `${beforeClose}${separator}${target}\n${closeIndent}${afterClose}`;
+  return `${beforeClose}${separator}${target}\n${closeIndent}${afterClose}`;
 }
 
 function removeConfigTarget(content: string, targetName: string): string {
-    const targetsArray = findTargetsArray(content);
-    const objectRanges = findTopLevelObjectRanges(
-        content,
-        targetsArray.openIndex,
-        targetsArray.closeIndex,
-    );
-    const matchingRange = objectRanges.find((range) =>
-        content.slice(range.start, range.end).includes(`name: ${JSON.stringify(targetName)}`)
-    );
+  const targetsArray = findTargetsArray(content);
+  const objectRanges = findTopLevelObjectRanges(
+    content,
+    targetsArray.openIndex,
+    targetsArray.closeIndex,
+  );
+  const matchingRange = objectRanges.find((range) =>
+    content.slice(range.start, range.end).includes(
+      `name: ${JSON.stringify(targetName)}`,
+    )
+  );
 
-    if (!matchingRange) {
-        return content;
+  if (!matchingRange) {
+    return content;
+  }
+
+  let removeStart = matchingRange.start;
+  const lineStart = content.lastIndexOf("\n", matchingRange.start) + 1;
+  if (content.slice(lineStart, matchingRange.start).trim() === "") {
+    removeStart = lineStart;
+  }
+
+  let removeEnd = matchingRange.end;
+  const afterObject = content.slice(removeEnd, targetsArray.closeIndex);
+  const trailingCommaMatch = afterObject.match(/^\s*,/);
+
+  if (trailingCommaMatch) {
+    removeEnd += trailingCommaMatch[0].length;
+    const nextNewline = content.indexOf("\n", removeEnd);
+    if (nextNewline >= 0 && nextNewline < targetsArray.closeIndex) {
+      removeEnd = nextNewline + 1;
     }
-
-    let removeStart = matchingRange.start;
-    const lineStart = content.lastIndexOf("\n", matchingRange.start) + 1;
-    if (content.slice(lineStart, matchingRange.start).trim() === "") {
-        removeStart = lineStart;
+  } else {
+    const beforeObject = content.slice(targetsArray.openIndex + 1, removeStart);
+    const previousCommaIndex = beforeObject.lastIndexOf(",");
+    if (
+      previousCommaIndex >= 0 &&
+      beforeObject.slice(previousCommaIndex + 1).trim() === ""
+    ) {
+      removeStart = targetsArray.openIndex + 1 + previousCommaIndex;
     }
+  }
 
-    let removeEnd = matchingRange.end;
-    const afterObject = content.slice(removeEnd, targetsArray.closeIndex);
-    const trailingCommaMatch = afterObject.match(/^\s*,/);
-
-    if (trailingCommaMatch) {
-        removeEnd += trailingCommaMatch[0].length;
-        const nextNewline = content.indexOf("\n", removeEnd);
-        if (nextNewline >= 0 && nextNewline < targetsArray.closeIndex) {
-            removeEnd = nextNewline + 1;
-        }
-    } else {
-        const beforeObject = content.slice(targetsArray.openIndex + 1, removeStart);
-        const previousCommaIndex = beforeObject.lastIndexOf(",");
-        if (previousCommaIndex >= 0 && beforeObject.slice(previousCommaIndex + 1).trim() === "") {
-            removeStart = targetsArray.openIndex + 1 + previousCommaIndex;
-        }
-    }
-
-    const updated = `${content.slice(0, removeStart)}${content.slice(removeEnd)}`;
-    return updated.replace(/\[\s+\]/, "[]");
+  const updated = `${content.slice(0, removeStart)}${content.slice(removeEnd)}`;
+  return updated.replace(/\[\s+\]/, "[]");
 }
 
-function findConfigTargetSource(content: string, targetName: string): string | undefined {
-    const range = findConfigTargetRange(content, targetName);
-    return range ? content.slice(range.start, range.end) : undefined;
+function findConfigTargetSource(
+  content: string,
+  targetName: string,
+): string | undefined {
+  const range = findConfigTargetRange(content, targetName);
+  return range ? content.slice(range.start, range.end) : undefined;
 }
 
 function findConfigTargetRange(
-    content: string,
-    targetName: string,
+  content: string,
+  targetName: string,
 ): { start: number; end: number } | undefined {
-    const targetsArray = findTargetsArray(content);
-    const objectRanges = findTopLevelObjectRanges(
-        content,
-        targetsArray.openIndex,
-        targetsArray.closeIndex,
-    );
-    const matchingRange = objectRanges.find((range) =>
-        content.slice(range.start, range.end).includes(`name: ${JSON.stringify(targetName)}`)
-    );
+  const targetsArray = findTargetsArray(content);
+  const objectRanges = findTopLevelObjectRanges(
+    content,
+    targetsArray.openIndex,
+    targetsArray.closeIndex,
+  );
+  const matchingRange = objectRanges.find((range) =>
+    content.slice(range.start, range.end).includes(
+      `name: ${JSON.stringify(targetName)}`,
+    )
+  );
 
-    return matchingRange;
+  return matchingRange;
 }
 
 function extractTargetRootDir(targetSource: string): string | undefined {
-    const match = targetSource.match(/\brootDir\s*:\s*(["'])(.*?)\1/);
-    return match?.[2]?.trim() || undefined;
+  const match = targetSource.match(/\brootDir\s*:\s*(["'])(.*?)\1/);
+  return match?.[2]?.trim() || undefined;
 }
 
 async function removeAppRoot(
-    rootDir: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
+  rootDir: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
-    const cwd = runtime.cwd();
-    const rootPath = resolve(cwd, rootDir);
-    const relativeRoot = relative(cwd, rootPath);
+  const cwd = runtime.cwd();
+  const rootPath = resolve(cwd, rootDir);
+  const relativeRoot = relative(cwd, rootPath);
 
-    if (!relativeRoot || relativeRoot.startsWith("..") || isAbsolute(relativeRoot)) {
-        throw new Error(`Refusing to delete app root outside the current workspace: "${rootDir}".`);
-    }
+  if (
+    !relativeRoot || relativeRoot.startsWith("..") || isAbsolute(relativeRoot)
+  ) {
+    throw new Error(
+      `Refusing to delete app root outside the current workspace: "${rootDir}".`,
+    );
+  }
 
-    if (await pathExists(rootPath, runtime)) {
-        await runtime.remove(rootPath, { recursive: true });
-    }
+  if (await pathExists(rootPath, runtime)) {
+    await runtime.remove(rootPath, { recursive: true });
+  }
 }
 
-function findTargetsArray(content: string): { openIndex: number; closeIndex: number } {
-    const targetsIndex = content.search(/\btargets\s*:/);
-    if (targetsIndex < 0) {
-        throw new Error('Mainz config must contain a "targets" array to update app targets.');
-    }
+function findTargetsArray(
+  content: string,
+): { openIndex: number; closeIndex: number } {
+  const targetsIndex = content.search(/\btargets\s*:/);
+  if (targetsIndex < 0) {
+    throw new Error(
+      'Mainz config must contain a "targets" array to update app targets.',
+    );
+  }
 
-    const openIndex = content.indexOf("[", targetsIndex);
-    if (openIndex < 0) {
-        throw new Error('Mainz config "targets" must be an array.');
-    }
+  const openIndex = content.indexOf("[", targetsIndex);
+  if (openIndex < 0) {
+    throw new Error('Mainz config "targets" must be an array.');
+  }
 
-    const closeIndex = findMatchingBracket(content, openIndex, "[", "]");
-    return { openIndex, closeIndex };
+  const closeIndex = findMatchingBracket(content, openIndex, "[", "]");
+  return { openIndex, closeIndex };
 }
 
 function findTopLevelObjectRanges(
-    content: string,
-    openIndex: number,
-    closeIndex: number,
+  content: string,
+  openIndex: number,
+  closeIndex: number,
 ): Array<{ start: number; end: number }> {
-    const ranges: Array<{ start: number; end: number }> = [];
-    for (let index = openIndex + 1; index < closeIndex; index += 1) {
-        if (content[index] !== "{") {
-            continue;
-        }
-
-        const end = findMatchingBracket(content, index, "{", "}") + 1;
-        ranges.push({ start: index, end });
-        index = end;
+  const ranges: Array<{ start: number; end: number }> = [];
+  for (let index = openIndex + 1; index < closeIndex; index += 1) {
+    if (content[index] !== "{") {
+      continue;
     }
 
-    return ranges;
+    const end = findMatchingBracket(content, index, "{", "}") + 1;
+    ranges.push({ start: index, end });
+    index = end;
+  }
+
+  return ranges;
 }
 
 function findMatchingBracket(
-    content: string,
-    openIndex: number,
-    open: string,
-    close: string,
+  content: string,
+  openIndex: number,
+  open: string,
+  close: string,
 ): number {
-    let depth = 0;
-    let quote: '"' | "'" | "`" | undefined;
-    let escaped = false;
+  let depth = 0;
+  let quote: '"' | "'" | "`" | undefined;
+  let escaped = false;
 
-    for (let index = openIndex; index < content.length; index += 1) {
-        const char = content[index];
+  for (let index = openIndex; index < content.length; index += 1) {
+    const char = content[index];
 
-        if (quote) {
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
 
-            if (char === "\\") {
-                escaped = true;
-                continue;
-            }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
 
-            if (char === quote) {
-                quote = undefined;
-            }
+      if (char === quote) {
+        quote = undefined;
+      }
 
-            continue;
-        }
-
-        if (char === '"' || char === "'" || char === "`") {
-            quote = char;
-            continue;
-        }
-
-        if (char === open) {
-            depth += 1;
-            continue;
-        }
-
-        if (char === close) {
-            depth -= 1;
-            if (depth === 0) {
-                return index;
-            }
-        }
+      continue;
     }
 
-    throw new Error(`Could not find matching "${close}" in Mainz config.`);
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      continue;
+    }
+
+    if (char === open) {
+      depth += 1;
+      continue;
+    }
+
+    if (char === close) {
+      depth -= 1;
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  throw new Error(`Could not find matching "${close}" in Mainz config.`);
 }
 
 function targetNameNeedle(target: string): string {
-    const match = target.match(/name:\s*("[^"]+")/);
-    return match?.[1] ? `name: ${match[1]}` : "target";
+  const match = target.match(/name:\s*("[^"]+")/);
+  return match?.[1] ? `name: ${match[1]}` : "target";
 }
 
-function removeObjectProperty(objectSource: string, propertyName: string): string {
-    const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
-    if (!propertyRange) {
-        return objectSource;
-    }
+function removeObjectProperty(
+  objectSource: string,
+  propertyName: string,
+): string {
+  const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
+  if (!propertyRange) {
+    return objectSource;
+  }
 
-    return `${objectSource.slice(0, propertyRange.start)}${objectSource.slice(propertyRange.end)}`;
+  return `${objectSource.slice(0, propertyRange.start)}${
+    objectSource.slice(propertyRange.end)
+  }`;
 }
 
 function upsertObjectProperty(
-    objectSource: string,
-    propertyName: string,
-    propertyValueSource: string,
+  objectSource: string,
+  propertyName: string,
+  propertyValueSource: string,
 ): string {
-    const propertyIndent = inferObjectPropertyIndent(objectSource);
-    const propertySource = `${propertyIndent}${propertyName}: ${
-        indentObjectPropertyValue(propertyValueSource, propertyIndent)
-    },`;
-    const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
-    if (propertyRange) {
-        return `${objectSource.slice(0, propertyRange.start)}${propertySource}${
-            objectSource.slice(propertyRange.end)
-        }`;
-    }
+  const propertyIndent = inferObjectPropertyIndent(objectSource);
+  const propertySource = `${propertyIndent}${propertyName}: ${
+    indentObjectPropertyValue(propertyValueSource, propertyIndent)
+  },`;
+  const propertyRange = findTopLevelPropertyRange(objectSource, propertyName);
+  if (propertyRange) {
+    return `${objectSource.slice(0, propertyRange.start)}${propertySource}${
+      objectSource.slice(propertyRange.end)
+    }`;
+  }
 
-    const closeIndex = objectSource.lastIndexOf("}");
-    if (closeIndex < 0) {
-        throw new Error("Expected target object source.");
-    }
+  const closeIndex = objectSource.lastIndexOf("}");
+  if (closeIndex < 0) {
+    throw new Error("Expected target object source.");
+  }
 
-    const beforeClose = objectSource.slice(0, closeIndex).replace(/\s*$/, "");
-    const afterClose = objectSource.slice(closeIndex);
-    const separator = beforeClose.trimEnd().endsWith("{") ? "\n" : "\n";
-    return `${beforeClose}${separator}${propertySource}\n${afterClose}`;
+  const beforeClose = objectSource.slice(0, closeIndex).replace(/\s*$/, "");
+  const afterClose = objectSource.slice(closeIndex);
+  const separator = beforeClose.trimEnd().endsWith("{") ? "\n" : "\n";
+  return `${beforeClose}${separator}${propertySource}\n${afterClose}`;
 }
 
 function findTopLevelPropertyRange(
-    objectSource: string,
-    propertyName: string,
+  objectSource: string,
+  propertyName: string,
 ): { start: number; end: number } | undefined {
-    const openIndex = objectSource.indexOf("{");
-    const closeIndex = objectSource.lastIndexOf("}");
-    if (openIndex < 0 || closeIndex < 0 || closeIndex <= openIndex) {
-        throw new Error("Expected target object source.");
+  const openIndex = objectSource.indexOf("{");
+  const closeIndex = objectSource.lastIndexOf("}");
+  if (openIndex < 0 || closeIndex < 0 || closeIndex <= openIndex) {
+    throw new Error("Expected target object source.");
+  }
+
+  let quote: '"' | "'" | "`" | undefined;
+  let escaped = false;
+  let depth = 0;
+
+  for (let index = openIndex + 1; index < closeIndex; index += 1) {
+    const char = objectSource[index];
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = undefined;
+      }
+
+      continue;
     }
 
-    let quote: '"' | "'" | "`" | undefined;
-    let escaped = false;
-    let depth = 0;
-
-    for (let index = openIndex + 1; index < closeIndex; index += 1) {
-        const char = objectSource[index];
-
-        if (quote) {
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-
-            if (char === "\\") {
-                escaped = true;
-                continue;
-            }
-
-            if (char === quote) {
-                quote = undefined;
-            }
-
-            continue;
-        }
-
-        if (char === '"' || char === "'" || char === "`") {
-            quote = char;
-            continue;
-        }
-
-        if (char === "{") {
-            depth += 1;
-            continue;
-        }
-
-        if (char === "}") {
-            depth -= 1;
-            continue;
-        }
-
-        if (depth !== 0) {
-            continue;
-        }
-
-        if (!startsObjectProperty(objectSource, index, propertyName)) {
-            continue;
-        }
-
-        const lineStart = objectSource.lastIndexOf("\n", index) + 1;
-        let propertyStart = index;
-        if (objectSource.slice(lineStart, index).trim() === "") {
-            propertyStart = lineStart;
-        }
-
-        const colonIndex = objectSource.indexOf(":", index + propertyName.length);
-        let valueIndex = colonIndex + 1;
-        while (valueIndex < closeIndex && /\s/.test(objectSource[valueIndex]!)) {
-            valueIndex += 1;
-        }
-
-        const valueEnd = findObjectPropertyValueEnd(objectSource, valueIndex, closeIndex);
-        let propertyEnd = valueEnd;
-        while (propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)) {
-            propertyEnd += 1;
-        }
-
-        if (objectSource[propertyEnd] === ",") {
-            propertyEnd += 1;
-            while (propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)) {
-                propertyEnd += 1;
-            }
-        } else {
-            let previous = propertyStart - 1;
-            while (previous > openIndex && /\s/.test(objectSource[previous]!)) {
-                previous -= 1;
-            }
-            if (objectSource[previous] === ",") {
-                propertyStart = previous;
-                while (propertyStart > openIndex && /\s/.test(objectSource[propertyStart - 1]!)) {
-                    propertyStart -= 1;
-                }
-            }
-        }
-
-        return {
-            start: propertyStart,
-            end: propertyEnd,
-        };
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      continue;
     }
 
-    return undefined;
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      continue;
+    }
+
+    if (depth !== 0) {
+      continue;
+    }
+
+    if (!startsObjectProperty(objectSource, index, propertyName)) {
+      continue;
+    }
+
+    const lineStart = objectSource.lastIndexOf("\n", index) + 1;
+    let propertyStart = index;
+    if (objectSource.slice(lineStart, index).trim() === "") {
+      propertyStart = lineStart;
+    }
+
+    const colonIndex = objectSource.indexOf(":", index + propertyName.length);
+    let valueIndex = colonIndex + 1;
+    while (valueIndex < closeIndex && /\s/.test(objectSource[valueIndex]!)) {
+      valueIndex += 1;
+    }
+
+    const valueEnd = findObjectPropertyValueEnd(
+      objectSource,
+      valueIndex,
+      closeIndex,
+    );
+    let propertyEnd = valueEnd;
+    while (propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)) {
+      propertyEnd += 1;
+    }
+
+    if (objectSource[propertyEnd] === ",") {
+      propertyEnd += 1;
+      while (
+        propertyEnd < closeIndex && /\s/.test(objectSource[propertyEnd]!)
+      ) {
+        propertyEnd += 1;
+      }
+    } else {
+      let previous = propertyStart - 1;
+      while (previous > openIndex && /\s/.test(objectSource[previous]!)) {
+        previous -= 1;
+      }
+      if (objectSource[previous] === ",") {
+        propertyStart = previous;
+        while (
+          propertyStart > openIndex &&
+          /\s/.test(objectSource[propertyStart - 1]!)
+        ) {
+          propertyStart -= 1;
+        }
+      }
+    }
+
+    return {
+      start: propertyStart,
+      end: propertyEnd,
+    };
+  }
+
+  return undefined;
 }
 
 function startsObjectProperty(
-    objectSource: string,
-    index: number,
-    propertyName: string,
+  objectSource: string,
+  index: number,
+  propertyName: string,
 ): boolean {
-    if (objectSource.startsWith(`${propertyName}:`, index)) {
-        return true;
-    }
-    if (objectSource.startsWith(`${propertyName} :`, index)) {
-        return true;
-    }
-    if (objectSource.startsWith(`"${propertyName}"`, index)) {
-        return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
-    }
-    if (objectSource.startsWith(`'${propertyName}'`, index)) {
-        return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
-    }
+  if (objectSource.startsWith(`${propertyName}:`, index)) {
+    return true;
+  }
+  if (objectSource.startsWith(`${propertyName} :`, index)) {
+    return true;
+  }
+  if (objectSource.startsWith(`"${propertyName}"`, index)) {
+    return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
+  }
+  if (objectSource.startsWith(`'${propertyName}'`, index)) {
+    return /^\s*:/.test(objectSource.slice(index + propertyName.length + 2));
+  }
 
-    return false;
+  return false;
 }
 
 function findObjectPropertyValueEnd(
-    objectSource: string,
-    valueIndex: number,
-    closeIndex: number,
+  objectSource: string,
+  valueIndex: number,
+  closeIndex: number,
 ): number {
-    let quote: '"' | "'" | "`" | undefined;
-    let escaped = false;
-    let parenDepth = 0;
-    let braceDepth = 0;
-    let bracketDepth = 0;
+  let quote: '"' | "'" | "`" | undefined;
+  let escaped = false;
+  let parenDepth = 0;
+  let braceDepth = 0;
+  let bracketDepth = 0;
 
-    for (let index = valueIndex; index < closeIndex; index += 1) {
-        const char = objectSource[index];
+  for (let index = valueIndex; index < closeIndex; index += 1) {
+    const char = objectSource[index];
 
-        if (quote) {
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
 
-            if (char === "\\") {
-                escaped = true;
-                continue;
-            }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
 
-            if (char === quote) {
-                quote = undefined;
-            }
+      if (char === quote) {
+        quote = undefined;
+      }
 
-            continue;
-        }
-
-        if (char === '"' || char === "'" || char === "`") {
-            quote = char;
-            continue;
-        }
-
-        if (char === "(") {
-            parenDepth += 1;
-            continue;
-        }
-        if (char === ")") {
-            parenDepth -= 1;
-            continue;
-        }
-        if (char === "{") {
-            braceDepth += 1;
-            continue;
-        }
-        if (char === "}") {
-            if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
-                return index;
-            }
-            braceDepth -= 1;
-            continue;
-        }
-        if (char === "[") {
-            bracketDepth += 1;
-            continue;
-        }
-        if (char === "]") {
-            bracketDepth -= 1;
-            continue;
-        }
-
-        if (char === "," && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0) {
-            return index;
-        }
+      continue;
     }
 
-    return closeIndex;
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "(") {
+      parenDepth += 1;
+      continue;
+    }
+    if (char === ")") {
+      parenDepth -= 1;
+      continue;
+    }
+    if (char === "{") {
+      braceDepth += 1;
+      continue;
+    }
+    if (char === "}") {
+      if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+        return index;
+      }
+      braceDepth -= 1;
+      continue;
+    }
+    if (char === "[") {
+      bracketDepth += 1;
+      continue;
+    }
+    if (char === "]") {
+      bracketDepth -= 1;
+      continue;
+    }
+
+    if (
+      char === "," && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0
+    ) {
+      return index;
+    }
+  }
+
+  return closeIndex;
 }
 
 function inferObjectPropertyIndent(objectSource: string): string {
-    const propertyMatch = objectSource.match(/\n(\s+)[A-Za-z"'`]/);
-    if (propertyMatch?.[1]) {
-        return propertyMatch[1];
-    }
+  const propertyMatch = objectSource.match(/\n(\s+)[A-Za-z"'`]/);
+  if (propertyMatch?.[1]) {
+    return propertyMatch[1];
+  }
 
-    const closeMatch = objectSource.match(/\n(\s*)\}$/);
-    return `${closeMatch?.[1] ?? ""}    `;
+  const closeMatch = objectSource.match(/\n(\s*)\}$/);
+  return `${closeMatch?.[1] ?? ""}    `;
 }
 
-function indentObjectPropertyValue(valueSource: string, propertyIndent: string): string {
-    const nestedIndent = `${propertyIndent}    `;
-    return valueSource.replaceAll("\n", `\n${nestedIndent}`);
+function indentObjectPropertyValue(
+  valueSource: string,
+  propertyIndent: string,
+): string {
+  const nestedIndent = `${propertyIndent}    `;
+  return valueSource.replaceAll("\n", `\n${nestedIndent}`);
 }
 
 function cloneMaterializedTargetViteOptions(
-    vite: NormalizedMainzTarget["vite"],
+  vite: NormalizedMainzTarget["vite"],
 ): MaterializedTargetViteOptions {
-    return {
-        alias: Array.isArray(vite?.alias)
-            ? vite.alias.map((entry) => ({
-                find: entry.find,
-                replacement: entry.replacement,
-            }))
-            : undefined,
-        define: vite?.define ? { ...vite.define } : undefined,
-    };
+  return {
+    alias: Array.isArray(vite?.alias)
+      ? vite.alias.map((entry) => ({
+        find: entry.find,
+        replacement: entry.replacement,
+      }))
+      : undefined,
+    define: vite?.define ? { ...vite.define } : undefined,
+  };
 }
 
 function renderViteOptionsSource(vite: MaterializedTargetViteOptions): string {
-    const lines = ["{"];
+  const lines = ["{"];
 
-    if (Array.isArray(vite.alias) && vite.alias.length > 0) {
-        lines.push("    alias: [");
-        for (const entry of vite.alias) {
-            lines.push(
-                `        { find: ${JSON.stringify(entry.find)}, replacement: ${
-                    JSON.stringify(entry.replacement)
-                } },`,
-            );
-        }
-        lines.push("    ],");
+  if (Array.isArray(vite.alias) && vite.alias.length > 0) {
+    lines.push("    alias: [");
+    for (const entry of vite.alias) {
+      lines.push(
+        `        { find: ${JSON.stringify(entry.find)}, replacement: ${
+          JSON.stringify(entry.replacement)
+        } },`,
+      );
     }
+    lines.push("    ],");
+  }
 
-    if (vite.define && Object.keys(vite.define).length > 0) {
-        lines.push("    define: {");
-        for (const [key, value] of Object.entries(vite.define)) {
-            lines.push(`        ${JSON.stringify(key)}: ${JSON.stringify(value)},`);
-        }
-        lines.push("    },");
+  if (vite.define && Object.keys(vite.define).length > 0) {
+    lines.push("    define: {");
+    for (const [key, value] of Object.entries(vite.define)) {
+      lines.push(`        ${JSON.stringify(key)}: ${JSON.stringify(value)},`);
     }
+    lines.push("    },");
+  }
 
-    lines.push("}");
-    return lines.join("\n");
+  lines.push("}");
+  return lines.join("\n");
 }
 
 async function readMaterializedViteMetadata(
-    configPath: string,
-    runtime: MainzToolingRuntime,
+  configPath: string,
+  runtime: MainzToolingRuntime,
 ): Promise<MaterializedViteMetadata | undefined> {
-    if (!(await pathExists(configPath, runtime))) {
-        return undefined;
-    }
+  if (!(await pathExists(configPath, runtime))) {
+    return undefined;
+  }
 
-    const source = await runtime.readTextFile(configPath);
-    const metadataLine = source.split(/\r?\n/u).find((line) =>
-        line.startsWith(materializedViteMetadataPrefix)
-    );
-    if (!metadataLine) {
-        return undefined;
-    }
+  const source = await runtime.readTextFile(configPath);
+  const metadataLine = source.split(/\r?\n/u).find((line) =>
+    line.startsWith(materializedViteMetadataPrefix)
+  );
+  if (!metadataLine) {
+    return undefined;
+  }
 
-    try {
-        return JSON.parse(
-            metadataLine.slice(materializedViteMetadataPrefix.length),
-        ) as MaterializedViteMetadata;
-    } catch {
-        return undefined;
-    }
+  try {
+    return JSON.parse(
+      metadataLine.slice(materializedViteMetadataPrefix.length),
+    ) as MaterializedViteMetadata;
+  } catch {
+    return undefined;
+  }
 }
 
 async function clearGeneratedViteArtifacts(
-    runtime: MainzToolingRuntime,
-    cwd: string,
+  runtime: MainzToolingRuntime,
+  cwd: string,
 ): Promise<void> {
-    const generatedDirs = [
-        resolveMainzTempPath(cwd, "vite-configs"),
-        resolveMainzTempPath(cwd, "vite-cache"),
-        resolve(cwd, ".mainz-temp", "vite-configs"),
-        resolve(cwd, ".mainz-temp", "vite-cache"),
-        resolve(cwd, "node_modules", ".mainz", "vite"),
-        resolve(cwd, "node_modules", ".mainz-temp", "vite-configs"),
-        resolve(cwd, "node_modules", ".mainz-temp", "vite-cache"),
-    ];
-    for (const generatedDir of generatedDirs) {
-        if (await pathExists(generatedDir, runtime)) {
-            await runtime.remove(generatedDir, { recursive: true });
-        }
+  const generatedDirs = [
+    resolveMainzTempPath(cwd, "vite-configs"),
+    resolveMainzTempPath(cwd, "vite-cache"),
+    resolve(cwd, ".mainz-temp", "vite-configs"),
+    resolve(cwd, ".mainz-temp", "vite-cache"),
+    resolve(cwd, "node_modules", ".mainz", "vite"),
+    resolve(cwd, "node_modules", ".mainz-temp", "vite-configs"),
+    resolve(cwd, "node_modules", ".mainz-temp", "vite-cache"),
+  ];
+  for (const generatedDir of generatedDirs) {
+    if (await pathExists(generatedDir, runtime)) {
+      await runtime.remove(generatedDir, { recursive: true });
     }
+  }
 }
 
 function resolveCliViteBasePath(
-    basePath: string,
-    navigationMode: "spa" | "mpa" | "enhanced-mpa",
+  basePath: string,
+  navigationMode: "spa" | "mpa" | "enhanced-mpa",
 ): string {
-    if (navigationMode === "spa") {
-        return normalizeCliAbsoluteBasePath(basePath);
-    }
+  if (navigationMode === "spa") {
+    return normalizeCliAbsoluteBasePath(basePath);
+  }
 
-    return toCliViteBasePath(basePath);
+  return toCliViteBasePath(basePath);
 }
 
 function normalizeCliAbsoluteBasePath(basePath: string): string {
-    const trimmed = basePath.trim();
-    if (!trimmed || trimmed === "." || trimmed === "./") {
-        return "/";
-    }
+  const trimmed = basePath.trim();
+  if (!trimmed || trimmed === "." || trimmed === "./") {
+    return "/";
+  }
 
-    let normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-    if (!normalized.endsWith("/")) {
-        normalized = `${normalized}/`;
-    }
+  let normalized = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (!normalized.endsWith("/")) {
+    normalized = `${normalized}/`;
+  }
 
-    return normalized.replace(/\/{2,}/g, "/");
+  return normalized.replace(/\/{2,}/g, "/");
 }
 
 function toCliViteBasePath(basePath: string): string {
-    const normalized = normalizeCliAbsoluteBasePath(basePath);
-    return normalized === "/" ? "./" : normalized;
+  const normalized = normalizeCliAbsoluteBasePath(basePath);
+  return normalized === "/" ? "./" : normalized;
 }
 
 function renderConfigTarget(target: {
-    name: string;
-    rootDir: string;
-    appFile: string;
-    appId: string;
-    outDir: string;
+  name: string;
+  rootDir: string;
+  appFile: string;
+  appId: string;
+  outDir: string;
 }): string {
-    return [
-        "        {",
-        `            name: ${JSON.stringify(target.name)},`,
-        `            rootDir: ${JSON.stringify(target.rootDir)},`,
-        `            appFile: ${JSON.stringify(target.appFile)},`,
-        `            appId: ${JSON.stringify(target.appId)},`,
-        `            outDir: ${JSON.stringify(target.outDir)},`,
-        "        },",
-    ].join("\n");
+  return [
+    "        {",
+    `            name: ${JSON.stringify(target.name)},`,
+    `            rootDir: ${JSON.stringify(target.rootDir)},`,
+    `            appFile: ${JSON.stringify(target.appFile)},`,
+    `            appId: ${JSON.stringify(target.appId)},`,
+    `            outDir: ${JSON.stringify(target.outDir)},`,
+    "        },",
+  ].join("\n");
 }
 
 function resolveDefaultAppTemplateName(type: "routed" | "root"): string {
-    return type === "root" ? "default-root" : "default-routed";
+  return type === "root" ? "default-root" : "default-routed";
 }
 
 async function resolveInitProjectTemplateSource(
-    template: string,
-    projectRuntime: SupportedCliRuntime,
-    runtime: MainzToolingRuntime,
+  template: string,
+  projectRuntime: SupportedCliRuntime,
+  runtime: MainzToolingRuntime,
 ): Promise<TemplateMaterializationSource> {
-    if (isTemplateSourceSpecifier(template)) {
-        return await resolveExternalTemplateSource(template, runtime);
-    }
+  if (isTemplateSourceSpecifier(template)) {
+    return await resolveExternalTemplateSource(template, runtime);
+  }
 
-    const runtimeRoot = resolveBuiltInTemplateRoot("project", projectRuntime);
-    const templateRoot = joinTemplateRoot(runtimeRoot, template);
-    if (builtInTemplateExists(templateRoot)) {
-        return { templateRoot };
-    }
+  const runtimeRoot = resolveBuiltInTemplateRoot("project", projectRuntime);
+  const templateRoot = joinTemplateRoot(runtimeRoot, template);
+  if (builtInTemplateExists(templateRoot)) {
+    return { templateRoot };
+  }
 
-    const availableForRuntime = await listBuiltInTemplateNames(runtimeRoot, runtime);
-    const availableTemplates = await listProjectTemplateNames(runtime);
-    if (availableTemplates.includes(template)) {
-        throw new Error(
-            `Project template "${template}" is not available for runtime "${projectRuntime}". Available templates for ${projectRuntime}: ${
-                formatTemplateNames(availableForRuntime)
-            }.`,
-        );
-    }
-
+  const availableForRuntime = await listBuiltInTemplateNames(
+    runtimeRoot,
+    runtime,
+  );
+  const availableTemplates = await listProjectTemplateNames(runtime);
+  if (availableTemplates.includes(template)) {
     throw new Error(
-        `Project template "${template}" was not found. Available project templates: ${
-            formatTemplateNames(availableTemplates)
-        }.`,
+      `Project template "${template}" is not available for runtime "${projectRuntime}". Available templates for ${projectRuntime}: ${
+        formatTemplateNames(availableForRuntime)
+      }.`,
     );
+  }
+
+  throw new Error(
+    `Project template "${template}" was not found. Available project templates: ${
+      formatTemplateNames(availableTemplates)
+    }.`,
+  );
 }
 
 async function resolveAppTemplateSource(
-    template: string,
-    runtime: MainzToolingRuntime,
+  template: string,
+  runtime: MainzToolingRuntime,
 ): Promise<TemplateMaterializationSource> {
-    if (isTemplateSourceSpecifier(template)) {
-        return await resolveExternalTemplateSource(template, runtime);
-    }
+  if (isTemplateSourceSpecifier(template)) {
+    return await resolveExternalTemplateSource(template, runtime);
+  }
 
-    const appTemplatesRoot = resolveBuiltInTemplateRoot("app", ".");
-    const templateRoot = joinTemplateRoot(appTemplatesRoot, template);
-    if (builtInTemplateExists(templateRoot)) {
-        return { templateRoot };
-    }
+  const appTemplatesRoot = resolveBuiltInTemplateRoot("app", ".");
+  const templateRoot = joinTemplateRoot(appTemplatesRoot, template);
+  if (builtInTemplateExists(templateRoot)) {
+    return { templateRoot };
+  }
 
-    throw new Error(
-        `App template "${template}" was not found. Available app templates: ${
-            formatTemplateNames(await listBuiltInTemplateNames(appTemplatesRoot, runtime))
-        }.`,
-    );
+  throw new Error(
+    `App template "${template}" was not found. Available app templates: ${
+      formatTemplateNames(
+        await listBuiltInTemplateNames(appTemplatesRoot, runtime),
+      )
+    }.`,
+  );
 }
 
 async function resolveExternalTemplateSource(
-    source: string,
-    runtime: MainzToolingRuntime,
+  source: string,
+  runtime: MainzToolingRuntime,
 ): Promise<TemplateMaterializationSource> {
-    if (isHttpTemplateSource(source)) {
-        return { templateUrl: source };
-    }
+  if (isHttpTemplateSource(source)) {
+    return { templateUrl: source };
+  }
 
-    const templateRoot = resolveLocalTemplateSourcePath(source, runtime);
-    if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
-        return { templateRoot };
-    }
+  const templateRoot = resolveLocalTemplateSourcePath(source, runtime);
+  if (await pathExists(resolve(templateRoot, "template.json"), runtime)) {
+    return { templateRoot };
+  }
 
-    throw new Error(
-        `Template source "${source}" was not found or does not contain template.json.`,
-    );
+  throw new Error(
+    `Template source "${source}" was not found or does not contain template.json.`,
+  );
 }
 
-function resolveLocalTemplateSourcePath(source: string, runtime: MainzToolingRuntime): string {
-    if (source.startsWith("file://")) {
-        return fileURLToPath(source);
-    }
+function resolveLocalTemplateSourcePath(
+  source: string,
+  runtime: MainzToolingRuntime,
+): string {
+  if (source.startsWith("file://")) {
+    return fileURLToPath(source);
+  }
 
-    return isAbsolute(source) ? source : resolve(runtime.cwd(), source);
+  return isAbsolute(source) ? source : resolve(runtime.cwd(), source);
 }
 
 function isTemplateSourceSpecifier(value: string): boolean {
-    return isHttpTemplateSource(value) ||
-        value.startsWith("file://") ||
-        isAbsolute(value) ||
-        value === "." ||
-        value === ".." ||
-        value.startsWith("./") ||
-        value.startsWith("../") ||
-        value.includes("/") ||
-        value.includes("\\");
+  return isHttpTemplateSource(value) ||
+    value.startsWith("file://") ||
+    isAbsolute(value) ||
+    value === "." ||
+    value === ".." ||
+    value.startsWith("./") ||
+    value.startsWith("../") ||
+    value.includes("/") ||
+    value.includes("\\");
 }
 
 function isHttpTemplateSource(value: string): boolean {
-    return value.startsWith("https://") || value.startsWith("http://");
+  return value.startsWith("https://") || value.startsWith("http://");
 }
 
-async function listProjectTemplateNames(runtime: MainzToolingRuntime): Promise<string[]> {
-    const projectTemplatesRoot = resolveBuiltInTemplateRoot("project", ".");
-    const names = new Set<string>();
+async function listProjectTemplateNames(
+  runtime: MainzToolingRuntime,
+): Promise<string[]> {
+  const projectTemplatesRoot = resolveBuiltInTemplateRoot("project", ".");
+  const names = new Set<string>();
 
-    for (const runtimeName of await listBuiltInTemplateNames(projectTemplatesRoot, runtime)) {
-        const runtimeRoot = joinTemplateRoot(projectTemplatesRoot, runtimeName);
-        for (const templateName of await listBuiltInTemplateNames(runtimeRoot, runtime)) {
-            names.add(templateName);
-        }
+  for (
+    const runtimeName of await listBuiltInTemplateNames(
+      projectTemplatesRoot,
+      runtime,
+    )
+  ) {
+    const runtimeRoot = joinTemplateRoot(projectTemplatesRoot, runtimeName);
+    for (
+      const templateName of await listBuiltInTemplateNames(runtimeRoot, runtime)
+    ) {
+      names.add(templateName);
     }
+  }
 
-    return [...names].sort();
+  return [...names].sort();
 }
 
 async function listBuiltInTemplateNames(
-    root: string,
-    runtime: MainzToolingRuntime,
+  root: string,
+  runtime: MainzToolingRuntime,
 ): Promise<string[]> {
-    if (root.startsWith("builtin:")) {
-        return listBuiltInTemplateNamesFromBundle(root);
-    }
+  if (root.startsWith("builtin:")) {
+    return listBuiltInTemplateNamesFromBundle(root);
+  }
 
-    if (!(await pathExists(root, runtime))) {
-        return [];
-    }
+  if (!(await pathExists(root, runtime))) {
+    return [];
+  }
 
-    const names: string[] = [];
-    for await (const entry of runtime.readDir(root)) {
-        if (
-            entry.isDirectory &&
-            await pathExists(resolve(root, entry.name, "template.json"), runtime)
-        ) {
-            names.push(entry.name);
-        }
+  const names: string[] = [];
+  for await (const entry of runtime.readDir(root)) {
+    if (
+      entry.isDirectory &&
+      await pathExists(resolve(root, entry.name, "template.json"), runtime)
+    ) {
+      names.push(entry.name);
     }
+  }
 
-    return names.sort();
+  return names.sort();
 }
 
 function formatTemplateNames(names: readonly string[]): string {
-    return names.length > 0 ? names.join(", ") : "none";
+  return names.length > 0 ? names.join(", ") : "none";
 }
 
 function resolveAppHelpTopic(action: AppCommandOptions["action"]): HelpTopic {
-    if (action === "create") {
-        return "app-create";
-    }
+  if (action === "create") {
+    return "app-create";
+  }
 
-    if (action === "remove") {
-        return "app-remove";
-    }
+  if (action === "remove") {
+    return "app-remove";
+  }
 
-    if (action === "list") {
-        return "app-list";
-    }
+  if (action === "list") {
+    return "app-list";
+  }
 
-    return "app-info";
+  return "app-info";
 }
 
 function renderGeneratedBuildConfig(profileSource: string): string {
-    return [
-        'import { defineTargetBuild } from "mainz/config";',
-        "",
-        "export default defineTargetBuild({",
-        "    profiles: {",
-        profileSource,
-        "    },",
-        "});",
-        "",
-    ].join("\n");
+  return [
+    'import { defineTargetBuild } from "mainz/config";',
+    "",
+    "export default defineTargetBuild({",
+    "    profiles: {",
+    profileSource,
+    "    },",
+    "});",
+    "",
+  ].join("\n");
 }
 
 function renderBuildProfileProperty(
-    profileName: string,
-    options: { basePath?: string; siteUrl?: string },
+  profileName: string,
+  options: { basePath?: string; siteUrl?: string },
 ): string {
-    const properties: string[] = [];
-    if (options.basePath) {
-        properties.push(`            basePath: ${JSON.stringify(options.basePath)},`);
-    }
-    if (options.siteUrl) {
-        properties.push(`            siteUrl: ${JSON.stringify(options.siteUrl)},`);
-    }
+  const properties: string[] = [];
+  if (options.basePath) {
+    properties.push(
+      `            basePath: ${JSON.stringify(options.basePath)},`,
+    );
+  }
+  if (options.siteUrl) {
+    properties.push(`            siteUrl: ${JSON.stringify(options.siteUrl)},`);
+  }
 
-    return [
-        `        ${JSON.stringify(profileName)}: {`,
-        ...properties,
-        "        },",
-    ].join("\n");
+  return [
+    `        ${JSON.stringify(profileName)}: {`,
+    ...properties,
+    "        },",
+  ].join("\n");
 }
 
-function upsertBuildProfile(content: string, profileName: string, profileSource: string): string {
-    const profilesObject = findNamedObject(content, "profiles");
-    const existingRange = findNamedPropertyRange(
-        content,
-        profilesObject.openIndex,
-        profilesObject.closeIndex,
-        profileName,
-    );
+function upsertBuildProfile(
+  content: string,
+  profileName: string,
+  profileSource: string,
+): string {
+  const profilesObject = findNamedObject(content, "profiles");
+  const existingRange = findNamedPropertyRange(
+    content,
+    profilesObject.openIndex,
+    profilesObject.closeIndex,
+    profileName,
+  );
 
-    if (existingRange) {
-        return `${content.slice(0, existingRange.start)}${profileSource}${
-            content.slice(existingRange.end)
-        }`;
-    }
+  if (existingRange) {
+    return `${content.slice(0, existingRange.start)}${profileSource}${
+      content.slice(existingRange.end)
+    }`;
+  }
 
-    const beforeClose = content.slice(0, profilesObject.closeIndex).replace(/\s*$/, "");
-    const afterClose = content.slice(profilesObject.closeIndex);
-    const closeLineStart = content.lastIndexOf("\n", profilesObject.closeIndex) + 1;
-    const closeIndent = content.slice(closeLineStart, profilesObject.closeIndex);
-    const needsComma = !beforeClose.endsWith("{") && !beforeClose.endsWith(",");
-    const separator = beforeClose.endsWith("{") ? "\n" : `${needsComma ? "," : ""}\n`;
+  const beforeClose = content.slice(0, profilesObject.closeIndex).replace(
+    /\s*$/,
+    "",
+  );
+  const afterClose = content.slice(profilesObject.closeIndex);
+  const closeLineStart = content.lastIndexOf("\n", profilesObject.closeIndex) +
+    1;
+  const closeIndent = content.slice(closeLineStart, profilesObject.closeIndex);
+  const needsComma = !beforeClose.endsWith("{") && !beforeClose.endsWith(",");
+  const separator = beforeClose.endsWith("{")
+    ? "\n"
+    : `${needsComma ? "," : ""}\n`;
 
-    return `${beforeClose}${separator}${profileSource}\n${closeIndent}${afterClose}`;
+  return `${beforeClose}${separator}${profileSource}\n${closeIndent}${afterClose}`;
 }
 
 function findNamedObject(
-    content: string,
-    propertyName: string,
+  content: string,
+  propertyName: string,
 ): { openIndex: number; closeIndex: number } {
-    const propertyIndex = content.search(new RegExp(`\\b${propertyName}\\s*:`));
-    if (propertyIndex < 0) {
-        throw new Error(`Expected "${propertyName}" to be an object.`);
-    }
+  const propertyIndex = content.search(new RegExp(`\\b${propertyName}\\s*:`));
+  if (propertyIndex < 0) {
+    throw new Error(`Expected "${propertyName}" to be an object.`);
+  }
 
-    const openIndex = content.indexOf("{", propertyIndex);
-    if (openIndex < 0) {
-        throw new Error(`Expected "${propertyName}" to be an object.`);
-    }
+  const openIndex = content.indexOf("{", propertyIndex);
+  if (openIndex < 0) {
+    throw new Error(`Expected "${propertyName}" to be an object.`);
+  }
 
-    return {
-        openIndex,
-        closeIndex: findMatchingBracket(content, openIndex, "{", "}"),
-    };
+  return {
+    openIndex,
+    closeIndex: findMatchingBracket(content, openIndex, "{", "}"),
+  };
 }
 
 function findNamedPropertyRange(
-    content: string,
-    openIndex: number,
-    closeIndex: number,
-    propertyName: string,
+  content: string,
+  openIndex: number,
+  closeIndex: number,
+  propertyName: string,
 ): { start: number; end: number } | undefined {
-    let quote: '"' | "'" | "`" | undefined;
-    let escaped = false;
-    let depth = 0;
+  let quote: '"' | "'" | "`" | undefined;
+  let escaped = false;
+  let depth = 0;
 
-    for (let index = openIndex + 1; index < closeIndex; index += 1) {
-        const char = content[index];
+  for (let index = openIndex + 1; index < closeIndex; index += 1) {
+    const char = content[index];
 
-        if (quote) {
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
 
-            if (char === "\\") {
-                escaped = true;
-                continue;
-            }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
 
-            if (char === quote) {
-                quote = undefined;
-            }
+      if (char === quote) {
+        quote = undefined;
+      }
 
-            continue;
-        }
-
-        if (char === '"' || char === "'" || char === "`") {
-            quote = char;
-            continue;
-        }
-
-        if (char === "{") {
-            depth += 1;
-            continue;
-        }
-
-        if (char === "}") {
-            depth -= 1;
-            continue;
-        }
-
-        if (depth !== 0) {
-            continue;
-        }
-
-        const propertyNeedles = [`"${propertyName}"`, `'${propertyName}'`];
-        const matchingNeedle = propertyNeedles.find((needle) => content.startsWith(needle, index));
-        if (!matchingNeedle) {
-            continue;
-        }
-
-        const afterNeedle = content.slice(index + matchingNeedle.length);
-        if (!afterNeedle.match(/^\s*:/)) {
-            continue;
-        }
-
-        const valueStart = content.indexOf("{", index + matchingNeedle.length);
-        if (valueStart < 0 || valueStart > closeIndex) {
-            throw new Error(`Profile "${propertyName}" must use an object value.`);
-        }
-
-        const valueEnd = findMatchingBracket(content, valueStart, "{", "}") + 1;
-        let propertyStart = index;
-        const lineStart = content.lastIndexOf("\n", index) + 1;
-        if (content.slice(lineStart, index).trim() === "") {
-            propertyStart = lineStart;
-        }
-
-        let propertyEnd = valueEnd;
-        const afterValue = content.slice(propertyEnd, closeIndex);
-        const trailingCommaMatch = afterValue.match(/^\s*,/);
-        if (trailingCommaMatch) {
-            propertyEnd += trailingCommaMatch[0].length;
-            const newlineIndex = content.indexOf("\n", propertyEnd);
-            if (newlineIndex >= 0 && newlineIndex < closeIndex) {
-                propertyEnd = newlineIndex + 1;
-            }
-        }
-
-        return {
-            start: propertyStart,
-            end: propertyEnd,
-        };
+      continue;
     }
 
-    return undefined;
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      continue;
+    }
+
+    if (depth !== 0) {
+      continue;
+    }
+
+    const propertyNeedles = [`"${propertyName}"`, `'${propertyName}'`];
+    const matchingNeedle = propertyNeedles.find((needle) =>
+      content.startsWith(needle, index)
+    );
+    if (!matchingNeedle) {
+      continue;
+    }
+
+    const afterNeedle = content.slice(index + matchingNeedle.length);
+    if (!afterNeedle.match(/^\s*:/)) {
+      continue;
+    }
+
+    const valueStart = content.indexOf("{", index + matchingNeedle.length);
+    if (valueStart < 0 || valueStart > closeIndex) {
+      throw new Error(`Profile "${propertyName}" must use an object value.`);
+    }
+
+    const valueEnd = findMatchingBracket(content, valueStart, "{", "}") + 1;
+    let propertyStart = index;
+    const lineStart = content.lastIndexOf("\n", index) + 1;
+    if (content.slice(lineStart, index).trim() === "") {
+      propertyStart = lineStart;
+    }
+
+    let propertyEnd = valueEnd;
+    const afterValue = content.slice(propertyEnd, closeIndex);
+    const trailingCommaMatch = afterValue.match(/^\s*,/);
+    if (trailingCommaMatch) {
+      propertyEnd += trailingCommaMatch[0].length;
+      const newlineIndex = content.indexOf("\n", propertyEnd);
+      if (newlineIndex >= 0 && newlineIndex < closeIndex) {
+        propertyEnd = newlineIndex + 1;
+      }
+    }
+
+    return {
+      start: propertyStart,
+      end: propertyEnd,
+    };
+  }
+
+  return undefined;
 }
 
 function resolveTargetBuildConfigFile(
-    target: NormalizedMainzTarget,
-    cwd: string,
+  target: NormalizedMainzTarget,
+  cwd: string,
 ): string {
-    return target.buildConfig?.trim()
-        ? resolve(cwd, target.buildConfig)
-        : resolve(cwd, target.rootDir, "mainz.build.ts");
+  return target.buildConfig?.trim()
+    ? resolve(cwd, target.buildConfig)
+    : resolve(cwd, target.rootDir, "mainz.build.ts");
 }
 
 function inferDefaultProfileBasePath(targetName: string): string {
-    return targetName === "site" ? "/" : `/${targetName}/`;
+  return targetName === "site" ? "/" : `/${targetName}/`;
 }
 
 async function resolveGithubPagesWorkflowTargets(
-    normalizedConfig: NormalizedMainzConfig,
-    runtime: MainzToolingRuntime,
-): Promise<Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>> {
-    const cwd = runtime.cwd();
-    const targets: Array<{ name: string; basePath: string; outDir: string; stagingPath: string }> =
-        [];
-    const stagingPaths = new Map<string, string>();
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
+): Promise<
+  Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>
+> {
+  const cwd = runtime.cwd();
+  const targets: Array<
+    { name: string; basePath: string; outDir: string; stagingPath: string }
+  > = [];
+  const stagingPaths = new Map<string, string>();
 
-    for (const target of normalizedConfig.targets) {
-        let metadata: Awaited<ReturnType<typeof resolveEnginePublicationMetadata>>;
-        try {
-            metadata = await resolveEnginePublicationMetadata(target, "gh-pages", cwd, runtime);
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            if (message.includes('does not define profile "gh-pages"')) {
-                continue;
-            }
+  for (const target of normalizedConfig.targets) {
+    let metadata: Awaited<ReturnType<typeof resolveEnginePublicationMetadata>>;
+    try {
+      metadata = await resolveEnginePublicationMetadata(
+        target,
+        "gh-pages",
+        cwd,
+        runtime,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('does not define profile "gh-pages"')) {
+        continue;
+      }
 
-            throw error;
-        }
-
-        const stagingPath = normalizeWorkflowStagingPath(metadata.basePath);
-        const conflict = stagingPaths.get(stagingPath);
-        if (conflict) {
-            throw new Error(
-                `Targets "${conflict}" and "${target.name}" both resolve to the GitHub Pages staging path "${
-                    stagingPath || "/"
-                }".`,
-            );
-        }
-
-        stagingPaths.set(stagingPath, target.name);
-        targets.push({
-            name: target.name,
-            basePath: metadata.basePath,
-            outDir: metadata.outDir,
-            stagingPath,
-        });
+      throw error;
     }
 
-    return targets;
+    const stagingPath = normalizeWorkflowStagingPath(metadata.basePath);
+    const conflict = stagingPaths.get(stagingPath);
+    if (conflict) {
+      throw new Error(
+        `Targets "${conflict}" and "${target.name}" both resolve to the GitHub Pages staging path "${
+          stagingPath || "/"
+        }".`,
+      );
+    }
+
+    stagingPaths.set(stagingPath, target.name);
+    targets.push({
+      name: target.name,
+      basePath: metadata.basePath,
+      outDir: metadata.outDir,
+      stagingPath,
+    });
+  }
+
+  return targets;
 }
 
 function normalizeWorkflowStagingPath(basePath: string): string {
-    const trimmed = basePath.trim();
-    if (!trimmed || trimmed === "/") {
-        return "";
-    }
+  const trimmed = basePath.trim();
+  if (!trimmed || trimmed === "/") {
+    return "";
+  }
 
-    return trimmed.replace(/^\/+|\/+$/g, "");
+  return trimmed.replace(/^\/+|\/+$/g, "");
 }
 
 function renderGithubPagesWorkflowTemplateParams(options: {
-    branch: string;
-    trigger: "push" | "manual";
-    targets: Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>;
+  branch: string;
+  trigger: "push" | "manual";
+  targets: Array<
+    { name: string; basePath: string; outDir: string; stagingPath: string }
+  >;
 }): Record<string, string> {
-    const triggerBlock = options.trigger === "manual"
-        ? [
-            "on:",
-            "    workflow_dispatch:",
-        ].join("\n")
-        : [
-            "on:",
-            "    push:",
-            "        branches:",
-            `            - ${options.branch}`,
-            "    workflow_dispatch:",
-        ].join("\n");
+  const triggerBlock = options.trigger === "manual"
+    ? [
+      "on:",
+      "    workflow_dispatch:",
+    ].join("\n")
+    : [
+      "on:",
+      "    push:",
+      "        branches:",
+      `            - ${options.branch}`,
+      "    workflow_dispatch:",
+    ].join("\n");
 
-    const buildSteps = options.targets.map((target) =>
-        [
-            `            - name: Build ${target.name}`,
-            `              run: deno task build --target ${target.name} --profile gh-pages`,
-        ].join("\n")
-    ).join("\n\n");
+  const buildSteps = options.targets.map((target) =>
+    [
+      `            - name: Build ${target.name}`,
+      `              run: deno task build --target ${target.name} --profile gh-pages`,
+    ].join("\n")
+  ).join("\n\n");
 
-    const metadataCommands = options.targets.map((target) =>
-        `                  ${target.name}_metadata="$(deno run -A --config deno.json jsr:@mainz/cli-deno@alpha publish-info --target ${target.name} --profile gh-pages)"`
-    ).join("\n");
+  const metadataCommands = options.targets.map((target) =>
+    `                  ${target.name}_metadata="$(deno run -A --config deno.json jsr:@mainz/cli-deno@alpha publish-info --target ${target.name} --profile gh-pages)"`
+  ).join("\n");
 
-    const metadataEchoes = options.targets.map((target) =>
-        `                  echo "$${target.name}_metadata"`
-    ).join("\n");
+  const metadataEchoes = options.targets.map((target) =>
+    `                  echo "$${target.name}_metadata"`
+  ).join("\n");
 
-    const artifactCommands = options.targets.map((target) =>
-        `                  ${target.name}_artifact_dir="$(METADATA="$${target.name}_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"`
-    ).join("\n");
+  const artifactCommands = options.targets.map((target) =>
+    `                  ${target.name}_artifact_dir="$(METADATA="$${target.name}_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"`
+  ).join("\n");
 
-    const stagingCommands = options.targets.map((target) => {
-        if (!target.stagingPath) {
-            return `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir"/`;
-        }
+  const stagingCommands = options.targets.map((target) => {
+    if (!target.stagingPath) {
+      return `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir"/`;
+    }
 
-        return [
-            `                  mkdir -p "$staging_dir/${target.stagingPath}"`,
-            `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir/${target.stagingPath}"/`,
-        ].join("\n");
-    }).join("\n");
+    return [
+      `                  mkdir -p "$staging_dir/${target.stagingPath}"`,
+      `                  cp -a "$${target.name}_artifact_dir"/. "$staging_dir/${target.stagingPath}"/`,
+    ].join("\n");
+  }).join("\n");
 
-    return {
-        triggerBlock,
-        buildSteps,
-        metadataCommands,
-        metadataEchoes,
-        artifactCommands,
-        stagingCommands,
-    };
+  return {
+    triggerBlock,
+    buildSteps,
+    metadataCommands,
+    metadataEchoes,
+    artifactCommands,
+    stagingCommands,
+  };
 }
 
 function validateTemplateRuntimeCompatibility(
-    manifest: Record<string, unknown>,
-    projectRuntime: SupportedCliRuntime,
-    templateName: string,
+  manifest: Record<string, unknown>,
+  projectRuntime: SupportedCliRuntime,
+  templateName: string,
 ): void {
-    const compatibleRuntimes = resolveTemplateCompatibleRuntimes(manifest);
-    if (!compatibleRuntimes || compatibleRuntimes.includes(projectRuntime)) {
-        return;
-    }
+  const compatibleRuntimes = resolveTemplateCompatibleRuntimes(manifest);
+  if (!compatibleRuntimes || compatibleRuntimes.includes(projectRuntime)) {
+    return;
+  }
 
-    throw new Error(
-        `Template "${templateName}" is not compatible with runtime "${projectRuntime}". Compatible runtimes: ${
-            formatTemplateNames(compatibleRuntimes)
-        }.`,
-    );
+  throw new Error(
+    `Template "${templateName}" is not compatible with runtime "${projectRuntime}". Compatible runtimes: ${
+      formatTemplateNames(compatibleRuntimes)
+    }.`,
+  );
 }
 
 function resolveTemplateCompatibleRuntimes(
-    manifest: Record<string, unknown>,
+  manifest: Record<string, unknown>,
 ): TemplateCompatibleRuntime[] | undefined {
-    const compatibility = manifest.compatibility;
-    if (compatibility === undefined) {
-        return undefined;
+  const compatibility = manifest.compatibility;
+  if (compatibility === undefined) {
+    return undefined;
+  }
+
+  if (
+    !compatibility || typeof compatibility !== "object" ||
+    Array.isArray(compatibility)
+  ) {
+    throw new Error(
+      `Template "${
+        String(manifest.name ?? "unknown")
+      }" compatibility must be an object.`,
+    );
+  }
+
+  const runtimes = (compatibility as Record<string, unknown>).runtimes;
+  if (runtimes === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(runtimes)) {
+    throw new Error(
+      `Template "${
+        String(manifest.name ?? "unknown")
+      }" compatibility.runtimes must be an array.`,
+    );
+  }
+
+  const normalized = runtimes.map((runtime) => {
+    if (runtime !== "deno" && runtime !== "node" && runtime !== "bun") {
+      throw new Error(
+        `Template "${
+          String(manifest.name ?? "unknown")
+        }" declares unsupported runtime "${String(runtime)}".`,
+      );
     }
 
-    if (!compatibility || typeof compatibility !== "object" || Array.isArray(compatibility)) {
-        throw new Error(
-            `Template "${String(manifest.name ?? "unknown")}" compatibility must be an object.`,
-        );
-    }
+    return runtime;
+  });
 
-    const runtimes = (compatibility as Record<string, unknown>).runtimes;
-    if (runtimes === undefined) {
-        return undefined;
-    }
-
-    if (!Array.isArray(runtimes)) {
-        throw new Error(
-            `Template "${
-                String(manifest.name ?? "unknown")
-            }" compatibility.runtimes must be an array.`,
-        );
-    }
-
-    const normalized = runtimes.map((runtime) => {
-        if (runtime !== "deno" && runtime !== "node" && runtime !== "bun") {
-            throw new Error(
-                `Template "${String(manifest.name ?? "unknown")}" declares unsupported runtime "${
-                    String(runtime)
-                }".`,
-            );
-        }
-
-        return runtime;
-    });
-
-    return [...new Set(normalized)].sort();
+  return [...new Set(normalized)].sort();
 }
 
 async function prepareAppTemplateWorkspaceUpdates(
-    manifest: Record<string, unknown>,
-    projectRuntime: SupportedCliRuntime,
-    runtime: MainzToolingRuntime,
-    appName: string,
-    rootDir: string,
+  manifest: Record<string, unknown>,
+  projectRuntime: SupportedCliRuntime,
+  runtime: MainzToolingRuntime,
+  appName: string,
+  rootDir: string,
 ): Promise<TemplateDependencyUpdate[]> {
-    const dependencies = resolveTemplateDependencies(manifest);
-    if (projectRuntime === "deno") {
-        return await prepareDenoAppWorkspaceUpdates(dependencies, runtime, rootDir);
-    }
+  const dependencies = resolveTemplateDependencies(manifest);
+  if (projectRuntime === "deno") {
+    return await prepareDenoAppWorkspaceUpdates(dependencies, runtime, rootDir);
+  }
 
-    return await prepareNodeAppWorkspaceUpdates(dependencies, runtime, appName, rootDir);
+  return await prepareNodeAppWorkspaceUpdates(
+    dependencies,
+    runtime,
+    appName,
+    rootDir,
+  );
 }
 
 async function prepareRemoveAppWorkspaceUpdate(
-    projectRuntime: SupportedCliRuntime,
-    runtime: MainzToolingRuntime,
-    rootDir: string,
+  projectRuntime: SupportedCliRuntime,
+  runtime: MainzToolingRuntime,
+  rootDir: string,
 ): Promise<TemplateDependencyUpdate | undefined> {
-    if (projectRuntime === "deno") {
-        return await prepareRemoveDenoWorkspaceUpdate(runtime, rootDir);
-    }
+  if (projectRuntime === "deno") {
+    return await prepareRemoveDenoWorkspaceUpdate(runtime, rootDir);
+  }
 
-    return await prepareRemoveNodeWorkspaceUpdate(runtime, rootDir);
+  return await prepareRemoveNodeWorkspaceUpdate(runtime, rootDir);
 }
 
 async function prepareRemoveDenoWorkspaceUpdate(
-    runtime: MainzToolingRuntime,
-    rootDir: string,
+  runtime: MainzToolingRuntime,
+  rootDir: string,
 ): Promise<TemplateDependencyUpdate | undefined> {
-    const denoJsonPath = resolve(runtime.cwd(), "deno.json");
-    if (!(await pathExists(denoJsonPath, runtime))) {
-        return undefined;
-    }
+  const denoJsonPath = resolve(runtime.cwd(), "deno.json");
+  if (!(await pathExists(denoJsonPath, runtime))) {
+    return undefined;
+  }
 
-    const denoConfig = await readJsonObjectFile(
-        denoJsonPath,
-        runtime,
-        `Expected "${denoJsonPath}" to exist.`,
+  const denoConfig = await readJsonObjectFile(
+    denoJsonPath,
+    runtime,
+    `Expected "${denoJsonPath}" to exist.`,
+  );
+  const workspace = denoConfig.workspace;
+  if (workspace === undefined) {
+    return undefined;
+  }
+
+  if (
+    !Array.isArray(workspace) ||
+    workspace.some((entry) => typeof entry !== "string")
+  ) {
+    throw new Error(
+      'Expected "workspace" in deno.json to be an array of strings.',
     );
-    const workspace = denoConfig.workspace;
-    if (workspace === undefined) {
-        return undefined;
-    }
+  }
 
-    if (!Array.isArray(workspace) || workspace.some((entry) => typeof entry !== "string")) {
-        throw new Error('Expected "workspace" in deno.json to be an array of strings.');
-    }
+  const nextWorkspace = removeWorkspacePath(workspace, rootDir, runtime);
+  if (nextWorkspace.length === workspace.length) {
+    return undefined;
+  }
 
-    const nextWorkspace = removeWorkspacePath(workspace, rootDir, runtime);
-    if (nextWorkspace.length === workspace.length) {
-        return undefined;
-    }
-
-    return {
-        path: denoJsonPath,
-        content: `${JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)}\n`,
-    };
+  return {
+    path: denoJsonPath,
+    content: `${
+      JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)
+    }\n`,
+  };
 }
 
 async function prepareRemoveNodeWorkspaceUpdate(
-    runtime: MainzToolingRuntime,
-    rootDir: string,
+  runtime: MainzToolingRuntime,
+  rootDir: string,
 ): Promise<TemplateDependencyUpdate | undefined> {
-    const packageJsonPath = resolve(runtime.cwd(), "package.json");
-    if (!(await pathExists(packageJsonPath, runtime))) {
-        return undefined;
-    }
+  const packageJsonPath = resolve(runtime.cwd(), "package.json");
+  if (!(await pathExists(packageJsonPath, runtime))) {
+    return undefined;
+  }
 
-    const packageJson = await readJsonObjectFile(
-        packageJsonPath,
-        runtime,
-        `Expected "${packageJsonPath}" to exist.`,
+  const packageJson = await readJsonObjectFile(
+    packageJsonPath,
+    runtime,
+    `Expected "${packageJsonPath}" to exist.`,
+  );
+  const workspaces = packageJson.workspaces;
+  if (workspaces === undefined) {
+    return undefined;
+  }
+
+  if (
+    !Array.isArray(workspaces) ||
+    workspaces.some((entry) => typeof entry !== "string")
+  ) {
+    throw new Error(
+      'Expected "workspaces" in package.json to be an array of strings.',
     );
-    const workspaces = packageJson.workspaces;
-    if (workspaces === undefined) {
-        return undefined;
-    }
+  }
 
-    if (!Array.isArray(workspaces) || workspaces.some((entry) => typeof entry !== "string")) {
-        throw new Error('Expected "workspaces" in package.json to be an array of strings.');
-    }
+  const nextWorkspaces = removeWorkspacePath(workspaces, rootDir, runtime);
+  if (nextWorkspaces.length === workspaces.length) {
+    return undefined;
+  }
 
-    const nextWorkspaces = removeWorkspacePath(workspaces, rootDir, runtime);
-    if (nextWorkspaces.length === workspaces.length) {
-        return undefined;
-    }
-
-    return {
-        path: packageJsonPath,
-        content: `${JSON.stringify({ ...packageJson, workspaces: nextWorkspaces }, null, 4)}\n`,
-    };
+  return {
+    path: packageJsonPath,
+    content: `${
+      JSON.stringify({ ...packageJson, workspaces: nextWorkspaces }, null, 4)
+    }\n`,
+  };
 }
 
-function resolveTemplateDependencies(manifest: Record<string, unknown>): TemplateDependency[] {
-    return [
-        ...resolveTemplateDependencyList(manifest, "dependencies"),
-        ...resolveTemplateDependencyList(manifest, "devDependencies"),
-    ];
+function resolveTemplateDependencies(
+  manifest: Record<string, unknown>,
+): TemplateDependency[] {
+  return [
+    ...resolveTemplateDependencyList(manifest, "dependencies"),
+    ...resolveTemplateDependencyList(manifest, "devDependencies"),
+  ];
 }
 
 function resolveTemplateDependencyList(
-    manifest: Record<string, unknown>,
-    kind: TemplateDependencyKind,
+  manifest: Record<string, unknown>,
+  kind: TemplateDependencyKind,
 ): TemplateDependency[] {
-    const value = manifest[kind];
-    if (value === undefined) {
-        return [];
-    }
+  const value = manifest[kind];
+  if (value === undefined) {
+    return [];
+  }
 
-    if (!Array.isArray(value)) {
-        throw new Error(
-            `Template "${String(manifest.name ?? "unknown")}" ${kind} must be an array.`,
-        );
-    }
+  if (!Array.isArray(value)) {
+    throw new Error(
+      `Template "${
+        String(manifest.name ?? "unknown")
+      }" ${kind} must be an array.`,
+    );
+  }
 
-    return value.map((dependency) => normalizeTemplateDependency(manifest, kind, dependency));
+  return value.map((dependency) =>
+    normalizeTemplateDependency(manifest, kind, dependency)
+  );
 }
 
 function normalizeTemplateDependency(
-    manifest: Record<string, unknown>,
-    kind: TemplateDependencyKind,
-    dependency: unknown,
+  manifest: Record<string, unknown>,
+  kind: TemplateDependencyKind,
+  dependency: unknown,
 ): TemplateDependency {
-    const templateName = String(manifest.name ?? "unknown");
-    if (!dependency || typeof dependency !== "object" || Array.isArray(dependency)) {
-        throw new Error(`Template "${templateName}" ${kind} entries must be objects.`);
-    }
+  const templateName = String(manifest.name ?? "unknown");
+  if (
+    !dependency || typeof dependency !== "object" || Array.isArray(dependency)
+  ) {
+    throw new Error(
+      `Template "${templateName}" ${kind} entries must be objects.`,
+    );
+  }
 
-    const record = dependency as Record<string, unknown>;
-    const specifier = normalizeDependencyString(templateName, kind, "specifier", record.specifier);
-    const registry = record.registry;
-    if (registry !== "npm" && registry !== "jsr") {
-        throw new Error(
-            `Template "${templateName}" dependency "${specifier}" must use registry "npm" or "jsr".`,
-        );
-    }
+  const record = dependency as Record<string, unknown>;
+  const specifier = normalizeDependencyString(
+    templateName,
+    kind,
+    "specifier",
+    record.specifier,
+  );
+  const registry = record.registry;
+  if (registry !== "npm" && registry !== "jsr") {
+    throw new Error(
+      `Template "${templateName}" dependency "${specifier}" must use registry "npm" or "jsr".`,
+    );
+  }
 
-    return {
-        kind,
-        specifier,
-        registry,
-        packageName: normalizeDependencyString(
-            templateName,
-            kind,
-            "package",
-            record.package ?? specifier,
-        ),
-        version: normalizeDependencyString(templateName, kind, "version", record.version),
-        subpaths: normalizeDependencySubpaths(templateName, kind, specifier, record.subpaths),
-    };
+  return {
+    kind,
+    specifier,
+    registry,
+    packageName: normalizeDependencyString(
+      templateName,
+      kind,
+      "package",
+      record.package ?? specifier,
+    ),
+    version: normalizeDependencyString(
+      templateName,
+      kind,
+      "version",
+      record.version,
+    ),
+    subpaths: normalizeDependencySubpaths(
+      templateName,
+      kind,
+      specifier,
+      record.subpaths,
+    ),
+  };
 }
 
 function normalizeDependencySubpaths(
-    templateName: string,
-    kind: TemplateDependencyKind,
-    specifier: string,
-    value: unknown,
+  templateName: string,
+  kind: TemplateDependencyKind,
+  specifier: string,
+  value: unknown,
 ): string[] {
-    if (value === undefined) {
-        return [];
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(
+      `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be an array.`,
+    );
+  }
+
+  return value.map((subpath) => {
+    if (typeof subpath !== "string" || !subpath.trim()) {
+      throw new Error(
+        `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be strings.`,
+      );
     }
 
-    if (!Array.isArray(value)) {
-        throw new Error(
-            `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be an array.`,
-        );
-    }
-
-    return value.map((subpath) => {
-        if (typeof subpath !== "string" || !subpath.trim()) {
-            throw new Error(
-                `Template "${templateName}" ${kind} entry "${specifier}" subpaths must be strings.`,
-            );
-        }
-
-        const normalized = subpath.trim().replace(/^\/+|\/+$/g, "");
-        if (!normalized || normalized.includes("..") || /\s/.test(normalized)) {
-            throw new Error(
-                `Template "${templateName}" ${kind} entry "${specifier}" has invalid subpath "${subpath}".`,
-            );
-        }
-
-        return normalized;
-    });
-}
-
-function normalizeDependencyString(
-    templateName: string,
-    kind: TemplateDependencyKind,
-    field: string,
-    value: unknown,
-): string {
-    if (typeof value !== "string" || !value.trim()) {
-        throw new Error(`Template "${templateName}" ${kind} entry is missing "${field}".`);
-    }
-
-    const normalized = value.trim();
-    if (/\s/.test(normalized)) {
-        throw new Error(
-            `Template "${templateName}" ${kind} field "${field}" must not contain whitespace.`,
-        );
+    const normalized = subpath.trim().replace(/^\/+|\/+$/g, "");
+    if (!normalized || normalized.includes("..") || /\s/.test(normalized)) {
+      throw new Error(
+        `Template "${templateName}" ${kind} entry "${specifier}" has invalid subpath "${subpath}".`,
+      );
     }
 
     return normalized;
+  });
+}
+
+function normalizeDependencyString(
+  templateName: string,
+  kind: TemplateDependencyKind,
+  field: string,
+  value: unknown,
+): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(
+      `Template "${templateName}" ${kind} entry is missing "${field}".`,
+    );
+  }
+
+  const normalized = value.trim();
+  if (/\s/.test(normalized)) {
+    throw new Error(
+      `Template "${templateName}" ${kind} field "${field}" must not contain whitespace.`,
+    );
+  }
+
+  return normalized;
 }
 
 async function prepareDenoAppWorkspaceUpdates(
-    dependencies: readonly TemplateDependency[],
-    runtime: MainzToolingRuntime,
-    rootDir: string,
+  dependencies: readonly TemplateDependency[],
+  runtime: MainzToolingRuntime,
+  rootDir: string,
 ): Promise<TemplateDependencyUpdate[]> {
-    const denoJsonPath = resolve(runtime.cwd(), "deno.json");
-    if (!(await pathExists(denoJsonPath, runtime))) {
-        if (dependencies.length === 0) {
-            return [];
-        }
-
-        throw new Error(
-            'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
-        );
-    }
-
-    const denoConfig = await readJsonObjectFile(
-        denoJsonPath,
-        runtime,
-        'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
-    );
-    const workspace = denoConfig.workspace;
-    if (
-        workspace !== undefined &&
-        (!Array.isArray(workspace) || workspace.some((entry) => typeof entry !== "string"))
-    ) {
-        throw new Error('Expected "workspace" in deno.json to be an array of strings.');
-    }
-
-    const appDenoJsonPath = resolve(runtime.cwd(), rootDir, "deno.json");
-    const appDenoConfig = await pathExists(appDenoJsonPath, runtime)
-        ? await readJsonObjectFile(
-            appDenoJsonPath,
-            runtime,
-            `Expected "${appDenoJsonPath}" to exist.`,
-        )
-        : {};
-    const imports = appDenoConfig.imports;
-    if (
-        imports !== undefined &&
-        (!imports || typeof imports !== "object" || Array.isArray(imports))
-    ) {
-        throw new Error(`Expected "imports" in ${appDenoJsonPath} to be an object.`);
-    }
-
-    const workspacePath = renderDenoWorkspacePath(rootDir, runtime);
-    const nextWorkspace = appendUniqueString(
-        workspace as string[] | undefined ?? [],
-        workspacePath,
-    );
-    const nextImports = { ...(imports as Record<string, unknown> | undefined ?? {}) };
-    for (const dependency of dependencies) {
-        const desired = renderDenoDependencySpecifier(dependency);
-        assertDependencySlotAvailable(
-            nextImports,
-            dependency.specifier,
-            desired,
-            `${appDenoJsonPath} imports`,
-        );
-        nextImports[dependency.specifier] = desired;
-
-        for (const subpath of dependency.subpaths) {
-            const subpathSpecifier = `${dependency.specifier}/${subpath}`;
-            const desiredSubpath = `${desired}/${subpath}`;
-            assertDependencySlotAvailable(
-                nextImports,
-                subpathSpecifier,
-                desiredSubpath,
-                `${appDenoJsonPath} imports`,
-            );
-            nextImports[subpathSpecifier] = desiredSubpath;
-        }
-    }
-
-    const updates: TemplateDependencyUpdate[] = [{
-        path: denoJsonPath,
-        content: `${JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)}\n`,
-    }, {
-        path: appDenoJsonPath,
-        content: `${JSON.stringify({ ...appDenoConfig, imports: nextImports }, null, 4)}\n`,
-    }];
-
-    return updates;
-}
-
-async function prepareNodeAppWorkspaceUpdates(
-    dependencies: readonly TemplateDependency[],
-    runtime: MainzToolingRuntime,
-    appName: string,
-    rootDir: string,
-): Promise<TemplateDependencyUpdate[]> {
-    const packageJsonPath = resolve(runtime.cwd(), "package.json");
-    if (!(await pathExists(packageJsonPath, runtime))) {
-        if (dependencies.length === 0) {
-            return [];
-        }
-
-        throw new Error(
-            'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
-        );
-    }
-
-    const packageJson = await readJsonObjectFile(
-        packageJsonPath,
-        runtime,
-        'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
-    );
-    const workspaces = packageJson.workspaces;
-    if (
-        workspaces !== undefined &&
-        (!Array.isArray(workspaces) || workspaces.some((entry) => typeof entry !== "string"))
-    ) {
-        throw new Error('Expected "workspaces" in package.json to be an array of strings.');
-    }
-
-    const appPackageJsonPath = resolve(runtime.cwd(), rootDir, "package.json");
-    const appPackageJson = await pathExists(appPackageJsonPath, runtime)
-        ? await readJsonObjectFile(
-            appPackageJsonPath,
-            runtime,
-            `Expected "${appPackageJsonPath}" to exist.`,
-        )
-        : {
-            name: appName,
-            private: true,
-            type: "module",
-        };
-    const dependencySections = {
-        dependencies: resolvePackageDependencySection(appPackageJson, "dependencies"),
-        devDependencies: resolvePackageDependencySection(appPackageJson, "devDependencies"),
-    };
-
-    for (const dependency of dependencies) {
-        const desired = renderNodeDependencySpecifier(dependency);
-        const targetSection = dependencySections[dependency.kind];
-        const otherKind = dependency.kind === "dependencies" ? "devDependencies" : "dependencies";
-        const otherSection = dependencySections[otherKind];
-
-        assertDependencySlotAvailable(
-            targetSection,
-            dependency.specifier,
-            desired,
-            `${appPackageJsonPath} ${dependency.kind}`,
-        );
-
-        if (
-            Object.hasOwn(otherSection, dependency.specifier) &&
-            otherSection[dependency.specifier] !== desired
-        ) {
-            throw new Error(
-                `Template dependency "${dependency.specifier}" conflicts with existing package.json ${otherKind} value "${
-                    String(otherSection[dependency.specifier])
-                }".`,
-            );
-        }
-
-        if (!Object.hasOwn(otherSection, dependency.specifier)) {
-            targetSection[dependency.specifier] = desired;
-        }
-    }
-
-    const workspacePath = renderNodeWorkspacePath(rootDir, runtime);
-    const updates: TemplateDependencyUpdate[] = [{
-        path: packageJsonPath,
-        content: `${
-            JSON.stringify(
-                {
-                    ...packageJson,
-                    workspaces: appendUniqueString(
-                        workspaces as string[] | undefined ?? [],
-                        workspacePath,
-                    ),
-                },
-                null,
-                4,
-            )
-        }\n`,
-    }, {
-        path: appPackageJsonPath,
-        content: `${
-            JSON.stringify(
-                {
-                    ...appPackageJson,
-                    dependencies: dependencySections.dependencies,
-                    devDependencies: dependencySections.devDependencies,
-                },
-                null,
-                4,
-            )
-        }\n`,
-    }];
-
-    if (dependencies.some((dependency) => dependency.registry === "jsr")) {
-        const npmrcUpdate = await prepareJsrNpmrcUpdate(runtime);
-        if (npmrcUpdate) {
-            updates.push(npmrcUpdate);
-        }
-    }
-
-    return updates;
-}
-
-async function readJsonObjectFile(
-    path: string,
-    runtime: MainzToolingRuntime,
-    missingMessage: string,
-): Promise<Record<string, unknown>> {
-    if (!(await pathExists(path, runtime))) {
-        throw new Error(missingMessage);
-    }
-
-    const parsed = JSON.parse(await runtime.readTextFile(path)) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error(`Expected "${path}" to contain a JSON object.`);
-    }
-
-    return parsed as Record<string, unknown>;
-}
-
-function renderDenoWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
-    const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir)).replaceAll(
-        "\\",
-        "/",
-    );
-    if (!relativePath || relativePath === ".") {
-        return ".";
-    }
-
-    if (relativePath.startsWith("../")) {
-        return relativePath;
-    }
-
-    return relativePath.startsWith("./") ? relativePath : `./${relativePath}`;
-}
-
-function renderNodeWorkspacePath(rootDir: string, runtime: MainzToolingRuntime): string {
-    const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir)).replaceAll(
-        "\\",
-        "/",
-    );
-    if (!relativePath || relativePath === ".") {
-        return ".";
-    }
-
-    return relativePath;
-}
-
-function removeWorkspacePath(
-    values: readonly string[],
-    rootDir: string,
-    runtime: MainzToolingRuntime,
-): string[] {
-    const workspacePath = normalizeWorkspacePath(renderDenoWorkspacePath(rootDir, runtime));
-    return values.filter((value) => normalizeWorkspacePath(value) !== workspacePath);
-}
-
-function normalizeWorkspacePath(value: string): string {
-    const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
-    return normalized.startsWith("./") ? normalized.slice(2) : normalized;
-}
-
-function appendUniqueString(values: readonly string[], value: string): string[] {
-    return values.includes(value) ? [...values] : [...values, value];
-}
-
-function resolvePackageDependencySection(
-    packageJson: Record<string, unknown>,
-    kind: TemplateDependencyKind,
-): Record<string, unknown> {
-    const section = packageJson[kind];
-    if (
-        section !== undefined &&
-        (!section || typeof section !== "object" || Array.isArray(section))
-    ) {
-        throw new Error(`Expected "${kind}" in package.json to be an object.`);
-    }
-
-    return { ...(section as Record<string, unknown> | undefined ?? {}) };
-}
-
-function assertDependencySlotAvailable(
-    target: Record<string, unknown>,
-    specifier: string,
-    desired: string,
-    location: string,
-): void {
-    if (!Object.hasOwn(target, specifier) || target[specifier] === desired) {
-        return;
+  const denoJsonPath = resolve(runtime.cwd(), "deno.json");
+  if (!(await pathExists(denoJsonPath, runtime))) {
+    if (dependencies.length === 0) {
+      return [];
     }
 
     throw new Error(
-        `Template dependency "${specifier}" conflicts with existing ${location} value "${
-            String(target[specifier])
-        }".`,
+      'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
     );
+  }
+
+  const denoConfig = await readJsonObjectFile(
+    denoJsonPath,
+    runtime,
+    'Template dependencies for runtime "deno" require deno.json. Run "mainz init" first.',
+  );
+  const workspace = denoConfig.workspace;
+  if (
+    workspace !== undefined &&
+    (!Array.isArray(workspace) ||
+      workspace.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(
+      'Expected "workspace" in deno.json to be an array of strings.',
+    );
+  }
+
+  const appDenoJsonPath = resolve(runtime.cwd(), rootDir, "deno.json");
+  const appDenoConfig = await pathExists(appDenoJsonPath, runtime)
+    ? await readJsonObjectFile(
+      appDenoJsonPath,
+      runtime,
+      `Expected "${appDenoJsonPath}" to exist.`,
+    )
+    : {};
+  const imports = appDenoConfig.imports;
+  if (
+    imports !== undefined &&
+    (!imports || typeof imports !== "object" || Array.isArray(imports))
+  ) {
+    throw new Error(
+      `Expected "imports" in ${appDenoJsonPath} to be an object.`,
+    );
+  }
+
+  const workspacePath = renderDenoWorkspacePath(rootDir, runtime);
+  const nextWorkspace = appendUniqueString(
+    workspace as string[] | undefined ?? [],
+    workspacePath,
+  );
+  const nextImports = {
+    ...(imports as Record<string, unknown> | undefined ?? {}),
+  };
+  for (const dependency of dependencies) {
+    const desired = renderDenoDependencySpecifier(dependency);
+    assertDependencySlotAvailable(
+      nextImports,
+      dependency.specifier,
+      desired,
+      `${appDenoJsonPath} imports`,
+    );
+    nextImports[dependency.specifier] = desired;
+
+    for (const subpath of dependency.subpaths) {
+      const subpathSpecifier = `${dependency.specifier}/${subpath}`;
+      const desiredSubpath = `${desired}/${subpath}`;
+      assertDependencySlotAvailable(
+        nextImports,
+        subpathSpecifier,
+        desiredSubpath,
+        `${appDenoJsonPath} imports`,
+      );
+      nextImports[subpathSpecifier] = desiredSubpath;
+    }
+  }
+
+  const updates: TemplateDependencyUpdate[] = [{
+    path: denoJsonPath,
+    content: `${
+      JSON.stringify({ ...denoConfig, workspace: nextWorkspace }, null, 4)
+    }\n`,
+  }, {
+    path: appDenoJsonPath,
+    content: `${
+      JSON.stringify({ ...appDenoConfig, imports: nextImports }, null, 4)
+    }\n`,
+  }];
+
+  return updates;
+}
+
+async function prepareNodeAppWorkspaceUpdates(
+  dependencies: readonly TemplateDependency[],
+  runtime: MainzToolingRuntime,
+  appName: string,
+  rootDir: string,
+): Promise<TemplateDependencyUpdate[]> {
+  const packageJsonPath = resolve(runtime.cwd(), "package.json");
+  if (!(await pathExists(packageJsonPath, runtime))) {
+    if (dependencies.length === 0) {
+      return [];
+    }
+
+    throw new Error(
+      'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
+    );
+  }
+
+  const packageJson = await readJsonObjectFile(
+    packageJsonPath,
+    runtime,
+    'Template dependencies for runtime "node" require package.json. Run "mainz init" first.',
+  );
+  const workspaces = packageJson.workspaces;
+  if (
+    workspaces !== undefined &&
+    (!Array.isArray(workspaces) ||
+      workspaces.some((entry) => typeof entry !== "string"))
+  ) {
+    throw new Error(
+      'Expected "workspaces" in package.json to be an array of strings.',
+    );
+  }
+
+  const appPackageJsonPath = resolve(runtime.cwd(), rootDir, "package.json");
+  const appPackageJson = await pathExists(appPackageJsonPath, runtime)
+    ? await readJsonObjectFile(
+      appPackageJsonPath,
+      runtime,
+      `Expected "${appPackageJsonPath}" to exist.`,
+    )
+    : {
+      name: appName,
+      private: true,
+      type: "module",
+    };
+  const dependencySections = {
+    dependencies: resolvePackageDependencySection(
+      appPackageJson,
+      "dependencies",
+    ),
+    devDependencies: resolvePackageDependencySection(
+      appPackageJson,
+      "devDependencies",
+    ),
+  };
+
+  for (const dependency of dependencies) {
+    const desired = renderNodeDependencySpecifier(dependency);
+    const targetSection = dependencySections[dependency.kind];
+    const otherKind = dependency.kind === "dependencies"
+      ? "devDependencies"
+      : "dependencies";
+    const otherSection = dependencySections[otherKind];
+
+    assertDependencySlotAvailable(
+      targetSection,
+      dependency.specifier,
+      desired,
+      `${appPackageJsonPath} ${dependency.kind}`,
+    );
+
+    if (
+      Object.hasOwn(otherSection, dependency.specifier) &&
+      otherSection[dependency.specifier] !== desired
+    ) {
+      throw new Error(
+        `Template dependency "${dependency.specifier}" conflicts with existing package.json ${otherKind} value "${
+          String(otherSection[dependency.specifier])
+        }".`,
+      );
+    }
+
+    if (!Object.hasOwn(otherSection, dependency.specifier)) {
+      targetSection[dependency.specifier] = desired;
+    }
+  }
+
+  const workspacePath = renderNodeWorkspacePath(rootDir, runtime);
+  const updates: TemplateDependencyUpdate[] = [{
+    path: packageJsonPath,
+    content: `${
+      JSON.stringify(
+        {
+          ...packageJson,
+          workspaces: appendUniqueString(
+            workspaces as string[] | undefined ?? [],
+            workspacePath,
+          ),
+        },
+        null,
+        4,
+      )
+    }\n`,
+  }, {
+    path: appPackageJsonPath,
+    content: `${
+      JSON.stringify(
+        {
+          ...appPackageJson,
+          dependencies: dependencySections.dependencies,
+          devDependencies: dependencySections.devDependencies,
+        },
+        null,
+        4,
+      )
+    }\n`,
+  }];
+
+  if (dependencies.some((dependency) => dependency.registry === "jsr")) {
+    const npmrcUpdate = await prepareJsrNpmrcUpdate(runtime);
+    if (npmrcUpdate) {
+      updates.push(npmrcUpdate);
+    }
+  }
+
+  return updates;
+}
+
+async function readJsonObjectFile(
+  path: string,
+  runtime: MainzToolingRuntime,
+  missingMessage: string,
+): Promise<Record<string, unknown>> {
+  if (!(await pathExists(path, runtime))) {
+    throw new Error(missingMessage);
+  }
+
+  const parsed = JSON.parse(await runtime.readTextFile(path)) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Expected "${path}" to contain a JSON object.`);
+  }
+
+  return parsed as Record<string, unknown>;
+}
+
+function renderDenoWorkspacePath(
+  rootDir: string,
+  runtime: MainzToolingRuntime,
+): string {
+  const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir))
+    .replaceAll(
+      "\\",
+      "/",
+    );
+  if (!relativePath || relativePath === ".") {
+    return ".";
+  }
+
+  if (relativePath.startsWith("../")) {
+    return relativePath;
+  }
+
+  return relativePath.startsWith("./") ? relativePath : `./${relativePath}`;
+}
+
+function renderNodeWorkspacePath(
+  rootDir: string,
+  runtime: MainzToolingRuntime,
+): string {
+  const relativePath = relative(runtime.cwd(), resolve(runtime.cwd(), rootDir))
+    .replaceAll(
+      "\\",
+      "/",
+    );
+  if (!relativePath || relativePath === ".") {
+    return ".";
+  }
+
+  return relativePath;
+}
+
+function removeWorkspacePath(
+  values: readonly string[],
+  rootDir: string,
+  runtime: MainzToolingRuntime,
+): string[] {
+  const workspacePath = normalizeWorkspacePath(
+    renderDenoWorkspacePath(rootDir, runtime),
+  );
+  return values.filter((value) =>
+    normalizeWorkspacePath(value) !== workspacePath
+  );
+}
+
+function normalizeWorkspacePath(value: string): string {
+  const normalized = value.replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalized.startsWith("./") ? normalized.slice(2) : normalized;
+}
+
+function appendUniqueString(
+  values: readonly string[],
+  value: string,
+): string[] {
+  return values.includes(value) ? [...values] : [...values, value];
+}
+
+function resolvePackageDependencySection(
+  packageJson: Record<string, unknown>,
+  kind: TemplateDependencyKind,
+): Record<string, unknown> {
+  const section = packageJson[kind];
+  if (
+    section !== undefined &&
+    (!section || typeof section !== "object" || Array.isArray(section))
+  ) {
+    throw new Error(`Expected "${kind}" in package.json to be an object.`);
+  }
+
+  return { ...(section as Record<string, unknown> | undefined ?? {}) };
+}
+
+function assertDependencySlotAvailable(
+  target: Record<string, unknown>,
+  specifier: string,
+  desired: string,
+  location: string,
+): void {
+  if (!Object.hasOwn(target, specifier) || target[specifier] === desired) {
+    return;
+  }
+
+  throw new Error(
+    `Template dependency "${specifier}" conflicts with existing ${location} value "${
+      String(target[specifier])
+    }".`,
+  );
 }
 
 function renderDenoDependencySpecifier(dependency: TemplateDependency): string {
-    return `${dependency.registry}:${dependency.packageName}@${dependency.version}`;
+  return `${dependency.registry}:${dependency.packageName}@${dependency.version}`;
 }
 
 function renderNodeDependencySpecifier(dependency: TemplateDependency): string {
-    if (dependency.registry === "npm") {
-        return dependency.specifier === dependency.packageName
-            ? dependency.version
-            : `npm:${dependency.packageName}@${dependency.version}`;
-    }
+  if (dependency.registry === "npm") {
+    return dependency.specifier === dependency.packageName
+      ? dependency.version
+      : `npm:${dependency.packageName}@${dependency.version}`;
+  }
 
-    return `npm:${renderJsrNpmPackageName(dependency.packageName)}@${dependency.version}`;
+  return `npm:${
+    renderJsrNpmPackageName(dependency.packageName)
+  }@${dependency.version}`;
 }
 
 function renderJsrNpmPackageName(packageName: string): string {
-    const match = packageName.match(/^@([^/]+)\/([^/]+)$/);
-    if (!match) {
-        throw new Error(`JSR dependency "${packageName}" must be scoped as @scope/name.`);
-    }
+  const match = packageName.match(/^@([^/]+)\/([^/]+)$/);
+  if (!match) {
+    throw new Error(
+      `JSR dependency "${packageName}" must be scoped as @scope/name.`,
+    );
+  }
 
-    return `@jsr/${match[1]}__${match[2]}`;
+  return `@jsr/${match[1]}__${match[2]}`;
 }
 
 async function prepareJsrNpmrcUpdate(
-    runtime: MainzToolingRuntime,
+  runtime: MainzToolingRuntime,
 ): Promise<TemplateDependencyUpdate | undefined> {
-    const npmrcPath = resolve(runtime.cwd(), ".npmrc");
-    const registryLine = "@jsr:registry=https://npm.jsr.io";
-    const current = await pathExists(npmrcPath, runtime)
-        ? await runtime.readTextFile(npmrcPath)
-        : "";
+  const npmrcPath = resolve(runtime.cwd(), ".npmrc");
+  const registryLine = "@jsr:registry=https://npm.jsr.io";
+  const current = await pathExists(npmrcPath, runtime)
+    ? await runtime.readTextFile(npmrcPath)
+    : "";
 
-    if (current.split(/\r?\n/).some((line) => line.trim() === registryLine)) {
-        return undefined;
-    }
+  if (current.split(/\r?\n/).some((line) => line.trim() === registryLine)) {
+    return undefined;
+  }
 
-    const separator = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
-    return {
-        path: npmrcPath,
-        content: `${current}${separator}${registryLine}\n`,
-    };
+  const separator = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
+  return {
+    path: npmrcPath,
+    content: `${current}${separator}${registryLine}\n`,
+  };
 }
 
 function resolveTemplateTarget(manifest: Record<string, unknown>): {
+  name: string;
+  rootDir: string;
+  appFile: string;
+  appId: string;
+  outDir: string;
+} {
+  const target = manifest.target;
+  if (!target || typeof target !== "object") {
+    throw new Error(
+      `Template "${String(manifest.name ?? "unknown")}" must define a target.`,
+    );
+  }
+
+  for (
+    const key of ["name", "rootDir", "appFile", "appId", "outDir"] as const
+  ) {
+    const value = (target as Record<string, unknown>)[key];
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(
+        `Template "${
+          String(manifest.name ?? "unknown")
+        }" target is missing "${key}".`,
+      );
+    }
+  }
+
+  return target as {
     name: string;
     rootDir: string;
     appFile: string;
     appId: string;
     outDir: string;
-} {
-    const target = manifest.target;
-    if (!target || typeof target !== "object") {
-        throw new Error(`Template "${String(manifest.name ?? "unknown")}" must define a target.`);
-    }
-
-    for (const key of ["name", "rootDir", "appFile", "appId", "outDir"] as const) {
-        const value = (target as Record<string, unknown>)[key];
-        if (typeof value !== "string" || !value.trim()) {
-            throw new Error(
-                `Template "${String(manifest.name ?? "unknown")}" target is missing "${key}".`,
-            );
-        }
-    }
-
-    return target as {
-        name: string;
-        rootDir: string;
-        appFile: string;
-        appId: string;
-        outDir: string;
-    };
+  };
 }
 
 function renderGeneratedMainzCliSpecifier(mainzSpecifier: string): string {
-    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
-    const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
-    if (jsrMainzMatch) {
-        return `jsr:@mainz/cli-deno${jsrMainzMatch[1] ?? ""}`;
-    }
+  const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+  const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
+  if (jsrMainzMatch) {
+    return `jsr:@mainz/cli-deno${jsrMainzMatch[1] ?? ""}`;
+  }
 
-    return trimmed;
+  return trimmed;
 }
 
 function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
-    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
-    if (trimmed.startsWith("jsr:@")) {
-        return `jsr:/${trimmed.slice("jsr:".length)}/`;
-    }
+  const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+  if (trimmed.startsWith("jsr:@")) {
+    return `jsr:/${trimmed.slice("jsr:".length)}/`;
+  }
 
-    return `${trimmed}/`;
+  return `${trimmed}/`;
 }
 
 function renderGeneratedNodeMainzSpecifier(mainzSpecifier: string): string {
-    const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
-    const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
-    if (jsrMainzMatch) {
-        return `npm:@jsr/mainz__mainz${jsrMainzMatch[1] ?? ""}`;
-    }
+  const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
+  const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
+  if (jsrMainzMatch) {
+    return `npm:@jsr/mainz__mainz${jsrMainzMatch[1] ?? ""}`;
+  }
 
-    return trimmed;
+  return trimmed;
 }
 
 function toKebabCase(value: string): string {
-    return value.replaceAll("_", "-").replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+  return value.replaceAll("_", "-").replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
 }
 
 function toCustomElementSegment(value: string): string {
-    const segment = toKebabCase(value)
-        .replace(/[^a-z0-9-]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
+  const segment = toKebabCase(value)
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
 
-    return segment || "app";
+  return segment || "app";
 }
 
 async function pathExists(
-    path: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
+  path: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<boolean> {
-    try {
-        await runtime.stat(path);
-        return true;
-    } catch (error) {
-        if (isNotFoundError(error)) {
-            return false;
-        }
-
-        throw error;
+  try {
+    await runtime.stat(path);
+    return true;
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return false;
     }
+
+    throw error;
+  }
 }
 
 function isNotFoundError(error: unknown): boolean {
-    const denoNotFound = globalThis.Deno?.errors?.NotFound;
-    return (typeof denoNotFound === "function" && error instanceof denoNotFound) ||
-        (typeof error === "object" && error !== null && (
-            ("name" in error && error.name === "NotFound") ||
-            ("code" in error && error.code === "ENOENT")
-        ));
+  const denoNotFound = globalThis.Deno?.errors?.NotFound;
+  return (typeof denoNotFound === "function" &&
+    error instanceof denoNotFound) ||
+    (typeof error === "object" && error !== null && (
+      ("name" in error && error.name === "NotFound") ||
+      ("code" in error && error.code === "ENOENT")
+    ));
 }
 
 function isCommandNotFoundError(error: unknown): boolean {
-    return isNotFoundError(error);
+  return isNotFoundError(error);
 }
 
 function getCliBootstrapEnv(): string | undefined {
-    return globalThis.Deno?.env?.get(projectConfigBootstrapEnv) ??
-        process.env[projectConfigBootstrapEnv];
+  return globalThis.Deno?.env?.get(projectConfigBootstrapEnv) ??
+    process.env[projectConfigBootstrapEnv];
 }
 
 function resolveBootstrapMainzImports(
-    dependency: string | undefined,
+  dependency: string | undefined,
 ):
-    | Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
-    | undefined {
-    const localImports = resolveLocalBootstrapMainzImports();
-    if (localImports) {
-        return localImports;
-    }
+  | Record<
+    "mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime",
+    string
+  >
+  | undefined {
+  const localImports = resolveLocalBootstrapMainzImports();
+  if (localImports) {
+    return localImports;
+  }
 
-    const specifier = toBootstrapMainzSpecifier(dependency);
-    if (!specifier) {
-        return undefined;
-    }
+  const specifier = toBootstrapMainzSpecifier(dependency);
+  if (!specifier) {
+    return undefined;
+  }
 
-    return {
-        mainz: specifier,
-        "mainz/config": `${specifier}/config`,
-        "mainz/jsx-runtime": `${specifier}/jsx-runtime`,
-        "mainz/jsx-dev-runtime": `${specifier}/jsx-dev-runtime`,
-    };
+  return {
+    mainz: specifier,
+    "mainz/config": `${specifier}/config`,
+    "mainz/jsx-runtime": `${specifier}/jsx-runtime`,
+    "mainz/jsx-dev-runtime": `${specifier}/jsx-dev-runtime`,
+  };
 }
 
 function resolveLocalBootstrapMainzImports():
-    | Record<"mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime", string>
-    | undefined {
-    if (!import.meta.url.startsWith("file:")) {
-        return undefined;
-    }
-
-    const cliPath = fileURLToPath(import.meta.url);
-    const repoRoot = resolve(dirname(cliPath), "..", "..");
-
-    return {
-        mainz: pathToFileURL(resolve(repoRoot, "mod.ts")).href,
-        "mainz/config": pathToFileURL(resolve(repoRoot, "src", "config", "index.ts")).href,
-        "mainz/jsx-runtime": pathToFileURL(resolve(repoRoot, "src", "jsx-runtime.ts")).href,
-        "mainz/jsx-dev-runtime": pathToFileURL(resolve(repoRoot, "src", "jsx-dev-runtime.ts"))
-            .href,
-    };
-}
-
-function toBootstrapMainzSpecifier(dependency: string | undefined): string | undefined {
-    if (!dependency?.trim()) {
-        return undefined;
-    }
-
-    if (dependency.startsWith("jsr:@mainz/mainz@")) {
-        return dependency;
-    }
-
-    const npmJsrMatch = dependency.match(/^npm:@jsr\/mainz__mainz(@.+)$/);
-    if (npmJsrMatch) {
-        return `jsr:@mainz/mainz${npmJsrMatch[1]}`;
-    }
-
+  | Record<
+    "mainz" | "mainz/config" | "mainz/jsx-runtime" | "mainz/jsx-dev-runtime",
+    string
+  >
+  | undefined {
+  if (!import.meta.url.startsWith("file:")) {
     return undefined;
+  }
+
+  const cliPath = fileURLToPath(import.meta.url);
+  const repoRoot = resolve(dirname(cliPath), "..", "..");
+
+  return {
+    mainz: pathToFileURL(resolve(repoRoot, "mod.ts")).href,
+    "mainz/config":
+      pathToFileURL(resolve(repoRoot, "src", "config", "index.ts")).href,
+    "mainz/jsx-runtime":
+      pathToFileURL(resolve(repoRoot, "src", "jsx-runtime.ts")).href,
+    "mainz/jsx-dev-runtime":
+      pathToFileURL(resolve(repoRoot, "src", "jsx-dev-runtime.ts"))
+        .href,
+  };
 }
 
-function resolveToolingRuntime(runtime: SupportedCliRuntime): MainzToolingRuntime {
-    if (runtime === "deno") {
-        return denoToolingRuntime;
-    }
+function toBootstrapMainzSpecifier(
+  dependency: string | undefined,
+): string | undefined {
+  if (!dependency?.trim()) {
+    return undefined;
+  }
 
-    return nodeToolingRuntime;
+  if (dependency.startsWith("jsr:@mainz/mainz@")) {
+    return dependency;
+  }
+
+  const npmJsrMatch = dependency.match(/^npm:@jsr\/mainz__mainz(@.+)$/);
+  if (npmJsrMatch) {
+    return `jsr:@mainz/mainz${npmJsrMatch[1]}`;
+  }
+
+  return undefined;
+}
+
+function resolveToolingRuntime(
+  runtime: SupportedCliRuntime,
+): MainzToolingRuntime {
+  if (runtime === "deno") {
+    return denoToolingRuntime;
+  }
+
+  return nodeToolingRuntime;
 }
 
 async function resolveCommandToolingRuntime(
-    command:
-        | BuildCommandOptions
-        | DevCommandOptions
-        | PreviewCommandOptions
-        | TestCommandOptions
-        | PublishInfoCommandOptions
-        | DiagnoseCommandOptions,
-    hostRuntime: SupportedCliRuntime,
+  command:
+    | BuildCommandOptions
+    | DevCommandOptions
+    | PreviewCommandOptions
+    | TestCommandOptions
+    | PublishInfoCommandOptions
+    | DiagnoseCommandOptions,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<MainzToolingRuntime> {
-    const runtime = await resolveProjectRuntimePreference(command, hostRuntime);
-    return resolveToolingRuntime(runtime);
+  const runtime = await resolveProjectRuntimePreference(command, hostRuntime);
+  return resolveToolingRuntime(runtime);
 }
 
 async function resolveProjectRuntimePreference(
-    options: Pick<SharedCliOptions, "runtime" | "configPath">,
-    hostRuntime: SupportedCliRuntime,
+  options: Pick<SharedCliOptions, "runtime" | "configPath">,
+  hostRuntime: SupportedCliRuntime,
 ): Promise<SupportedCliRuntime> {
-    if (options.runtime) {
-        return resolveSupportedCliRuntime(options.runtime);
-    }
+  if (options.runtime) {
+    return resolveSupportedCliRuntime(options.runtime);
+  }
 
-    const projectRuntime = await readProjectRuntime(
-        options.configPath ?? "mainz.config.ts",
-        resolveToolingRuntime(hostRuntime),
-    );
-    return resolveSupportedCliRuntime(projectRuntime ?? hostRuntime);
+  const projectRuntime = await readProjectRuntime(
+    options.configPath ?? "mainz.config.ts",
+    resolveToolingRuntime(hostRuntime),
+  );
+  return resolveSupportedCliRuntime(projectRuntime ?? hostRuntime);
 }
 
 async function readProjectRuntime(
-    configPath: string,
-    runtime: MainzToolingRuntime = denoToolingRuntime,
+  configPath: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<MainzRuntime | undefined> {
-    const absoluteConfigPath = resolve(configPath);
-    if (!(await pathExists(absoluteConfigPath, runtime))) {
-        return undefined;
-    }
+  const absoluteConfigPath = resolve(configPath);
+  if (!(await pathExists(absoluteConfigPath, runtime))) {
+    return undefined;
+  }
 
-    const source = await runtime.readTextFile(absoluteConfigPath);
-    const match = source.match(/\bruntime\s*:\s*["'](deno|node|bun)["']/);
-    return match?.[1] as MainzRuntime | undefined;
+  const source = await runtime.readTextFile(absoluteConfigPath);
+  const match = source.match(/\bruntime\s*:\s*["'](deno|node|bun)["']/);
+  return match?.[1] as MainzRuntime | undefined;
 }
 
 function detectHostRuntime(): SupportedCliRuntime {
-    if (
-        typeof globalThis.Deno !== "undefined" && typeof globalThis.Deno.version?.deno === "string"
-    ) {
-        return "deno";
-    }
+  if (
+    typeof globalThis.Deno !== "undefined" &&
+    typeof globalThis.Deno.version?.deno === "string"
+  ) {
+    return "deno";
+  }
 
-    return "node";
+  return "node";
 }
 
-function resolveSupportedCliRuntime(runtime: MainzRuntime): SupportedCliRuntime {
-    if (runtime === "deno" || runtime === "node") {
-        return runtime;
-    }
+function resolveSupportedCliRuntime(
+  runtime: MainzRuntime,
+): SupportedCliRuntime {
+  if (runtime === "deno" || runtime === "node") {
+    return runtime;
+  }
 
-    throw new Error('Runtime "bun" is not implemented yet.');
+  throw new Error('Runtime "bun" is not implemented yet.');
 }

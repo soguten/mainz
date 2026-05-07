@@ -4,8 +4,8 @@ import { assert, assertEquals } from "@std/assert";
 import { withHappyDom } from "../happy-dom.ts";
 
 Deno.test("ssg/happy-dom: should strip external document resources from document.write", async () => {
-    await withHappyDom(async () => {
-        document.write(`
+  await withHappyDom(async () => {
+    document.write(`
             <!doctype html>
             <html lang="en">
                 <head>
@@ -19,11 +19,14 @@ Deno.test("ssg/happy-dom: should strip external document resources from document
                 </body>
             </html>
         `);
-        document.close();
+    document.close();
 
-        assertEquals(document.querySelectorAll('link[href^="https://"]').length, 0);
-        assertEquals(document.querySelectorAll('script[src^="https://"]').length, 0);
-        assert(document.querySelector('link[href="/docs/example"]'));
-        assert(document.getElementById("app"));
-    });
+    assertEquals(document.querySelectorAll('link[href^="https://"]').length, 0);
+    assertEquals(
+      document.querySelectorAll('script[src^="https://"]').length,
+      0,
+    );
+    assert(document.querySelector('link[href="/docs/example"]'));
+    assert(document.getElementById("app"));
+  });
 });

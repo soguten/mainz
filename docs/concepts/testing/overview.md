@@ -7,8 +7,8 @@ summary: Understand the public testing surface and how Mainz supports component,
 
 Mainz exposes a public testing surface through `mainz/testing`.
 
-The goal is not to ship a full test runner. The goal is to make the framework easy to test across
-the layers that usually hurt:
+The goal is not to ship a full test runner. The goal is to make the framework
+easy to test across the layers that usually hurt:
 
 - unit and component tests
 - runtime and navigation tests
@@ -21,15 +21,15 @@ Today the public testing entrypoint is:
 
 ```ts
 import {
-    nextTick,
-    prepareNavigationTest,
-    renderMainzComponent,
-    setupMainzDom,
-    waitFor,
-    waitForNavigationAbort,
-    waitForNavigationError,
-    waitForNavigationReady,
-    waitForNavigationStart,
+  nextTick,
+  prepareNavigationTest,
+  renderMainzComponent,
+  setupMainzDom,
+  waitFor,
+  waitForNavigationAbort,
+  waitForNavigationError,
+  waitForNavigationReady,
+  waitForNavigationStart,
 } from "mainz/testing";
 ```
 
@@ -37,8 +37,8 @@ That gives you three practical groups of tools.
 
 ## 1. Component testing
 
-Use `setupMainzDom()` and `renderMainzComponent()` to test a Mainz component in a DOM-like
-environment powered by Happy DOM.
+Use `setupMainzDom()` and `renderMainzComponent()` to test a Mainz component in
+a DOM-like environment powered by Happy DOM.
 
 Good for:
 
@@ -48,7 +48,8 @@ Good for:
 - DOM event handling
 - controlled inputs and selects
 - cleanup and isolation
-- registering fake services at startup instead of pushing infrastructure through `props`
+- registering fake services at startup instead of pushing infrastructure through
+  `props`
 
 See:
 
@@ -57,12 +58,12 @@ See:
 
 ## 2. Runtime testing
 
-Use `prepareNavigationTest()` for tests that exercise the runtime itself, especially routing and
-navigation behavior.
+Use `prepareNavigationTest()` for tests that exercise the runtime itself,
+especially routing and navigation behavior.
 
-`prepareNavigationTest()` prepares the DOM and resets runtime globals. The app under test should
-still be composed with `defineApp(...)` and started with `startApp(...)`, just like normal
-application code.
+`prepareNavigationTest()` prepares the DOM and resets runtime globals. The app
+under test should still be composed with `defineApp(...)` and started with
+`startApp(...)`, just like normal application code.
 
 Good for:
 
@@ -78,16 +79,16 @@ See:
 
 ## 3. Smoke and E2E testing
 
-Mainz does not ship a browser E2E runner, but it does make E2E and smoke testing easier by keeping
-build inputs explicit:
+Mainz does not ship a browser E2E runner, but it does make E2E and smoke testing
+easier by keeping build inputs explicit:
 
 - target
 - mode
 - navigation
 - profile
 
-That means a Playwright, Cypress, or custom Deno-based suite can test meaningful combinations
-without guessing framework state from hidden defaults.
+That means a Playwright, Cypress, or custom Deno-based suite can test meaningful
+combinations without guessing framework state from hidden defaults.
 
 See:
 
@@ -95,11 +96,14 @@ See:
 
 For build-oriented E2E coverage, a good rule of thumb is:
 
-- read emitted HTML directly when the contract is about static publication output
-- boot the built runtime when the contract is about hydration, navigation, or post-boot behavior
+- read emitted HTML directly when the contract is about static publication
+  output
+- boot the built runtime when the contract is about hydration, navigation, or
+  post-boot behavior
 
 When you boot the built runtime in a DOM-based test, prefer synchronizing on
-`waitForNavigationReady(...)` or the bubbled `mainz:navigationready` event before asserting on the final page state.
+`waitForNavigationReady(...)` or the bubbled `mainz:navigationready` event
+before asserting on the final page state.
 
 ## Async helpers
 
@@ -116,15 +120,18 @@ Guideline:
 
 - pending-state test: start with `waitForNavigationStart(...)`
 - canceled/superseded path: prefer `waitForNavigationAbort(...)`
-- failure-path test: prefer `waitForNavigationError(...)` over timeout-based inference
+- failure-path test: prefer `waitForNavigationError(...)` over timeout-based
+  inference
 - single-app page: `waitForNavigationReady()` is usually enough
 - multi-app page: prefer `waitForNavigationReady({ target: appRoot })`
 
-These are intentionally small. Mainz tries to make normal DOM assertions readable instead of hiding
-everything behind a big custom test DSL.
+These are intentionally small. Mainz tries to make normal DOM assertions
+readable instead of hiding everything behind a big custom test DSL.
 
 ## What this page is not
 
-This section documents the public testing surface and testing-friendly patterns of the framework.
+This section documents the public testing surface and testing-friendly patterns
+of the framework.
 
-It does not document the repository's internal matrix architecture used to validate Mainz itself.
+It does not document the repository's internal matrix architecture used to
+validate Mainz itself.

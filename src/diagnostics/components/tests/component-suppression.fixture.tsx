@@ -1,10 +1,10 @@
 import {
-    Component,
-    CustomElement,
-    type NoProps,
-    type NoState,
-    RenderPolicy,
-    RenderStrategy,
+  Component,
+  CustomElement,
+  type NoProps,
+  type NoState,
+  RenderPolicy,
+  RenderStrategy,
 } from "../../../index.ts";
 
 /**
@@ -13,14 +13,15 @@ import {
  */
 @CustomElement("x-mainz-suppressed-load-component")
 @RenderStrategy("defer")
-export class UsedSuppressedComponent extends Component<NoProps, NoState, { title: string }> {
-    override async load() {
-        return { title: "suppressed" };
-    }
+export class UsedSuppressedComponent
+  extends Component<NoProps, NoState, { title: string }> {
+  override async load() {
+    return { title: "suppressed" };
+  }
 
-    override render(): HTMLElement {
-        return <p>{this.data.title}</p>;
-    }
+  override render(): HTMLElement {
+    return <p>{this.data.title}</p>;
+  }
 }
 
 /**
@@ -29,14 +30,15 @@ export class UsedSuppressedComponent extends Component<NoProps, NoState, { title
  */
 @CustomElement("x-mainz-unknown-suppression-component")
 @RenderStrategy("defer")
-export class UnknownSuppressionComponent extends Component<NoProps, NoState, { title: string }> {
-    override async load() {
-        return { title: "unknown" };
-    }
+export class UnknownSuppressionComponent
+  extends Component<NoProps, NoState, { title: string }> {
+  override async load() {
+    return { title: "unknown" };
+  }
 
-    override render(): HTMLElement {
-        return <p>{this.data.title}</p>;
-    }
+  override render(): HTMLElement {
+    return <p>{this.data.title}</p>;
+  }
 }
 
 /**
@@ -46,14 +48,15 @@ export class UnknownSuppressionComponent extends Component<NoProps, NoState, { t
  */
 @CustomElement("x-mainz-duplicate-suppression-component")
 @RenderStrategy("defer")
-export class DuplicateSuppressionComponent extends Component<NoProps, NoState, { title: string }> {
-    override async load() {
-        return { title: "duplicate" };
-    }
+export class DuplicateSuppressionComponent
+  extends Component<NoProps, NoState, { title: string }> {
+  override async load() {
+    return { title: "duplicate" };
+  }
 
-    override render(): HTMLElement {
-        return <p>{this.data.title}</p>;
-    }
+  override render(): HTMLElement {
+    return <p>{this.data.title}</p>;
+  }
 }
 
 /**
@@ -63,11 +66,11 @@ export class DuplicateSuppressionComponent extends Component<NoProps, NoState, {
 @CustomElement("x-mainz-unused-suppression-component")
 @RenderPolicy("placeholder-in-ssg")
 export class UnusedSuppressionComponent extends Component {
-    override placeholder(): HTMLElement {
-        return <p>placeholder</p>;
-    }
+  override placeholder(): HTMLElement {
+    return <p>placeholder</p>;
+  }
 
-    override render(): HTMLElement {
-        return <p>unused</p>;
-    }
+  override render(): HTMLElement {
+    return <p>unused</p>;
+  }
 }

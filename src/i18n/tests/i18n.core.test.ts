@@ -2,89 +2,89 @@
 
 import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
-    createDictionaryI18n,
-    normalizeLocaleTag,
-    toLocalePathSegment,
-    validateMessagesForLocales,
+  createDictionaryI18n,
+  normalizeLocaleTag,
+  toLocalePathSegment,
+  validateMessagesForLocales,
 } from "../index.ts";
 
 Deno.test("i18n/core: should normalize locale tags and locale path segment", () => {
-    assertEquals(normalizeLocaleTag("en-us"), "en-US");
-    assertEquals(normalizeLocaleTag("pt_br"), "pt-BR");
-    assertEquals(normalizeLocaleTag("zh-hant-hk"), "zh-Hant-HK");
-    assertEquals(normalizeLocaleTag("sr_latn_rs"), "sr-Latn-RS");
-    assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
+  assertEquals(normalizeLocaleTag("en-us"), "en-US");
+  assertEquals(normalizeLocaleTag("pt_br"), "pt-BR");
+  assertEquals(normalizeLocaleTag("zh-hant-hk"), "zh-Hant-HK");
+  assertEquals(normalizeLocaleTag("sr_latn_rs"), "sr-Latn-RS");
+  assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
 });
 
 Deno.test("i18n/core: should reject malformed locale tags", () => {
-    assertThrows(
-        () => normalizeLocaleTag(""),
-        Error,
-        "Locale cannot be empty.",
-    );
+  assertThrows(
+    () => normalizeLocaleTag(""),
+    Error,
+    "Locale cannot be empty.",
+  );
 
-    assertThrows(
-        () => normalizeLocaleTag("en--US"),
-        Error,
-        'Invalid locale "en--US". Expected a valid BCP 47 language tag.',
-    );
+  assertThrows(
+    () => normalizeLocaleTag("en--US"),
+    Error,
+    'Invalid locale "en--US". Expected a valid BCP 47 language tag.',
+  );
 });
 
 Deno.test("i18n/core: should resolve locale and fallback to base language", () => {
-    const i18n = createDictionaryI18n({
-        defaultLocale: "en",
-        locales: ["en", "pt-BR"],
-        dictionaries: {
-            en: { common: { title: "Hello" } },
-            "pt-BR": { common: { title: "Ola" } },
-        },
-        initialLocale: "pt-PT",
-    });
+  const i18n = createDictionaryI18n({
+    defaultLocale: "en",
+    locales: ["en", "pt-BR"],
+    dictionaries: {
+      en: { common: { title: "Hello" } },
+      "pt-BR": { common: { title: "Ola" } },
+    },
+    initialLocale: "pt-PT",
+  });
 
-    assertEquals(i18n.getLocale(), "pt-BR");
-    assertEquals(i18n.t("common.title"), "Ola");
+  assertEquals(i18n.getLocale(), "pt-BR");
+  assertEquals(i18n.t("common.title"), "Ola");
 });
 
 Deno.test("i18n/core: should return key when translation is missing", () => {
-    const i18n = createDictionaryI18n({
-        defaultLocale: "en",
-        locales: ["en"],
-        dictionaries: {
-            en: { common: { title: "Hello" } },
-        },
-    });
+  const i18n = createDictionaryI18n({
+    defaultLocale: "en",
+    locales: ["en"],
+    dictionaries: {
+      en: { common: { title: "Hello" } },
+    },
+  });
 
-    assertEquals(i18n.t("common.unknown"), "common.unknown");
+  assertEquals(i18n.t("common.unknown"), "common.unknown");
 });
 
 Deno.test("i18n/core: should diagnose message availability for all locales", async () => {
-    await validateMessagesForLocales(["en", "pt-BR"], async (locale) => {
+  await validateMessagesForLocales(["en", "pt-BR"], async (locale) => {
+    if (locale === "en") {
+      return { common: { title: "Hello" } };
+    }
+
+    if (locale === "pt-BR") {
+      return { common: { title: "Ola" } };
+    }
+
+    return {};
+  });
+
+  await assertRejects(
+    async () => {
+      await validateMessagesForLocales(["en", "pt-BR"], async (locale) => {
         if (locale === "en") {
-            return { common: { title: "Hello" } };
+          return { common: { title: "Hello" } };
         }
 
         if (locale === "pt-BR") {
-            return { common: { title: "Ola" } };
+          return {};
         }
 
         return {};
-    });
-
-    await assertRejects(
-        async () => {
-            await validateMessagesForLocales(["en", "pt-BR"], async (locale) => {
-                if (locale === "en") {
-                    return { common: { title: "Hello" } };
-                }
-
-                if (locale === "pt-BR") {
-                    return {};
-                }
-
-                return {};
-            });
-        },
-        Error,
-        "has no resolvable messages",
-    );
+      });
+    },
+    Error,
+    "has no resolvable messages",
+  );
 });

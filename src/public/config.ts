@@ -5,16 +5,16 @@
 export { defineMainzConfig, defineTargetBuild } from "../config/definition.ts";
 
 export type {
-    LoadedMainzConfig,
-    MainzConfig,
-    MainzRuntime,
-    MainzTargetDefinition,
-    MainzTargetViteAlias,
-    MainzTargetViteOptions,
-    NormalizedMainzConfig,
-    NormalizedMainzTarget,
-    NormalizedTargetBuildDefinition,
-    NormalizedTargetBuildProfile,
-    TargetBuildDefinition,
-    TargetBuildProfileDefinition,
+  LoadedMainzConfig,
+  MainzConfig,
+  MainzRuntime,
+  MainzTargetDefinition,
+  MainzTargetViteAlias,
+  MainzTargetViteOptions,
+  NormalizedMainzConfig,
+  NormalizedMainzTarget,
+  NormalizedTargetBuildDefinition,
+  NormalizedTargetBuildProfile,
+  TargetBuildDefinition,
+  TargetBuildProfileDefinition,
 } from "../config/types.ts";

@@ -5,140 +5,158 @@ import { nextTick } from "../../../../src/testing/async-testing.ts";
 import type { MatrixArtifact, MatrixFixture } from "../../harness.ts";
 import { matrixTest } from "../../harness.ts";
 import { withFixtureDom } from "../../render-fixture.ts";
-import { extractModuleScriptSrc, resolveOutputScriptPath } from "../../../helpers/fixture-io.ts";
+import {
+  extractModuleScriptSrc,
+  resolveOutputScriptPath,
+} from "../../../helpers/fixture-io.ts";
 import { pathToFileURL } from "node:url";
 
 export const i18nCase = matrixTest({
-    name: "i18n preserves localized bootstrap and redirects",
-    fixture: "RoutedApp",
-    exercise: {
-        render: ["csr", "ssg"],
-        navigation: ["spa", "mpa", "enhanced-mpa"],
-    },
-    run: async ({ combo, artifact, fixture }) => {
-        await assertRootLocaleRedirect({
-            combo,
-            artifact,
-            fixture,
-            navigatorLocale: "pt-BR",
-            expectedPathname: combo.render === "csr" && combo.navigation === "spa" ? "/pt/" : "/",
-        });
+  name: "i18n preserves localized bootstrap and redirects",
+  fixture: "RoutedApp",
+  exercise: {
+    render: ["csr", "ssg"],
+    navigation: ["spa", "mpa", "enhanced-mpa"],
+  },
+  run: async ({ combo, artifact, fixture }) => {
+    await assertRootLocaleRedirect({
+      combo,
+      artifact,
+      fixture,
+      navigatorLocale: "pt-BR",
+      expectedPathname: combo.render === "csr" && combo.navigation === "spa"
+        ? "/pt/"
+        : "/",
+    });
 
-        await assertRootLocaleRedirect({
-            combo,
-            artifact,
-            fixture,
-            navigatorLocale: "es-ES",
-            expectedPathname: "/",
-        });
+    await assertRootLocaleRedirect({
+      combo,
+      artifact,
+      fixture,
+      navigatorLocale: "es-ES",
+      expectedPathname: "/",
+    });
 
-        const englishScreen = await fixture.render(artifact, "/");
-        try {
-            assertEquals(document.documentElement.lang, "en");
-            assertStringIncludes(document.body.textContent ?? "", "Start guided journey");
-            assertEquals(
-                document.querySelector<HTMLAnchorElement>('a[data-locale="pt"]')?.getAttribute(
-                    "href",
-                ),
-                "/pt/",
-            );
-        } finally {
-            englishScreen.cleanup();
-        }
+    const englishScreen = await fixture.render(artifact, "/");
+    try {
+      assertEquals(document.documentElement.lang, "en");
+      assertStringIncludes(
+        document.body.textContent ?? "",
+        "Start guided journey",
+      );
+      assertEquals(
+        document.querySelector<HTMLAnchorElement>('a[data-locale="pt"]')
+          ?.getAttribute(
+            "href",
+          ),
+        "/pt/",
+      );
+    } finally {
+      englishScreen.cleanup();
+    }
 
-        const portugueseScreen = await fixture.render(artifact, "/pt/");
-        try {
-            assertEquals(document.documentElement.lang, "pt");
-            assertStringIncludes(document.body.textContent ?? "", "Iniciar trilha guiada");
-            assertEquals(
-                document.querySelector<HTMLAnchorElement>('a[data-locale="en"]')?.getAttribute(
-                    "href",
-                ),
-                "/",
-            );
-        } finally {
-            portugueseScreen.cleanup();
-        }
-    },
+    const portugueseScreen = await fixture.render(artifact, "/pt/");
+    try {
+      assertEquals(document.documentElement.lang, "pt");
+      assertStringIncludes(
+        document.body.textContent ?? "",
+        "Iniciar trilha guiada",
+      );
+      assertEquals(
+        document.querySelector<HTMLAnchorElement>('a[data-locale="en"]')
+          ?.getAttribute(
+            "href",
+          ),
+        "/",
+      );
+    } finally {
+      portugueseScreen.cleanup();
+    }
+  },
 });
 
 async function assertRootLocaleRedirect(args: {
-    combo: { render: "csr" | "ssg"; navigation: "spa" | "mpa" | "enhanced-mpa" };
-    artifact: MatrixArtifact;
-    fixture: MatrixFixture;
-    navigatorLocale: string;
-    expectedPathname: string;
+  combo: { render: "csr" | "ssg"; navigation: "spa" | "mpa" | "enhanced-mpa" };
+  artifact: MatrixArtifact;
+  fixture: MatrixFixture;
+  navigatorLocale: string;
+  expectedPathname: string;
 }): Promise<void> {
-    const html = await args.fixture.readHtml(args.artifact, "/");
+  const html = await args.fixture.readHtml(args.artifact, "/");
 
-    const navigatorProxy = Object.create(navigator);
+  const navigatorProxy = Object.create(navigator);
 
-    Object.defineProperty(navigatorProxy, "language", {
-        configurable: true,
-        value: args.navigatorLocale,
+  Object.defineProperty(navigatorProxy, "language", {
+    configurable: true,
+    value: args.navigatorLocale,
+  });
+
+  Object.defineProperty(navigatorProxy, "languages", {
+    configurable: true,
+    value: [args.navigatorLocale],
+  });
+
+  const previousNavigator = globalThis.navigator;
+
+  await withFixtureDom("https://mainz.local/", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      writable: true,
+      value: navigatorProxy,
+    });
+    Object.defineProperty(globalThis.window, "navigator", {
+      configurable: true,
+      value: navigatorProxy,
     });
 
-    Object.defineProperty(navigatorProxy, "languages", {
-        configurable: true,
-        value: [args.navigatorLocale],
-    });
+    try {
+      document.write(html);
+      document.close();
 
-    const previousNavigator = globalThis.navigator;
+      if (args.combo.render === "csr" && args.combo.navigation === "spa") {
+        const scriptSrc = extractModuleScriptSrc(html);
+        assert(scriptSrc, "Could not find CSR SPA root module script.");
 
-    await withFixtureDom("https://mainz.local/", async () => {
-        Object.defineProperty(globalThis, "navigator", {
-            configurable: true,
-            writable: true,
-            value: navigatorProxy,
+        const scriptPath = resolveOutputScriptPath({
+          outputDir: args.artifact.context.outputDir,
+          htmlPath: args.fixture.resolveHtmlPath(args.artifact, "/"),
+          scriptSrc,
         });
-        Object.defineProperty(globalThis.window, "navigator", {
-            configurable: true,
-            value: navigatorProxy,
-        });
+        await import(
+          `${pathToFileURL(scriptPath).href}?matrix-root=${Date.now()}`
+        );
+        await nextTick();
+      } else if (args.expectedPathname !== "/") {
+        const redirectScript = extractInlineRedirectScript(html);
+        assert(
+          redirectScript,
+          "Could not find locale redirect script in root document.",
+        );
+        assertStringIncludes(html, "<title>Redirecting...</title>");
+        assertStringIncludes(html, '<link rel="canonical"');
 
-        try {
-            document.write(html);
-            document.close();
+        globalThis.window.eval(redirectScript);
+        await nextTick();
+      } else {
+        assertStringIncludes(html, "<title>Mainz</title>");
+      }
 
-            if (args.combo.render === "csr" && args.combo.navigation === "spa") {
-                const scriptSrc = extractModuleScriptSrc(html);
-                assert(scriptSrc, "Could not find CSR SPA root module script.");
-
-                const scriptPath = resolveOutputScriptPath({
-                    outputDir: args.artifact.context.outputDir,
-                    htmlPath: args.fixture.resolveHtmlPath(args.artifact, "/"),
-                    scriptSrc,
-                });
-                await import(`${pathToFileURL(scriptPath).href}?matrix-root=${Date.now()}`);
-                await nextTick();
-            } else if (args.expectedPathname !== "/") {
-                const redirectScript = extractInlineRedirectScript(html);
-                assert(redirectScript, "Could not find locale redirect script in root document.");
-                assertStringIncludes(html, "<title>Redirecting...</title>");
-                assertStringIncludes(html, '<link rel="canonical"');
-
-                globalThis.window.eval(redirectScript);
-                await nextTick();
-            } else {
-                assertStringIncludes(html, "<title>Mainz</title>");
-            }
-
-            assertEquals(globalThis.window.location.pathname, args.expectedPathname);
-        } finally {
-            Object.defineProperty(globalThis, "navigator", {
-                configurable: true,
-                writable: true,
-                value: previousNavigator,
-            });
-            Object.defineProperty(globalThis.window, "navigator", {
-                configurable: true,
-                value: previousNavigator,
-            });
-        }
-    });
+      assertEquals(globalThis.window.location.pathname, args.expectedPathname);
+    } finally {
+      Object.defineProperty(globalThis, "navigator", {
+        configurable: true,
+        writable: true,
+        value: previousNavigator,
+      });
+      Object.defineProperty(globalThis.window, "navigator", {
+        configurable: true,
+        value: previousNavigator,
+      });
+    }
+  });
 }
 
 function extractInlineRedirectScript(html: string): string | null {
-    const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i);
-    return match?.[1]?.trim() ?? null;
+  const match = html.match(/<script>\s*([\s\S]*?)\s*<\/script>/i);
+  return match?.[1]?.trim() ?? null;
 }

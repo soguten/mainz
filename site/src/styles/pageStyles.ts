@@ -1,4 +1,4 @@
-export const pageStyles = /* css */`
+export const pageStyles = /* css */ `
     :root {
         --paper: #f4f1ea;
         --paper-strong: #ece6d8;

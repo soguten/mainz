@@ -4,9 +4,9 @@ import { SharedApi } from "../services.ts";
 
 @Route("/alpha")
 export class AlphaPage extends Page {
-    static readonly api = inject(SharedApi);
+  static readonly api = inject(SharedApi);
 
-    override render() {
-        return <div>Alpha</div>;
-    }
+  override render() {
+    return <div>Alpha</div>;
+  }
 }

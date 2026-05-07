@@ -15,7 +15,8 @@ Mainz components are custom elements. A good component test usually looks like:
 
 ## Boot the test DOM
 
-`setupMainzDom()` initializes the DOM-like environment used by the testing helpers.
+`setupMainzDom()` initializes the DOM-like environment used by the testing
+helpers.
 
 ```ts title="counter.test.ts"
 import { setupMainzDom } from "mainz/testing";
@@ -37,15 +38,15 @@ import { CounterCard } from "./CounterCard.tsx";
 await setupMainzDom();
 
 Deno.test("counter increments on click", () => {
-    const screen = renderMainzComponent(CounterCard, {
-        props: { label: "Clicks" },
-    });
+  const screen = renderMainzComponent(CounterCard, {
+    props: { label: "Clicks" },
+  });
 
-    screen.click("button");
-    screen.click("button");
+  screen.click("button");
+  screen.click("button");
 
-    assertEquals(screen.getBySelector("button").textContent, "Clicks: 2");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("button").textContent, "Clicks: 2");
+  screen.cleanup();
 });
 ```
 
@@ -80,7 +81,7 @@ That makes it easy to cover cases that are painful in other setups.
 
 ```tsx
 const screen = renderMainzComponent(ProfileCard, {
-    props: { name: "Ada" },
+  props: { name: "Ada" },
 });
 ```
 
@@ -88,7 +89,7 @@ const screen = renderMainzComponent(ProfileCard, {
 
 ```tsx
 const screen = renderMainzComponent(ProfileCard, {
-    attrs: { "data-mode": "compact" },
+  attrs: { "data-mode": "compact" },
 });
 ```
 
@@ -96,12 +97,12 @@ const screen = renderMainzComponent(ProfileCard, {
 
 ```tsx
 const screen = renderMainzComponent(ProfileCard, {
-    stateOverride: { expanded: true },
+  stateOverride: { expanded: true },
 });
 ```
 
-This is useful when you want to test a later UI state directly without simulating a long setup path
-every time.
+This is useful when you want to test a later UI state directly without
+simulating a long setup path every time.
 
 ## Prefer DOM interactions over private methods
 
@@ -112,11 +113,13 @@ When possible, test components the same way a user or host page would:
 - dispatch a real event
 - inspect rendered output
 
-That keeps tests resilient and focused on behavior instead of implementation details.
+That keeps tests resilient and focused on behavior instead of implementation
+details.
 
 ## Async updates
 
-If a component updates asynchronously, use `nextTick()` or normal `await` points before asserting.
+If a component updates asynchronously, use `nextTick()` or normal `await` points
+before asserting.
 
 ```tsx
 import { nextTick } from "mainz/testing";
@@ -131,15 +134,16 @@ For conditions that may take multiple turns, prefer `waitFor(...)`.
 
 Every rendered screen should call `cleanup()` when the test is done.
 
-That keeps separate test surfaces isolated and avoids leaking DOM state across tests.
+That keeps separate test surfaces isolated and avoids leaking DOM state across
+tests.
 
 ```ts
 const screen = renderMainzComponent(MyComponent);
 
 try {
-    // assertions
+  // assertions
 } finally {
-    screen.cleanup();
+  screen.cleanup();
 }
 ```
 
@@ -153,4 +157,5 @@ Use component tests when you want fast feedback about:
 - input handling
 - head updates at the component/page level
 
-If the behavior depends on routing or full navigation runtime state, move up to runtime tests.
+If the behavior depends on routing or full navigation runtime state, move up to
+runtime tests.

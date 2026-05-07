@@ -5,12 +5,12 @@ import { LivePreview } from "../components/LivePreview.tsx";
 @Route("/")
 @RenderMode("ssg")
 export class ForbiddenInSsgHomePage extends Page {
-    override render() {
-        return (
-            <main>
-                <h1>Forbidden In SSG</h1>
-                <LivePreview />
-            </main>
-        );
-    }
+  override render() {
+    return (
+      <main>
+        <h1>Forbidden In SSG</h1>
+        <LivePreview />
+      </main>
+    );
+  }
 }

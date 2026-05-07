@@ -9,58 +9,59 @@ import type { StoryDetail } from "../lib/story-data.ts";
 import { Card } from "mainz/typecase";
 
 interface StoryPageData {
-    story: StoryDetail;
+  story: StoryDetail;
 }
 
 @Route("/stories/:slug")
 export class StoryPage extends DiHttpExamplePage<StoryPageData> {
-    private readonly api = inject(StoriesApi);
+  private readonly api = inject(StoriesApi);
 
-    override async load(context: PageLoadContext) {
-        return {
-            story: await this.api.getBySlug(context.params.slug, {
-                signal: context.signal,
-            }),
-        };
+  override async load(context: PageLoadContext) {
+    return {
+      story: await this.api.getBySlug(context.params.slug, {
+        signal: context.signal,
+      }),
+    };
+  }
+
+  override render() {
+    const story = this.props.data?.story;
+
+    if (!story) {
+      return <div></div>;
     }
 
-    override render() {
-        const story = this.props.data?.story;
+    return (
+      <DiHttpFrame
+        eyebrow={story.eyebrow}
+        title={story.title}
+        lead={story.summary}
+      >
+        <Card className="di-http-panel">
+          <div className="di-http-card-meta">
+            <span>{story.readingTime}</span>
+            <span>{story.slug}</span>
+          </div>
 
-        if (!story) {
-            return <div></div>;
-        }
+          <div className="di-http-story-copy">
+            {story.body.map((paragraph, index) => <p key={index}>{paragraph}
+            </p>)}
+          </div>
 
-        return (
-            <DiHttpFrame
-                eyebrow={story.eyebrow}
-                title={story.title}
-                lead={story.summary}
-            >
-                <Card className="di-http-panel">
-                    <div className="di-http-card-meta">
-                        <span>{story.readingTime}</span>
-                        <span>{story.slug}</span>
-                    </div>
+          <div className="di-http-tag-row">
+            {story.tags.map((tag) => (
+              <span key={tag} className="di-http-tag">{tag}</span>
+            ))}
+          </div>
 
-                    <div className="di-http-story-copy">
-                        {story.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-                    </div>
+          <div className="di-http-story-nav">
+            <a href="/">Back to featured stories</a>
+          </div>
+        </Card>
 
-                    <div className="di-http-tag-row">
-                        {story.tags.map((tag) => (
-                            <span key={tag} className="di-http-tag">{tag}</span>
-                        ))}
-                    </div>
-
-                    <div className="di-http-story-nav">
-                        <a href="/">Back to featured stories</a>
-                    </div>
-                </Card>
-
-                <RelatedStoriesSection slug={story.slug} />
-                <StoryFailureSection slug={story.slug} />
-            </DiHttpFrame>
-        );
-    }
+        <RelatedStoriesSection slug={story.slug} />
+        <StoryFailureSection slug={story.slug} />
+      </DiHttpFrame>
+    );
+  }
 }

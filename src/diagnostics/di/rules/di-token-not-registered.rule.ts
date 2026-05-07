@@ -1,35 +1,38 @@
 import type { DiagnosticsRule } from "../../core/pipeline.ts";
 import type {
-    DiDiagnostic,
-    DiDiagnosticsContext,
-    DiInjectionFact,
-    DiRegistrationFact,
+  DiDiagnostic,
+  DiDiagnosticsContext,
+  DiInjectionFact,
+  DiRegistrationFact,
 } from "../facts.ts";
 
 export const diTokenNotRegisteredRuleCode = "di-token-not-registered" as const;
 
 export const diTokenNotRegisteredRule: DiagnosticsRule<
-    DiInjectionFact,
-    { registrationsByToken: ReadonlyMap<string, DiRegistrationFact> } & DiDiagnosticsContext,
-    DiDiagnostic
+  DiInjectionFact,
+  & { registrationsByToken: ReadonlyMap<string, DiRegistrationFact> }
+  & DiDiagnosticsContext,
+  DiDiagnostic
 > = {
-    code: diTokenNotRegisteredRuleCode,
-    run(injection, context) {
-        if (context.registrationsByToken.has(injection.token.key)) {
-            return [];
-        }
+  code: diTokenNotRegisteredRuleCode,
+  run(injection, context) {
+    if (context.registrationsByToken.has(injection.token.key)) {
+      return [];
+    }
 
-        return [{
-            code: diTokenNotRegisteredRuleCode,
-            severity: "error",
-            // Keep token-based subject formatting stable because suppression matching relies on it.
-            subject: `token=${injection.token.name}`,
-            message:
-                `Class "${injection.exportName}" injects "${injection.token.name}" with mainz/di, ` +
-                "but that token is not registered in app startup services.",
-            file: injection.file,
-            exportName: injection.exportName,
-            routePath: context.routePathsByOwner.get(`${injection.file}::${injection.exportName}`),
-        }];
-    },
+    return [{
+      code: diTokenNotRegisteredRuleCode,
+      severity: "error",
+      // Keep token-based subject formatting stable because suppression matching relies on it.
+      subject: `token=${injection.token.name}`,
+      message:
+        `Class "${injection.exportName}" injects "${injection.token.name}" with mainz/di, ` +
+        "but that token is not registered in app startup services.",
+      file: injection.file,
+      exportName: injection.exportName,
+      routePath: context.routePathsByOwner.get(
+        `${injection.file}::${injection.exportName}`,
+      ),
+    }];
+  },
 };

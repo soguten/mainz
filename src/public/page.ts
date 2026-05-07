@@ -3,37 +3,37 @@
  */
 
 export {
-    Locales,
-    RenderMode,
-    Route,
-    requirePageRoutePath,
-    resolvePageLocales,
-    resolvePageRenderMode,
-    resolvePageRoutePath,
+  Locales,
+  RenderMode,
+  requirePageRoutePath,
+  resolvePageLocales,
+  resolvePageRenderMode,
+  resolvePageRoutePath,
+  Route,
 } from "../components/page-metadata.ts";
 export {
-    createPageLoadContext,
-    isPageConstructor,
-    load,
-    Page,
+  createPageLoadContext,
+  isPageConstructor,
+  load,
+  Page,
 } from "../components/page.ts";
 export type { PageRenderMode } from "../components/page-metadata.ts";
 export type {
-    PageEntryDefinition,
-    PageHeadDefinition,
-    PageHeadLinkDefinition,
-    PageHeadMetaDefinition,
-    PageRouteParams,
+  PageEntryDefinition,
+  PageHeadDefinition,
+  PageHeadLinkDefinition,
+  PageHeadMetaDefinition,
+  PageRouteParams,
 } from "../components/page-contract.ts";
 export type {
-    PageConstructor,
-    PageEntriesContext,
-    PageHeadContext,
-    PageLoadContext,
-    PageLoadContextInit,
-    PageLoadHelpers,
-    PageLoadResources,
-    PageLoadRuntime,
-    PageNavigationMode,
-    PageResource,
+  PageConstructor,
+  PageEntriesContext,
+  PageHeadContext,
+  PageLoadContext,
+  PageLoadContextInit,
+  PageLoadHelpers,
+  PageLoadResources,
+  PageLoadRuntime,
+  PageNavigationMode,
+  PageResource,
 } from "../components/page.ts";

@@ -7,48 +7,51 @@
  */
 
 import { assertEquals } from "@std/assert";
-import { getCurrentRenderOwner, popRenderOwner, pushRenderOwner } from "../render-owner.ts";
+import {
+  getCurrentRenderOwner,
+  popRenderOwner,
+  pushRenderOwner,
+} from "../render-owner.ts";
 
-const fixtures = await import("./jsx.render-owner.fixture.tsx") as typeof import("./jsx.render-owner.fixture.tsx");
+const fixtures = await import(
+  "./jsx.render-owner.fixture.tsx"
+) as typeof import("./jsx.render-owner.fixture.tsx");
 
 function resetOwnerStack(): void {
-    while (getCurrentRenderOwner()) {
-        popRenderOwner();
-    }
+  while (getCurrentRenderOwner()) {
+    popRenderOwner();
+  }
 }
 
 Deno.test("jsx/render-owner: should expose undefined when stack is empty", () => {
-    resetOwnerStack();
-    assertEquals(getCurrentRenderOwner(), undefined);
+  resetOwnerStack();
+  assertEquals(getCurrentRenderOwner(), undefined);
 });
 
 Deno.test("jsx/render-owner: should return the latest pushed owner (LIFO)", () => {
-    resetOwnerStack();
+  resetOwnerStack();
 
-    const a = fixtures.createOwner("a");
-    const b = fixtures.createOwner("b");
+  const a = fixtures.createOwner("a");
+  const b = fixtures.createOwner("b");
 
-    pushRenderOwner(a);
-    assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "a");
+  pushRenderOwner(a);
+  assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "a");
 
-    pushRenderOwner(b);
-    assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "b");
+  pushRenderOwner(b);
+  assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "b");
 
-    popRenderOwner();
-    assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "a");
+  popRenderOwner();
+  assertEquals((getCurrentRenderOwner() as unknown as { id: string }).id, "a");
 
-    popRenderOwner();
-    assertEquals(getCurrentRenderOwner(), undefined);
+  popRenderOwner();
+  assertEquals(getCurrentRenderOwner(), undefined);
 });
 
 Deno.test("jsx/render-owner: extra pop on empty stack should be safe", () => {
-    resetOwnerStack();
+  resetOwnerStack();
 
-    popRenderOwner();
-    popRenderOwner();
+  popRenderOwner();
+  popRenderOwner();
 
-    assertEquals(getCurrentRenderOwner(), undefined);
+  assertEquals(getCurrentRenderOwner(), undefined);
 });
-
-
-

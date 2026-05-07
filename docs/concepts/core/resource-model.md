@@ -13,7 +13,8 @@ The main model is now:
 - `Page.load()` for route-owned data
 - `Component.load()` for component-owned async assembly
 
-That keeps rendering ownership visible in the page and component classes themselves.
+That keeps rendering ownership visible in the page and component classes
+themselves.
 
 ## Start with ownership, then extract reuse
 
@@ -26,8 +27,8 @@ If the page owns it, use `Page.load()`.
 
 If the component owns it, use `Component.load()`.
 
-Only after that should you extract a reusable data module for sharing loaders, cache policy, or
-environment constraints across multiple pages.
+Only after that should you extract a reusable data module for sharing loaders,
+cache policy, or environment constraints across multiple pages.
 
 ## A reusable data contract is just a module
 
@@ -37,11 +38,11 @@ Keep reusable route data in ordinary modules:
 
 ```ts title="docs-article-data.ts"
 export const docsArticleData = {
-    name: "docs-article",
-    cache: "static" as const,
-    async load(slug: string) {
-        return await getDocsArticle(slug);
-    },
+  name: "docs-article",
+  cache: "static" as const,
+  async load(slug: string) {
+    return await getDocsArticle(slug);
+  },
 };
 ```
 
@@ -51,18 +52,18 @@ Then consume it from the owner that actually controls rendering:
 @Route("/docs/:slug")
 @RenderMode("ssg")
 export class DocsPage extends Page {
-    static entries() {
-        return docs.map((doc) => ({
-            params: { slug: doc.slug },
-        }));
-    }
+  static entries() {
+    return docs.map((doc) => ({
+      params: { slug: doc.slug },
+    }));
+  }
 
-    override async load() {
-        const article = await docsArticleData.load(this.route.params.slug);
-        return {
-            head: buildDocsHead(article),
-        };
-    }
+  override async load() {
+    const article = await docsArticleData.load(this.route.params.slug);
+    return {
+      head: buildDocsHead(article),
+    };
+  }
 }
 ```
 
@@ -70,14 +71,15 @@ Or from a component owner:
 
 ```tsx title="DocsArticleContent.tsx"
 @RenderStrategy("blocking")
-export class DocsArticleContent extends Component<{}, NoState, DocsArticleModel> {
-    override async load() {
-        return await docsArticleData.load(this.route.params.slug);
-    }
+export class DocsArticleContent
+  extends Component<{}, NoState, DocsArticleModel> {
+  override async load() {
+    return await docsArticleData.load(this.route.params.slug);
+  }
 
-    override render(data: DocsArticleModel) {
-        return <DocsArticlePage article={data} />;
-    }
+  override render(data: DocsArticleModel) {
+    return <DocsArticlePage article={data} />;
+  }
 }
 ```
 
@@ -109,7 +111,8 @@ Use reusable data contracts when:
 
 Do not extract them just because async code exists.
 
-If only one owner needs the data, keeping the load logic inline is usually clearer.
+If only one owner needs the data, keeping the load logic inline is usually
+clearer.
 
 ## The core idea
 

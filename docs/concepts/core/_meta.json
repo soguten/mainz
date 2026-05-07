@@ -1,67 +1,67 @@
 {
-    "group": "core",
-    "groupTitle": "Core",
-    "groupOrder": 1,
-    "articles": {
-        "routing.md": {
-            "slug": "routing",
-            "order": 1
-        },
-        "cli.md": {
-            "slug": "cli",
-            "order": 2
-        },
-        "diagnostics-cli.md": {
-            "slug": "diagnostics-cli",
-            "order": 3
-        },
-        "render-mode-and-strategy.md": {
-            "slug": "render-mode-and-strategy",
-            "order": 4
-        },
-        "resource-model.md": {
-            "slug": "resource-model",
-            "order": 5
-        },
-        "public-shell-private-island.md": {
-            "slug": "public-shell-private-island",
-            "order": 6
-        },
-        "route-metadata.md": {
-            "slug": "route-metadata",
-            "order": 7
-        },
-        "data-loading.md": {
-            "slug": "data-loading",
-            "order": 8
-        },
-        "navigation-runtime.md": {
-            "slug": "navigation-runtime",
-            "order": 9
-        },
-        "portal-rendering.md": {
-            "slug": "portal-rendering",
-            "order": 10
-        },
-        "authorization.md": {
-            "slug": "authorization",
-            "order": 11
-        },
-        "dependency-injection.md": {
-            "slug": "dependency-injection",
-            "order": 12
-        },
-        "controllers-and-coordinators.md": {
-            "slug": "controllers-and-coordinators",
-            "order": 13
-        },
-        "app-scoped-commands.md": {
-            "slug": "app-scoped-commands",
-            "order": 14
-        },
-        "templates.md": {
-            "slug": "templates",
-            "order": 15
-        }
+  "group": "core",
+  "groupTitle": "Core",
+  "groupOrder": 1,
+  "articles": {
+    "routing.md": {
+      "slug": "routing",
+      "order": 1
+    },
+    "cli.md": {
+      "slug": "cli",
+      "order": 2
+    },
+    "diagnostics-cli.md": {
+      "slug": "diagnostics-cli",
+      "order": 3
+    },
+    "render-mode-and-strategy.md": {
+      "slug": "render-mode-and-strategy",
+      "order": 4
+    },
+    "resource-model.md": {
+      "slug": "resource-model",
+      "order": 5
+    },
+    "public-shell-private-island.md": {
+      "slug": "public-shell-private-island",
+      "order": 6
+    },
+    "route-metadata.md": {
+      "slug": "route-metadata",
+      "order": 7
+    },
+    "data-loading.md": {
+      "slug": "data-loading",
+      "order": 8
+    },
+    "navigation-runtime.md": {
+      "slug": "navigation-runtime",
+      "order": 9
+    },
+    "portal-rendering.md": {
+      "slug": "portal-rendering",
+      "order": 10
+    },
+    "authorization.md": {
+      "slug": "authorization",
+      "order": 11
+    },
+    "dependency-injection.md": {
+      "slug": "dependency-injection",
+      "order": 12
+    },
+    "controllers-and-coordinators.md": {
+      "slug": "controllers-and-coordinators",
+      "order": 13
+    },
+    "app-scoped-commands.md": {
+      "slug": "app-scoped-commands",
+      "order": 14
+    },
+    "templates.md": {
+      "slug": "templates",
+      "order": 15
     }
+  }
 }

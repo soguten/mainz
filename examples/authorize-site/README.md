@@ -55,11 +55,11 @@ Example value:
 
 ```json
 {
-    "userId": "u-owner",
-    "displayName": "Avery Owner",
-    "orgId": "mainz",
-    "roles": ["member", "owner"],
-    "persona": "Organization owner"
+  "userId": "u-owner",
+  "displayName": "Avery Owner",
+  "orgId": "mainz",
+  "roles": ["member", "owner"],
+  "persona": "Organization owner"
 }
 ```
 
@@ -100,7 +100,8 @@ Example value:
 ## Key Files
 
 - `src/main.tsx`
-  - defines the routed app and registers `auth.getPrincipal`, `auth.policies`, and `loginPath`
+  - defines the routed app and registers `auth.getPrincipal`, `auth.policies`,
+    and `loginPath`
 - `src/lib/session.ts`
   - session presets, `localStorage` handling, and principal resolution
 - `src/lib/navigation.ts`
@@ -117,7 +118,10 @@ Example value:
 ## Notes
 
 - Anonymous access to a protected page redirects to `/login`.
-- Authenticated but unauthorized access renders the default Mainz `403 Forbidden` surface.
-- `mainz diagnose --target authorize-site` currently reports a warning for the protected component.
-  - That warning is expected under the current SSG safety rule for `Component + @Authorize(...)`.
+- Authenticated but unauthorized access renders the default Mainz
+  `403 Forbidden` surface.
+- `mainz diagnose --target authorize-site` currently reports a warning for the
+  protected component.
+  - That warning is expected under the current SSG safety rule for
+    `Component + @Authorize(...)`.
   - The example itself is configured as CSR + SPA.

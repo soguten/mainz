@@ -7,36 +7,36 @@ import { ListenerLeakScenario } from "./listener-leak-scenario.tsx";
 import { StaleInlineHandlerCounter } from "./StaleInlineHandlerCounter.tsx";
 
 class PlaygroundRoot extends Component {
-    override render() {
-        return (
-            <>
-                <Counter initial={10} />
-                <ListIdentityScenario />
-                <ListenerLeakScenario />
-                <InputValueScenario />
-                <CheckedScenario />
-                <StaleInlineHandlerCounter />
-            </>
-        );
-    }
+  override render() {
+    return (
+      <>
+        <Counter initial={10} />
+        <ListIdentityScenario />
+        <ListenerLeakScenario />
+        <InputValueScenario />
+        <CheckedScenario />
+        <StaleInlineHandlerCounter />
+      </>
+    );
+  }
 }
 
 const playgroundApp = defineApp({
-    id: "playground",
-    root: PlaygroundRoot,
+  id: "playground",
+  root: PlaygroundRoot,
 });
 
 if (typeof document !== "undefined") {
-    bootstrapPlayground();
+  bootstrapPlayground();
 }
 
 function bootstrapPlayground(): void {
-    const mount = document.getElementById("app");
-    if (!mount) {
-        throw new Error('Playground mount element "#app" was not found.');
-    }
+  const mount = document.getElementById("app");
+  if (!mount) {
+    throw new Error('Playground mount element "#app" was not found.');
+  }
 
-    startApp(playgroundApp, {
-        mount,
-    });
+  startApp(playgroundApp, {
+    mount,
+  });
 }

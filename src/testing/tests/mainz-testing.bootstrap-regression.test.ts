@@ -14,48 +14,48 @@ import { nextTick, setupMainzDom, waitForNavigationReady } from "../index.ts";
 await setupMainzDom();
 
 Deno.test("testing helper/regression: should not treat prerendered DOM as bootstrapped before the navigation-ready event fires", async () => {
-    document.title = "Deferred docs";
-    document.documentElement.lang = "en";
-    document.body.innerHTML = `
+  document.title = "Deferred docs";
+  document.documentElement.lang = "en";
+  document.body.innerHTML = `
         <main id="app">
             <section data-page="deferred-bootstrap" data-ready="false">Deferred docs</section>
         </main>
     `;
-    const navigationReady = waitForNavigationReady({
-        locale: "en",
+  const navigationReady = waitForNavigationReady({
+    locale: "en",
+    matchedPath: "/docs",
+    message: "Expected navigation-ready event for /docs.",
+  });
+  let resolved = false;
+  void navigationReady.then(() => {
+    resolved = true;
+  });
+
+  await nextTick();
+
+  assertEquals(document.title, "Deferred docs");
+  assertEquals(document.documentElement.lang, "en");
+  assertEquals(
+    document.querySelector('[data-page="deferred-bootstrap"]')?.textContent,
+    "Deferred docs",
+  );
+  assertEquals(resolved, false);
+
+  document.dispatchEvent(
+    new CustomEvent(MAINZ_NAVIGATION_READY_EVENT, {
+      detail: {
+        mode: "spa",
+        navigationType: "initial",
+        path: "/docs",
         matchedPath: "/docs",
-        message: "Expected navigation-ready event for /docs.",
-    });
-    let resolved = false;
-    void navigationReady.then(() => {
-        resolved = true;
-    });
+        locale: "en",
+        url: "https://mainz.local/",
+        basePath: "/",
+        navigationSequence: 1,
+      },
+    }),
+  );
 
-    await nextTick();
-
-    assertEquals(document.title, "Deferred docs");
-    assertEquals(document.documentElement.lang, "en");
-    assertEquals(
-        document.querySelector('[data-page="deferred-bootstrap"]')?.textContent,
-        "Deferred docs",
-    );
-    assertEquals(resolved, false);
-
-    document.dispatchEvent(
-        new CustomEvent(MAINZ_NAVIGATION_READY_EVENT, {
-            detail: {
-                mode: "spa",
-                navigationType: "initial",
-                path: "/docs",
-                matchedPath: "/docs",
-                locale: "en",
-                url: "https://mainz.local/",
-                basePath: "/",
-                navigationSequence: 1,
-            },
-        }),
-    );
-
-    await navigationReady;
-    assertEquals(resolved, true);
+  await navigationReady;
+  assertEquals(resolved, true);
 });

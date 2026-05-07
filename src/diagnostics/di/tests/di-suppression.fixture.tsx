@@ -5,9 +5,9 @@ class MissingApi {
 }
 
 abstract class SuppressionFixtureComponent extends Component {
-    override render() {
-        return <div></div>;
-    }
+  override render() {
+    return <div></div>;
+  }
 }
 
 /**
@@ -15,9 +15,9 @@ abstract class SuppressionFixtureComponent extends Component {
  * di-token-not-registered[token=MissingApi]: fixture intentionally suppresses one missing token
  */
 export class SuppressedInjectedWidget extends SuppressionFixtureComponent {
-    readonly api = inject(MissingApi);
+  readonly api = inject(MissingApi);
 }
 
 export class UnsuppressedInjectedWidget extends SuppressionFixtureComponent {
-    readonly api = inject(MissingApi);
+  readonly api = inject(MissingApi);
 }

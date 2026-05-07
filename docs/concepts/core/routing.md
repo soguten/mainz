@@ -5,24 +5,29 @@ summary: Separate render from navigation and choose the combination that matches
 
 ## Two different decisions
 
-Mainz separates render mode from navigation mode. Render answers how HTML exists; navigation answers
-how links move between pages.
+Mainz separates render mode from navigation mode. Render answers how HTML
+exists; navigation answers how links move between pages.
 
-That gives you combinations like **SSG + MPA**, **SSG + enhanced-MPA**, and **CSR + SPA** without
-overloading a single flag.
+That gives you combinations like **SSG + MPA**, **SSG + enhanced-MPA**, and
+**CSR + SPA** without overloading a single flag.
 
 ## Keep the app API small
 
-The page app should not parse URLs, define custom elements, or manually resolve the initial route.
+The page app should not parse URLs, define custom elements, or manually resolve
+the initial route.
 
-The runtime already knows mode, basePath, locales, and hydration strategy from the build context.
+The runtime already knows mode, basePath, locales, and hydration strategy from
+the build context.
 
-> That is why Mainz now prefers `startApp()` over leaking infrastructure details into application
-> bootstrap.
+> That is why Mainz now prefers `startApp()` over leaking infrastructure details
+> into application bootstrap.
 
 ## Profiles versus combinations
 
-Profiles like `dev`, `production`, and `gh-pages` still matter, but render selection is page-owned and navigation is app-owned. Routed apps declare navigation in `defineApp({ navigation })`; when an app omits it, Mainz falls back to `spa`.
+Profiles like `dev`, `production`, and `gh-pages` still matter, but render
+selection is page-owned and navigation is app-owned. Routed apps declare
+navigation in `defineApp({ navigation })`; when an app omits it, Mainz falls
+back to `spa`.
 
 ```bash title="CLI"
 deno run -A ./src/cli/mainz.ts build --target site --profile production

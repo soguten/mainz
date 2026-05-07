@@ -36,28 +36,28 @@ import { HttpClient } from "mainz/http";
 import { ArticlePage } from "./pages/Article.page.tsx";
 
 class ArticlesApi {
-    private readonly http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
 
-    async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
-        return await this.http.get(`/articles/${slug}`, {
-            signal: options?.signal,
-        }).json<{ title: string }>();
-    }
+  async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
+    return await this.http.get(`/articles/${slug}`, {
+      signal: options?.signal,
+    }).json<{ title: string }>();
+  }
 }
 
 const app = defineApp({
-    pages: [ArticlePage],
-    services: [
-        singleton(HttpClient, () =>
-            new HttpClient({
-                baseUrl: "https://api.example.com",
-                retry: {
-                    attempts: 2,
-                    delayMs: 150,
-                },
-            })),
-        singleton(ArticlesApi),
-    ],
+  pages: [ArticlePage],
+  services: [
+    singleton(HttpClient, () =>
+      new HttpClient({
+        baseUrl: "https://api.example.com",
+        retry: {
+          attempts: 2,
+          delayMs: 150,
+        },
+      })),
+    singleton(ArticlesApi),
+  ],
 });
 
 startApp(app);
@@ -65,8 +65,8 @@ startApp(app);
 
 `singleton(...)` is scoped per started app root.
 
-That means two separate Mainz apps on the same document can register different implementations for
-the same token without leaking instances across roots.
+That means two separate Mainz apps on the same document can register different
+implementations for the same token without leaking instances across roots.
 
 ## Resolve services with `inject(Token)`
 
@@ -78,28 +78,33 @@ import { inject } from "mainz/di";
 
 @Route("/articles/:slug")
 export class ArticlePage extends Page {
-    private readonly api = inject(ArticlesApi);
+  private readonly api = inject(ArticlesApi);
 
-    override async load({ signal }: PageLoadContext) {
-        return await this.api.getBySlug(this.route.params.slug, { signal });
-    }
+  override async load({ signal }: PageLoadContext) {
+    return await this.api.getBySlug(this.route.params.slug, { signal });
+  }
 }
 ```
 
 ```tsx title="ArticlePanel.tsx"
-import { Component, type ComponentLoadContext, type NoState, RenderStrategy } from "mainz";
+import {
+  Component,
+  type ComponentLoadContext,
+  type NoState,
+  RenderStrategy,
+} from "mainz";
 import { inject } from "mainz/di";
 
 @RenderStrategy("blocking")
-export class ArticlePanel extends Component<{ slug: string }, NoState, { title: string }>{
+export class ArticlePanel
+  extends Component<{ slug: string }, NoState, { title: string }> {
+  private readonly api = inject(ArticlesApi);
 
-    private readonly api = inject(ArticlesApi);
-
-    override load(context: ComponentLoadContext) {
-        return this.api.getBySlug(this.props.slug, {
-            signal: context.signal,
-        });
-    }
+  override load(context: ComponentLoadContext) {
+    return this.api.getBySlug(this.props.slug, {
+      signal: context.signal,
+    });
+  }
 }
 ```
 
@@ -109,7 +114,9 @@ The split stays clean:
 - the resolved service handles infrastructure access
 - `signal` still flows explicitly through the async boundary
 
-That same app definition now also drives build-time DI for official expansion hooks like `entries()`, so route expansion and runtime owners resolve against the same registered service set.
+That same app definition now also drives build-time DI for official expansion
+hooks like `entries()`, so route expansion and runtime owners resolve against
+the same registered service set.
 
 ## `mainz/http` is intentionally small
 
@@ -130,13 +137,13 @@ import { inject } from "mainz/di";
 import { HttpClient } from "mainz/http";
 
 export class ArticlesApi {
-    private readonly http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
 
-    async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
-        return await this.http.get(`/articles/${slug}`, {
-            signal: options?.signal,
-        }).json<{ title: string; body: string }>();
-    }
+  async getBySlug(slug: string, options?: { signal?: AbortSignal }) {
+    return await this.http.get(`/articles/${slug}`, {
+      signal: options?.signal,
+    }).json<{ title: string; body: string }>();
+  }
 }
 ```
 
@@ -144,8 +151,8 @@ If the request fails with a non-success status, `HttpClient` throws by default.
 
 ## Keep DI secondary to the Mainz mental model
 
-DI is there to remove infrastructure plumbing from `props`, not to replace Mainz's ownership-first
-model.
+DI is there to remove infrastructure plumbing from `props`, not to replace
+Mainz's ownership-first model.
 
 Reach for it when the dependency is cross-cutting infrastructure.
 
@@ -155,4 +162,5 @@ Keep using:
 - `Component.load()` for component-owned async work
 - `props` for semantic inputs from parents or the route
 
-That keeps service access ergonomic without turning Mainz into a generic container-first framework.
+That keeps service access ergonomic without turning Mainz into a generic
+container-first framework.

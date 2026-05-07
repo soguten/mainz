@@ -10,7 +10,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "app/chart",
         {
-            manifestSource: "{\n    \"kind\": \"app\",\n    \"name\": \"chart\",\n    \"appType\": \"routed\",\n    \"compatibility\": {\n        \"runtimes\": [\"deno\", \"node\"]\n    },\n    \"dependencies\": [\n        {\n            \"specifier\": \"chart.js\",\n            \"registry\": \"npm\",\n            \"package\": \"chart.js\",\n            \"version\": \"^4.5.1\"\n        }\n    ],\n    \"target\": {\n        \"name\": \"{{appName}}\",\n        \"rootDir\": \"{{rootDir}}\",\n        \"appFile\": \"{{rootDir}}/src/app.ts\",\n        \"appId\": \"{{appId}}\",\n        \"outDir\": \"{{outDir}}\"\n    }\n}\n",
+            manifestSource: "{\n  \"kind\": \"app\",\n  \"name\": \"chart\",\n  \"appType\": \"routed\",\n  \"compatibility\": {\n    \"runtimes\": [\"deno\", \"node\"]\n  },\n  \"dependencies\": [\n    {\n      \"specifier\": \"chart.js\",\n      \"registry\": \"npm\",\n      \"package\": \"chart.js\",\n      \"version\": \"^4.5.1\"\n    }\n  ],\n  \"target\": {\n    \"name\": \"{{appName}}\",\n    \"rootDir\": \"{{rootDir}}\",\n    \"appFile\": \"{{rootDir}}/src/app.ts\",\n    \"appId\": \"{{appId}}\",\n    \"outDir\": \"{{outDir}}\"\n  }\n}\n",
             files: [
             {
                 path: "index.html.tpl",
@@ -46,7 +46,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "app/default-root",
         {
-            manifestSource: "{\n    \"kind\": \"app\",\n    \"name\": \"default-root\",\n    \"appType\": \"root\",\n    \"target\": {\n        \"name\": \"{{appName}}\",\n        \"rootDir\": \"{{rootDir}}\",\n        \"appFile\": \"{{rootDir}}/src/app.ts\",\n        \"appId\": \"{{appId}}\",\n        \"outDir\": \"{{outDir}}\"\n    }\n}\n",
+            manifestSource: "{\n  \"kind\": \"app\",\n  \"name\": \"default-root\",\n  \"appType\": \"root\",\n  \"target\": {\n    \"name\": \"{{appName}}\",\n    \"rootDir\": \"{{rootDir}}\",\n    \"appFile\": \"{{rootDir}}/src/app.ts\",\n    \"appId\": \"{{appId}}\",\n    \"outDir\": \"{{outDir}}\"\n  }\n}\n",
             files: [
             {
                 path: "index.html.tpl",
@@ -70,7 +70,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "app/default-routed",
         {
-            manifestSource: "{\n    \"kind\": \"app\",\n    \"name\": \"default-routed\",\n    \"appType\": \"routed\",\n    \"target\": {\n        \"name\": \"{{appName}}\",\n        \"rootDir\": \"{{rootDir}}\",\n        \"appFile\": \"{{rootDir}}/src/app.ts\",\n        \"appId\": \"{{appId}}\",\n        \"outDir\": \"{{outDir}}\"\n    }\n}\n",
+            manifestSource: "{\n  \"kind\": \"app\",\n  \"name\": \"default-routed\",\n  \"appType\": \"routed\",\n  \"target\": {\n    \"name\": \"{{appName}}\",\n    \"rootDir\": \"{{rootDir}}\",\n    \"appFile\": \"{{rootDir}}/src/app.ts\",\n    \"appId\": \"{{appId}}\",\n    \"outDir\": \"{{outDir}}\"\n  }\n}\n",
             files: [
             {
                 path: "index.html.tpl",
@@ -98,7 +98,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "project/deno/empty",
         {
-            manifestSource: "{\n    \"kind\": \"project\",\n    \"name\": \"empty\",\n    \"runtime\": \"deno\"\n}\n",
+            manifestSource: "{\n  \"kind\": \"project\",\n  \"name\": \"empty\",\n  \"runtime\": \"deno\"\n}\n",
             files: [
             {
                 path: "deno.json.tpl",
@@ -114,7 +114,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "project/deno/starter",
         {
-            manifestSource: "{\n    \"kind\": \"project\",\n    \"name\": \"starter\",\n    \"runtime\": \"deno\"\n}\n",
+            manifestSource: "{\n  \"kind\": \"project\",\n  \"name\": \"starter\",\n  \"runtime\": \"deno\"\n}\n",
             files: [
             {
                 path: "app/deno.json.tpl",
@@ -158,7 +158,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "project/node/empty",
         {
-            manifestSource: "{\n    \"kind\": \"project\",\n    \"name\": \"empty\",\n    \"runtime\": \"node\"\n}\n",
+            manifestSource: "{\n  \"kind\": \"project\",\n  \"name\": \"empty\",\n  \"runtime\": \"node\"\n}\n",
             files: [
             {
                 path: ".npmrc.tpl",
@@ -182,7 +182,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "project/node/starter",
         {
-            manifestSource: "{\n    \"kind\": \"project\",\n    \"name\": \"starter\",\n    \"runtime\": \"node\"\n}\n",
+            manifestSource: "{\n  \"kind\": \"project\",\n  \"name\": \"starter\",\n  \"runtime\": \"node\"\n}\n",
             files: [
             {
                 path: ".npmrc.tpl",
@@ -234,7 +234,7 @@ const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([
     [
         "workflow/gh-pages",
         {
-            manifestSource: "{\n    \"kind\": \"workflow\",\n    \"name\": \"gh-pages\"\n}\n",
+            manifestSource: "{\n  \"kind\": \"workflow\",\n  \"name\": \"gh-pages\"\n}\n",
             files: [
             {
                 path: ".github/workflows/deploy-github-pages.yml.tpl",

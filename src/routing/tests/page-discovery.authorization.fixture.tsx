@@ -1,16 +1,16 @@
 import {
-    AllowAnonymous,
-    Authorize,
-    CustomElement,
-    Page,
-    RenderMode,
-    Route,
+  AllowAnonymous,
+  Authorize,
+  CustomElement,
+  Page,
+  RenderMode,
+  Route,
 } from "../../index.ts";
 
 abstract class PageDiscoveryFixturePage extends Page {
-    override render() {
-        return <div></div>;
-    }
+  override render() {
+    return <div></div>;
+  }
 }
 
 @CustomElement("x-mainz-page-discovery-admin-page")

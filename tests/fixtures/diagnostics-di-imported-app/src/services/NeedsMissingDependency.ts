@@ -4,5 +4,5 @@ class MissingDependency {
 }
 
 export default class NeedsMissingDependency {
-    readonly dependency = inject(MissingDependency);
+  readonly dependency = inject(MissingDependency);
 }

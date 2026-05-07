@@ -15,4 +15,3 @@ Recommended reading:
 - `tests/docs/architecture.md`
 - `tests/docs/conventions.md`
 - `tests/docs/testing-matrix.md`
-

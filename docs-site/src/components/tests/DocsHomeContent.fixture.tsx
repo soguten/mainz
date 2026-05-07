@@ -5,16 +5,16 @@ import { DocsHomeContent } from "../DocsHomeContent.tsx";
 import { DocsService } from "../../services/DocsService.ts";
 
 const serviceContainer = createServiceContainer([
-    singleton(DocsService),
+  singleton(DocsService),
 ]);
 
 export class DocsHomeContentRouteHost extends Page {
-    constructor() {
-        super();
-        attachServiceContainer(this, serviceContainer);
-    }
+  constructor() {
+    super();
+    attachServiceContainer(this, serviceContainer);
+  }
 
-    override render() {
-        return <DocsHomeContent />;
-    }
+  override render() {
+    return <DocsHomeContent />;
+  }
 }

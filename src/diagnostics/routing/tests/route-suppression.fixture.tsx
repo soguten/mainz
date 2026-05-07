@@ -1,9 +1,14 @@
-import { CustomElement, Locales, Page, Route } from "../../../components/index.ts";
+import {
+  CustomElement,
+  Locales,
+  Page,
+  Route,
+} from "../../../components/index.ts";
 
 abstract class SuppressionFixturePage extends Page {
-    override render() {
-        return <div></div>;
-    }
+  override render() {
+    return <div></div>;
+  }
 }
 
 /**
@@ -22,7 +27,8 @@ export class OwnerWideLocaleSuppressionPage extends SuppressionFixturePage {}
 @CustomElement("x-mainz-subject-locale-suppression-page")
 @Route("/subject-only")
 @Locales("pt_BR", "en_US")
-export class SubjectScopedLocaleSuppressionPage extends SuppressionFixturePage {}
+export class SubjectScopedLocaleSuppressionPage
+  extends SuppressionFixturePage {}
 
 /**
  * @mainz-diagnostics-ignore
@@ -31,7 +37,8 @@ export class SubjectScopedLocaleSuppressionPage extends SuppressionFixturePage {
 @CustomElement("x-mainz-invalid-subject-locale-suppression-page")
 @Route("/invalid-subject")
 @Locales("pt_BR")
-export class InvalidSubjectLocaleSuppressionPage extends SuppressionFixturePage {}
+export class InvalidSubjectLocaleSuppressionPage
+  extends SuppressionFixturePage {}
 
 /**
  * @mainz-diagnostics-ignore
@@ -41,4 +48,5 @@ export class InvalidSubjectLocaleSuppressionPage extends SuppressionFixturePage 
 @CustomElement("x-mainz-duplicate-locale-suppression-page")
 @Route("/duplicate-subject")
 @Locales("pt_BR")
-export class DuplicateSubjectLocaleSuppressionPage extends SuppressionFixturePage {}
+export class DuplicateSubjectLocaleSuppressionPage
+  extends SuppressionFixturePage {}

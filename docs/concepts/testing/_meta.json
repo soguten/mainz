@@ -1,27 +1,27 @@
 {
-    "group": "testing",
-    "groupTitle": "Testing",
-    "groupOrder": 2,
-    "articles": {
-        "overview.md": {
-            "slug": "testing-overview",
-            "order": 0
-        },
-        "http-testing.md": {
-            "slug": "http-testing",
-            "order": 1
-        },
-        "component-testing.md": {
-            "slug": "component-testing",
-            "order": 2
-        },
-        "runtime-testing.md": {
-            "slug": "runtime-testing",
-            "order": 3
-        },
-        "e2e-and-smoke.md": {
-            "slug": "e2e-and-smoke",
-            "order": 4
-        }
+  "group": "testing",
+  "groupTitle": "Testing",
+  "groupOrder": 2,
+  "articles": {
+    "overview.md": {
+      "slug": "testing-overview",
+      "order": 0
+    },
+    "http-testing.md": {
+      "slug": "http-testing",
+      "order": 1
+    },
+    "component-testing.md": {
+      "slug": "component-testing",
+      "order": 2
+    },
+    "runtime-testing.md": {
+      "slug": "runtime-testing",
+      "order": 3
+    },
+    "e2e-and-smoke.md": {
+      "slug": "e2e-and-smoke",
+      "order": 4
     }
+  }
 }

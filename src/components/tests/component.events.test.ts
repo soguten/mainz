@@ -12,84 +12,81 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./component.events.fixture.tsx") as typeof import("./component.events.fixture.tsx");
+const fixtures = await import(
+  "./component.events.fixture.tsx"
+) as typeof import("./component.events.fixture.tsx");
 
 Deno.test("events: dispatch should trigger a generic custom event", () => {
+  const screen = renderMainzComponent(fixtures.CustomDispatchComponent);
 
-    const screen = renderMainzComponent(fixtures.CustomDispatchComponent);
+  screen.dispatch(
+    "button[data-role='target']",
+    new CustomEvent("x-ready", {
+      bubbles: true,
+      detail: "ok",
+    }),
+  );
 
-    screen.dispatch(
-        "button[data-role='target']",
-        new CustomEvent("x-ready", {
-            bubbles: true,
-            detail: "ok",
-        }),
-    );
-
-    assertEquals(screen.getBySelector("p").textContent, "ok");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "ok");
+  screen.cleanup();
 });
 
 Deno.test("events: dispatch should trigger input listeners with the current element value", () => {
-    
-    const screen = renderMainzComponent(fixtures.InputDispatchComponent);
+  const screen = renderMainzComponent(fixtures.InputDispatchComponent);
 
-    const input = screen.getBySelector<HTMLInputElement>("input");
-    input.value = "hello";
+  const input = screen.getBySelector<HTMLInputElement>("input");
+  input.value = "hello";
 
-    screen.dispatch(
-        "input",
-        new Event("input", { bubbles: true }),
-    );
+  screen.dispatch(
+    "input",
+    new Event("input", { bubbles: true }),
+  );
 
-    assertEquals(screen.getBySelector("p").textContent, "hello");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "hello");
+  screen.cleanup();
 });
 
 Deno.test("events: dispatch should trigger change listeners with the current input value", () => {
-    
-    const screen = renderMainzComponent(fixtures.ChangeDispatchComponent);
+  const screen = renderMainzComponent(fixtures.ChangeDispatchComponent);
 
-    const input = screen.getBySelector<HTMLInputElement>("input");
-    input.value = "changed";
+  const input = screen.getBySelector<HTMLInputElement>("input");
+  input.value = "changed";
 
-    screen.dispatch(
-        "input",
-        new Event("change", { bubbles: true }),
-    );
+  screen.dispatch(
+    "input",
+    new Event("change", { bubbles: true }),
+  );
 
-    assertEquals(screen.getBySelector("p").textContent, "changed");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "changed");
+  screen.cleanup();
 });
 
 Deno.test("events: dispatch should trigger change listeners on select elements", () => {
-    
-    const screen = renderMainzComponent(fixtures.SelectChangeComponent);
+  const screen = renderMainzComponent(fixtures.SelectChangeComponent);
 
-    const select = screen.getBySelector<HTMLSelectElement>("select");
-    select.value = "b";
+  const select = screen.getBySelector<HTMLSelectElement>("select");
+  select.value = "b";
 
-    screen.dispatch(
-        "select",
-        new Event("change", { bubbles: true }),
-    );
+  screen.dispatch(
+    "select",
+    new Event("change", { bubbles: true }),
+  );
 
-    assertEquals(screen.getBySelector("p").textContent, "b");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "b");
+  screen.cleanup();
 });
 
 Deno.test("events: dispatch should support keyboard events", () => {
-    
-    const screen = renderMainzComponent(fixtures.KeyboardDispatchComponent);
+  const screen = renderMainzComponent(fixtures.KeyboardDispatchComponent);
 
-    screen.dispatch(
-        "input",
-        new KeyboardEvent("keydown", {
-            bubbles: true,
-            key: "Enter",
-        }),
-    );
+  screen.dispatch(
+    "input",
+    new KeyboardEvent("keydown", {
+      bubbles: true,
+      key: "Enter",
+    }),
+  );
 
-    assertEquals(screen.getBySelector("p").textContent, "Enter");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "Enter");
+  screen.cleanup();
 });

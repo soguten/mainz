@@ -4,6 +4,6 @@ import { singleLocaleCases } from "./cases/single-locale/single-locale-matrix-ca
 import { defineMatrixSuite } from "./harness.ts";
 
 defineMatrixSuite({
-    name: "matrix/single-locale",
-    cases: singleLocaleCases,
+  name: "matrix/single-locale",
+  cases: singleLocaleCases,
 });

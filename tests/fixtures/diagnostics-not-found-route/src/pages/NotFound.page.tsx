@@ -4,7 +4,7 @@ import { CustomElement, Page, RenderMode, Route } from "mainz";
 @Route("/404")
 @RenderMode("ssg")
 export class InvalidNotFoundPage extends Page {
-    override render() {
-        return <main>Not found</main>;
-    }
+  override render() {
+    return <main>Not found</main>;
+  }
 }

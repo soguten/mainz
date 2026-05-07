@@ -2,7 +2,9 @@
 
 This folder contains tests for the `mainz/testing` harness itself.
 
-The goal is to diagnose helper behavior (`renderMainzComponent`, selector helpers, event helpers, cleanup semantics), not component runtime features already covered in `src/components/tests`.
+The goal is to diagnose helper behavior (`renderMainzComponent`, selector
+helpers, event helpers, cleanup semantics), not component runtime features
+already covered in `src/components/tests`.
 
 ## Test Groups
 
@@ -38,15 +40,17 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./mainz-testing.example.fixture.tsx") as typeof import("./mainz-testing.example.fixture.tsx");
+const fixtures = await import(
+  "./mainz-testing.example.fixture.tsx"
+) as typeof import("./mainz-testing.example.fixture.tsx");
 
 Deno.test("testing helper/render: should expose props before first render", () => {
-    const screen = renderMainzComponent(fixtures.ExampleRenderComponent, {
-        props: { label: "hello" },
-    });
+  const screen = renderMainzComponent(fixtures.ExampleRenderComponent, {
+    props: { label: "hello" },
+  });
 
-    assertEquals(screen.getBySelector("p").textContent, "hello");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("p").textContent, "hello");
+  screen.cleanup();
 });
 ```
 
@@ -55,10 +59,11 @@ Deno.test("testing helper/render: should expose props before first render", () =
 ```tsx
 import { Component } from "mainz";
 
-export class ExampleRenderComponent extends Component<{ label?: string }, Record<string, never>> {
-    override render(): HTMLElement {
-        return <p>{this.props.label ?? "none"}</p>;
-    }
+export class ExampleRenderComponent
+  extends Component<{ label?: string }, Record<string, never>> {
+  override render(): HTMLElement {
+    return <p>{this.props.label ?? "none"}</p>;
+  }
 }
 ```
 
@@ -99,4 +104,3 @@ Use these files as the canonical starter when creating a new suite:
 
 - `_template.test.ts`
 - `_template.fixture.tsx`
-

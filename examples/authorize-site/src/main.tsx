@@ -1,5 +1,8 @@
 import { defineApp, startApp } from "mainz";
-import { authorizeSitePolicies, getAuthorizeSitePrincipal } from "./lib/session.ts";
+import {
+  authorizeSitePolicies,
+  getAuthorizeSitePrincipal,
+} from "./lib/session.ts";
 import { AccountPage } from "./pages/Account.page.tsx";
 import { BillingPage } from "./pages/Billing.page.tsx";
 import { HomePage } from "./pages/Home.page.tsx";
@@ -8,25 +11,25 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { ReportsPage } from "./pages/Reports.page.tsx";
 
 const app = defineApp({
-    id: "authorize-site",
-    authorization: {
-        policyNames: ["org-member"],
-    },
-    navigation: "spa",
-    i18n: {
-        locales: ["en"],
-        defaultLocale: "en",
-        localePrefix: "except-default",
-    },
-    pages: [HomePage, LoginPage, AccountPage, BillingPage, ReportsPage],
-    notFound: NotFoundPage,
+  id: "authorize-site",
+  authorization: {
+    policyNames: ["org-member"],
+  },
+  navigation: "spa",
+  i18n: {
+    locales: ["en"],
+    defaultLocale: "en",
+    localePrefix: "except-default",
+  },
+  pages: [HomePage, LoginPage, AccountPage, BillingPage, ReportsPage],
+  notFound: NotFoundPage,
 });
 
 startApp(app, {
-    mount: "#app",
-    auth: {
-        loginPath: "/login",
-        getPrincipal: getAuthorizeSitePrincipal,
-        policies: authorizeSitePolicies,
-    },
+  mount: "#app",
+  auth: {
+    loginPath: "/login",
+    getPrincipal: getAuthorizeSitePrincipal,
+    policies: authorizeSitePolicies,
+  },
 });

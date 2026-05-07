@@ -10,71 +10,71 @@ import { componentPlaceholderInSsgMissingPlaceholderRuleCode } from "./rules/com
 import { componentPlaceholderWithoutLoadRuleCode } from "./rules/component-placeholder-without-load.rule.ts";
 import { componentRenderStrategyWithoutLoadRuleCode } from "./rules/component-render-strategy-without-load.rule.ts";
 import {
-    invalidDiagnosticSuppressionCode,
-    unknownDiagnosticSuppressionCode,
-    unusedDiagnosticSuppressionCode,
+  invalidDiagnosticSuppressionCode,
+  unknownDiagnosticSuppressionCode,
+  unusedDiagnosticSuppressionCode,
 } from "../core/suppressions.ts";
 
 export interface ComponentSourceDiagnosticsInput {
-    file: string;
-    source: string;
+  file: string;
+  source: string;
 }
 
 export type ComponentRenderStrategy =
-    | "blocking"
-    | "defer";
+  | "blocking"
+  | "defer";
 
 export type ComponentRenderPolicy =
-    | "placeholder-in-ssg"
-    | "hide-in-ssg"
-    | "forbidden-in-ssg";
+  | "placeholder-in-ssg"
+  | "hide-in-ssg"
+  | "forbidden-in-ssg";
 
 export interface ComponentFact {
-    file: string;
-    exportName: string;
-    isAbstract: boolean;
-    extendsComponent: boolean;
-    extendsPage: boolean;
-    hasLoad: boolean;
-    renderStrategy?: ComponentRenderStrategy;
-    renderPolicy?: ComponentRenderPolicy;
-    hasPlaceholder: boolean;
-    hasError: boolean;
-    hasExplicitRenderStrategy: boolean;
-    hasExplicitRenderPolicy: boolean;
-    hasAuthorize: boolean;
-    authorizationPolicy?: string;
-    hasAllowAnonymous: boolean;
-    hasRenderDataParameter: boolean;
-    renderDataParameterTypeIsUnknown: boolean;
-    hasExplicitDataContract: boolean;
+  file: string;
+  exportName: string;
+  isAbstract: boolean;
+  extendsComponent: boolean;
+  extendsPage: boolean;
+  hasLoad: boolean;
+  renderStrategy?: ComponentRenderStrategy;
+  renderPolicy?: ComponentRenderPolicy;
+  hasPlaceholder: boolean;
+  hasError: boolean;
+  hasExplicitRenderStrategy: boolean;
+  hasExplicitRenderPolicy: boolean;
+  hasAuthorize: boolean;
+  authorizationPolicy?: string;
+  hasAllowAnonymous: boolean;
+  hasRenderDataParameter: boolean;
+  renderDataParameterTypeIsUnknown: boolean;
+  hasExplicitDataContract: boolean;
 }
 
 export interface ComponentDiagnosticsContext {
-    registeredPolicyNames?: ReadonlySet<string>;
+  registeredPolicyNames?: ReadonlySet<string>;
 }
 
 export type ComponentDiagnosticCode =
-    | typeof authorizationPolicyNotRegisteredComponentRuleCode
-    | typeof componentAllowAnonymousNotSupportedRuleCode
-    | typeof componentAuthorizationSsgWarningRuleCode
-    | typeof componentBlockingPlaceholderConflictRuleCode
-    | typeof componentErrorWithoutLoadRuleCode
-    | typeof componentLoadMissingPlaceholderRuleCode
-    | typeof componentRenderDataWithoutExplicitDataRuleCode
-    | typeof componentRenderDataWithoutLoadRuleCode
-    | typeof componentPlaceholderInSsgMissingPlaceholderRuleCode
-    | typeof componentPlaceholderWithoutLoadRuleCode
-    | typeof componentRenderStrategyWithoutLoadRuleCode
-    | typeof invalidDiagnosticSuppressionCode
-    | typeof unknownDiagnosticSuppressionCode
-    | typeof unusedDiagnosticSuppressionCode;
+  | typeof authorizationPolicyNotRegisteredComponentRuleCode
+  | typeof componentAllowAnonymousNotSupportedRuleCode
+  | typeof componentAuthorizationSsgWarningRuleCode
+  | typeof componentBlockingPlaceholderConflictRuleCode
+  | typeof componentErrorWithoutLoadRuleCode
+  | typeof componentLoadMissingPlaceholderRuleCode
+  | typeof componentRenderDataWithoutExplicitDataRuleCode
+  | typeof componentRenderDataWithoutLoadRuleCode
+  | typeof componentPlaceholderInSsgMissingPlaceholderRuleCode
+  | typeof componentPlaceholderWithoutLoadRuleCode
+  | typeof componentRenderStrategyWithoutLoadRuleCode
+  | typeof invalidDiagnosticSuppressionCode
+  | typeof unknownDiagnosticSuppressionCode
+  | typeof unusedDiagnosticSuppressionCode;
 
 export interface ComponentDiagnostic {
-    code: ComponentDiagnosticCode;
-    severity: "error" | "warning";
-    message: string;
-    file: string;
-    exportName: string;
-    subject?: string;
+  code: ComponentDiagnosticCode;
+  severity: "error" | "warning";
+  message: string;
+  file: string;
+  exportName: string;
+  subject?: string;
 }

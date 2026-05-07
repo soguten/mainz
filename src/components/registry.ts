@@ -5,14 +5,14 @@ import { ensureComponentElementBaseHydrated } from "./component.ts";
  * yet, and returns the final tag name.
  */
 export function ensureMainzCustomElementDefined(
-    ctor: CustomElementConstructor & { getTagName(): string },
+  ctor: CustomElementConstructor & { getTagName(): string },
 ): string {
-    ensureComponentElementBaseHydrated();
-    const tagName = ctor.getTagName();
+  ensureComponentElementBaseHydrated();
+  const tagName = ctor.getTagName();
 
-    if (!customElements.get(tagName)) {
-        customElements.define(tagName, ctor);
-    }
+  if (!customElements.get(tagName)) {
+    customElements.define(tagName, ctor);
+  }
 
-    return tagName;
+  return tagName;
 }

@@ -4,7 +4,7 @@ import { CustomElement, Locales, Page, Route } from "../../index.ts";
 @Route("/invalid-locale")
 @Locales("en--US")
 export class InvalidLocalePage extends Page {
-    override render(): HTMLElement {
-        return document.createElement("main");
-    }
+  override render(): HTMLElement {
+    return document.createElement("main");
+  }
 }

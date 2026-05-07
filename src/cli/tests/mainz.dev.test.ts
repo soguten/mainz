@@ -5,137 +5,144 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test("cli/mainz: dev should accept host without a value", async () => {
-    const result = await runMainzDevCommand([
-        "--target",
-        "missing-target",
-        "--host",
+  const result = await runMainzDevCommand([
+    "--target",
+    "missing-target",
+    "--host",
+  ]);
+
+  assertEquals(result.code, 1);
+  assertEquals(result.stdout, "");
+  assertStringIncludes(result.stderr, 'No targets matched "missing-target".');
+});
+
+Deno.test("cli/mainz: dev should validate port", async () => {
+  const result = await runMainzDevCommand([
+    "--target",
+    "site",
+    "--port",
+    "nope",
+  ]);
+
+  assertEquals(result.code, 1);
+  assertEquals(result.stdout, "");
+  assertStringIncludes(result.stderr, 'Invalid --port value "nope".');
+});
+
+Deno.test("cli/mainz: should reject leading --runtime before the command", async () => {
+  const command = new Deno.Command("deno", {
+    args: [
+      "run",
+      "-A",
+      "./src/cli/mainz.ts",
+      "--runtime",
+      "node",
+      "dev",
+      "--target",
+      "missing-target",
+    ],
+    cwd: cliTestsRepoRoot,
+    stdout: "piped",
+    stderr: "piped",
+  });
+
+  const result = await command.output();
+  const stdout = new TextDecoder().decode(result.stdout);
+  const stderr = new TextDecoder().decode(result.stderr);
+
+  assertEquals(result.code, 1);
+  assertEquals(stdout, "");
+  assertStringIncludes(stderr, 'Unknown command "--runtime".');
+  assertStringIncludes(stderr, 'Run "mainz --help" for usage.');
+});
+
+Deno.test("cli/mainz: dev should bootstrap existing node projects", async () => {
+  const cwd = await Deno.makeTempDir({ prefix: "mainz-node-dev-" });
+
+  try {
+    await Deno.writeTextFile(
+      resolve(cwd, "mainz.config.ts"),
+      [
+        'import { defineMainzConfig } from "mainz/config";',
+        "",
+        "export default defineMainzConfig({",
+        '    runtime: "node",',
+        "    targets: [",
+        "    ],",
+        "});",
+        "",
+      ].join("\n"),
+    );
+    await Deno.writeTextFile(
+      resolve(cwd, "package.json"),
+      JSON.stringify(
+        {
+          dependencies: {
+            mainz: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+          },
+        },
+        null,
+        4,
+      ),
+    );
+
+    const create = await runMainzCommand(cwd, [
+      "app",
+      "create",
+      "site",
+    ]);
+    assertEquals(
+      create.code,
+      0,
+      `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`,
+    );
+
+    const result = await runMainzCommand(cwd, [
+      "dev",
+      "--target",
+      "missing-target",
     ]);
 
     assertEquals(result.code, 1);
     assertEquals(result.stdout, "");
     assertStringIncludes(result.stderr, 'No targets matched "missing-target".');
-});
-
-Deno.test("cli/mainz: dev should validate port", async () => {
-    const result = await runMainzDevCommand([
-        "--target",
-        "site",
-        "--port",
-        "nope",
-    ]);
-
-    assertEquals(result.code, 1);
-    assertEquals(result.stdout, "");
-    assertStringIncludes(result.stderr, 'Invalid --port value "nope".');
-});
-
-Deno.test("cli/mainz: should reject leading --runtime before the command", async () => {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            "./src/cli/mainz.ts",
-            "--runtime",
-            "node",
-            "dev",
-            "--target",
-            "missing-target",
-        ],
-        cwd: cliTestsRepoRoot,
-        stdout: "piped",
-        stderr: "piped",
-    });
-
-    const result = await command.output();
-    const stdout = new TextDecoder().decode(result.stdout);
-    const stderr = new TextDecoder().decode(result.stderr);
-
-    assertEquals(result.code, 1);
-    assertEquals(stdout, "");
-    assertStringIncludes(stderr, 'Unknown command "--runtime".');
-    assertStringIncludes(stderr, 'Run "mainz --help" for usage.');
-});
-
-Deno.test("cli/mainz: dev should bootstrap existing node projects", async () => {
-    const cwd = await Deno.makeTempDir({ prefix: "mainz-node-dev-" });
-
-    try {
-        await Deno.writeTextFile(
-            resolve(cwd, "mainz.config.ts"),
-            [
-                'import { defineMainzConfig } from "mainz/config";',
-                "",
-                "export default defineMainzConfig({",
-                '    runtime: "node",',
-                "    targets: [",
-                "    ],",
-                "});",
-                "",
-            ].join("\n"),
-        );
-        await Deno.writeTextFile(
-            resolve(cwd, "package.json"),
-            JSON.stringify(
-                {
-                    dependencies: {
-                        mainz: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
-                    },
-                },
-                null,
-                4,
-            ),
-        );
-
-        const create = await runMainzCommand(cwd, [
-            "app",
-            "create",
-            "site",
-        ]);
-        assertEquals(create.code, 0, `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`);
-
-        const result = await runMainzCommand(cwd, [
-            "dev",
-            "--target",
-            "missing-target",
-        ]);
-
-        assertEquals(result.code, 1);
-        assertEquals(result.stdout, "");
-        assertStringIncludes(result.stderr, 'No targets matched "missing-target".');
-        assertEquals(result.stderr.includes('Import "mainz/config" not a dependency'), false);
-    } finally {
-        await Deno.remove(cwd, { recursive: true });
-    }
+    assertEquals(
+      result.stderr.includes('Import "mainz/config" not a dependency'),
+      false,
+    );
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
 });
 
 async function runMainzDevCommand(args: readonly string[]): Promise<{
-    code: number;
-    stdout: string;
-    stderr: string;
+  code: number;
+  stdout: string;
+  stderr: string;
 }> {
-    return await runMainzCommand(cliTestsRepoRoot, ["dev", ...args]);
+  return await runMainzCommand(cliTestsRepoRoot, ["dev", ...args]);
 }
 
 async function runMainzCommand(cwd: string, args: readonly string[]): Promise<{
-    code: number;
-    stdout: string;
-    stderr: string;
+  code: number;
+  stdout: string;
+  stderr: string;
 }> {
-    const command = new Deno.Command("deno", {
-        args: [
-            "run",
-            "-A",
-            resolve(cliTestsRepoRoot, "src", "cli", "mainz.ts"),
-            ...args,
-        ],
-        cwd,
-        stdout: "piped",
-        stderr: "piped",
-    });
+  const command = new Deno.Command("deno", {
+    args: [
+      "run",
+      "-A",
+      resolve(cliTestsRepoRoot, "src", "cli", "mainz.ts"),
+      ...args,
+    ],
+    cwd,
+    stdout: "piped",
+    stderr: "piped",
+  });
 
-    const result = await command.output();
-    const stdout = new TextDecoder().decode(result.stdout);
-    const stderr = new TextDecoder().decode(result.stderr);
+  const result = await command.output();
+  const stdout = new TextDecoder().decode(result.stdout);
+  const stderr = new TextDecoder().decode(result.stderr);
 
-    return { code: result.code, stdout, stderr };
+  return { code: result.code, stdout, stderr };
 }

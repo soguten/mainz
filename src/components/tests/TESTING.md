@@ -1,7 +1,7 @@
 # Mainz Component Testing Guide
 
-This folder defines conventions to keep Mainz component tests consistent, readable,
-and easy to maintain.
+This folder defines conventions to keep Mainz component tests consistent,
+readable, and easy to maintain.
 
 ## Test Groups
 
@@ -41,16 +41,18 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./component.example.fixture.tsx") as typeof import("./component.example.fixture.tsx");
+const fixtures = await import(
+  "./component.example.fixture.tsx"
+) as typeof import("./component.example.fixture.tsx");
 
 Deno.test("counter/group: should increment count when clicked", () => {
-    const screen = renderMainzComponent(fixtures.CounterExampleComponent);
+  const screen = renderMainzComponent(fixtures.CounterExampleComponent);
 
-    screen.click("button");
-    screen.click("button");
+  screen.click("button");
+  screen.click("button");
 
-    assertEquals(screen.getBySelector("button").textContent, "2");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("button").textContent, "2");
+  screen.cleanup();
 });
 ```
 
@@ -60,17 +62,17 @@ Deno.test("counter/group: should increment count when clicked", () => {
 import { Component } from "mainz";
 
 export class CounterExampleComponent extends Component<{}, { count: number }> {
-    protected override initState() {
-        return { count: 0 };
-    }
+  protected override initState() {
+    return { count: 0 };
+  }
 
-    private increment = () => {
-        this.setState({ count: this.state.count + 1 });
-    };
+  private increment = () => {
+    this.setState({ count: this.state.count + 1 });
+  };
 
-    override render(): HTMLElement {
-        return <button onClick={this.increment}>{String(this.state.count)}</button>;
-    }
+  override render(): HTMLElement {
+    return <button onClick={this.increment}>{String(this.state.count)}</button>;
+  }
 }
 ```
 
@@ -105,9 +107,13 @@ Each test file should start with a short suite comment containing:
 
 ## Why `.test.ts` Stays in TS
 
-The test environment requires `setupMainzDom()` before loading modules that depend on `HTMLElement`, `document`, or JSX runtime evaluation.
+The test environment requires `setupMainzDom()` before loading modules that
+depend on `HTMLElement`, `document`, or JSX runtime evaluation.
 
-Mainz now guards the base `Component` class so server-side imports do not fail immediately when `HTMLElement` is missing. That fallback only prevents early module crashes during build/tooling. It does not replace DOM setup for component tests.
+Mainz now guards the base `Component` class so server-side imports do not fail
+immediately when `HTMLElement` is missing. That fallback only prevents early
+module crashes during build/tooling. It does not replace DOM setup for component
+tests.
 
 Safe order:
 
@@ -131,19 +137,20 @@ Use these files as the canonical starter when creating a new suite:
 
 ## Runtime Contract Checklist
 
-When a change touches `src/components/component.ts`, `src/components/page.ts`, or
-core render/lifecycle behavior, review whether one or more of these contracts
+When a change touches `src/components/component.ts`, `src/components/page.ts`,
+or core render/lifecycle behavior, review whether one or more of these contracts
 must be covered or updated.
 
-- host-owned persistent nodes survive rerender
-  Examples: injected `style` nodes, managed page head nodes
-- keyed patching preserves identity and correct listener behavior
-  Examples: reorder, insert, remove
+- host-owned persistent nodes survive rerender Examples: injected `style` nodes,
+  managed page head nodes
+- keyed patching preserves identity and correct listener behavior Examples:
+  reorder, insert, remove
 - conditional subtree replacement removes stale listeners from old nodes
 - render owner cleanup still works after rerender, unmount, and render failure
 - multiple roots and nested component/app boundaries remain isolated
 - async state updates after unmount do not rerender detached components
-- page head transitions replace managed tags without touching unmanaged head nodes
+- page head transitions replace managed tags without touching unmanaged head
+  nodes
 
 When a renderer change affects one of those areas, prefer updating an existing
 contract suite before creating a brand new ad hoc test.

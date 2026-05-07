@@ -8,18 +8,18 @@ import { notFoundCase } from "../not-found/not-found.case.ts";
 import { routingCase } from "../routing/routing.case.ts";
 
 export const routedCoreCases = [
-    routingCase,
-    notFoundCase,
-    i18nCase,
-    headCase,
-    navigationCase,
+  routingCase,
+  notFoundCase,
+  i18nCase,
+  headCase,
+  navigationCase,
 ] as const;
 
 export const rootCoreCases = [
-    hydrationCase,
+  hydrationCase,
 ] as const;
 
 export const coreMatrixCases = [
-    ...routedCoreCases,
-    ...rootCoreCases,
+  ...routedCoreCases,
+  ...rootCoreCases,
 ] as const;

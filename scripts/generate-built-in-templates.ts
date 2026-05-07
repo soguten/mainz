@@ -5,11 +5,11 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
 const templatesRoot = resolve(repoRoot, "templates");
 const outputPath = resolve(
-    repoRoot,
-    "src",
-    "cli",
-    "templates",
-    "built-in-templates.generated.ts",
+  repoRoot,
+  "src",
+  "cli",
+  "templates",
+  "built-in-templates.generated.ts",
 );
 
 const entries = await collectTemplateEntries(templatesRoot);
@@ -17,106 +17,106 @@ await Deno.writeTextFile(outputPath, renderModule(entries));
 console.log(`[mainz] Wrote built-in template bundle to ${outputPath}`);
 
 interface TemplateEntry {
-    key: string;
-    manifestSource: string;
-    files: Array<{ path: string; content: string }>;
+  key: string;
+  manifestSource: string;
+  files: Array<{ path: string; content: string }>;
 }
 
 async function collectTemplateEntries(root: string): Promise<TemplateEntry[]> {
-    const entries: TemplateEntry[] = [];
+  const entries: TemplateEntry[] = [];
 
-    for await (const manifestPath of walkTemplateManifests(root)) {
-        const templateDir = dirname(manifestPath);
-        const key = relative(root, templateDir).replaceAll("\\", "/");
-        const manifestSource = await Deno.readTextFile(manifestPath);
-        const files = await collectTemplateFiles(resolve(templateDir, "files"));
-        entries.push({ key, manifestSource, files });
-    }
+  for await (const manifestPath of walkTemplateManifests(root)) {
+    const templateDir = dirname(manifestPath);
+    const key = relative(root, templateDir).replaceAll("\\", "/");
+    const manifestSource = await Deno.readTextFile(manifestPath);
+    const files = await collectTemplateFiles(resolve(templateDir, "files"));
+    entries.push({ key, manifestSource, files });
+  }
 
-    entries.sort((left, right) => left.key.localeCompare(right.key));
-    return entries;
+  entries.sort((left, right) => left.key.localeCompare(right.key));
+  return entries;
 }
 
 async function* walkTemplateManifests(root: string): AsyncGenerator<string> {
-    for await (const entry of Deno.readDir(root)) {
-        const absolutePath = resolve(root, entry.name);
-        if (entry.isDirectory) {
-            yield* walkTemplateManifests(absolutePath);
-            continue;
-        }
-
-        if (entry.isFile && entry.name === "template.json") {
-            yield absolutePath;
-        }
+  for await (const entry of Deno.readDir(root)) {
+    const absolutePath = resolve(root, entry.name);
+    if (entry.isDirectory) {
+      yield* walkTemplateManifests(absolutePath);
+      continue;
     }
+
+    if (entry.isFile && entry.name === "template.json") {
+      yield absolutePath;
+    }
+  }
 }
 
 async function collectTemplateFiles(
-    root: string,
-    prefix = "",
+  root: string,
+  prefix = "",
 ): Promise<Array<{ path: string; content: string }>> {
-    const files: Array<{ path: string; content: string }> = [];
+  const files: Array<{ path: string; content: string }> = [];
 
-    try {
-        for await (const entry of Deno.readDir(root)) {
-            const absolutePath = resolve(root, entry.name);
-            const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-            if (entry.isDirectory) {
-                files.push(...await collectTemplateFiles(absolutePath, relativePath));
-                continue;
-            }
+  try {
+    for await (const entry of Deno.readDir(root)) {
+      const absolutePath = resolve(root, entry.name);
+      const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory) {
+        files.push(...await collectTemplateFiles(absolutePath, relativePath));
+        continue;
+      }
 
-            files.push({
-                path: relativePath.replaceAll("\\", "/"),
-                content: await Deno.readTextFile(absolutePath),
-            });
-        }
-    } catch (error) {
-        if (error instanceof Deno.errors.NotFound) {
-            return [];
-        }
-        throw error;
+      files.push({
+        path: relativePath.replaceAll("\\", "/"),
+        content: await Deno.readTextFile(absolutePath),
+      });
     }
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return [];
+    }
+    throw error;
+  }
 
-    files.sort((left, right) => left.path.localeCompare(right.path));
-    return files;
+  files.sort((left, right) => left.path.localeCompare(right.path));
+  return files;
 }
 
 function renderModule(entries: TemplateEntry[]): string {
-    const body = entries.map((entry) => {
-        const renderedFiles = entry.files.map((file) =>
-            [
-                "            {",
-                `                path: ${JSON.stringify(file.path)},`,
-                `                content: ${JSON.stringify(file.content)},`,
-                "            },",
-            ].join("\n")
-        ).join("\n");
+  const body = entries.map((entry) => {
+    const renderedFiles = entry.files.map((file) =>
+      [
+        "            {",
+        `                path: ${JSON.stringify(file.path)},`,
+        `                content: ${JSON.stringify(file.content)},`,
+        "            },",
+      ].join("\n")
+    ).join("\n");
 
-        return [
-            "    [",
-            `        ${JSON.stringify(entry.key)},`,
-            "        {",
-            `            manifestSource: ${JSON.stringify(entry.manifestSource)},`,
-            "            files: [",
-            renderedFiles,
-            "            ],",
-            "        },",
-            "    ],",
-        ].join("\n");
-    }).join("\n");
+    return [
+      "    [",
+      `        ${JSON.stringify(entry.key)},`,
+      "        {",
+      `            manifestSource: ${JSON.stringify(entry.manifestSource)},`,
+      "            files: [",
+      renderedFiles,
+      "            ],",
+      "        },",
+      "    ],",
+    ].join("\n");
+  }).join("\n");
 
-    return `// This file is generated by scripts/generate-built-in-templates.ts.\n` +
-        `// Do not edit it by hand.\n\n` +
-        `export interface BuiltInTemplateBundleEntry {\n` +
-        `    manifestSource: string;\n` +
-        `    files: Array<{ path: string; content: string }>;\n` +
-        `}\n\n` +
-        `const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([\n${body}\n]);\n\n` +
-        `export function listBuiltInTemplateBundleKeys(): string[] {\n` +
-        `    return [...builtInTemplates.keys()];\n` +
-        `}\n\n` +
-        `export function resolveBuiltInTemplateBundle(kind: string, name: string): BuiltInTemplateBundleEntry | undefined {\n` +
-        `    return builtInTemplates.get(\`${"${kind}/${name}"}\`.replaceAll("\\\\", "/"));\n` +
-        `}\n`;
+  return `// This file is generated by scripts/generate-built-in-templates.ts.\n` +
+    `// Do not edit it by hand.\n\n` +
+    `export interface BuiltInTemplateBundleEntry {\n` +
+    `    manifestSource: string;\n` +
+    `    files: Array<{ path: string; content: string }>;\n` +
+    `}\n\n` +
+    `const builtInTemplates = new Map<string, BuiltInTemplateBundleEntry>([\n${body}\n]);\n\n` +
+    `export function listBuiltInTemplateBundleKeys(): string[] {\n` +
+    `    return [...builtInTemplates.keys()];\n` +
+    `}\n\n` +
+    `export function resolveBuiltInTemplateBundle(kind: string, name: string): BuiltInTemplateBundleEntry | undefined {\n` +
+    `    return builtInTemplates.get(\`${"${kind}/${name}"}\`.replaceAll("\\\\", "/"));\n` +
+    `}\n`;
 }

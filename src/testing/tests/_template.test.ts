@@ -12,14 +12,15 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./_template.fixture.tsx") as typeof import("./_template.fixture.tsx");
+const fixtures = await import(
+  "./_template.fixture.tsx"
+) as typeof import("./_template.fixture.tsx");
 
 Deno.test.ignore("testing helper/[group]: should ...", () => {
-    const screen = renderMainzComponent(fixtures.ExampleTestingHarnessComponent);
+  const screen = renderMainzComponent(fixtures.ExampleTestingHarnessComponent);
 
-    screen.click("button");
+  screen.click("button");
 
-    assertEquals(screen.getBySelector("button").textContent, "1");
-    screen.cleanup();
+  assertEquals(screen.getBySelector("button").textContent, "1");
+  screen.cleanup();
 });
-

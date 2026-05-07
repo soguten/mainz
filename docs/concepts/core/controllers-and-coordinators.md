@@ -5,7 +5,8 @@ summary: Use DI-backed controllers or coordinators for stable app capabilities t
 
 ## Controllers are stable app capabilities
 
-Some behavior in Mainz belongs to a stable app-level capability instead of a single temporary component instance.
+Some behavior in Mainz belongs to a stable app-level capability instead of a
+single temporary component instance.
 
 Common examples:
 
@@ -25,8 +26,8 @@ Mainz works best when each piece has a clear job:
 - controllers or coordinators own stable app behavior and state
 - DI provides the stable instance per app
 
-That keeps app-wide behavior out of short-lived local owners without hiding everything behind a
-generic service layer.
+That keeps app-wide behavior out of short-lived local owners without hiding
+everything behind a generic service layer.
 
 ## Register controllers through the app definition
 
@@ -37,30 +38,30 @@ import { defineApp } from "mainz";
 import { singleton } from "mainz/di";
 
 export class DocsSearchController {
-    private open = false;
-    private initialQuery = "";
+  private open = false;
+  private initialQuery = "";
 
-    show(initialQuery = "") {
-        this.open = true;
-        this.initialQuery = initialQuery;
-    }
+  show(initialQuery = "") {
+    this.open = true;
+    this.initialQuery = initialQuery;
+  }
 
-    hide() {
-        this.open = false;
-        this.initialQuery = "";
-    }
+  hide() {
+    this.open = false;
+    this.initialQuery = "";
+  }
 
-    getState() {
-        return {
-            open: this.open,
-            initialQuery: this.initialQuery,
-        };
-    }
+  getState() {
+    return {
+      open: this.open,
+      initialQuery: this.initialQuery,
+    };
+  }
 }
 
 export const app = defineApp({
-    id: "docs-site",
-    services: [singleton(DocsSearchController)],
+  id: "docs-site",
+  services: [singleton(DocsSearchController)],
 });
 ```
 
@@ -68,22 +69,23 @@ Because DI is app-scoped, each started app gets its own controller instance.
 
 ## Components can read the same controller from different subtrees
 
-One component can trigger the capability while another renders from the same controller state:
+One component can trigger the capability while another renders from the same
+controller state:
 
 ```tsx title="SearchButton.tsx"
 import { Component } from "mainz";
 import { inject } from "mainz/di";
 
 export class SearchButton extends Component {
-    private readonly controller = inject(DocsSearchController);
+  private readonly controller = inject(DocsSearchController);
 
-    override render() {
-        return (
-            <button onClick={() => this.controller.show()}>
-                Search
-            </button>
-        );
-    }
+  override render() {
+    return (
+      <button onClick={() => this.controller.show()}>
+        Search
+      </button>
+    );
+  }
 }
 ```
 
@@ -92,17 +94,18 @@ import { Component } from "mainz";
 import { inject } from "mainz/di";
 
 export class SearchOverlay extends Component {
-    private readonly controller = inject(DocsSearchController);
+  private readonly controller = inject(DocsSearchController);
 
-    override render() {
-        const state = this.controller.getState();
+  override render() {
+    const state = this.controller.getState();
 
-        return state.open ? <div>Search UI for {state.initialQuery}</div> : null;
-    }
+    return state.open ? <div>Search UI for {state.initialQuery}</div> : null;
+  }
 }
 ```
 
-This is often cleaner than lifting everything into one large owner just to share behavior.
+This is often cleaner than lifting everything into one large owner just to share
+behavior.
 
 ## Commands often call controllers
 
@@ -120,19 +123,19 @@ The controller owns the long-lived implementation:
 import { defineCommand } from "mainz";
 
 export const openDocsSearchCommand = defineCommand({
-    id: "docs.search.open",
-    title: "Search documentation",
-    shortcuts: ["Mod+K"],
-    execute: ({ payload, services }) => {
-        const initialQuery = typeof payload === "object" &&
-                payload !== null &&
-                "initialQuery" in payload &&
-                typeof payload.initialQuery === "string"
-            ? payload.initialQuery
-            : "";
+  id: "docs.search.open",
+  title: "Search documentation",
+  shortcuts: ["Mod+K"],
+  execute: ({ payload, services }) => {
+    const initialQuery = typeof payload === "object" &&
+        payload !== null &&
+        "initialQuery" in payload &&
+        typeof payload.initialQuery === "string"
+      ? payload.initialQuery
+      : "";
 
-        services.get(DocsSearchController).show(initialQuery);
-    },
+    services.get(DocsSearchController).show(initialQuery);
+  },
 });
 ```
 
@@ -154,6 +157,8 @@ Use a controller or coordinator when:
 
 Use a command on top when:
 
-- the same action should be reachable from keyboard, buttons, menus, or launcher-style UI
+- the same action should be reachable from keyboard, buttons, menus, or
+  launcher-style UI
 
-That combination gives Mainz a small but clear architecture for app-level UI behavior.
+That combination gives Mainz a small but clear architecture for app-level UI
+behavior.

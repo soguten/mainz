@@ -1,39 +1,39 @@
 {
-    "$schema": "https://jsr.io/schema/config-file.v1.json",
-    "name": "@mainz/cli-deno",
-    "version": "0.1.0-alpha.47",
-    "license": "MIT",
-    "compilerOptions": {
-        "lib": [
-            "dom",
-            "deno.ns",
-            "es2022"
-        ],
-        "strict": true
-    },
-    "imports": {
-        "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-        "happy-dom": "npm:happy-dom@20.9.0",
-        "vite": "npm:vite@8.0.10"
-    },
-    "exports": {
-        ".": "./mod.cli-deno.ts"
-    },
-    "publish": {
-        "include": [
-            "LICENSE",
-            "README.cli-deno.md",
-            "CLI-SPEC.md",
-            "mod.cli-deno.ts",
-            "src/**",
-            "templates/**"
-        ],
-        "exclude": [
-            "**/tests/**",
-            "src/tests/**",
-            "**/*.fixture.ts",
-            "**/*.fixture.tsx",
-            "**/_template.*"
-        ]
-    }
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@mainz/cli-deno",
+  "version": "0.1.0-alpha.47",
+  "license": "MIT",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "deno.ns",
+      "es2022"
+    ],
+    "strict": true
+  },
+  "imports": {
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+    "happy-dom": "npm:happy-dom@20.9.0",
+    "vite": "npm:vite@8.0.10"
+  },
+  "exports": {
+    ".": "./mod.cli-deno.ts"
+  },
+  "publish": {
+    "include": [
+      "LICENSE",
+      "README.cli-deno.md",
+      "CLI-SPEC.md",
+      "mod.cli-deno.ts",
+      "src/**",
+      "templates/**"
+    ],
+    "exclude": [
+      "**/tests/**",
+      "src/tests/**",
+      "**/*.fixture.ts",
+      "**/*.fixture.tsx",
+      "**/_template.*"
+    ]
+  }
 }

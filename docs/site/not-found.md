@@ -9,6 +9,8 @@ statusLabel: Not found
 
 ## Get back to a known page
 
-Start from the overview or jump directly to one of the core documentation articles in the left navigation.
+Start from the overview or jump directly to one of the core documentation
+articles in the left navigation.
 
-This page uses the same shell and theme system as the rest of the docs so the failure mode still feels intentional.
+This page uses the same shell and theme system as the rest of the docs so the
+failure mode still feels intentional.

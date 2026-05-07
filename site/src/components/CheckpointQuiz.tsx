@@ -2,169 +2,171 @@ import { Component, CustomElement } from "mainz";
 import { t } from "../i18n/index.ts";
 
 interface CheckpointItem {
-    question: string;
-    options: string[];
-    correctIndex: number;
-    success: string;
-    failure: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  success: string;
+  failure: string;
 }
 
 interface CheckpointState {
-    currentIndex: number;
-    selectedIndex: number | null;
-    checked: boolean;
-    answers: number[];
+  currentIndex: number;
+  selectedIndex: number | null;
+  checked: boolean;
+  answers: number[];
 }
 
 @CustomElement("x-checkpoint-quiz")
 export class CheckpointQuiz extends Component<{}, CheckpointState> {
-    protected override initState(): CheckpointState {
-        return {
-            currentIndex: 0,
-            selectedIndex: null,
-            checked: false,
-            answers: [],
-        };
-    }
-
-    private selectOption = (index: number) => {
-        this.setState({
-            selectedIndex: index,
-            checked: false,
-        });
+  protected override initState(): CheckpointState {
+    return {
+      currentIndex: 0,
+      selectedIndex: null,
+      checked: false,
+      answers: [],
     };
+  }
 
-    private checkAnswer = () => {
-        if (this.state.selectedIndex == null) return;
+  private selectOption = (index: number) => {
+    this.setState({
+      selectedIndex: index,
+      checked: false,
+    });
+  };
 
-        const nextAnswers = [...this.state.answers];
-        nextAnswers[this.state.currentIndex] = this.state.selectedIndex;
+  private checkAnswer = () => {
+    if (this.state.selectedIndex == null) return;
 
-        this.setState({
-            checked: true,
-            answers: nextAnswers,
-        });
-    };
+    const nextAnswers = [...this.state.answers];
+    nextAnswers[this.state.currentIndex] = this.state.selectedIndex;
 
-    private goToNextQuestion = () => {
-        const items = t<CheckpointItem[]>("checkpoint.items");
-        const isLast = this.state.currentIndex >= items.length - 1;
+    this.setState({
+      checked: true,
+      answers: nextAnswers,
+    });
+  };
 
-        if (isLast) return;
+  private goToNextQuestion = () => {
+    const items = t<CheckpointItem[]>("checkpoint.items");
+    const isLast = this.state.currentIndex >= items.length - 1;
 
-        this.setState({
-            currentIndex: this.state.currentIndex + 1,
-            selectedIndex: this.state.answers[this.state.currentIndex + 1] ?? null,
-            checked: false,
-        });
-    };
+    if (isLast) return;
 
-    private restartCheckpoint = () => {
-        this.setState({
-            currentIndex: 0,
-            selectedIndex: null,
-            checked: false,
-            answers: [],
-        });
-    };
+    this.setState({
+      currentIndex: this.state.currentIndex + 1,
+      selectedIndex: this.state.answers[this.state.currentIndex + 1] ?? null,
+      checked: false,
+    });
+  };
 
-    override render(): HTMLElement {
-        const items = t<CheckpointItem[]>("checkpoint.items");
-        const currentItem = items[this.state.currentIndex];
-        const isLast = this.state.currentIndex >= items.length - 1;
-        const selectedIndex = this.state.selectedIndex;
-        const isCorrect = selectedIndex != null &&
-            selectedIndex === currentItem.correctIndex;
-        const hasResult = this.state.checked;
-        const canSubmit = selectedIndex != null && !this.state.checked;
+  private restartCheckpoint = () => {
+    this.setState({
+      currentIndex: 0,
+      selectedIndex: null,
+      checked: false,
+      answers: [],
+    });
+  };
 
-        const answeredCount = this.state.answers.filter((entry) => entry !== undefined).length;
-        const allAnswered = answeredCount === items.length;
-        const correctCount = this.state.answers.reduce((count, answer, index) => {
-            if (answer === items[index]?.correctIndex) return count + 1;
-            return count;
-        }, 0);
+  override render(): HTMLElement {
+    const items = t<CheckpointItem[]>("checkpoint.items");
+    const currentItem = items[this.state.currentIndex];
+    const isLast = this.state.currentIndex >= items.length - 1;
+    const selectedIndex = this.state.selectedIndex;
+    const isCorrect = selectedIndex != null &&
+      selectedIndex === currentItem.correctIndex;
+    const hasResult = this.state.checked;
+    const canSubmit = selectedIndex != null && !this.state.checked;
 
-        return (
-            <section id={t("anchors.checkpoint")} className="panel checkpoint">
-                <div className="section-head">
-                    <p className="eyebrow">
-                        {t("checkpoint.eyebrow")}
-                    </p>
-                    <h2>{t("checkpoint.title")}</h2>
-                    <p>
-                        {t("checkpoint.description")}
-                    </p>
-                </div>
+    const answeredCount =
+      this.state.answers.filter((entry) => entry !== undefined).length;
+    const allAnswered = answeredCount === items.length;
+    const correctCount = this.state.answers.reduce((count, answer, index) => {
+      if (answer === items[index]?.correctIndex) return count + 1;
+      return count;
+    }, 0);
 
-                <p className="progress-chip">
-                    {t("checkpoint.progressLabel")} {this.state.currentIndex + 1}/{items.length}
-                </p>
+    return (
+      <section id={t("anchors.checkpoint")} className="panel checkpoint">
+        <div className="section-head">
+          <p className="eyebrow">
+            {t("checkpoint.eyebrow")}
+          </p>
+          <h2>{t("checkpoint.title")}</h2>
+          <p>
+            {t("checkpoint.description")}
+          </p>
+        </div>
 
-                <p className="checkpoint-question">{currentItem.question}</p>
+        <p className="progress-chip">
+          {t("checkpoint.progressLabel")}{" "}
+          {this.state.currentIndex + 1}/{items.length}
+        </p>
 
-                <div className="checkpoint-options">
-                    {currentItem.options.map((option, index) => (
-                        <button
-                            key={`${this.state.currentIndex}-${option}`}
-                            type="button"
-                            className={`checkpoint-option ${
-                                selectedIndex === index ? "active" : ""
-                            }`}
-                            onClick={() => this.selectOption(index)}
-                        >
-                            {option}
-                        </button>
-                    ))}
-                </div>
+        <p className="checkpoint-question">{currentItem.question}</p>
 
-                <div className="checkpoint-actions">
-                    <button
-                        type="button"
-                        className="button button-primary"
-                        disabled={canSubmit ? null : true}
-                        onClick={this.checkAnswer}
-                    >
-                        {t("checkpoint.submit")}
-                    </button>
+        <div className="checkpoint-options">
+          {currentItem.options.map((option, index) => (
+            <button
+              key={`${this.state.currentIndex}-${option}`}
+              type="button"
+              className={`checkpoint-option ${
+                selectedIndex === index ? "active" : ""
+              }`}
+              onClick={() => this.selectOption(index)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
 
-                    {hasResult && !isLast && (
-                        <button
-                            type="button"
-                            className="button button-ghost"
-                            onClick={this.goToNextQuestion}
-                        >
-                            {t("checkpoint.next")}
-                        </button>
-                    )}
+        <div className="checkpoint-actions">
+          <button
+            type="button"
+            className="button button-primary"
+            disabled={canSubmit ? null : true}
+            onClick={this.checkAnswer}
+          >
+            {t("checkpoint.submit")}
+          </button>
 
-                    {hasResult && isLast && (
-                        <button
-                            type="button"
-                            className="button button-ghost"
-                            onClick={this.restartCheckpoint}
-                        >
-                            {t("checkpoint.retry")}
-                        </button>
-                    )}
-                </div>
+          {hasResult && !isLast && (
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={this.goToNextQuestion}
+            >
+              {t("checkpoint.next")}
+            </button>
+          )}
 
-                {hasResult && (
-                    <p className={`checkpoint-result ${isCorrect ? "ok" : "fail"}`}>
-                        {isCorrect ? currentItem.success : currentItem.failure}
-                    </p>
-                )}
+          {hasResult && isLast && (
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={this.restartCheckpoint}
+            >
+              {t("checkpoint.retry")}
+            </button>
+          )}
+        </div>
 
-                {allAnswered && isLast && (
-                    <p className="checkpoint-score">
-                        {t("checkpoint.finish")}: {correctCount}/{items.length}
-                    </p>
-                )}
+        {hasResult && (
+          <p className={`checkpoint-result ${isCorrect ? "ok" : "fail"}`}>
+            {isCorrect ? currentItem.success : currentItem.failure}
+          </p>
+        )}
 
-                <a className="back-link" href={`#${t("anchors.top")}`}>
-                    {t("common.backToTop")}
-                </a>
-            </section>
-        );
-    }
+        {allAnswered && isLast && (
+          <p className="checkpoint-score">
+            {t("checkpoint.finish")}: {correctCount}/{items.length}
+          </p>
+        )}
+
+        <a className="back-link" href={`#${t("anchors.top")}`}>
+          {t("common.backToTop")}
+        </a>
+      </section>
+    );
+  }
 }

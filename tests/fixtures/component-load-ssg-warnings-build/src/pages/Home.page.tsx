@@ -7,14 +7,14 @@ import { DeferredWithoutFallback } from "../components/DeferredWithoutFallback.t
 @Route("/")
 @RenderMode("ssg")
 export class ComponentLoadSsgWarningsHomePage extends Page {
-    override render() {
-        return (
-            <main>
-                <h1>Component Load SSG Warnings</h1>
-                <DeferredWithoutFallback />
-                <DeferredWithFallback />
-                <ClientOnlyWithFallback />
-            </main>
-        );
-    }
+  override render() {
+    return (
+      <main>
+        <h1>Component Load SSG Warnings</h1>
+        <DeferredWithoutFallback />
+        <DeferredWithFallback />
+        <ClientOnlyWithFallback />
+      </main>
+    );
+  }
 }

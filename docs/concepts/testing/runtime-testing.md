@@ -23,8 +23,8 @@ Use `prepareNavigationTest()` when testing navigation/runtime behavior.
 import { prepareNavigationTest } from "mainz/testing";
 
 Deno.test("spa route resolves docs page", async () => {
-    await prepareNavigationTest();
-    // ...
+  await prepareNavigationTest();
+  // ...
 });
 ```
 
@@ -35,17 +35,18 @@ Deno.test("spa route resolves docs page", async () => {
 
 That makes repeated runtime tests much safer.
 
-`prepareNavigationTest()` still returns the loaded navigation runtime for focused framework tests.
-Application-facing tests usually do not need that return value; they should compose the app with
-`defineApp(...)` and boot it with `startApp(...)`.
+`prepareNavigationTest()` still returns the loaded navigation runtime for
+focused framework tests. Application-facing tests usually do not need that
+return value; they should compose the app with `defineApp(...)` and boot it with
+`startApp(...)`.
 
 For application-facing runtime tests, keep using normal app composition:
 
 - `defineApp(...)` defines the app under test
 - `startApp(app, ...)` boots that app in the prepared DOM
 
-Lower-level navigation bootstrap still exists for framework internals, but it is not the primary
-public testing story anymore.
+Lower-level navigation bootstrap still exists for framework internals, but it is
+not the primary public testing story anymore.
 
 ## Example: test SPA startup
 
@@ -55,33 +56,33 @@ import { defineApp, startApp } from "mainz";
 import { prepareNavigationTest, waitForNavigationReady } from "mainz/testing";
 
 Deno.test("spa route resolves the current path", async () => {
-    await prepareNavigationTest();
-    const { HomePage, DocsPage } = await import("./fixtures.ts");
+  await prepareNavigationTest();
+  const { HomePage, DocsPage } = await import("./fixtures.ts");
 
-    document.body.innerHTML = '<main id="app"></main>';
-    window.history.replaceState(null, "", "/docs/intro");
+  document.body.innerHTML = '<main id="app"></main>';
+  window.history.replaceState(null, "", "/docs/intro");
 
-    const ready = waitForNavigationReady({
-        target: document.getElementById("app")!,
-        mode: "spa",
-        matchedPath: "/docs/intro",
-        navigationType: "initial",
-    });
+  const ready = waitForNavigationReady({
+    target: document.getElementById("app")!,
+    mode: "spa",
+    matchedPath: "/docs/intro",
+    navigationType: "initial",
+  });
 
-    const app = defineApp({
-        id: "docs-test",
-        pages: [HomePage, DocsPage],
-    });
-    const controller = startApp(app, {
-        mount: "#app",
-    });
+  const app = defineApp({
+    id: "docs-test",
+    pages: [HomePage, DocsPage],
+  });
+  const controller = startApp(app, {
+    mount: "#app",
+  });
 
-    await ready;
+  await ready;
 
-    assertEquals(window.location.pathname, "/docs/intro");
-    assertEquals(document.title, "Docs");
+  assertEquals(window.location.pathname, "/docs/intro");
+  assertEquals(document.title, "Docs");
 
-    controller.cleanup();
+  controller.cleanup();
 });
 ```
 
@@ -95,179 +96,199 @@ import { defineApp, startApp } from "mainz";
 import { prepareNavigationTest, waitForNavigationReady } from "mainz/testing";
 
 Deno.test("left app can be synchronized independently", async () => {
-    await prepareNavigationTest();
-    const { LeftHomePage, RightHomePage } = await import("./fixtures.ts");
+  await prepareNavigationTest();
+  const { LeftHomePage, RightHomePage } = await import("./fixtures.ts");
 
-    document.body.innerHTML = `
+  document.body.innerHTML = `
         <main id="left-app"></main>
         <main id="right-app"></main>
     `;
 
-    const leftApp = document.getElementById("left-app")!;
-    const rightApp = document.getElementById("right-app")!;
+  const leftApp = document.getElementById("left-app")!;
+  const rightApp = document.getElementById("right-app")!;
 
-    const leftReady = waitForNavigationReady({
-        target: leftApp,
-        mode: "spa",
-        matchedPath: "/",
-        navigationType: "initial",
-    });
+  const leftReady = waitForNavigationReady({
+    target: leftApp,
+    mode: "spa",
+    matchedPath: "/",
+    navigationType: "initial",
+  });
 
-    const leftController = startApp(defineApp({
-        id: "left-app-test",
-        pages: [LeftHomePage],
-    }), {
-        mount: leftApp,
-    });
+  const leftController = startApp(
+    defineApp({
+      id: "left-app-test",
+      pages: [LeftHomePage],
+    }),
+    {
+      mount: leftApp,
+    },
+  );
 
-    const rightController = startApp(defineApp({
-        id: "right-app-test",
-        pages: [RightHomePage],
-    }), {
-        mount: rightApp,
-    });
+  const rightController = startApp(
+    defineApp({
+      id: "right-app-test",
+      pages: [RightHomePage],
+    }),
+    {
+      mount: rightApp,
+    },
+  );
 
-    await leftReady;
+  await leftReady;
 
-    assertEquals(leftApp.textContent?.includes("Left"), true);
+  assertEquals(leftApp.textContent?.includes("Left"), true);
 
-    leftController.cleanup();
-    rightController.cleanup();
+  leftController.cleanup();
+  rightController.cleanup();
 });
 ```
 
 ## Example: test an explicit navigation failure
 
-When the contract you care about is failure, prefer `waitForNavigationError(...)` over inferring
-failure from missing `ready` or a generic timeout.
+When the contract you care about is failure, prefer
+`waitForNavigationError(...)` over inferring failure from missing `ready` or a
+generic timeout.
 
 ```ts title="navigation-error.test.ts"
 import { assertEquals } from "@std/assert";
 import { defineApp, startApp } from "mainz";
 import {
-    prepareNavigationTest,
-    waitForNavigationError,
-    waitForNavigationReady,
+  prepareNavigationTest,
+  waitForNavigationError,
+  waitForNavigationReady,
 } from "mainz/testing";
 
 Deno.test("broken route emits navigationerror", async () => {
-    await prepareNavigationTest();
-    const { HomePage, BrokenPage } = await import("./fixtures.ts");
+  await prepareNavigationTest();
+  const { HomePage, BrokenPage } = await import("./fixtures.ts");
 
-    document.body.innerHTML = '<main id="app"></main><a id="broken" href="/broken">Broken</a>';
+  document.body.innerHTML =
+    '<main id="app"></main><a id="broken" href="/broken">Broken</a>';
 
-    const initialReady = waitForNavigationReady({
-        target: document.getElementById("app")!,
-        matchedPath: "/",
-        navigationType: "initial",
-    });
+  const initialReady = waitForNavigationReady({
+    target: document.getElementById("app")!,
+    matchedPath: "/",
+    navigationType: "initial",
+  });
 
-    const controller = startApp(defineApp({
-        id: "broken-route-test",
-        pages: [HomePage, BrokenPage],
-    }), {
-        mount: "#app",
-    });
+  const controller = startApp(
+    defineApp({
+      id: "broken-route-test",
+      pages: [HomePage, BrokenPage],
+    }),
+    {
+      mount: "#app",
+    },
+  );
 
-    await initialReady;
+  await initialReady;
 
-    const failed = waitForNavigationError({
-        target: document.getElementById("app")!,
-        path: "/broken",
-        matchedPath: "/broken",
-        navigationType: "push",
-        phase: "route-load",
-    });
+  const failed = waitForNavigationError({
+    target: document.getElementById("app")!,
+    path: "/broken",
+    matchedPath: "/broken",
+    navigationType: "push",
+    phase: "route-load",
+  });
 
-    document.getElementById("broken")!.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
+  document.getElementById("broken")!.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true }),
+  );
 
-    const error = await failed;
+  const error = await failed;
 
-    assertEquals(error.phase, "route-load");
-    assertEquals(error.path, "/broken");
+  assertEquals(error.phase, "route-load");
+  assertEquals(error.path, "/broken");
 
-    controller.cleanup();
+  controller.cleanup();
 });
 ```
 
 ## Example: test a superseded navigation with propagated abort
 
-When a navigation is canceled on purpose, prefer `waitForNavigationAbort(...)` over inferring
-cancelation from missing `ready`.
+When a navigation is canceled on purpose, prefer `waitForNavigationAbort(...)`
+over inferring cancelation from missing `ready`.
 
 ```ts title="navigation-abort.test.ts"
 import { assertEquals } from "@std/assert";
 import { defineApp, startApp } from "mainz";
 import {
-    prepareNavigationTest,
-    waitForNavigationAbort,
-    waitForNavigationReady,
+  prepareNavigationTest,
+  waitForNavigationAbort,
+  waitForNavigationReady,
 } from "mainz/testing";
 
 Deno.test("slow navigation is superseded before costly work finishes", async () => {
-    await prepareNavigationTest();
-    const { HomePage, DocsPage, SlowPage, waitForSlowLoadStart } = await import("./fixtures.ts");
+  await prepareNavigationTest();
+  const { HomePage, DocsPage, SlowPage, waitForSlowLoadStart } = await import(
+    "./fixtures.ts"
+  );
 
-    document.body.innerHTML = `
+  document.body.innerHTML = `
         <main id="app"></main>
         <a id="slow" href="/slow">Slow</a>
         <a id="docs" href="/docs/intro">Docs</a>
     `;
-    window.history.replaceState(null, "", "/");
+  window.history.replaceState(null, "", "/");
 
-    const appRoot = document.getElementById("app")!;
-    const initialReady = waitForNavigationReady({
-        target: appRoot,
-        matchedPath: "/",
-        navigationType: "initial",
-    });
+  const appRoot = document.getElementById("app")!;
+  const initialReady = waitForNavigationReady({
+    target: appRoot,
+    matchedPath: "/",
+    navigationType: "initial",
+  });
 
-    const controller = startApp(defineApp({
-        id: "superseded-navigation-test",
-        pages: [HomePage, DocsPage, SlowPage],
-    }), {
-        mount: appRoot,
-    });
+  const controller = startApp(
+    defineApp({
+      id: "superseded-navigation-test",
+      pages: [HomePage, DocsPage, SlowPage],
+    }),
+    {
+      mount: appRoot,
+    },
+  );
 
-    await initialReady;
+  await initialReady;
 
-    const aborted = waitForNavigationAbort({
-        target: appRoot,
-        path: "/slow",
-        matchedPath: "/slow",
-        navigationType: "push",
-        reason: "superseded",
-    });
-    const docsReady = waitForNavigationReady({
-        target: appRoot,
-        path: "/docs/:slug",
-        matchedPath: "/docs/intro",
-        navigationType: "push",
-    });
+  const aborted = waitForNavigationAbort({
+    target: appRoot,
+    path: "/slow",
+    matchedPath: "/slow",
+    navigationType: "push",
+    reason: "superseded",
+  });
+  const docsReady = waitForNavigationReady({
+    target: appRoot,
+    path: "/docs/:slug",
+    matchedPath: "/docs/intro",
+    navigationType: "push",
+  });
 
-    document.getElementById("slow")!.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
-    await waitForSlowLoadStart();
+  document.getElementById("slow")!.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true }),
+  );
+  await waitForSlowLoadStart();
 
-    document.getElementById("docs")!.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-    );
+  document.getElementById("docs")!.dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true }),
+  );
 
-    const [abortDetail, readyDetail] = await Promise.all([aborted, docsReady]);
+  const [abortDetail, readyDetail] = await Promise.all([aborted, docsReady]);
 
-    assertEquals(abortDetail.reason, "superseded");
-    assertEquals(abortDetail.navigationSequence < readyDetail.navigationSequence, true);
+  assertEquals(abortDetail.reason, "superseded");
+  assertEquals(
+    abortDetail.navigationSequence < readyDetail.navigationSequence,
+    true,
+  );
 
-    controller.cleanup();
+  controller.cleanup();
 });
 ```
 
 ## Why runtime tests are useful
 
-They let you test framework contracts without paying the full cost of a CLI build for every case.
+They let you test framework contracts without paying the full cost of a CLI
+build for every case.
 
 That is useful for:
 
@@ -286,7 +307,8 @@ Best default for runtime tests.
 
 ### `waitForNavigationStart(...)`
 
-Use it when the test is really asking "did Mainz accept and begin this navigation?"
+Use it when the test is really asking "did Mainz accept and begin this
+navigation?"
 
 Good for:
 
@@ -296,7 +318,8 @@ Good for:
 
 ### `waitForNavigationAbort(...)`
 
-Use it when the test is really asking "did Mainz cancel this navigation on purpose?"
+Use it when the test is really asking "did Mainz cancel this navigation on
+purpose?"
 
 Good for:
 
@@ -313,31 +336,37 @@ Good for:
 
 - route load failures
 - render-time failures during navigation
-- tests that would otherwise infer failure from missing `ready` or generic timeout behavior
+- tests that would otherwise infer failure from missing `ready` or generic
+  timeout behavior
 
 ### `waitForNavigationReady(...)`
 
-Best default when the test is really asking "has Mainz finished applying the current navigation?"
+Best default when the test is really asking "has Mainz finished applying the
+current navigation?"
 
-When the test knows the app root, prefer passing `target` so multi-app setups stay unambiguous.
+When the test knows the app root, prefer passing `target` so multi-app setups
+stay unambiguous.
 
-If the page only hosts one Mainz app, omitting `target` is still ergonomic because the event bubbles
-and can be observed from `document`.
+If the page only hosts one Mainz app, omitting `target` is still ergonomic
+because the event bubbles and can be observed from `document`.
 
 Use it for:
 
 - initial SPA startup
 - client-side push and pop navigation
 - document-first bootstrap in `mpa` and `enhanced-mpa`
-- runtime tests that previously guessed readiness from title, locale, or body text
+- runtime tests that previously guessed readiness from title, locale, or body
+  text
 
 ### `waitFor(predicate)`
 
-Useful after readiness when you still need to poll for a narrower post-condition.
+Useful after readiness when you still need to poll for a narrower
+post-condition.
 
 ### `nextTick()`
 
-Useful for single-turn settling after an event or synchronous-looking state transition.
+Useful for single-turn settling after an event or synchronous-looking state
+transition.
 
 ## Good test style here
 
@@ -353,7 +382,8 @@ Prefer tests that assert user-visible runtime effects:
 Prefer this sequencing:
 
 - wait for `waitForNavigationStart(...)` when testing pending state
-- wait for `waitForNavigationAbort(...)` when testing cancelation and supersedence
+- wait for `waitForNavigationAbort(...)` when testing cancelation and
+  supersedence
 - wait for `waitForNavigationError(...)` when testing failure paths
 - wait for `waitForNavigationReady(...)`
 - then assert title, locale, body, and head behavior
@@ -362,7 +392,8 @@ That keeps synchronization separate from behavior assertions.
 
 ## When to stop and use E2E instead
 
-Use runtime tests when you do not need to validate the actual emitted build output.
+Use runtime tests when you do not need to validate the actual emitted build
+output.
 
 If the contract depends on:
 
@@ -372,4 +403,3 @@ If the contract depends on:
 - preview server behavior
 
 then move up to smoke or E2E tests.
-

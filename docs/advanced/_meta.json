@@ -1,15 +1,15 @@
 {
-    "section": "advanced",
-    "sectionTitle": "Advanced",
-    "sectionOrder": 3,
-    "articles": {
-        "styling.md": {
-            "slug": "styling",
-            "order": 1
-        },
-        "publish-base-path.md": {
-            "slug": "publish-base-path",
-            "order": 2
-        }
+  "section": "advanced",
+  "sectionTitle": "Advanced",
+  "sectionOrder": 3,
+  "articles": {
+    "styling.md": {
+      "slug": "styling",
+      "order": 1
+    },
+    "publish-base-path.md": {
+      "slug": "publish-base-path",
+      "order": 2
     }
+  }
 }

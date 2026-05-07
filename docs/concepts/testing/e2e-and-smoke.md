@@ -7,24 +7,26 @@ summary: Use explicit targets and profiles to drive predictable smoke and browse
 
 Mainz does not ship its own browser E2E framework.
 
-Instead, it tries to make E2E and smoke testing predictable by exposing the dimensions that matter
-through the CLI:
+Instead, it tries to make E2E and smoke testing predictable by exposing the
+dimensions that matter through the CLI:
 
 - `--target`
 - `--profile`
 
-That makes it easier to run external tools like Playwright or Cypress against meaningful
-combinations.
+That makes it easier to run external tools like Playwright or Cypress against
+meaningful combinations.
 
 ## Smoke tests versus E2E tests
 
 A useful split is:
 
-- smoke tests: smaller checks against real apps to confirm the product still boots and behaves
-- E2E tests: broader checks that validate build output, routing, hydration, SEO, and preview
+- smoke tests: smaller checks against real apps to confirm the product still
+  boots and behaves
+- E2E tests: broader checks that validate build output, routing, hydration, SEO,
+  and preview
 
-Mainz supports both styles well because build and runtime choices are explicit instead of hidden in
-one overloaded flag.
+Mainz supports both styles well because build and runtime choices are explicit
+instead of hidden in one overloaded flag.
 
 ## Example build commands
 
@@ -34,11 +36,14 @@ deno run -A ./src/cli/mainz.ts build --target site --profile gh-pages
 deno run -A ./src/cli/mainz.ts build --target docs --profile production
 ```
 
-These commands make the target and publication profile obvious in CI logs and local debugging, while render ownership stays with each page through `@RenderMode(...)`.
+These commands make the target and publication profile obvious in CI logs and
+local debugging, while render ownership stays with each page through
+`@RenderMode(...)`.
 
 ## What Mainz makes easier for E2E suites
 
-Even without shipping a browser runner, the framework helps with common E2E pain points:
+Even without shipping a browser runner, the framework helps with common E2E pain
+points:
 
 - navigation mode is app-owned
 - targets are explicit
@@ -82,9 +87,10 @@ That is the same philosophy used internally by the Mainz repository itself.
 
 A useful split for build-oriented E2E coverage is:
 
-- static artifact checks: read emitted HTML directly when the contract is about publication output
-- booted-runtime checks: execute the built client runtime when the contract is about hydration,
-  navigation, or post-boot head/body behavior
+- static artifact checks: read emitted HTML directly when the contract is about
+  publication output
+- booted-runtime checks: execute the built client runtime when the contract is
+  about hydration, navigation, or post-boot head/body behavior
 
 Use static artifact checks for things like:
 
@@ -100,9 +106,9 @@ Use booted-runtime checks for things like:
 - runtime title or head updates
 - interactive route behavior after boot
 
-For booted-runtime checks, prefer synchronizing on `waitForNavigationReady(...)` from
-`mainz/testing` or on the bubbled `mainz:navigationready` event before asserting title, locale,
-body, or head behavior.
+For booted-runtime checks, prefer synchronizing on `waitForNavigationReady(...)`
+from `mainz/testing` or on the bubbled `mainz:navigationready` event before
+asserting title, locale, body, or head behavior.
 
 ## Public surface versus internal test architecture
 
@@ -111,11 +117,13 @@ As a framework user, the public part you rely on is:
 - the `mainz/testing` helpers for unit and runtime tests
 - the CLI target/profile inputs that make E2E scenarios explicit
 
-For DOM-based smoke checks that execute the built runtime directly, prefer synchronizing on
-`waitForNavigationReady(...)` from `mainz/testing` or on the bubbled `mainz:navigationready` event
-before asserting title, locale, body, or head behavior. On multi-app pages, prefer scoping the wait
-to the relevant app root.
+For DOM-based smoke checks that execute the built runtime directly, prefer
+synchronizing on `waitForNavigationReady(...)` from `mainz/testing` or on the
+bubbled `mainz:navigationready` event before asserting title, locale, body, or
+head behavior. On multi-app pages, prefer scoping the wait to the relevant app
+root.
 
-When a smoke check is validating an expected failure or a pending state rather than successful
-settlement, prefer `waitForNavigationError(...)`, `waitForNavigationAbort(...)`, or
-`waitForNavigationStart(...)` over generic timeout-based inference.
+When a smoke check is validating an expected failure or a pending state rather
+than successful settlement, prefer `waitForNavigationError(...)`,
+`waitForNavigationAbort(...)`, or `waitForNavigationStart(...)` over generic
+timeout-based inference.

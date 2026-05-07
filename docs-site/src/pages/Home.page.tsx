@@ -11,32 +11,32 @@ import { DocsService } from "../services/DocsService.ts";
 @RenderMode("ssg")
 @Locales("en")
 export class HomePage extends Page {
-    readonly docs = inject(DocsService);
+  readonly docs = inject(DocsService);
 
-    override head() {
-        const page = this.docs.getPageById("home");
-        if (!page) {
-            throw new Error('Missing docs page content "home".');
-        }
-
-        return {
-            title: page.pageTitle ?? page.title,
-            meta: [
-                {
-                    name: "description",
-                    content: page.description ?? page.summary,
-                },
-            ],
-        };
+  override head() {
+    const page = this.docs.getPageById("home");
+    if (!page) {
+      throw new Error('Missing docs page content "home".');
     }
 
-    override render() {
-        return (
-            <DocsPageFrame
-                topbar={<DocsTopbar />}
-                sidebar={<DocsSidebar activeSlug={undefined} />}
-                main={<DocsHomeContent />}
-            />
-        );
-    }
+    return {
+      title: page.pageTitle ?? page.title,
+      meta: [
+        {
+          name: "description",
+          content: page.description ?? page.summary,
+        },
+      ],
+    };
+  }
+
+  override render() {
+    return (
+      <DocsPageFrame
+        topbar={<DocsTopbar />}
+        sidebar={<DocsSidebar activeSlug={undefined} />}
+        main={<DocsHomeContent />}
+      />
+    );
+  }
 }

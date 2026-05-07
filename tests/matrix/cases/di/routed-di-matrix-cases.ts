@@ -4,9 +4,9 @@ import { routedDiClientCase } from "./routed-di-client.case.ts";
 import { routedDiCase } from "./routed-di.case.ts";
 
 export const routedDiEntriesCases = [
-    routedDiCase,
+  routedDiCase,
 ] as const;
 
 export const routedDiClientCases = [
-    routedDiClientCase,
+  routedDiClientCase,
 ] as const;

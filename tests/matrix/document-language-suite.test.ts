@@ -4,6 +4,6 @@ import { documentLanguageCases } from "./cases/document-language/document-langua
 import { defineMatrixSuite } from "./harness.ts";
 
 defineMatrixSuite({
-    name: "matrix/document-language",
-    cases: documentLanguageCases,
+  name: "matrix/document-language",
+  cases: documentLanguageCases,
 });

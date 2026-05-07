@@ -4,5 +4,5 @@ import { alphaRootApp, betaRootApp } from "./roots.tsx";
 const selectedApp = true ? betaRootApp : alphaRootApp;
 
 startApp(selectedApp, {
-    mount: "#app",
+  mount: "#app",
 });

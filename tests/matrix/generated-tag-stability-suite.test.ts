@@ -4,6 +4,6 @@ import { generatedTagStabilityCase } from "./cases/generated-tags/generated-tag-
 import { defineMatrixSuite } from "./harness.ts";
 
 defineMatrixSuite({
-    name: "matrix/generated-tag-stability",
-    cases: [generatedTagStabilityCase],
+  name: "matrix/generated-tag-stability",
+  cases: [generatedTagStabilityCase],
 });

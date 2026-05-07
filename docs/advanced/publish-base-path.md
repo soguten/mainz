@@ -18,8 +18,8 @@ It affects:
 
 ## Treat base-path publishing as first-class
 
-If a framework says it supports publication under a path prefix, it should prove that support with
-explicit build and preview coverage instead of assuming `/`.
+If a framework says it supports publication under a path prefix, it should prove
+that support with explicit build and preview coverage instead of assuming `/`.
 
 ## Separate the framework profile from the hosting provider
 

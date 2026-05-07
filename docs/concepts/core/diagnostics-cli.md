@@ -35,12 +35,14 @@ Today `mainz diagnose` can report checks such as:
 - invalid `entries()` for dynamic SSG params
 - `notFound` pages that are not `ssg`
 - multiple `notFound` pages in the same routing set
-- pages that reference named authorization policies not declared in `app.authorization.policyNames`
+- pages that reference named authorization policies not declared in
+  `app.authorization.policyNames`
 - `Component` declarations with `@RenderStrategy("defer")` but no `load()`
 - `Component` declarations with `load()` using `defer` without `placeholder()`
-- `Component` declarations using `blocking` together with `placeholder()`, which is usually
-  misleading
-- `Component` declarations using `@RenderPolicy("placeholder-in-ssg")` without `placeholder()`
+- `Component` declarations using `blocking` together with `placeholder()`, which
+  is usually misleading
+- `Component` declarations using `@RenderPolicy("placeholder-in-ssg")` without
+  `placeholder()`
 - components that reference named authorization policies not declared in
   `app.authorization.policyNames`
 - DI registrations and injections that refer to missing services
@@ -48,51 +50,55 @@ Today `mainz diagnose` can report checks such as:
 
 ## Declarative policy names for diagnostics
 
-Named authorization policies are implemented at runtime through `auth.policies`, but the CLI does
-not execute those runtime policy functions during `mainz diagnose`.
+Named authorization policies are implemented at runtime through `auth.policies`,
+but the CLI does not execute those runtime policy functions during
+`mainz diagnose`.
 
-When you use `@Authorize({ policy: "..." })`, declare the allowed policy names in `defineApp(...)`
-so diagnostics can validate them statically:
+When you use `@Authorize({ policy: "..." })`, declare the allowed policy names
+in `defineApp(...)` so diagnostics can validate them statically:
 
 ```tsx title="main.tsx"
 import { defineApp, startApp } from "mainz";
 
 const app = defineApp({
-    id: "site",
-    authorization: {
-        policyNames: ["org-member", "billing-admin"],
-    },
-    pages: [HomePage, BillingPage],
+  id: "site",
+  authorization: {
+    policyNames: ["org-member", "billing-admin"],
+  },
+  pages: [HomePage, BillingPage],
 });
 
 startApp(app, {
-    auth: {
-        policies: {
-            "org-member": (principal) => principal.claims.orgId === "mainz",
-            "billing-admin": (principal) => principal.roles.includes("billing-admin"),
-        },
+  auth: {
+    policies: {
+      "org-member": (principal) => principal.claims.orgId === "mainz",
+      "billing-admin": (principal) => principal.roles.includes("billing-admin"),
     },
+  },
 });
 ```
 
-The app declaration is names-only and powers static diagnostics. The executable policy
-implementations still belong in `startApp(app, { auth: { policies } })`.
+The app declaration is names-only and powers static diagnostics. The executable
+policy implementations still belong in `startApp(app, { auth: { policies } })`.
 
-`mainz diagnose` expects a literal `authorization.policyNames` array on the selected app. Dynamic
-policy-name declarations are not statically resolved. Runtime authorization still fails fast if a
-protected page or component references a policy that is not registered in `auth.policies`.
+`mainz diagnose` expects a literal `authorization.policyNames` array on the
+selected app. Dynamic policy-name declarations are not statically resolved.
+Runtime authorization still fails fast if a protected page or component
+references a policy that is not registered in `auth.policies`.
 
 ## Static-analysis limits
 
-Diagnostics intentionally avoid adding public or routing-core metadata only to power extra static
-checks.
+Diagnostics intentionally avoid adding public or routing-core metadata only to
+power extra static checks.
 
 Today this means:
 
 - dynamic `authorization.policyNames` values are not statically resolved
-- app-level `notFound` pages are not checked for a redundant `@Route(...)` declaration
+- app-level `notFound` pages are not checked for a redundant `@Route(...)`
+  declaration
 
-Runtime and build behavior still use the resolved page path and app-owned `notFound` registration.
+Runtime and build behavior still use the resolved page path and app-owned
+`notFound` registration.
 
 ## Human output
 
@@ -123,8 +129,9 @@ error dynamic-ssg-missing-entries
   SSG route "/docs/:slug" must define entries() to expand dynamic params.
 ```
 
-When a target contains multiple app definitions, `mainz diagnose --target <name>` evaluates all of
-them in lexicographic order by app `id`.
+When a target contains multiple app definitions,
+`mainz diagnose --target <name>` evaluates all of them in lexicographic order by
+app `id`.
 
 Example:
 
@@ -147,7 +154,8 @@ To diagnose only one app within the target, pass its app id explicitly:
 mainz diagnose --target di-http-site --app site --format human
 ```
 
-`mainz diagnose` evaluates the app selected by the target and optional `--app` filter. If app discovery fails, it reports an app discovery error.
+`mainz diagnose` evaluates the app selected by the target and optional `--app`
+filter. If app discovery fails, it reports an app discovery error.
 
 ## JSON output
 
@@ -165,8 +173,9 @@ That keeps the output machine-readable for:
 
 ## Diagnostic suppression comments
 
-When one page or component intentionally needs a local escape hatch, Mainz diagnostics support a
-tooling-only suppression comment attached to the exported declaration.
+When one page or component intentionally needs a local escape hatch, Mainz
+diagnostics support a tooling-only suppression comment attached to the exported
+declaration.
 
 Place the comment:
 
@@ -186,7 +195,8 @@ export class OwnerTools extends Component {
 }
 ```
 
-That suppresses every `component-load-missing-placeholder` diagnostic emitted for that export.
+That suppresses every `component-load-missing-placeholder` diagnostic emitted
+for that export.
 
 Subject-specific suppression:
 
@@ -202,7 +212,8 @@ export class SearchPage extends Page {
 
 That suppresses only the matching semantic occurrence.
 
-When you need more than one subject, repeat the diagnostic code once per subject:
+When you need more than one subject, repeat the diagnostic code once per
+subject:
 
 ```ts
 /**
@@ -217,9 +228,11 @@ export class StoriesPage extends Page {
 Today subject-aware diagnostics include cases such as:
 
 - invalid locale tags with `locale=<locale>`
-- invalid dynamic SSG entries with `entry=<index>` or `entry=<index>;locale=<locale>`
+- invalid dynamic SSG entries with `entry=<index>` or
+  `entry=<index>;locale=<locale>`
 - missing DI registrations for one injected token with `token=<token-name>`
-- missing DI registrations for one service dependency with `dependency=<token-name>`
+- missing DI registrations for one service dependency with
+  `dependency=<token-name>`
 
 Suppression validation is diagnostic-aware:
 
@@ -228,7 +241,8 @@ Suppression validation is diagnostic-aware:
 - duplicate `code + subject` entries warn
 - unused suppressions warn
 
-If a suppression omits `subject`, it applies to all subjects of that code for the same owner.
+If a suppression omits `subject`, it applies to all subjects of that code for
+the same owner.
 
 ## CI usage
 
@@ -260,5 +274,5 @@ Mainz intentionally starts with the CLI because it gives you:
 - one rule engine
 - one place to use in local development and CI
 
-If Mainz adds VS Code or LSP integration later, those should reuse the same diagnostics core instead
-of inventing a separate rule model.
+If Mainz adds VS Code or LSP integration later, those should reuse the same
+diagnostics core instead of inventing a separate rule model.

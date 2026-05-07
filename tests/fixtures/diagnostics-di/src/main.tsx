@@ -9,34 +9,34 @@ class RegisteredDependency {
 }
 
 class NeedsMissingDependency {
-    constructor(_dependency: MissingDependency) {
-    }
+  constructor(_dependency: MissingDependency) {
+  }
 }
 
 class CycleA {
-    constructor(_dependency: CycleB) {
-    }
+  constructor(_dependency: CycleB) {
+  }
 }
 
 class CycleB {
-    constructor(_dependency: CycleA) {
-    }
+  constructor(_dependency: CycleA) {
+  }
 }
 
 const app = defineApp({
-    id: "diagnostics-di",
-    pages: [DiagnosticsDiFixturePage],
-    services: [
-        singleton(RegisteredDependency),
-        singleton(
-            NeedsMissingDependency,
-            ({ get }) => new NeedsMissingDependency(get(MissingDependency)),
-        ),
-        singleton(CycleA, ({ get }) => new CycleA(get(CycleB))),
-        singleton(CycleB, ({ get }) => new CycleB(get(CycleA))),
-    ],
+  id: "diagnostics-di",
+  pages: [DiagnosticsDiFixturePage],
+  services: [
+    singleton(RegisteredDependency),
+    singleton(
+      NeedsMissingDependency,
+      ({ get }) => new NeedsMissingDependency(get(MissingDependency)),
+    ),
+    singleton(CycleA, ({ get }) => new CycleA(get(CycleB))),
+    singleton(CycleB, ({ get }) => new CycleB(get(CycleA))),
+  ],
 });
 
 startApp(app, {
-    mount: "#app",
+  mount: "#app",
 });

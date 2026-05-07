@@ -1,9 +1,9 @@
 import { Authorize, CustomElement, Page, Route } from "mainz";
 
 abstract class DiagnosticsAuthorizationMissingPolicyPage extends Page {
-    override render() {
-        return <div></div>;
-    }
+  override render() {
+    return <div></div>;
+  }
 }
 
 @CustomElement("x-mainz-diagnostics-authorization-missing-policy-org-page")

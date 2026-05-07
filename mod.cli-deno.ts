@@ -10,24 +10,25 @@ import type { MainzToolingRuntime } from "./src/tooling/runtime/types.ts";
 
 export { main } from "./src/cli/mainz.ts";
 export type {
-    MainzToolingRuntime,
-    ToolingCommand,
-    ToolingCommandResult,
-    ToolingCommandStdio,
-    ToolingDirEntry,
-    ToolingFileStat,
-    ToolingRuntimeName,
-    ToolingViteCommandOptions,
+  MainzToolingRuntime,
+  ToolingCommand,
+  ToolingCommandResult,
+  ToolingCommandStdio,
+  ToolingDirEntry,
+  ToolingFileStat,
+  ToolingRuntimeName,
+  ToolingViteCommandOptions,
 } from "./src/tooling/runtime/types.ts";
 
 /**
  * Shared Deno tooling runtime instance exposed by the published package.
  */
-export const denoToolingRuntime: MainzToolingRuntime = internalDenoToolingRuntime;
+export const denoToolingRuntime: MainzToolingRuntime =
+  internalDenoToolingRuntime;
 
 if (import.meta.main) {
-    const exitCode = await main(Deno.args, { hostRuntime: "deno" });
-    if (exitCode !== 0) {
-        Deno.exit(exitCode);
-    }
+  const exitCode = await main(Deno.args, { hostRuntime: "deno" });
+  if (exitCode !== 0) {
+    Deno.exit(exitCode);
+  }
 }

@@ -6,14 +6,14 @@ import { TutorialPage } from "../components/TutorialPage.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class CoreContractsHomePage extends Page {
-    override head() {
-        return {
-            title: "Mainz",
-        };
-    }
+  override head() {
+    return {
+      title: "Mainz",
+    };
+  }
 
-    override render() {
-        const locale = (this.route.locale ?? "en") as "en" | "pt";
-        return <TutorialPage locale={locale} />;
-    }
+  override render() {
+    const locale = (this.route.locale ?? "en") as "en" | "pt";
+    return <TutorialPage locale={locale} />;
+  }
 }

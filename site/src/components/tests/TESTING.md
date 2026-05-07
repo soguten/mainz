@@ -1,6 +1,7 @@
 # Mainz Site Component Testing Guide
 
-This folder follows the same testing convention used across Mainz component suites.
+This folder follows the same testing convention used across Mainz component
+suites.
 
 ## Required Structure
 
@@ -16,7 +17,9 @@ Every suite in this folder should use:
 Site components also extend `HTMLElement`, so importing TSX fixtures before
 `setupMainzDom()` can fail during module evaluation.
 
-The framework now protects the base `Component` import in non-DOM environments, which helps build and server tooling. Tests should still use the fixture pattern because JSX/component modules may touch DOM APIs during evaluation.
+The framework now protects the base `Component` import in non-DOM environments,
+which helps build and server tooling. Tests should still use the fixture pattern
+because JSX/component modules may touch DOM APIs during evaluation.
 
 ## Canonical Pattern
 
@@ -27,13 +30,15 @@ import { renderMainzComponent, setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const fixtures = await import("./Example.fixture.tsx") as typeof import("./Example.fixture.tsx");
+const fixtures = await import(
+  "./Example.fixture.tsx"
+) as typeof import("./Example.fixture.tsx");
 ```
 
 ## Rule For Agents
 
-Do not infer an alternative test structure here.
-Use `fixture.tsx` + dynamic import as the default test pattern for Mainz suites.
+Do not infer an alternative test structure here. Use `fixture.tsx` + dynamic
+import as the default test pattern for Mainz suites.
 
 ## Integration Contract Checklist
 
@@ -47,5 +52,5 @@ When a change affects the sample site, prefer asserting one of these behaviors:
 - workshop/editor behavior survives UI upgrades
 - page composition still reflects core runtime guarantees
 
-Keep site tests focused and complementary.
-The canonical contract should still live in the core suites whenever possible.
+Keep site tests focused and complementary. The canonical contract should still
+live in the core suites whenever possible.

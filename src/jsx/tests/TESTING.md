@@ -1,8 +1,10 @@
 # Mainz JSX Testing Guide
 
-This folder contains tests for the JSX runtime surface (`h`, `Fragment`, `jsx`, `jsxs`, `jsxDEV`) and JSX integration with Mainz components.
+This folder contains tests for the JSX runtime surface (`h`, `Fragment`, `jsx`,
+`jsxs`, `jsxDEV`) and JSX integration with Mainz components.
 
-Unlike `src/components/tests`, these suites are split across runtime layers, from low-level factory behavior to TSX integration scenarios.
+Unlike `src/components/tests`, these suites are split across runtime layers,
+from low-level factory behavior to TSX integration scenarios.
 
 ## Test Groups
 
@@ -46,16 +48,25 @@ import { setupMainzDom } from "mainz/testing";
 
 await setupMainzDom();
 
-const domFactory = await import("../dom-factory.ts") as typeof import("../dom-factory.ts");
-const fixtures = await import("./jsx.example.fixture.tsx") as typeof import("./jsx.example.fixture.tsx");
+const domFactory = await import(
+  "../dom-factory.ts"
+) as typeof import("../dom-factory.ts");
+const fixtures = await import(
+  "./jsx.example.fixture.tsx"
+) as typeof import("./jsx.example.fixture.tsx");
 
 Deno.test("jsx/factory: should create class components and assign props", () => {
-    const element = domFactory.h(fixtures.ExampleFactoryComponent, { label: "x" }) as HTMLElement & {
-        props: Record<string, unknown>;
-    };
+  const element = domFactory.h(fixtures.ExampleFactoryComponent, {
+    label: "x",
+  }) as HTMLElement & {
+    props: Record<string, unknown>;
+  };
 
-    assertEquals(element.tagName, fixtures.ExampleFactoryComponent.getTagName().toUpperCase());
-    assertEquals(element.props.label, "x");
+  assertEquals(
+    element.tagName,
+    fixtures.ExampleFactoryComponent.getTagName().toUpperCase(),
+  );
+  assertEquals(element.props.label, "x");
 });
 ```
 
@@ -64,10 +75,11 @@ Deno.test("jsx/factory: should create class components and assign props", () => 
 ```tsx
 import { Component } from "mainz";
 
-export class ExampleFactoryComponent extends Component<{ label?: string }, Record<string, never>> {
-    override render(): HTMLElement {
-        return <div data-label={this.props.label ?? "none"} />;
-    }
+export class ExampleFactoryComponent
+  extends Component<{ label?: string }, Record<string, never>> {
+  override render(): HTMLElement {
+    return <div data-label={this.props.label ?? "none"} />;
+  }
 }
 ```
 

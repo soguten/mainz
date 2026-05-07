@@ -5,9 +5,9 @@ class MissingApi {
 }
 
 export class DiInjectedCard extends Component {
-    readonly api = inject(MissingApi);
+  readonly api = inject(MissingApi);
 
-    render() {
-        return <div>DI</div>;
-    }
+  render() {
+    return <div>DI</div>;
+  }
 }

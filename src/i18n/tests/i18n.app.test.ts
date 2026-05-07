@@ -6,123 +6,126 @@ import { withHappyDom } from "../../ssg/happy-dom.ts";
 import { MAINZ_LOCALE_CHANGE_EVENT } from "../../runtime-events.ts";
 
 Deno.test({
-    name: "i18n/app: should prefer locale from path segment",
-    sanitizeOps: false,
-    sanitizeResources: false,
-    fn: async () => {
-        await withHappyDom(async () => {
-            const i18n = createAppDictionaryI18n({
-                defaultLocale: "en",
-                dictionaries: {
-                    en: { common: { title: "Hello" } },
-                    pt: { common: { title: "Ola" } },
-                },
-            });
+  name: "i18n/app: should prefer locale from path segment",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withHappyDom(async () => {
+      const i18n = createAppDictionaryI18n({
+        defaultLocale: "en",
+        dictionaries: {
+          en: { common: { title: "Hello" } },
+          pt: { common: { title: "Ola" } },
+        },
+      });
 
-            assertEquals(i18n.getLocale(), "pt");
-            assertEquals(i18n.t("common.title"), "Ola");
-        }, { url: "https://mainz.local/pt/" });
-    },
+      assertEquals(i18n.getLocale(), "pt");
+      assertEquals(i18n.t("common.title"), "Ola");
+    }, { url: "https://mainz.local/pt/" });
+  },
 });
 
 Deno.test({
-    name: "i18n/app: should fallback to html lang when path has no locale",
-    sanitizeOps: false,
-    sanitizeResources: false,
-    fn: async () => {
-        await withHappyDom(async () => {
-            document.documentElement.lang = "pt";
+  name: "i18n/app: should fallback to html lang when path has no locale",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withHappyDom(async () => {
+      document.documentElement.lang = "pt";
 
-            const i18n = createAppDictionaryI18n({
-                defaultLocale: "en",
-                dictionaries: {
-                    en: { common: { title: "Hello" } },
-                    pt: { common: { title: "Ola" } },
-                },
-            });
+      const i18n = createAppDictionaryI18n({
+        defaultLocale: "en",
+        dictionaries: {
+          en: { common: { title: "Hello" } },
+          pt: { common: { title: "Ola" } },
+        },
+      });
 
-            assertEquals(i18n.getLocale(), "pt");
-            assertEquals(i18n.t("common.title"), "Ola");
-        }, { url: "https://mainz.local/docs/" });
-    },
+      assertEquals(i18n.getLocale(), "pt");
+      assertEquals(i18n.t("common.title"), "Ola");
+    }, { url: "https://mainz.local/docs/" });
+  },
 });
 
 Deno.test({
-    name: "i18n/app: should fallback to html lang when a base path comes before the locale segment",
-    sanitizeOps: false,
-    sanitizeResources: false,
-    fn: async () => {
-        await withHappyDom(async () => {
-            document.documentElement.lang = "pt";
+  name:
+    "i18n/app: should fallback to html lang when a base path comes before the locale segment",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withHappyDom(async () => {
+      document.documentElement.lang = "pt";
 
-            const i18n = createAppDictionaryI18n({
-                defaultLocale: "en",
-                dictionaries: {
-                    en: { common: { title: "Hello" } },
-                    pt: { common: { title: "Ola" } },
-                },
-            });
+      const i18n = createAppDictionaryI18n({
+        defaultLocale: "en",
+        dictionaries: {
+          en: { common: { title: "Hello" } },
+          pt: { common: { title: "Ola" } },
+        },
+      });
 
-            assertEquals(i18n.getLocale(), "pt");
-            assertEquals(i18n.t("common.title"), "Ola");
-        }, { url: "https://mainz.local/mainz/pt/" });
-    },
+      assertEquals(i18n.getLocale(), "pt");
+      assertEquals(i18n.t("common.title"), "Ola");
+    }, { url: "https://mainz.local/mainz/pt/" });
+  },
 });
 
 Deno.test({
-    name: "i18n/app: should allow disabling path detection",
-    sanitizeOps: false,
-    sanitizeResources: false,
-    fn: async () => {
-        await withHappyDom(async () => {
-            const i18n = createAppDictionaryI18n({
-                defaultLocale: "en",
-                dictionaries: {
-                    en: { common: { title: "Hello" } },
-                    pt: { common: { title: "Ola" } },
-                },
-                detect: {
-                    path: false,
-                    document: false,
-                    navigator: false,
-                },
-            });
+  name: "i18n/app: should allow disabling path detection",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withHappyDom(async () => {
+      const i18n = createAppDictionaryI18n({
+        defaultLocale: "en",
+        dictionaries: {
+          en: { common: { title: "Hello" } },
+          pt: { common: { title: "Ola" } },
+        },
+        detect: {
+          path: false,
+          document: false,
+          navigator: false,
+        },
+      });
 
-            assertEquals(i18n.getLocale(), "en");
-            assertEquals(i18n.t("common.title"), "Hello");
-        }, { url: "https://mainz.local/pt/" });
-    },
+      assertEquals(i18n.getLocale(), "en");
+      assertEquals(i18n.t("common.title"), "Hello");
+    }, { url: "https://mainz.local/pt/" });
+  },
 });
 
 Deno.test({
-    name: "i18n/app: should follow Mainz locale change events after startup",
-    sanitizeOps: false,
-    sanitizeResources: false,
-    fn: async () => {
-        await withHappyDom(async () => {
-            const i18n = createAppDictionaryI18n({
-                defaultLocale: "en",
-                dictionaries: {
-                    en: { common: { title: "Hello" } },
-                    pt: { common: { title: "Ola" } },
-                },
-                detect: {
-                    path: false,
-                    document: false,
-                    navigator: false,
-                },
-            });
+  name: "i18n/app: should follow Mainz locale change events after startup",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: async () => {
+    await withHappyDom(async () => {
+      const i18n = createAppDictionaryI18n({
+        defaultLocale: "en",
+        dictionaries: {
+          en: { common: { title: "Hello" } },
+          pt: { common: { title: "Ola" } },
+        },
+        detect: {
+          path: false,
+          document: false,
+          navigator: false,
+        },
+      });
 
-            document.dispatchEvent(new CustomEvent(MAINZ_LOCALE_CHANGE_EVENT, {
-                detail: {
-                    locale: "pt",
-                    url: "https://mainz.local/pt/",
-                    basePath: "/",
-                },
-            }));
+      document.dispatchEvent(
+        new CustomEvent(MAINZ_LOCALE_CHANGE_EVENT, {
+          detail: {
+            locale: "pt",
+            url: "https://mainz.local/pt/",
+            basePath: "/",
+          },
+        }),
+      );
 
-            assertEquals(i18n.getLocale(), "pt");
-            assertEquals(i18n.t("common.title"), "Ola");
-        }, { url: "https://mainz.local/" });
-    },
+      assertEquals(i18n.getLocale(), "pt");
+      assertEquals(i18n.t("common.title"), "Ola");
+    }, { url: "https://mainz.local/" });
+  },
 });

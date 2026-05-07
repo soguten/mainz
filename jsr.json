@@ -1,52 +1,52 @@
 {
-    "$schema": "https://jsr.io/schema/config-file.v1.json",
-    "name": "@mainz/mainz",
-    "version": "0.1.0-alpha.47",
-    "license": "MIT",
-    "compilerOptions": {
-        "lib": [
-            "dom",
-            "deno.ns",
-            "es2022"
-        ],
-        "strict": true
-    },
-    "imports": {
-        "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-        "happy-dom": "npm:happy-dom@20.9.0",
-        "vite": "npm:vite@8.0.10"
-    },
-    "exports": {
-        ".": "./mod.ts",
-        "./config": "./src/public/config.ts",
-        "./di": "./src/public/di.ts",
-        "./http": "./src/public/http.ts",
-        "./http/testing": "./src/public/http-testing.ts",
-        "./i18n": "./src/public/i18n.ts",
-        "./testing": "./src/public/testing.ts",
-        "./tooling/build": "./src/public/tooling-build.ts",
-        "./tooling/config": "./src/public/tooling-config.ts",
-        "./tooling/diagnostics": "./src/diagnostics/index.ts",
-        "./tooling/runtime": "./src/public/tooling-runtime.ts",
-        "./jsx-runtime": "./src/jsx-runtime.ts",
-        "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
-    },
-    "publish": {
-        "include": [
-            "LICENSE",
-            "README.md",
-            "mod.ts",
-            "src/**"
-        ],
-        "exclude": [
-            "**/tests/**",
-            "src/tests/**",
-            "src/cli/**",
-            "src/preview/**",
-            "**/*.fixture.ts",
-            "**/*.fixture.tsx",
-            "**/_template.*",
-            "templates/**"
-        ]
-    }
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@mainz/mainz",
+  "version": "0.1.0-alpha.47",
+  "license": "MIT",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "deno.ns",
+      "es2022"
+    ],
+    "strict": true
+  },
+  "imports": {
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+    "happy-dom": "npm:happy-dom@20.9.0",
+    "vite": "npm:vite@8.0.10"
+  },
+  "exports": {
+    ".": "./mod.ts",
+    "./config": "./src/public/config.ts",
+    "./di": "./src/public/di.ts",
+    "./http": "./src/public/http.ts",
+    "./http/testing": "./src/public/http-testing.ts",
+    "./i18n": "./src/public/i18n.ts",
+    "./testing": "./src/public/testing.ts",
+    "./tooling/build": "./src/public/tooling-build.ts",
+    "./tooling/config": "./src/public/tooling-config.ts",
+    "./tooling/diagnostics": "./src/diagnostics/index.ts",
+    "./tooling/runtime": "./src/public/tooling-runtime.ts",
+    "./jsx-runtime": "./src/jsx-runtime.ts",
+    "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
+  },
+  "publish": {
+    "include": [
+      "LICENSE",
+      "README.md",
+      "mod.ts",
+      "src/**"
+    ],
+    "exclude": [
+      "**/tests/**",
+      "src/tests/**",
+      "src/cli/**",
+      "src/preview/**",
+      "**/*.fixture.ts",
+      "**/*.fixture.tsx",
+      "**/_template.*",
+      "templates/**"
+    ]
+  }
 }

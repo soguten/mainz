@@ -6,5 +6,5 @@ import { readBackendMode } from "./lib/runtime.ts";
 const backendMode = readBackendMode();
 
 startApp(backendMode === "mock" ? mockApp : app, {
-    mount: "#app",
+  mount: "#app",
 });

@@ -1,19 +1,19 @@
 {
-    "section": "getting-started",
-    "sectionTitle": "Getting Started",
-    "sectionOrder": 1,
-    "articles": {
-        "quickstart.md": {
-            "slug": "quickstart",
-            "order": 1
-        },
-        "installation.md": {
-            "slug": "installation",
-            "order": 2
-        },
-        "project-structure.md": {
-            "slug": "project-structure",
-            "order": 3
-        }
+  "section": "getting-started",
+  "sectionTitle": "Getting Started",
+  "sectionOrder": 1,
+  "articles": {
+    "quickstart.md": {
+      "slug": "quickstart",
+      "order": 1
+    },
+    "installation.md": {
+      "slug": "installation",
+      "order": 2
+    },
+    "project-structure.md": {
+      "slug": "project-structure",
+      "order": 3
     }
+  }
 }

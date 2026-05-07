@@ -6,24 +6,23 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 import { DocsService } from "./services/DocsService.ts";
 
 const app = defineApp({
-    id: "docs-site",
-    navigation: "enhanced-mpa",
-    i18n: {
-        locales: ["en"],
-        defaultLocale: "en",
-        localePrefix: "except-default",
-    },
-    pages: [HomePage, DocsPage],
-    notFound: NotFoundPage,
-    services: [
-        singleton(DocsService, () =>
-            new DocsService({
-                rootPath: "../../../docs/",
-            })
-        ),
-    ],
+  id: "docs-site",
+  navigation: "enhanced-mpa",
+  i18n: {
+    locales: ["en"],
+    defaultLocale: "en",
+    localePrefix: "except-default",
+  },
+  pages: [HomePage, DocsPage],
+  notFound: NotFoundPage,
+  services: [
+    singleton(DocsService, () =>
+      new DocsService({
+        rootPath: "../../../docs/",
+      })),
+  ],
 });
 
 startApp(app, {
-    mount: "#app",
+  mount: "#app",
 });

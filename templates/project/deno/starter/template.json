@@ -1,5 +1,5 @@
 {
-    "kind": "project",
-    "name": "starter",
-    "runtime": "deno"
+  "kind": "project",
+  "name": "starter",
+  "runtime": "deno"
 }

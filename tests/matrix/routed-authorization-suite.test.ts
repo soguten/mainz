@@ -4,6 +4,6 @@ import { routedAuthorizationCases } from "./cases/authorization/routed-authoriza
 import { defineMatrixSuite } from "./harness.ts";
 
 defineMatrixSuite({
-    name: "matrix/routed-authorization",
-    cases: routedAuthorizationCases,
+  name: "matrix/routed-authorization",
+  cases: routedAuthorizationCases,
 });
