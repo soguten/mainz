@@ -13,7 +13,7 @@ export const singleLocaleHomeCase = matrixTest({
   fixture: "SingleLocaleRoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const screen = await fixture.render(artifact, "/");

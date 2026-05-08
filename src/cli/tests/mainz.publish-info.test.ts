@@ -15,5 +15,5 @@ Deno.test("cli/mainz: publish-info should print artifact metadata resolved from 
   assertEquals(metadata.profile, "gh-pages");
   assertEquals(metadata.outDir, "dist/site/ssg");
   assertEquals(metadata.basePath, "/");
-  assertEquals(metadata.navigation, "enhanced-mpa");
+  assertEquals(metadata.navigation, "mpa");
 });

@@ -13,7 +13,7 @@ export const navigationCase = matrixTest({
   fixture: "RoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const screen = await fixture.render(artifact, "/");
@@ -97,7 +97,7 @@ export const navigationCase = matrixTest({
       );
       assertEquals(document.body.textContent ?? "", initialText);
 
-      if (combo.navigation === "enhanced-mpa") {
+  if (combo.navigation === "mpa") {
         assertEquals(prefetchHref, "https://mainz.local/pt/");
         assertEquals(
           document.documentElement.dataset.mainzTransitionPhase,
@@ -118,7 +118,7 @@ export const navigationCase = matrixTest({
 });
 
 async function waitForPostClick(
-  navigationMode: "spa" | "mpa" | "enhanced-mpa",
+  navigationMode: "spa" | "mpa",
   started?: Promise<unknown>,
 ): Promise<void> {
   if (navigationMode === "spa") {

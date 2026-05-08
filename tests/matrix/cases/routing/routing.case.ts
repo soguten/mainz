@@ -12,7 +12,7 @@ export const routingCase = matrixTest({
   fixture: "RoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ artifact, fixture }) => {
     await assertRoute({

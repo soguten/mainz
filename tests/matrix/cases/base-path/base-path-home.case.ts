@@ -24,7 +24,7 @@ export const basePathHomeCase = matrixTest({
   profile: "gh-pages",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const screen = await fixture.renderDocument({
@@ -130,7 +130,7 @@ export const basePathHomeCase = matrixTest({
         bodyIncludes: "Fixture home",
       });
 
-      if (combo.navigation === "enhanced-mpa") {
+    if (combo.navigation === "mpa") {
         assertEquals(prefetchHref, `https://mainz.local${matrixBasePath}pt/`);
         assertEquals(
           document.documentElement.dataset.mainzTransitionPhase,

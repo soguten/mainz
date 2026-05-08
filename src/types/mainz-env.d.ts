@@ -1,7 +1,7 @@
 declare global {
   const __MAINZ_RENDER_MODE__: "csr" | "ssg";
   const __MAINZ_RUNTIME_ENV__: "build" | "client";
-  const __MAINZ_NAVIGATION_MODE__: "spa" | "mpa" | "enhanced-mpa";
+  const __MAINZ_NAVIGATION_MODE__: "spa" | "mpa";
   const __MAINZ_TARGET_NAME__: string;
   const __MAINZ_BASE_PATH__: string;
   const __MAINZ_APP_LOCALES__: readonly string[];

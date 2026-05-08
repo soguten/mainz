@@ -27,7 +27,7 @@ Deno.test(
 
     await t.step("hydration", async () => {
       const hydrationManifest = await readHydrationManifest();
-      assertEquals(hydrationManifest.navigation, "enhanced-mpa");
+      assertEquals(hydrationManifest.navigation, "mpa");
 
       const rootHtmlPath = resolve(repoRoot, "dist/site/ssg/index.html");
       const rootHtml = await Deno.readTextFile(rootHtmlPath);
@@ -83,7 +83,7 @@ Deno.test(
 
         assertEquals(
           document.documentElement.dataset.mainzNavigation,
-          "enhanced-mpa",
+          "mpa",
         );
         assertEquals(
           document.documentElement.dataset.mainzTransitionPhase,
@@ -206,7 +206,7 @@ Deno.test(
 
         assertEquals(
           document.documentElement.dataset.mainzNavigation,
-          "enhanced-mpa",
+          "mpa",
         );
         assertStringIncludes(
           document.body.textContent ?? "",

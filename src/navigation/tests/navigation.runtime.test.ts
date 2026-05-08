@@ -185,7 +185,8 @@ Deno.test("navigation/runtime: defineApp should reject @Locales(...) outside app
 });
 
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
-  const { startNavigation } = await prepareNavigationTest();
+  const { detectViewTransitionSupport, startNavigation } =
+    await prepareNavigationTest();
 
   const controller = startNavigation({ mode: "mpa" });
 
@@ -196,7 +197,7 @@ Deno.test("navigation/runtime: should mark document with the resolved navigation
   );
   assertEquals(
     document.documentElement.dataset.mainzViewTransitions,
-    undefined,
+    detectViewTransitionSupport(),
   );
 
   controller.cleanup();
@@ -2057,11 +2058,11 @@ Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across na
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should expose transition metadata in enhanced-mpa mode", async () => {
+Deno.test("navigation/runtime: should expose transition metadata in mpa mode", async () => {
   const { detectViewTransitionSupport, startNavigation } =
     await prepareNavigationTest();
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
 
   assertEquals(
     document.documentElement.dataset.mainzTransitionPhase,
@@ -2075,10 +2076,10 @@ Deno.test("navigation/runtime: should expose transition metadata in enhanced-mpa
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should apply entering phase on pageshow in enhanced-mpa mode", async () => {
+Deno.test("navigation/runtime: should apply entering phase on pageshow in mpa mode", async () => {
   const { startNavigation } = await prepareNavigationTest();
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
 
   window.dispatchEvent(new Event("pageshow"));
   assertEquals(
@@ -2095,10 +2096,10 @@ Deno.test("navigation/runtime: should apply entering phase on pageshow in enhanc
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should prefetch same-origin links in enhanced-mpa mode", async () => {
+Deno.test("navigation/runtime: should prefetch same-origin links in mpa mode", async () => {
   const { startNavigation } = await prepareNavigationTest();
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
   const anchor = document.createElement("a");
   const appended: Element[] = [];
   const originalAppendChild = document.head.appendChild.bind(document.head);
@@ -2149,7 +2150,7 @@ Deno.test("navigation/runtime: should not prefetch same-origin links outside the
 Deno.test("navigation/runtime: should mark leaving phase for internal document navigation", async () => {
   const { startNavigation } = await prepareNavigationTest();
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
   const anchor = document.createElement("a");
   anchor.href = "http://localhost/docs";
   document.body.appendChild(anchor);
@@ -2166,23 +2167,22 @@ Deno.test("navigation/runtime: should mark leaving phase for internal document n
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should ignore links outside the configured basePath in enhanced-mpa mode", async () => {
-  const { startNavigation } = await prepareNavigationTest();
-
-  const controller = startNavigation({
-    mode: "enhanced-mpa",
-    basePath: "/app/",
-  });
+Deno.test("navigation/runtime: should ignore links outside the configured basePath in mpa mode", async () => {
+  const { isPrefetchableAnchor, startNavigation } = await prepareNavigationTest();
   const anchor = document.createElement("a");
   anchor.href = "http://localhost/docs";
   document.body.appendChild(anchor);
 
-  anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+  assertEquals(isPrefetchableAnchor(anchor, { basePath: "/app/" }), false);
+
+  const controller = startNavigation({
+    mode: "mpa",
+    basePath: "/app/",
+  });
   anchor.dispatchEvent(
     new MouseEvent("click", { bubbles: true, cancelable: true }),
   );
 
-  assertEquals(anchor.getAttribute("data-mainz-prefetched"), null);
   assertEquals(
     document.documentElement.dataset.mainzTransitionPhase,
     undefined,
@@ -2191,7 +2191,7 @@ Deno.test("navigation/runtime: should ignore links outside the configured basePa
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should restore saved scroll position in enhanced-mpa mode", async () => {
+Deno.test("navigation/runtime: should restore saved scroll position in mpa mode", async () => {
   const { createScrollStorageKey, startNavigation } =
     await prepareNavigationTest();
 
@@ -2205,14 +2205,14 @@ Deno.test("navigation/runtime: should restore saved scroll position in enhanced-
     JSON.stringify({ x: 12, y: 48 }),
   );
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
 
   assertEquals(calls, [{ x: 12, y: 48 }]);
 
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should persist scroll position on pagehide in enhanced-mpa mode", async () => {
+Deno.test("navigation/runtime: should persist scroll position on pagehide in mpa mode", async () => {
   const { createScrollStorageKey, startNavigation } =
     await prepareNavigationTest();
 
@@ -2225,7 +2225,7 @@ Deno.test("navigation/runtime: should persist scroll position on pagehide in enh
     value: 80,
   });
 
-  const controller = startNavigation({ mode: "enhanced-mpa" });
+  const controller = startNavigation({ mode: "mpa" });
 
   window.dispatchEvent(new Event("pagehide"));
 

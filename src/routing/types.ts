@@ -8,7 +8,7 @@ import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 export type RenderMode = "csr" | "ssg";
 export type RenderModeFallback = "404" | "csr";
 /** Navigation behavior used by Mainz runtime and build outputs. */
-export type NavigationMode = "spa" | "mpa" | "enhanced-mpa";
+export type NavigationMode = "spa" | "mpa";
 export type RouteSource = "filesystem";
 
 export interface FilesystemRoutingOptions {

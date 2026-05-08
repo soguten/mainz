@@ -83,12 +83,11 @@ Deno.test("matrix/harness: should expand rectangular exercise into the cartesian
   assertEquals(
     expandMatrixExercise({
       render: ["ssg"],
-      navigation: ["spa", "mpa", "enhanced-mpa"],
+      navigation: ["spa", "mpa"],
     }),
     [
       { render: "ssg", navigation: "spa" },
       { render: "ssg", navigation: "mpa" },
-      { render: "ssg", navigation: "enhanced-mpa" },
     ],
   );
 });

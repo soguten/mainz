@@ -9,7 +9,7 @@ export const documentLanguageQuickstartCase = matrixTest({
   fixture: "DocumentLanguageRoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     if (!(combo.render === "csr" && combo.navigation === "spa")) {

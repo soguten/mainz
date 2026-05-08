@@ -17,7 +17,7 @@ export const basePathNotFoundCase = matrixTest({
   profile: "gh-pages",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const screen = await fixture.renderDocument({

@@ -118,7 +118,7 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
     const appFile = await Deno.readTextFile(
       resolve(cwd, "demo", "app", "src", "app.ts"),
     );
-    assertStringIncludes(appFile, 'navigation: "enhanced-mpa"');
+    assertStringIncludes(appFile, 'navigation: "spa"');
     assertStringIncludes(appFile, "pages: [HomePage]");
 
     const homePage = await Deno.readTextFile(
@@ -639,7 +639,7 @@ Deno.test("cli/mainz app: create should scaffold an app workspace and target", a
       resolve(cwd, "docs", "src", "app.ts"),
     );
     assertStringIncludes(appFile, 'import { defineApp } from "mainz";');
-    assertStringIncludes(appFile, 'navigation: "enhanced-mpa"');
+    assertStringIncludes(appFile, 'navigation: "spa"');
     assertStringIncludes(appFile, "pages: [HomePage]");
     assertStringIncludes(appFile, "notFound: NotFoundPage");
 

@@ -16,7 +16,7 @@ export const i18nCase = matrixTest({
   fixture: "RoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     await assertRootLocaleRedirect({
@@ -76,7 +76,7 @@ export const i18nCase = matrixTest({
 });
 
 async function assertRootLocaleRedirect(args: {
-  combo: { render: "csr" | "ssg"; navigation: "spa" | "mpa" | "enhanced-mpa" };
+  combo: { render: "csr" | "ssg"; navigation: "spa" | "mpa" };
   artifact: MatrixArtifact;
   fixture: MatrixFixture;
   navigatorLocale: string;

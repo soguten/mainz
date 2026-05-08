@@ -9,7 +9,7 @@ export const headCase = matrixTest({
   fixture: "RoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ artifact, fixture }) => {
     const screen = await fixture.render(artifact, "/pt/");

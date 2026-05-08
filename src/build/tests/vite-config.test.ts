@@ -105,7 +105,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
     target: config.targets[0],
     modeOutDir: "dist/docs/ssg",
     renderMode: "ssg",
-    navigationMode: "enhanced-mpa",
+    navigationMode: "mpa",
     basePath: "/docs/",
     appLocales: ["en", "pt-BR"],
     defaultLocale: "en",
@@ -121,7 +121,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
   assertEquals(generated.define.__MAINZ_RENDER_MODE__, JSON.stringify("ssg"));
   assertEquals(
     generated.define.__MAINZ_NAVIGATION_MODE__,
-    JSON.stringify("enhanced-mpa"),
+    JSON.stringify("mpa"),
   );
   assertEquals(generated.define.__MAINZ_TARGET_NAME__, JSON.stringify("docs"));
   assertEquals(
@@ -257,7 +257,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
 
 Deno.test("build/vite-config: should use app-owned navigation for generated defaults", async () => {
   const fixture = await createAppFixture({
-    navigation: "enhanced-mpa",
+    navigation: "mpa",
   });
 
   try {
@@ -292,11 +292,11 @@ Deno.test("build/vite-config: should use app-owned navigation for generated defa
       localePrefix: "except-default",
     });
 
-    assertEquals(navigationMode, "enhanced-mpa");
+    assertEquals(navigationMode, "mpa");
     assertEquals(generated.appType, "mpa");
     assertEquals(
       generated.define.__MAINZ_NAVIGATION_MODE__,
-      JSON.stringify("enhanced-mpa"),
+      JSON.stringify("mpa"),
     );
   } finally {
     await Deno.remove(fixture.cwd, { recursive: true });
@@ -354,7 +354,7 @@ function normalizePath(path: string): string {
 }
 
 async function createAppFixture(args: {
-  navigation?: "spa" | "mpa" | "enhanced-mpa";
+  navigation?: "spa" | "mpa";
 }): Promise<{ cwd: string }> {
   const cwd = await Deno.makeTempDir({
     prefix: "mainz-generated-vite-navigation-",

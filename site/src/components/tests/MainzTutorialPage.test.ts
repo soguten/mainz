@@ -177,7 +177,7 @@ Deno.test("site/layout: should keep mobile overflow protections in the page styl
   assertStringIncludes(pageStyles, ".top-nav-actions");
 });
 
-Deno.test("site/layout: should avoid page-load animation styles that cause enhanced-mpa flicker", () => {
+Deno.test("site/layout: should avoid page-load animation styles that cause mpa flicker", () => {
   assertEquals(pageStyles.includes("press-reveal"), false);
   assertEquals(pageStyles.includes("mainz-page-enter"), false);
   assertEquals(pageStyles.includes("@view-transition"), false);

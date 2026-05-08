@@ -115,7 +115,7 @@ type AppCommandOptions = {
   type?: "routed" | "root";
   root?: string;
   outDir?: string;
-  navigation?: "spa" | "mpa" | "enhanced-mpa";
+  navigation?: "spa" | "mpa";
   runtime?: MainzRuntime;
   configPath?: string;
   deleteFiles?: boolean;
@@ -1226,14 +1226,14 @@ function readOptionValue(option: string, value: string | undefined): string {
 function parseAppNavigation(
   value: string | undefined,
 ): AppCommandOptions["navigation"] {
-  if (value === "spa" || value === "mpa" || value === "enhanced-mpa") {
+  if (value === "spa" || value === "mpa") {
     return value;
   }
 
   throw new Error(
     `Unsupported app navigation "${
       value ?? ""
-    }". Use "spa", "mpa", or "enhanced-mpa".`,
+    }". Use "spa" or "mpa".`,
   );
 }
 
@@ -1404,7 +1404,7 @@ async function runInitCommand(
     mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
     appName,
     appId: appName,
-    appNavigation: "enhanced-mpa",
+    appNavigation: "spa",
     appTitle: projectName,
     customElementPrefix: `x-mainz-${toCustomElementSegment(projectName)}`,
     rootDir: `./${appName}`,
@@ -1491,7 +1491,7 @@ async function runAppCreateCommand(
   const templateParams = {
     appName,
     appId: appName,
-    appNavigation: options.navigation ?? "enhanced-mpa",
+    appNavigation: options.navigation ?? "spa",
     appTitle: appName,
     customElementPrefix: `x-mainz-${toKebabCase(appName)}`,
     rootDir,
@@ -2215,7 +2215,7 @@ function getHelpText(topic: HelpTopic): string[] {
       "Mainz CLI - app",
       "",
       "Usage:",
-      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa>] [--config <path>]",
       "  mainz app remove [<target>|--target <target>] [--delete-files] [--config <path>]",
       "  mainz app list [--config <path>]",
       "  mainz app info [<target>|--target <target>] [--config <path>]",
@@ -2227,7 +2227,7 @@ function getHelpText(topic: HelpTopic): string[] {
       "Mainz CLI - app create",
       "",
       "Usage:",
-      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>]",
+      "  mainz app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa>] [--config <path>]",
       "",
       "Notes:",
       "  Without --template, Mainz uses default-routed; pass --type root for default-root.",
@@ -2402,7 +2402,7 @@ function getHelpText(topic: HelpTopic): string[] {
     "",
     "Usage:",
     "  mainz [--cli <deno|node|bun>] init [<name>] [--template <name|source>] [--runtime <deno|node|bun>] [--config <path>] [--deno-config <path>] [--mainz <specifier>]",
-    "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa|enhanced-mpa>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] app create [<name>|--name <name>] [--type <routed|root>|--template <name|source>] [--root <path>] [--out-dir <path>] [--navigation <spa|mpa>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] app remove [<target>|--target <target>] [--delete-files] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] app list [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] app info [<target>|--target <target>] [--config <path>] [--runtime <deno|node|bun>]",
@@ -2436,7 +2436,7 @@ function getHelpText(topic: HelpTopic): string[] {
     "  mainz init --mainz jsr:@mainz/mainz@<version>",
     "  mainz app create site",
     "  mainz app create --name site",
-    "  mainz app create docs --navigation enhanced-mpa",
+    "  mainz app create docs --navigation mpa",
     "  mainz app create portal --type root",
     "  mainz app create docs --template default-routed",
     "  mainz app remove site",
@@ -3403,7 +3403,7 @@ async function clearGeneratedViteArtifacts(
 
 function resolveCliViteBasePath(
   basePath: string,
-  navigationMode: "spa" | "mpa" | "enhanced-mpa",
+  navigationMode: "spa" | "mpa",
 ): string {
   if (navigationMode === "spa") {
     return normalizeCliAbsoluteBasePath(basePath);

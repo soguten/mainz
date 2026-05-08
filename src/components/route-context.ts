@@ -49,8 +49,7 @@ export function isRouteContext(value: unknown): value is RouteContext {
     candidate.url instanceof URL &&
     (candidate.renderMode === "csr" || candidate.renderMode === "ssg") &&
     (candidate.navigationMode === "spa" ||
-      candidate.navigationMode === "mpa" ||
-      candidate.navigationMode === "enhanced-mpa");
+      candidate.navigationMode === "mpa");
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

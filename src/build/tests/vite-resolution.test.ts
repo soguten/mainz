@@ -66,7 +66,7 @@ Deno.test("build/vite-resolution: should resolve generated Vite configs into .ma
       target: config.targets[0]!,
       modeOutDir: "dist/site/csr",
       renderMode: "csr",
-      navigationMode: "enhanced-mpa",
+      navigationMode: "mpa",
       basePath: "./",
       appLocales: ["en"],
       defaultLocale: "en",

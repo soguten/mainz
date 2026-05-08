@@ -8,7 +8,7 @@ export const routedDiCase = matrixTest({
   fixture: "RoutedDIEntriesApp",
   exercise: {
     render: ["ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ artifact, fixture }) => {
     await assertStoryRoute({

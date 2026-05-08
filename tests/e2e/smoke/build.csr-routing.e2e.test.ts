@@ -14,11 +14,11 @@ import {
 } from "../../helpers/fixture-io.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
-Deno.test("e2e/csr routing: enhanced-mpa build should emit localized route shells and hydrate direct document loads", async () => {
+Deno.test("e2e/csr routing: mpa build should emit localized route shells and hydrate direct document loads", async () => {
   await buildSiteCsrEnhancedMpa();
 
   const hydrationManifest = await readHydrationManifest();
-  assertEquals(hydrationManifest.navigation, "enhanced-mpa");
+  assertEquals(hydrationManifest.navigation, "mpa");
 
   const rootHtmlPath = resolve(repoRoot, "dist/site/csr/index.html");
   const rootHtml = await Deno.readTextFile(rootHtmlPath);
@@ -49,7 +49,7 @@ Deno.test("e2e/csr routing: enhanced-mpa build should emit localized route shell
 
     assertEquals(
       document.documentElement.dataset.mainzNavigation,
-      "enhanced-mpa",
+      "mpa",
     );
     assertStringIncludes(
       document.body.textContent ?? "",
@@ -58,7 +58,7 @@ Deno.test("e2e/csr routing: enhanced-mpa build should emit localized route shell
   }, { url: "https://mainz.local/pt/" });
 });
 
-Deno.test("e2e/csr preview: enhanced-mpa build should serve localized routes and custom 404 page", async () => {
+Deno.test("e2e/csr preview: mpa build should serve localized routes and custom 404 page", async () => {
   await buildSiteCsrEnhancedMpa();
 
   const handler = createArtifactPreviewHandler(
@@ -103,7 +103,7 @@ Deno.test("e2e/csr preview: enhanced-mpa build should serve localized routes and
 
     assertEquals(
       document.documentElement.dataset.mainzNavigation,
-      "enhanced-mpa",
+      "mpa",
     );
     assertStringIncludes(
       document.body.textContent ?? "",

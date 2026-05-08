@@ -57,7 +57,7 @@ export type {
 export type { RouteContext, RouteProfileContext } from "./route-context.ts";
 
 /** Navigation mode visible to page-owned load and head helpers. */
-export type PageNavigationMode = "spa" | "mpa" | "enhanced-mpa";
+export type PageNavigationMode = "spa" | "mpa";
 
 /** Runtime channel used when resolving page-owned resources. */
 export type PageLoadRuntime = "build" | "client";

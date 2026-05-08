@@ -14,7 +14,7 @@ export const hydrationCase = matrixTest({
   fixture: "RootApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const screen = await fixture.render(artifact, "/pt/");
@@ -24,7 +24,7 @@ export const hydrationCase = matrixTest({
         {
           target: string;
           hydration: string;
-          navigation: "spa" | "mpa" | "enhanced-mpa";
+  navigation: "spa" | "mpa";
         } | null
       >(artifact, "hydration.json").catch((error) => {
         if (error instanceof Deno.errors.NotFound) {

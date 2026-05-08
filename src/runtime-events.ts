@@ -36,7 +36,7 @@ export interface MainzLocaleChangeDetail {
  */
 export interface MainzNavigationReadyDetail {
   /** Navigation runtime mode handling the transition. */
-  mode: "spa" | "mpa" | "enhanced-mpa";
+  mode: "spa" | "mpa";
   /** Browser navigation type that triggered the transition. */
   navigationType: "initial" | "push" | "pop";
   /** Requested pathname. */
@@ -58,7 +58,7 @@ export interface MainzNavigationReadyDetail {
  */
 export interface MainzNavigationStartDetail {
   /** Navigation runtime mode handling the transition. */
-  mode: "spa" | "mpa" | "enhanced-mpa";
+  mode: "spa" | "mpa";
   /** Browser navigation type that triggered the transition. */
   navigationType: "initial" | "push" | "pop";
   /** Requested pathname. */
@@ -80,7 +80,7 @@ export interface MainzNavigationStartDetail {
  */
 export interface MainzNavigationErrorDetail {
   /** Navigation runtime mode handling the transition. */
-  mode: "spa" | "mpa" | "enhanced-mpa";
+  mode: "spa" | "mpa";
   /** Browser navigation type that triggered the transition. */
   navigationType: "initial" | "push" | "pop";
   /** Requested pathname. */
@@ -114,7 +114,7 @@ export interface MainzNavigationErrorDetail {
  */
 export interface MainzNavigationAbortDetail {
   /** Navigation runtime mode handling the transition. */
-  mode: "spa" | "mpa" | "enhanced-mpa";
+  mode: "spa" | "mpa";
   /** Browser navigation type that triggered the transition. */
   navigationType: "initial" | "push" | "pop";
   /** Requested pathname. */

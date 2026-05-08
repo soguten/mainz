@@ -13,7 +13,7 @@ export const documentLanguageHomeCase = matrixTest({
   fixture: "DocumentLanguageRoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const html = await fixture.readHtml(artifact, "/");

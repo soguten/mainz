@@ -7,7 +7,7 @@ import type {
 } from "../../src/config/types.ts";
 
 export type TestRenderMode = "csr" | "ssg";
-export type TestNavigationMode = "spa" | "mpa" | "enhanced-mpa";
+export type TestNavigationMode = "spa" | "mpa";
 export type TestBuildCombination = {
   mode: TestRenderMode;
   navigation: TestNavigationMode;
@@ -48,8 +48,6 @@ export const cliTestsRepoRoot = resolve(
 export const testCombinations = [
   { mode: "ssg", navigation: "spa" },
   { mode: "ssg", navigation: "mpa" },
-  { mode: "ssg", navigation: "enhanced-mpa" },
   { mode: "csr", navigation: "spa" },
   { mode: "csr", navigation: "mpa" },
-  { mode: "csr", navigation: "enhanced-mpa" },
 ] as const satisfies readonly TestBuildCombination[];

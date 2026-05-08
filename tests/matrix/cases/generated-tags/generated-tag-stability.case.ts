@@ -8,7 +8,7 @@ export const generatedTagStabilityCase = matrixTest({
   name: "generated custom element tags stay stable in production output",
   fixture: "GeneratedTagStabilityApp",
   exercise: [
-    { render: "ssg", navigation: "enhanced-mpa" },
+    { render: "ssg", navigation: "mpa" },
   ],
   run: async ({ artifact, fixture }) => {
     const html = await fixture.readHtml(artifact, "/");

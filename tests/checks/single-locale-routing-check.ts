@@ -17,7 +17,7 @@ import type { TestBuildContext } from "../helpers/types.ts";
 
 export async function runSingleLocaleRoutingCheck(args: {
   mode: "csr" | "ssg";
-  navigation: "spa" | "mpa" | "enhanced-mpa";
+  navigation: "spa" | "mpa";
 }): Promise<void> {
   const context = await buildSingleLocaleRoutedAppForCombination(args);
 
@@ -215,7 +215,7 @@ async function assertDocsRoute(args: TestBuildContext): Promise<void> {
 async function resolveRouteFixture(
   outputDir: string,
   renderMode: "csr" | "ssg",
-  navigationMode: "spa" | "mpa" | "enhanced-mpa",
+  navigationMode: "spa" | "mpa",
   routePath: string,
 ): Promise<
   { html: string; htmlPath: string; outputDir: string; responseStatus?: number }

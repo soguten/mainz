@@ -78,7 +78,6 @@ const defaultMatrixRenders = [
 const defaultMatrixNavigations = [
   "spa",
   "mpa",
-  "enhanced-mpa",
 ] as const satisfies readonly MatrixNavigation[];
 
 export function matrixTest(input: MatrixCase): MatrixCase {

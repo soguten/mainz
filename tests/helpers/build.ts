@@ -505,7 +505,7 @@ async function applyAppNavigationToFixture(
 
   const source = await Deno.readTextFile(mainPath);
   const withoutExistingNavigation = source.replace(
-    /^(\s*)navigation:\s*"(spa|mpa|enhanced-mpa)",\r?\n/m,
+    /^(\s*)navigation:\s*"(spa|mpa)",\r?\n/m,
     "",
   );
   const updated = withoutExistingNavigation.replace(

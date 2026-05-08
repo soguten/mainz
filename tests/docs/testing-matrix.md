@@ -10,7 +10,7 @@ API contract.
 Mainz supports independent execution axes that can interact in surprising ways:
 
 - render mode: `csr`, `ssg`
-- navigation mode: `spa`, `mpa`, `enhanced-mpa`
+- navigation mode: `spa`, `mpa`
 - target: `site`, `docs`, `playground`
 - profile and publishing variants like `gh-pages` and `plain-static`
 
@@ -62,10 +62,10 @@ The declarative suite expands the supported `testCombinations` from
 
 - `ssg + spa`
 - `ssg + mpa`
-- `ssg + enhanced-mpa`
+- `ssg + mpa`
 - `csr + spa`
 - `csr + mpa`
-- `csr + enhanced-mpa`
+- `csr + mpa`
 
 For each combination, the harness:
 
@@ -79,7 +79,7 @@ The core matrix is for contracts that share the same build shape:
 
 - target: `core-contracts`
 - mode: one of `csr` or `ssg`
-- navigation: one of `spa`, `mpa`, or `enhanced-mpa`
+- navigation: one of `spa` or `mpa`
 
 Today that shared cluster covers:
 
@@ -428,7 +428,7 @@ type TestBuildContext = {
   outputDir: string;
   targetName: string;
   mode: "csr" | "ssg";
-  navigation: "spa" | "mpa" | "enhanced-mpa";
+navigation: "spa" | "mpa";
   profile?: string;
   configPath?: string;
 };
@@ -621,7 +621,7 @@ Recommended shape:
 ```ts
 export async function runExampleMatrixCheck(args: {
   mode: "csr" | "ssg";
-  navigation: "spa" | "mpa" | "enhanced-mpa";
+navigation: "spa" | "mpa";
   context?: TestBuildContext;
 }): Promise<void> {
   const context = args.context ?? await buildRoutedAppForCombination(args);
@@ -662,7 +662,7 @@ supported combinations that already exist today.
 
 Examples:
 
-- a new routing invariant for `csr + enhanced-mpa`
+- a new routing invariant for `csr + mpa`
 - another head assertion over emitted localized routes
 - an extra hydration assertion over the current `core-contracts` artifact
 

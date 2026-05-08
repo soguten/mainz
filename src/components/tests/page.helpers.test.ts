@@ -38,7 +38,7 @@ Deno.test("components/page helpers: load.byParams should resolve a param subset 
     locale: "pt-BR",
     url: new URL("https://example.com/pt-br/docs/intro"),
     renderMode: "csr",
-    navigationMode: "enhanced-mpa",
+    navigationMode: "mpa",
   });
 
   const resolveLoad = load.byParams(
@@ -48,7 +48,7 @@ Deno.test("components/page helpers: load.byParams should resolve a param subset 
     },
   );
 
-  assertEquals(await resolveLoad(context), "pt-br:intro:enhanced-mpa");
+  assertEquals(await resolveLoad(context), "pt-br:intro:mpa");
 });
 
 Deno.test("components/page helpers: Locales decorator should keep locale metadata outside head()", () => {

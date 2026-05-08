@@ -7,7 +7,7 @@ import { DocsService } from "./services/DocsService.ts";
 
 const app = defineApp({
   id: "docs-site",
-  navigation: "enhanced-mpa",
+  navigation: "mpa",
   i18n: {
     locales: ["en"],
     defaultLocale: "en",

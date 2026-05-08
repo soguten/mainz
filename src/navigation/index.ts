@@ -42,7 +42,7 @@ import { normalizeLocaleTag } from "../i18n/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 import { attachServiceContainer, readServiceContainer } from "../di/context.ts";
 
-declare const __MAINZ_NAVIGATION_MODE__: "spa" | "mpa" | "enhanced-mpa";
+declare const __MAINZ_NAVIGATION_MODE__: "spa" | "mpa";
 declare const __MAINZ_RENDER_MODE__: "csr" | "ssg";
 declare const __MAINZ_BASE_PATH__: string;
 declare const __MAINZ_DEFAULT_LOCALE__: string | undefined;
@@ -988,7 +988,7 @@ export function __internalStartNavigation(
     );
   }
 
-  if (options.mode !== "enhanced-mpa") {
+  if (options.mode !== "mpa") {
     return {
       mode: options.mode,
       cleanup() {},
@@ -3150,14 +3150,11 @@ function resolveMainzNavigationMode(): NavigationMode {
 
   const fromGlobal =
     (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__;
-  if (
-    fromGlobal === "spa" || fromGlobal === "mpa" ||
-    fromGlobal === "enhanced-mpa"
-  ) {
+  if (fromGlobal === "spa" || fromGlobal === "mpa") {
     return fromGlobal;
   }
 
-  return "enhanced-mpa";
+  return "mpa";
 }
 
 function resolveMainzRenderMode(): "csr" | "ssg" {

@@ -263,7 +263,6 @@ Deno.test("navigation/route params matrix: spa should keep params when navigatin
 for (
   const navigationMode of [
     "mpa",
-    "enhanced-mpa",
   ] as const satisfies readonly NavigationMode[]
 ) {
   Deno.test(

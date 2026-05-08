@@ -9,7 +9,7 @@ export const singleLocaleQuickstartCase = matrixTest({
   fixture: "SingleLocaleRoutedApp",
   exercise: {
     render: ["csr", "ssg"],
-    navigation: ["spa", "mpa", "enhanced-mpa"],
+    navigation: ["spa", "mpa"],
   },
   run: async ({ combo, artifact, fixture }) => {
     const preview = await fixture.preview(artifact, "/quickstart");
