@@ -16,6 +16,7 @@ Deno.test("config/load: should load config modules through the supplied tooling 
     readDir: async function* () {},
     mkdir: async () => undefined,
     remove: async () => undefined,
+    rename: async () => undefined,
     stat: async () => ({ isFile: true, isDirectory: false }),
     makeTempDir: async () => "",
     run: async () => ({ success: true, code: 0 }),

@@ -237,6 +237,39 @@ Deno.test("build/execution: should overwrite the managed workspace Vite config w
   }
 });
 
+Deno.test("build/execution: should recover an empty generated Vite config artifact left by an interrupted write", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-vite-empty-artifact-recover-",
+  });
+
+  try {
+    const runtime = new DenoToolingRuntime();
+    const artifactDir = resolveGeneratedViteConfigArtifactDir({
+      cwd,
+      targetName: "site",
+      runtimeName: runtime.name,
+    });
+    await Deno.mkdir(artifactDir, { recursive: true });
+    const artifactPath = resolve(artifactDir, "vite.config.ts");
+    await Deno.writeTextFile(artifactPath, "");
+
+    const artifact = await materializeGeneratedViteConfigFile({
+      artifactDir,
+      runtime,
+      moduleSource:
+        "// @mainz-generated-vite-config\nexport default { appType: 'spa' };",
+    });
+
+    assertEquals(artifact.path, artifactPath);
+    assertEquals(
+      await Deno.readTextFile(artifactPath),
+      "// @mainz-generated-vite-config\nexport default { appType: 'spa' };",
+    );
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("build/execution: should refuse to overwrite an unmanaged managed-artifact Vite config", async () => {
   const cwd = await Deno.makeTempDir({
     prefix: "mainz-vite-unmanaged-artifact-",

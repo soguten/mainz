@@ -43,6 +43,10 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
     await Deno.remove(path, options);
   }
 
+  async rename(from: string, to: string): Promise<void> {
+    await Deno.rename(from, to);
+  }
+
   async stat(path: string): Promise<ToolingFileStat> {
     const stat = await Deno.stat(path);
     return {

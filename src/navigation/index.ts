@@ -313,6 +313,10 @@ export interface NavigationController {
   cleanup(): void;
 }
 
+type WindowWithMainzCleanupRegistry = Window & {
+  __MAINZ_WINDOW_CLEANUPS__?: Set<() => void>;
+};
+
 interface NavigationAnchorOptions {
   basePath?: string;
 }
@@ -560,14 +564,14 @@ export function startApp(
   options?: StartDefinedAppOptions,
 ): NavigationController {
   if (isRootComponentConstructor(appOrRoot)) {
-    return startRootApp({
+    return registerNavigationController(startRootApp({
       id: appOrRoot.name || "root-app",
       root: appOrRoot,
-    }, options);
+    }, options));
   }
 
   if (isDefinedRootApp(appOrRoot)) {
-    return startRootApp(appOrRoot, options);
+    return registerNavigationController(startRootApp(appOrRoot, options));
   }
 
   if (!isDefinedRoutedApp(appOrRoot)) {
@@ -578,7 +582,7 @@ export function startApp(
 
   captureDefinedApp(appOrRoot);
 
-  return __internalStartNavigation({
+  return registerNavigationController(__internalStartNavigation({
     mode: resolveMainzNavigationMode(),
     basePath: resolveMainzBasePath(),
     appId: appOrRoot.id,
@@ -590,7 +594,37 @@ export function startApp(
     auth: options?.auth,
     services: appOrRoot.services,
     locales: appOrRoot.i18n?.locales,
-  });
+  }));
+}
+
+function registerNavigationController(
+  controller: NavigationController,
+): NavigationController {
+  if (typeof window === "undefined") {
+    return controller;
+  }
+
+  const cleanupWindow = window as WindowWithMainzCleanupRegistry;
+  const cleanupRegistry = cleanupWindow.__MAINZ_WINDOW_CLEANUPS__ ??= new Set();
+  let active = true;
+  const originalCleanup = controller.cleanup.bind(controller);
+
+  const cleanup = () => {
+    if (!active) {
+      return;
+    }
+
+    active = false;
+    cleanupRegistry.delete(cleanup);
+    originalCleanup();
+  };
+
+  cleanupRegistry.add(cleanup);
+
+  return {
+    mode: controller.mode,
+    cleanup,
+  };
 }
 
 function startRootApp(

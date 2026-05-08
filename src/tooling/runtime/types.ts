@@ -90,6 +90,8 @@ export interface MainzToolingRuntime {
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
   /** Removes a file or directory from the host filesystem. */
   remove(path: string, options?: { recursive?: boolean }): Promise<void>;
+  /** Moves or renames a file or directory on the host filesystem. */
+  rename(from: string, to: string): Promise<void>;
   /** Reads file metadata from the host filesystem. */
   stat(path: string): Promise<ToolingFileStat>;
   /** Creates a temporary directory owned by the host runtime. */

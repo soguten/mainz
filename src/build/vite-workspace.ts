@@ -24,7 +24,10 @@ export async function materializeGeneratedViteConfigFile(args: {
 
   const existingSource = await readTextFileIfExists(artifactPath, args.runtime);
   if (existingSource !== undefined) {
-    if (!isManagedGeneratedViteConfigSource(existingSource)) {
+    if (
+      !isManagedGeneratedViteConfigSource(existingSource) &&
+      !isRecoverableIncompleteGeneratedViteConfigSource(existingSource)
+    ) {
       throw new Error(
         `Refusing to overwrite existing generated Vite config artifact at "${artifactPath}". ` +
           `Remove it before using the generated config again.`,
@@ -40,7 +43,11 @@ export async function materializeGeneratedViteConfigFile(args: {
     }
   }
 
-  await args.runtime.writeTextFile(artifactPath, args.moduleSource);
+  await writeGeneratedViteConfigAtomically({
+    path: artifactPath,
+    runtime: args.runtime,
+    source: args.moduleSource,
+  });
 
   return {
     dir: artifactDir,
@@ -96,4 +103,40 @@ async function readTextFileIfExists(
 
 function isManagedGeneratedViteConfigSource(source: string): boolean {
   return source.startsWith(generatedViteConfigBanner);
+}
+
+function isRecoverableIncompleteGeneratedViteConfigSource(source: string): boolean {
+  return source.trim().length === 0;
+}
+
+async function writeGeneratedViteConfigAtomically(args: {
+  path: string;
+  runtime: MainzToolingRuntime;
+  source: string;
+}): Promise<void> {
+  const tempPath = `${args.path}.${crypto.randomUUID()}.tmp`;
+
+  try {
+    await args.runtime.writeTextFile(tempPath, args.source);
+
+    if (await fileExists(args.path, args.runtime)) {
+      await args.runtime.remove(args.path);
+    }
+
+    await args.runtime.rename(tempPath, args.path);
+  } catch (error) {
+    await removeFileIfExists(tempPath, args.runtime);
+    throw error;
+  }
+}
+
+async function removeFileIfExists(
+  path: string,
+  runtime: MainzToolingRuntime,
+): Promise<void> {
+  if (!(await fileExists(path, runtime))) {
+    return;
+  }
+
+  await runtime.remove(path);
 }

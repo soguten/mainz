@@ -4,6 +4,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  rename,
   rm,
   stat,
   writeFile,
@@ -73,6 +74,10 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
       force: false,
       recursive: options?.recursive ?? false,
     });
+  }
+
+  async rename(from: string, to: string): Promise<void> {
+    await rename(from, to);
   }
 
   async stat(path: string): Promise<ToolingFileStat> {

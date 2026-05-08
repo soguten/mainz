@@ -17,12 +17,20 @@ export const uniqueCommand = defineCommand({
 
 export const duplicateCommandApp = defineApp({
   id: "docs-app",
-  root: class DuplicateCommandRoot extends HTMLElement {},
+  root: class DuplicateCommandRoot extends HTMLElement {
+    static getTagName(): string {
+      return "test-duplicate-command-root";
+    }
+  },
   commands: [duplicatePrimaryCommand, duplicateSecondaryCommand, uniqueCommand],
 });
 
 export const uniqueCommandApp = defineApp({
   id: "guides-app",
-  root: class UniqueCommandRoot extends HTMLElement {},
+  root: class UniqueCommandRoot extends HTMLElement {
+    static getTagName(): string {
+      return "test-unique-command-root";
+    }
+  },
   commands: [uniqueCommand],
 });

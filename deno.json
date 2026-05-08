@@ -1,5 +1,10 @@
 {
   "nodeModulesDir": "auto",
+  "exclude": [
+    ".mainz_temp/",
+    ".mainz-temp/",
+    "dist/"
+  ],
   "unstable": [
     "sloppy-imports"
   ],

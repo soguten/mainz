@@ -30,3 +30,16 @@ Deno.test("ssg/happy-dom: should strip external document resources from document
     assert(document.getElementById("app"));
   });
 });
+
+Deno.test("ssg/happy-dom: should cancel bare global timers created during a session", async () => {
+  let fired = false;
+
+  await withHappyDom(async () => {
+    setTimeout(() => {
+      fired = true;
+    }, 25);
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  assertEquals(fired, false);
+});

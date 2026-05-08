@@ -20,6 +20,10 @@ const GLOBAL_DOM_KEYS = [
   "cancelAnimationFrame",
   "requestIdleCallback",
   "cancelIdleCallback",
+  "setTimeout",
+  "clearTimeout",
+  "setInterval",
+  "clearInterval",
   "getComputedStyle",
   "HTMLInputElement",
   "MouseEvent",
@@ -40,6 +44,23 @@ type HappyDOMController = {
   abort?: () => void;
   cancelAsync?: () => void;
   close?: () => void;
+};
+
+type TimerHandle = ReturnType<Window["setTimeout"]>;
+type IdleCallbackHandle = TimerHandle;
+type TrackedTimerBindings = {
+  setTimeout(
+    callback: TimerHandler,
+    delay?: number,
+    ...args: unknown[]
+  ): TimerHandle;
+  clearTimeout(handle?: TimerHandle | number): void;
+  setInterval(
+    callback: TimerHandler,
+    delay?: number,
+    ...args: unknown[]
+  ): TimerHandle;
+  clearInterval(handle?: TimerHandle | number): void;
 };
 
 export async function withHappyDom<T>(
@@ -63,21 +84,33 @@ export async function withHappyDom<T>(
     requestIdleCallback?: (callback: IdleRequestCallback) => number;
     cancelIdleCallback?: (handle: number) => void;
   };
+  const pendingIdleCallbacks = new Set<IdleCallbackHandle>();
+  const pendingTimeouts = new Set<TimerHandle>();
+  const pendingIntervals = new Set<TimerHandle>();
+  const trackedTimers = installTrackedWindowTimers(
+    window,
+    pendingTimeouts,
+    pendingIntervals,
+  );
 
   if (!extendedWindow.requestIdleCallback) {
     extendedWindow.requestIdleCallback = (callback: IdleRequestCallback) => {
-      return setTimeout(() => {
+      const handle = trackedTimers.setTimeout(() => {
+        pendingIdleCallbacks.delete(handle);
         callback({
           didTimeout: false,
           timeRemaining: () => 0,
         });
       }, 0);
+      pendingIdleCallbacks.add(handle);
+      return handle as unknown as number;
     };
   }
 
   if (!extendedWindow.cancelIdleCallback) {
     extendedWindow.cancelIdleCallback = (handle: number) => {
-      clearTimeout(handle);
+      pendingIdleCallbacks.delete(handle as unknown as IdleCallbackHandle);
+      trackedTimers.clearTimeout(handle as unknown as TimerHandle);
     };
   }
 
@@ -96,6 +129,23 @@ export async function withHappyDom<T>(
       (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ =
         previousRuntime;
     }
+
+    runRegisteredWindowCleanups(window);
+
+    for (const handle of pendingIdleCallbacks) {
+      trackedTimers.clearTimeout(handle as unknown as TimerHandle);
+    }
+    pendingIdleCallbacks.clear();
+
+    for (const handle of pendingTimeouts) {
+      trackedTimers.clearTimeout(handle);
+    }
+    pendingTimeouts.clear();
+
+    for (const handle of pendingIntervals) {
+      trackedTimers.clearInterval(handle);
+    }
+    pendingIntervals.clear();
 
     for (const key of GLOBAL_DOM_KEYS) {
       const previous = previousValues.get(key);
@@ -148,6 +198,114 @@ function stripExternalDocumentResources(html: string): string {
       /<script\b[^>]*\bsrc=["']https?:\/\/[^"']+["'][^>]*>\s*<\/script>/gi,
       "",
     );
+}
+
+function installTrackedWindowTimers(
+  window: Window,
+  pendingTimeouts: Set<TimerHandle>,
+  pendingIntervals: Set<TimerHandle>,
+): TrackedTimerBindings {
+  const nativeSetTimeout = window.setTimeout.bind(window);
+  const nativeClearTimeout = window.clearTimeout.bind(window);
+  const nativeSetInterval = window.setInterval.bind(window);
+  const nativeClearInterval = window.clearInterval.bind(window);
+
+  const trackedSetTimeout: TrackedTimerBindings["setTimeout"] = (
+    callback: TimerHandler,
+    delay?: number,
+    ...args: unknown[]
+  ) => {
+    let handle!: TimerHandle;
+    handle = nativeSetTimeout(() => {
+      pendingTimeouts.delete(handle);
+      if (typeof callback === "function") {
+        callback(...args);
+      } else {
+        new Function(String(callback))();
+      }
+    }, delay);
+    pendingTimeouts.add(handle);
+    return handle;
+  };
+
+  const trackedClearTimeout: TrackedTimerBindings["clearTimeout"] = (
+    handle?: TimerHandle | number,
+  ) => {
+    if (handle === undefined) {
+      return;
+    }
+
+    pendingTimeouts.delete(handle as TimerHandle);
+    nativeClearTimeout(handle as TimerHandle);
+  };
+
+  const trackedSetInterval: TrackedTimerBindings["setInterval"] = (
+    callback: TimerHandler,
+    delay?: number,
+    ...args: unknown[]
+  ) => {
+    const handle = nativeSetInterval(() => {
+      if (typeof callback === "function") {
+        callback(...args);
+      } else {
+        new Function(String(callback))();
+      }
+    }, delay);
+    pendingIntervals.add(handle);
+    return handle;
+  };
+
+  const trackedClearInterval: TrackedTimerBindings["clearInterval"] = (
+    handle?: TimerHandle | number,
+  ) => {
+    if (handle === undefined) {
+      return;
+    }
+
+    pendingIntervals.delete(handle as TimerHandle);
+    nativeClearInterval(handle as TimerHandle);
+  };
+
+  window.setTimeout = trackedSetTimeout as unknown as typeof window.setTimeout;
+  window.clearTimeout =
+    trackedClearTimeout as unknown as typeof window.clearTimeout;
+  window.setInterval =
+    trackedSetInterval as unknown as typeof window.setInterval;
+  window.clearInterval =
+    trackedClearInterval as unknown as typeof window.clearInterval;
+
+  (globalThis as typeof globalThis).setTimeout =
+    trackedSetTimeout as unknown as typeof globalThis.setTimeout;
+  (globalThis as typeof globalThis).clearTimeout =
+    trackedClearTimeout as unknown as typeof globalThis.clearTimeout;
+  (globalThis as typeof globalThis).setInterval =
+    trackedSetInterval as unknown as typeof globalThis.setInterval;
+  (globalThis as typeof globalThis).clearInterval =
+    trackedClearInterval as unknown as typeof globalThis.clearInterval;
+
+  return {
+    setTimeout: trackedSetTimeout,
+    clearTimeout: trackedClearTimeout,
+    setInterval: trackedSetInterval,
+    clearInterval: trackedClearInterval,
+  };
+}
+
+function runRegisteredWindowCleanups(window: Window): void {
+  const cleanupWindow = window as Window & {
+    __MAINZ_WINDOW_CLEANUPS__?: Set<() => void>;
+  };
+  const cleanupRegistry = cleanupWindow.__MAINZ_WINDOW_CLEANUPS__;
+
+  if (!cleanupRegistry?.size) {
+    return;
+  }
+
+  for (const cleanup of [...cleanupRegistry]) {
+    cleanup();
+  }
+
+  cleanupRegistry.clear();
 }
 
 export async function cleanupHappyDomWindow(window: Window): Promise<void> {
