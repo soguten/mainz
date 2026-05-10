@@ -543,7 +543,9 @@ export abstract class Component<
     }
 
     const renderConfig = this.requireRenderConfig();
-    const environment = resolveComponentLoadEnvironment();
+    const environment = resolveComponentLoadEnvironment(
+      this.resolveComponentRouteContext(),
+    );
     if (shouldApplyRenderPolicyInSsgBuild(renderConfig.policy, environment)) {
       return this.resolvePolicyDrivenTree(renderConfig.policy);
     }
@@ -573,7 +575,9 @@ export abstract class Component<
       return false;
     }
 
-    const environment = resolveComponentLoadEnvironment();
+    const environment = resolveComponentLoadEnvironment(
+      this.resolveComponentRouteContext(),
+    );
     if (environment.renderMode === "ssg" && environment.runtime === "build") {
       throw new Error(
         `Component "${this.constructor.name}" uses @Authorize(...) and cannot be rendered during SSG. ` +
@@ -616,7 +620,9 @@ export abstract class Component<
     this.asyncLoadKey = loadKey;
 
     const renderConfig = this.requireRenderConfig();
-    const environment = resolveComponentLoadEnvironment();
+    const environment = resolveComponentLoadEnvironment(
+      this.resolveComponentRouteContext(),
+    );
 
     if (
       renderConfig.policy === "forbidden-in-ssg" &&

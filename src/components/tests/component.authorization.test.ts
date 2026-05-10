@@ -13,7 +13,6 @@ const fixtures = await import(
 ) as typeof import("./component.authorization.fixture.tsx");
 
 Deno.test.afterEach(() => {
-  delete (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
   delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
   setAuthorizationRuntimeOptions(undefined);
 });
@@ -75,7 +74,6 @@ Deno.test("components/authorization: should skip protected component load when t
 });
 
 Deno.test("components/authorization: should fail fast for protected components during ssg prerender", () => {
-  (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__ = "ssg";
   (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = "build";
 
   assertThrows(
@@ -87,7 +85,7 @@ Deno.test("components/authorization: should fail fast for protected components d
             id: "admin-1",
             roles: ["admin"],
             claims: {},
-          }),
+          }, { renderMode: "ssg" }),
         },
       }),
     Error,

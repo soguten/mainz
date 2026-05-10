@@ -9,7 +9,6 @@ import { disposeHappyDomWindow } from "../../src/ssg/happy-dom.ts";
 import {
   describeBuiltOutput,
   extractModuleScriptSrc,
-  isCsrBuiltOutput,
   loadBuiltDocument as loadBuiltDocumentHtml,
   loadBuiltRoutePreview,
   resolveOutputHtmlPath,
@@ -528,8 +527,7 @@ export function describeTestAppArtifactOutput(artifact: BuiltArtifact): string {
 }
 
 export function isSpaShellArtifact(artifact: BuiltArtifact): boolean {
-  return isCsrBuiltOutput(artifact.context.outputDir) &&
-    artifact.recipe.navigation === "spa";
+  return artifact.recipe.navigation === "spa";
 }
 
 function toTestAppUrl(routePath: string): string {

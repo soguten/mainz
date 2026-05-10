@@ -72,7 +72,7 @@ Deno.test("build/artifacts: prerender captures nested JSX custom elements before
     const rendered = await renderSsgAppHtml({
       html,
       absoluteOutputPath: join(appDir, "index.html"),
-      modeOutDir: appDir,
+      outputDir: appDir,
       locale: "en",
       basePath: "/",
       renderPath: "/",
@@ -99,7 +99,7 @@ Deno.test("build/artifacts: prerender supports app module scripts that already i
     const rendered = await renderSsgAppHtml({
       html,
       absoluteOutputPath: join(appDir, "index.html"),
-      modeOutDir: appDir,
+      outputDir: appDir,
       locale: "en",
       basePath: "/",
       renderPath: "/",
@@ -386,7 +386,7 @@ Deno.test("build/artifacts: sets document language on CSR SPA app shell", async 
 
     await emitCsrSpaAppShellMetadata({
       cwd: tempDir,
-      modeOutDir: ".",
+      outputDir: ".",
       documentLanguage: "pt-BR",
     });
 

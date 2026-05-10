@@ -446,6 +446,22 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
       renderPath: "/",
       notFound: undefined,
     },
+    {
+      target: "site",
+      routeId: "app",
+      locale: "en",
+      outputHtmlPath: "dist/site/en/app/index.html",
+      renderPath: "/en/app",
+      notFound: undefined,
+    },
+    {
+      target: "site",
+      routeId: "app",
+      locale: "pt-BR",
+      outputHtmlPath: "dist/site/pt-br/app/index.html",
+      renderPath: "/pt-br/app",
+      notFound: undefined,
+    },
   ]);
 });
 
@@ -540,6 +556,26 @@ Deno.test("routing/manifest: should require entries for dynamic ssg outputs", ()
     Error,
     "requires entries()",
   );
+});
+
+Deno.test("routing/manifest: should skip concrete outputs for dynamic csr routes", () => {
+  const manifest: TargetRouteManifest = {
+    target: "site",
+    routes: [
+      {
+        id: "app-story",
+        source: "filesystem",
+        path: "/stories/:slug",
+        pattern: "/stories/:slug",
+        mode: "csr",
+        locales: ["en"],
+      },
+    ],
+  };
+
+  const outputs = buildSsgOutputEntries(manifest, "dist/site");
+
+  assertEquals(outputs, []);
 });
 
 Deno.test("routing/manifest: should expand dynamic ssg outputs from resolved entries", () => {
@@ -707,7 +743,7 @@ Deno.test("routing/manifest: should emit a root 404.html for notFound routes", (
   ]);
 });
 
-Deno.test("routing/manifest: should emit csr outputs for csr notFound routes when requested", () => {
+Deno.test("routing/manifest: should emit outputs for csr notFound routes", () => {
   const manifest: TargetRouteManifest = {
     target: "site",
     routes: [
@@ -724,7 +760,6 @@ Deno.test("routing/manifest: should emit csr outputs for csr notFound routes whe
   };
 
   const outputs = buildSsgOutputEntries(manifest, "dist/site", {
-    renderMode: "csr",
     defaultLocale: "pt-BR",
   });
 

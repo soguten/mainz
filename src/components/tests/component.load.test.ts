@@ -21,22 +21,25 @@ function createPendingRequest<T>() {
 }
 
 function setMainzRuntimeEnvironment(args: {
-  renderMode?: "csr" | "ssg";
   runtime?: "build" | "client";
 }): void {
-  if (args.renderMode) {
-    (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__ =
-      args.renderMode;
-  } else {
-    delete (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
-  }
-
   if (args.runtime) {
     (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ =
       args.runtime;
   } else {
     delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
   }
+}
+
+function createRouteContext(renderMode: "csr" | "ssg" = "csr") {
+  return {
+    path: "/",
+    matchedPath: "/",
+    params: {},
+    url: new URL("https://mainz.local/"),
+    renderMode,
+    navigationMode: "spa" as const,
+  };
 }
 
 function captureConsoleWarnings(): {
@@ -65,7 +68,6 @@ async function flushComponentLoadUpdates(): Promise<void> {
 }
 
 Deno.test.afterEach(() => {
-  delete (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
   delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
 });
 
@@ -113,7 +115,6 @@ Deno.test("components/component load: should render placeholder before defer loa
 
 Deno.test("components/component load: should render placeholder-in-ssg output during ssg build", () => {
   setMainzRuntimeEnvironment({
-    renderMode: "ssg",
     runtime: "build",
   });
 
@@ -124,7 +125,9 @@ Deno.test("components/component load: should render placeholder-in-ssg output du
   }, {
     policy: "placeholder-in-ssg",
   });
-  const screen = renderMainzComponent(Harness);
+  const screen = renderMainzComponent(Harness, {
+    props: { route: createRouteContext("ssg") } as never,
+  });
 
   assertEquals(
     screen.getBySelector("[data-role='status']").textContent,
@@ -136,7 +139,6 @@ Deno.test("components/component load: should render placeholder-in-ssg output du
 
 Deno.test("components/component load: should resolve placeholder-in-ssg component in the browser runtime", async () => {
   setMainzRuntimeEnvironment({
-    renderMode: "ssg",
     runtime: "client",
   });
 
@@ -146,7 +148,9 @@ Deno.test("components/component load: should resolve placeholder-in-ssg componen
       policy: "placeholder-in-ssg",
     },
   );
-  const screen = renderMainzComponent(Harness);
+  const screen = renderMainzComponent(Harness, {
+    props: { route: createRouteContext("ssg") } as never,
+  });
 
   await flushComponentLoadUpdates();
 
@@ -159,7 +163,6 @@ Deno.test("components/component load: should resolve placeholder-in-ssg componen
 
 Deno.test("components/component load: should warn when explicit defer has no placeholder()", () => {
   setMainzRuntimeEnvironment({
-    renderMode: "ssg",
     runtime: "build",
   });
 
@@ -169,7 +172,9 @@ Deno.test("components/component load: should warn when explicit defer has no pla
       async () => ({ title: "Routing" }),
       { withPlaceholder: false },
     );
-    const screen = renderMainzComponent(Harness);
+    const screen = renderMainzComponent(Harness, {
+      props: { route: createRouteContext("ssg") } as never,
+    });
 
     assertEquals(screen.container.textContent ?? "", "");
     assertEquals(warningCapture.warnings, [
@@ -183,7 +188,6 @@ Deno.test("components/component load: should warn when explicit defer has no pla
 
 Deno.test("components/component load: should not warn when placeholder-in-ssg provides placeholder()", () => {
   setMainzRuntimeEnvironment({
-    renderMode: "ssg",
     runtime: "build",
   });
 
@@ -195,7 +199,9 @@ Deno.test("components/component load: should not warn when placeholder-in-ssg pr
         policy: "placeholder-in-ssg",
       },
     );
-    const screen = renderMainzComponent(Harness);
+    const screen = renderMainzComponent(Harness, {
+      props: { route: createRouteContext("ssg") } as never,
+    });
 
     assertEquals(
       screen.getBySelector("[data-role='status']").textContent,
@@ -210,14 +216,16 @@ Deno.test("components/component load: should not warn when placeholder-in-ssg pr
 
 Deno.test("components/component load: should fail fast for forbidden-in-ssg during prerender", () => {
   setMainzRuntimeEnvironment({
-    renderMode: "ssg",
     runtime: "build",
   });
 
   const Harness = fixtures.createForbiddenInSsgHarness();
 
   assertThrows(
-    () => renderMainzComponent(Harness),
+    () =>
+      renderMainzComponent(Harness, {
+        props: { route: createRouteContext("ssg") } as never,
+      }),
     Error,
     'Component "LivePreviewPanel" uses @RenderPolicy("forbidden-in-ssg") and cannot be rendered during SSG.',
   );

@@ -15,7 +15,7 @@ import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 Deno.test("e2e/playground spa: app without navigation should fall back to a direct-load spa shell", async () => {
   await buildPlaygroundCsrSpa();
 
-  const rootHtmlPath = resolve(repoRoot, "dist/playground/csr/index.html");
+  const rootHtmlPath = resolve(repoRoot, "dist/playground/index.html");
   const html = await Deno.readTextFile(rootHtmlPath);
   const scriptSrc = extractModuleScriptSrc(html);
 
@@ -23,7 +23,7 @@ Deno.test("e2e/playground spa: app without navigation should fall back to a dire
   assertStringIncludes(scriptSrc, "/assets/");
 
   const scriptPath = resolveOutputScriptPath({
-    outputDir: resolve(repoRoot, "dist/playground/csr"),
+    outputDir: resolve(repoRoot, "dist/playground"),
     scriptSrc,
   });
   await Deno.stat(scriptPath);

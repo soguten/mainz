@@ -12,7 +12,6 @@ export type {
   BuildEngineOptions,
   BuildEngineProfile,
   BuildEnginePublicationMetadata,
-  BuildEngineRenderMode,
 } from "./engine.ts";
 export { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
 export { createMainzDevRouteMiddlewarePlugin } from "./dev-vite-plugin.ts";

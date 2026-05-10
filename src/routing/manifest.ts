@@ -54,8 +54,6 @@ interface ExpandedRouteLocale {
 }
 
 interface BuildSsgOutputEntriesOptions {
-  includeAllModes?: boolean;
-  renderMode?: RenderMode;
   localePrefix?: I18nConfig["localePrefix"];
   defaultLocale?: string;
   routeEntriesByRouteId?: ReadonlyMap<string, readonly ResolvedSsgRouteEntry[]>;
@@ -100,8 +98,6 @@ export function buildSsgOutputEntries(
   options: BuildSsgOutputEntriesOptions = {},
 ): SsgOutputEntry[] {
   const outputEntries: SsgOutputEntry[] = [];
-  const includeAllModes = options.includeAllModes === true;
-  const renderMode = options.renderMode ?? "ssg";
   const localePrefix = options.localePrefix ?? "except-default";
   const notFoundRoutes = manifest.routes.filter((route) =>
     route.notFound === true
@@ -114,15 +110,21 @@ export function buildSsgOutputEntries(
   }
 
   for (const route of manifest.routes) {
-    if (!includeAllModes && route.mode !== renderMode) continue;
-
     const normalizedPath = normalizeRoutePath(route.path);
     const routeEntries = options.routeEntriesByRouteId?.get(route.id);
 
-    if (isDynamicRoutePath(normalizedPath) && !routeEntries) {
+    if (
+      route.mode === "ssg" &&
+      isDynamicRoutePath(normalizedPath) &&
+      !routeEntries
+    ) {
       throw new Error(
         `SSG route "${route.path}" requires entries() to resolve concrete static paths.`,
       );
+    }
+
+    if (route.mode !== "ssg" && isDynamicRoutePath(normalizedPath)) {
+      continue;
     }
 
     for (const locale of route.locales) {
@@ -171,7 +173,7 @@ export function buildSsgOutputEntries(
   }
 
   const notFoundRoute = notFoundRoutes[0];
-  if (notFoundRoute && (includeAllModes || notFoundRoute.mode === renderMode)) {
+  if (notFoundRoute) {
     const locale = resolveNotFoundOutputLocale(
       notFoundRoute.locales,
       options.defaultLocale,

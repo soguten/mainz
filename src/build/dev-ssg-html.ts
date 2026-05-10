@@ -46,7 +46,7 @@ export async function renderDevSsgHtml(args: {
     renderedApp = await renderSsgAppHtml({
       html: transformedHtml,
       absoluteOutputPath: absoluteIndexHtmlPath,
-      modeOutDir: resolve(args.cwd, args.targetRootDir),
+      outputDir: resolve(args.cwd, args.targetRootDir),
       locale,
       basePath: args.basePath,
       renderPath: args.requestUrl.pathname,

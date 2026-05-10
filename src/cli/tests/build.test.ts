@@ -88,7 +88,7 @@ Deno.test("cli/build: should warn for ownership-based defer placeholders without
     );
 
     const html = await Deno.readTextFile(
-      resolve(testApp.outputDir, "ssg", "index.html"),
+      resolve(testApp.outputDir, "index.html"),
     );
     assertStringIncludes(html, "Component Load SSG Warnings");
     assertStringIncludes(html, "loading related docs");
@@ -130,7 +130,6 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
     const html = await Deno.readTextFile(
       resolve(
         testApp.outputDir,
-        "ssg",
         "stories",
         "hello-from-di",
         "index.html",

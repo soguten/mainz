@@ -9,9 +9,9 @@ import {
 
 Deno.test("routing/filesystem: should identify supported page files", () => {
   assertEquals(isFilesystemPageFile("site/pages/index.page.tsx"), true);
-  assertEquals(isFilesystemPageFile("site/pages/about.ssg.page.tsx"), true);
-  assertEquals(isFilesystemPageFile("site/pages/about.csr.page.tsx"), true);
-  assertEquals(isFilesystemPageFile("site/pages/about.spa.page.tsx"), true);
+  assertEquals(isFilesystemPageFile("site/pages/about.ssg.page.tsx"), false);
+  assertEquals(isFilesystemPageFile("site/pages/about.csr.page.tsx"), false);
+  assertEquals(isFilesystemPageFile("site/pages/about.spa.page.tsx"), false);
   assertEquals(isFilesystemPageFile("site/pages/about.tsx"), false);
 });
 
@@ -21,7 +21,7 @@ Deno.test("routing/filesystem: should infer root and nested static paths", () =>
   });
 
   const nested = inferFilesystemRoute(
-    "C:\\repo\\site\\pages\\docs\\install.ssg.page.tsx",
+    "C:\\repo\\site\\pages\\docs\\install.page.tsx",
     {
       pagesDir: "C:\\repo\\site\\pages",
     },
@@ -37,9 +37,9 @@ Deno.test("routing/filesystem: should infer root and nested static paths", () =>
   });
 
   assertEquals(nested, {
-    file: "C:/repo/site/pages/docs/install.ssg.page.tsx",
+    file: "C:/repo/site/pages/docs/install.page.tsx",
     source: "filesystem",
-    mode: "ssg",
+    mode: "csr",
     path: "/docs/install",
     pattern: "/docs/install",
     routeKey: "/docs/install",
@@ -52,13 +52,13 @@ Deno.test("routing/filesystem: should infer dynamic and catch-all segments", () 
   });
 
   const catchAllRoute = inferFilesystemRoute(
-    "site/pages/blog/[...parts].csr.page.tsx",
+    "site/pages/blog/[...parts].page.tsx",
     {
       pagesDir: "site/pages",
     },
   );
 
-  const legacySpaSuffixRoute = inferFilesystemRoute(
+  const unsupportedLegacySuffixRoute = inferFilesystemRoute(
     "site/pages/blog/[...legacy].spa.page.tsx",
     {
       pagesDir: "site/pages",
@@ -73,7 +73,7 @@ Deno.test("routing/filesystem: should infer dynamic and catch-all segments", () 
   assertEquals(catchAllRoute?.routeKey, "/blog/*");
   assertEquals(catchAllRoute?.mode, "csr");
 
-  assertEquals(legacySpaSuffixRoute?.mode, "csr");
+  assertEquals(unsupportedLegacySuffixRoute, null);
 });
 
 Deno.test("routing/filesystem: should throw for invalid catch-all placement", () => {

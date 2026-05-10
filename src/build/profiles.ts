@@ -197,10 +197,9 @@ function normalizePathSlashes(path: string): string {
 
 function resolvePublicationOutDir(
   outDir: string,
-  navigation: NavigationMode,
+  _navigation: NavigationMode,
 ): string {
-  const publicationMode = navigation === "spa" ? "csr" : "ssg";
-  return normalizePathSlashes(`${outDir}/${publicationMode}`);
+  return normalizePathSlashes(outDir);
 }
 
 function toErrorMessage(error: unknown): string {

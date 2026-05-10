@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import type { NavigationMode } from "../routing/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import type { BuildJob } from "./jobs.ts";
 import {
@@ -20,8 +20,7 @@ export interface ResolveGeneratedViteConfigArtifactArgs {
   runtime: MainzToolingRuntime;
   cwd: string;
   target: BuildJob["target"];
-  modeOutDir: string;
-  renderMode: RenderMode;
+  outputDir: string;
   navigationMode: NavigationMode;
   basePath: string;
   appLocales: readonly string[];
@@ -43,8 +42,7 @@ export async function resolveViteConfigArtifact(
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: args.cwd,
     target: args.target,
-    modeOutDir: args.modeOutDir,
-    renderMode: args.renderMode,
+    outputDir: args.outputDir,
     navigationMode: args.navigationMode,
     basePath: args.basePath,
     appLocales: args.appLocales,

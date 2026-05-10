@@ -5,6 +5,7 @@ import {
   type PageLoadContext,
   requirePageRoutePath,
   resolvePageLocales,
+  resolvePageRenderMode,
   type RouteContext,
   type RouteProfileContext,
 } from "../components/page.ts";
@@ -43,7 +44,6 @@ import type { NavigationMode } from "../routing/types.ts";
 import { attachServiceContainer, readServiceContainer } from "../di/context.ts";
 
 declare const __MAINZ_NAVIGATION_MODE__: "spa" | "mpa";
-declare const __MAINZ_RENDER_MODE__: "csr" | "ssg";
 declare const __MAINZ_BASE_PATH__: string;
 declare const __MAINZ_DEFAULT_LOCALE__: string | undefined;
 declare const __MAINZ_LOCALE_PREFIX__: "except-default" | "always";
@@ -1888,7 +1888,7 @@ function applySpaRouteContext(
       params: context.params,
       locale: context.locale,
       url: context.url,
-      renderMode: resolveMainzRenderMode(),
+      renderMode: resolveSpaPageRenderMode(context.page),
       navigationMode: resolveMainzNavigationMode(),
       principal: context.principal,
       profile: createRouteProfileContext(context.basePath),
@@ -2013,7 +2013,7 @@ function resolveSpaRouteHead(args: {
     params: resolveRouteParamsFromPageElement(args.pageElement),
     locale: args.locale,
     url: args.url,
-    renderMode: resolveMainzRenderMode(),
+    renderMode: resolveSpaPageRenderMode(args.page),
     navigationMode: args.navigationMode,
     principal: args.principal,
     profile: createRouteProfileContext(args.basePath),
@@ -2090,7 +2090,7 @@ async function resolvePageRouteData(args: {
     params: args.params,
     locale: args.locale,
     url: args.url,
-    renderMode: resolveMainzRenderMode(),
+    renderMode: resolveSpaPageRenderMode(args.page),
     navigationMode: args.navigationMode,
     principal: args.principal,
     profile: routeProfile,
@@ -2126,7 +2126,7 @@ async function resolvePageRouteData(args: {
     params: args.params,
     locale: args.locale,
     url: args.url,
-    renderMode: resolveMainzRenderMode(),
+    renderMode: resolveSpaPageRenderMode(args.page),
     navigationMode: args.navigationMode,
     signal: args.signal,
     principal: args.principal,
@@ -3157,16 +3157,6 @@ function resolveMainzNavigationMode(): NavigationMode {
   return "mpa";
 }
 
-function resolveMainzRenderMode(): "csr" | "ssg" {
-  if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
-    return __MAINZ_RENDER_MODE__;
-  }
-
-  const fromGlobal =
-    (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
-  return fromGlobal === "ssg" ? "ssg" : "csr";
-}
-
 function resolveMainzBasePath(): string {
   if (typeof __MAINZ_BASE_PATH__ !== "undefined") {
     return __MAINZ_BASE_PATH__;
@@ -3187,6 +3177,10 @@ function resolveMainzDefaultLocale(): string | undefined {
   return typeof fromGlobal === "string" && fromGlobal.trim()
     ? fromGlobal
     : undefined;
+}
+
+function resolveSpaPageRenderMode(page: SpaPageConstructor): "csr" | "ssg" {
+  return resolvePageRenderMode(page as object) ?? "csr";
 }
 
 function resolveMainzLocalePrefix(): "except-default" | "always" {
@@ -3414,7 +3408,7 @@ async function resolveMountedRouteContext(
             params,
             locale: context.locale,
             url: context.url,
-            renderMode: resolveMainzRenderMode(),
+            renderMode: resolveSpaPageRenderMode(matchedPage),
             navigationMode: context.mode,
             principal,
             profile: createRouteProfileContext(context.basePath),
@@ -3540,7 +3534,7 @@ async function resolveMountedRouteContext(
           params,
           locale: context.locale,
           url: context.url,
-          renderMode: resolveMainzRenderMode(),
+          renderMode: resolveSpaPageRenderMode(route.page),
           navigationMode: context.mode,
           principal,
           profile: createRouteProfileContext(context.basePath),

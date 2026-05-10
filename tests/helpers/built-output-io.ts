@@ -2,25 +2,9 @@ import { basename, dirname, resolve } from "node:path";
 import { createArtifactPreviewHandler } from "../../src/preview/artifact-server.ts";
 import type { TestNavigationMode } from "./types.ts";
 
-function getBuiltOutputKind(outputDir: string): "csr" | "ssg" | "unknown" {
-  const dirName = basename(outputDir).toLowerCase();
-  if (dirName === "csr" || dirName === "ssg") {
-    return dirName;
-  }
-
-  return "unknown";
-}
-
-export function isCsrBuiltOutput(outputDir: string): boolean {
-  return getBuiltOutputKind(outputDir) === "csr";
-}
-
-export function isSsgBuiltOutput(outputDir: string): boolean {
-  return getBuiltOutputKind(outputDir) === "ssg";
-}
-
 export function describeBuiltOutput(outputDir: string): string {
-  return getBuiltOutputKind(outputDir);
+  const dirName = basename(outputDir).trim();
+  return dirName.length > 0 ? dirName : "unknown";
 }
 
 export function extractModuleScriptSrc(html: string): string | null {
@@ -85,7 +69,7 @@ export async function loadBuiltDocument(args: {
 }> {
   const htmlPath = resolve(
     args.outputDir,
-    isCsrBuiltOutput(args.outputDir) && args.navigationMode === "spa"
+    args.navigationMode === "spa"
       ? args.spaHtmlPath ?? "index.html"
       : args.documentHtmlPath,
   );
@@ -110,7 +94,7 @@ export async function loadBuiltRoutePreview(args: {
   outputDir: string;
   responseStatus?: number;
 }> {
-  if (isCsrBuiltOutput(args.outputDir) && args.navigationMode === "spa") {
+  if (args.navigationMode === "spa") {
     const document = await loadBuiltDocument({
       outputDir: args.outputDir,
       navigationMode: args.navigationMode,

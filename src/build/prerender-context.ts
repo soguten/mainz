@@ -14,7 +14,6 @@ import { type RoutedAppDefinition } from "../navigation/index.ts";
 import {
   buildTargetRouteManifest,
   isDynamicRoutePath,
-  type RenderMode,
   type ResolvedSsgRouteEntry,
   validateRouteEntryParams,
 } from "../routing/index.ts";
@@ -27,7 +26,6 @@ import { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 
 export interface RoutePrerenderBuildJob {
   target: NormalizedMainzTarget;
-  mode: RenderMode;
   profile: ResolvedBuildProfile;
 }
 

@@ -20,11 +20,11 @@ Deno.test("e2e/site routing: mpa build should emit localized routes and hydrate 
   const hydrationManifest = await readHydrationManifest();
   assertEquals(hydrationManifest.navigation, "mpa");
 
-  const rootHtmlPath = resolve(repoRoot, "dist/site/ssg/index.html");
+  const rootHtmlPath = resolve(repoRoot, "dist/site/index.html");
   const rootHtml = await Deno.readTextFile(rootHtmlPath);
   assertStringIncludes(rootHtml, '<html lang="en">');
 
-  const ptRouteHtmlPath = resolve(repoRoot, "dist/site/ssg/pt/index.html");
+  const ptRouteHtmlPath = resolve(repoRoot, "dist/site/pt/index.html");
   const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
   assertStringIncludes(ptHtml, '<html lang="pt">');
   assertStringIncludes(ptHtml, "<title>Mainz</title>");
@@ -65,7 +65,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
   await buildSiteEnhancedMpa();
 
   const handler = createArtifactPreviewHandler(
-    resolve(repoRoot, "dist/site/ssg"),
+    resolve(repoRoot, "dist/site"),
   );
 
   const enResponse = await handler(new Request("http://127.0.0.1:4173/"));
@@ -91,7 +91,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
     "Could not find module script src in site 404 html.",
   );
   const notFoundScriptPath = resolveOutputScriptPath({
-    outputDir: resolve(repoRoot, "dist/site/ssg"),
+    outputDir: resolve(repoRoot, "dist/site"),
     scriptSrc: notFoundScriptSrc,
   });
 
@@ -129,7 +129,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
     "Could not find module script src in localized site 404 html.",
   );
   const localizedNotFoundScriptPath = resolveOutputScriptPath({
-    outputDir: resolve(repoRoot, "dist/site/ssg"),
+    outputDir: resolve(repoRoot, "dist/site"),
     scriptSrc: localizedNotFoundScriptSrc,
   });
 
@@ -163,7 +163,7 @@ async function readHydrationManifest(): Promise<
 > {
   const hydrationManifestPath = resolve(
     repoRoot,
-    "dist/site/ssg/hydration.json",
+    "dist/site/hydration.json",
   );
   return await readJsonFile(hydrationManifestPath);
 }

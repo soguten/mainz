@@ -1830,8 +1830,7 @@ async function runViteMaterializeCommand(
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: runtime.cwd(),
     target,
-    modeOutDir: normalizePathSlashes(join(target.outDir, "csr")),
-    renderMode: "csr",
+    outputDir: normalizePathSlashes(target.outDir),
     navigationMode,
     basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
     appLocales: appDefinition?.i18n?.locales ??

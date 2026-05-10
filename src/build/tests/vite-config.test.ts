@@ -28,8 +28,7 @@ Deno.test("build/vite-config: should generate framework aliases from public Main
   const generated = resolveGeneratedViteConfig({
     cwd,
     target: config.targets[0],
-    modeOutDir: "dist/site/csr",
-    renderMode: "csr",
+    outputDir: "dist/site",
     navigationMode: "spa",
     basePath: "/",
     appLocales: [],
@@ -62,8 +61,7 @@ Deno.test("build/vite-config: should not alias Mainz to missing consumer project
     const generated = resolveGeneratedViteConfig({
       cwd,
       target: config.targets[0],
-      modeOutDir: "dist/site/csr",
-      renderMode: "csr",
+      outputDir: "dist/site",
       navigationMode: "spa",
       basePath: "/",
       appLocales: [],
@@ -103,8 +101,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
   const generated = resolveGeneratedViteConfig({
     cwd,
     target: config.targets[0],
-    modeOutDir: "dist/docs/ssg",
-    renderMode: "ssg",
+    outputDir: "dist/docs",
     navigationMode: "mpa",
     basePath: "/docs/",
     appLocales: ["en", "pt-BR"],
@@ -117,8 +114,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
   assertEquals(generated.root, normalizePath(resolve(cwd, "docs-site")));
   assertEquals(generated.appType, "mpa");
   assertEquals(generated.base, "/docs/");
-  assertEquals(generated.outDir, normalizePath(resolve(cwd, "dist/docs/ssg")));
-  assertEquals(generated.define.__MAINZ_RENDER_MODE__, JSON.stringify("ssg"));
+  assertEquals(generated.outDir, normalizePath(resolve(cwd, "dist/docs")));
   assertEquals(
     generated.define.__MAINZ_NAVIGATION_MODE__,
     JSON.stringify("mpa"),
@@ -157,8 +153,7 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
   const generated = resolveGeneratedViteConfig({
     cwd,
     target: config.targets[0],
-    modeOutDir: "dist/site/csr",
-    renderMode: "csr",
+    outputDir: "dist/site",
     navigationMode: "spa",
     basePath: "/",
     appLocales: [],
@@ -216,8 +211,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
     const generated = resolveGeneratedViteConfig({
       cwd,
       target: config.targets[0],
-      modeOutDir: "dist/site/csr",
-      renderMode: "csr",
+      outputDir: "dist/site",
       navigationMode: "spa",
       basePath: "/",
       appLocales: [],
@@ -284,8 +278,7 @@ Deno.test("build/vite-config: should use app-owned navigation for generated defa
     const generated = resolveGeneratedViteConfig({
       cwd: fixture.cwd,
       target: config.targets[0],
-      modeOutDir: "dist/site/ssg",
-      renderMode: "ssg",
+      outputDir: "dist/site",
       navigationMode,
       basePath: "./",
       appLocales: [],
@@ -330,8 +323,7 @@ Deno.test("build/vite-config: should fallback generated navigation defaults to s
     const generated = resolveGeneratedViteConfig({
       cwd: fixture.cwd,
       target: config.targets[0],
-      modeOutDir: "dist/site/csr",
-      renderMode: "csr",
+      outputDir: "dist/site",
       navigationMode,
       basePath: "/",
       appLocales: [],

@@ -26,7 +26,6 @@ Deno.test("build/prerender-context: should resolve manifest, i18n, and dynamic r
     config,
     {
       target: config.targets[0],
-      mode: "ssg",
       profile: {
         name: "production",
         basePath: "/",

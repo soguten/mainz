@@ -4,8 +4,9 @@ import type {
   ResourceRuntime,
 } from "../resources/resource.ts";
 import type { RenderMode } from "../routing/types.ts";
+import { getCurrentRenderOwner } from "../jsx/render-owner.ts";
+import { isRouteContext, type RouteContext } from "./route-context.ts";
 
-declare const __MAINZ_RENDER_MODE__: "csr" | "ssg";
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
 
 export interface ComponentLoadEnvironment {
@@ -13,9 +14,13 @@ export interface ComponentLoadEnvironment {
   runtime: ResourceRuntime;
 }
 
-export function resolveComponentLoadEnvironment(): ComponentLoadEnvironment {
+export function resolveComponentLoadEnvironment(
+  route?: Pick<RouteContext, "renderMode">,
+): ComponentLoadEnvironment {
   return {
-    renderMode: resolveMainzRenderMode(),
+    renderMode: route?.renderMode ??
+      resolveCurrentRenderOwnerRouteContext()?.renderMode ??
+      "csr",
     runtime: resolveMainzRuntime(),
   };
 }
@@ -122,14 +127,28 @@ export function stableSerializeForLoadKey(
   return `{${entries.join(",")}}`;
 }
 
-function resolveMainzRenderMode(): RenderMode {
-  if (typeof __MAINZ_RENDER_MODE__ !== "undefined") {
-    return __MAINZ_RENDER_MODE__;
+function resolveCurrentRenderOwnerRouteContext(): RouteContext | undefined {
+  const owner = getCurrentRenderOwner() as
+    | { route?: unknown; props?: unknown }
+    | undefined;
+  if (!owner) {
+    return undefined;
   }
 
-  const fromGlobal =
-    (globalThis as Record<string, unknown>).__MAINZ_RENDER_MODE__;
-  return fromGlobal === "ssg" ? "ssg" : "csr";
+  try {
+    if (isRouteContext(owner.route)) {
+      return owner.route;
+    }
+  } catch {
+    // Ignore route getter failures and continue probing props.
+  }
+
+  if (typeof owner.props !== "object" || owner.props === null) {
+    return undefined;
+  }
+
+  const route = (owner.props as Record<string, unknown>).route;
+  return isRouteContext(route) ? route : undefined;
 }
 
 function resolveMainzRuntime(): ResourceRuntime {

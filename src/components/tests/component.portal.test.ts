@@ -10,6 +10,17 @@ const fixtures = await import(
   "./component.portal.fixture.tsx"
 ) as typeof import("./component.portal.fixture.tsx");
 
+function createRouteContext(renderMode: "csr" | "ssg" = "csr") {
+  return {
+    path: "/",
+    matchedPath: "/",
+    params: {},
+    url: new URL("https://mainz.local/"),
+    renderMode,
+    navigationMode: "spa" as const,
+  };
+}
+
 Deno.test("portal: should render into the nearest app overlay layer by default", async () => {
   document.body.innerHTML = `<div id="left"></div><div id="right"></div>`;
 
@@ -95,35 +106,20 @@ Deno.test("portal: should render into an explicit target and clean up on unmount
 });
 
 Deno.test("portal: should omit portal content during SSG build", async () => {
-  document.body.innerHTML = `<div id="app"></div>`;
-  const globalScope = globalThis as Record<string, unknown>;
-  const previousRenderMode = globalScope.__MAINZ_RENDER_MODE__;
-  const previousRuntime = globalScope.__MAINZ_RUNTIME_ENV__;
-  globalScope.__MAINZ_RENDER_MODE__ = "ssg";
-  globalScope.__MAINZ_RUNTIME_ENV__ = "build";
+  (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = "build";
 
   try {
-    const controller = startApp(fixtures.PortalLeftApp, { mount: "#app" });
+    const screen = renderMainzComponent(fixtures.PortalLeftApp, {
+      props: { route: createRouteContext("ssg") } as never,
+    });
     const layer = document.querySelector<HTMLElement>(
-      `#app [data-mainz-portal-layer="overlay"]`,
+      `[data-testid="mainz-host"] [data-mainz-portal-layer="overlay"]`,
     );
 
-    assert(layer);
-    assertEquals(layer.querySelector("[data-testid='left-portal']"), null);
-
-    controller.cleanup();
+    assertEquals(layer?.querySelector("[data-testid='left-portal']") ?? null, null);
+    screen.cleanup();
   } finally {
-    if (previousRenderMode === undefined) {
-      delete globalScope.__MAINZ_RENDER_MODE__;
-    } else {
-      globalScope.__MAINZ_RENDER_MODE__ = previousRenderMode;
-    }
-
-    if (previousRuntime === undefined) {
-      delete globalScope.__MAINZ_RUNTIME_ENV__;
-    } else {
-      globalScope.__MAINZ_RUNTIME_ENV__ = previousRuntime;
-    }
+    delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
   }
 });
 

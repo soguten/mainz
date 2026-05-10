@@ -28,15 +28,15 @@ Deno.test("build/jobs: should derive production jobs from target discovery when 
   const jobs = await resolveBuildJobs(config, {});
 
   assertEquals(
-    jobs.map((job) => `${job.target.name}:${job.mode}`),
+    jobs.map((job) => job.target.name),
     [
-      "site:ssg",
-      "playground:csr",
+      "site",
+      "playground",
     ],
   );
 });
 
-Deno.test("build/jobs: should filter forced jobs by target and mode", async () => {
+Deno.test("build/jobs: should filter forced jobs by target", async () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -56,37 +56,10 @@ Deno.test("build/jobs: should filter forced jobs by target and mode", async () =
 
   const jobs = await resolveForcedBuildJobs(config, {
     target: "site",
-    mode: "ssg",
   });
 
   assertEquals(jobs.length, 1);
   assertEquals(jobs[0].target.name, "site");
-  assertEquals(jobs[0].mode, "ssg");
-});
-
-Deno.test("build/jobs: should reject unknown forced render mode filters", async () => {
-  const config = normalizeMainzConfig({
-    targets: [
-      {
-        name: "site",
-        rootDir: "./site",
-        viteConfig: "./vite.config.site.ts",
-        appFile: "./site/src/main.tsx",
-        appId: "site",
-      },
-    ],
-  });
-
-  await assertRejects(
-    async () => {
-      await resolveForcedBuildJobs(config, {
-        target: "site",
-        mode: "spa",
-      });
-    },
-    Error,
-    'No render modes matched "spa"',
-  );
 });
 
 Deno.test("build/jobs: should fail for unknown target", async () => {
@@ -124,12 +97,12 @@ Deno.test("build/jobs: should skip ssg jobs for app-only targets with no routes 
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "playground:csr",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "playground",
   ]);
 });
 
-Deno.test("build/jobs: should allow internal forced ssg jobs for an app-only target", async () => {
+Deno.test("build/jobs: should allow forced builds for an app-only target", async () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -142,11 +115,10 @@ Deno.test("build/jobs: should allow internal forced ssg jobs for an app-only tar
 
   const jobs = await resolveForcedBuildJobs(config, {
     target: "playground",
-    mode: "ssg",
   });
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "playground:ssg",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "playground",
   ]);
 });
 
@@ -168,12 +140,12 @@ Deno.test("build/jobs: should include ssg jobs for routed app targets discovered
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "entries-di-build:ssg",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "entries-di-build",
   ]);
 });
 
-Deno.test("build/jobs: should keep explicit csr routed apps on the csr build recipe only", async () => {
+Deno.test("build/jobs: should keep explicit csr routed apps on a single build job", async () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -185,12 +157,12 @@ Deno.test("build/jobs: should keep explicit csr routed apps on the csr build rec
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "routed-di-client-app:csr",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "routed-di-client-app",
   ]);
 });
 
-Deno.test("build/jobs: should keep undecorated notFound pages on the csr build recipe by default", async () => {
+Deno.test("build/jobs: should keep undecorated notFound pages on a single build job by default", async () => {
   const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
@@ -209,12 +181,12 @@ Deno.test("build/jobs: should keep undecorated notFound pages on the csr build r
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "not-found-csr-default-app-file:csr",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "not-found-csr-default-app-file",
   ]);
 });
 
-Deno.test("build/jobs: should keep mixed routed targets when undecorated pages default to csr but notFound stays ssg", async () => {
+Deno.test("build/jobs: should keep mixed routed targets on one build job", async () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -229,9 +201,8 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "di-http-site:csr",
-    "di-http-site:ssg",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "di-http-site",
   ]);
 });
 
@@ -277,12 +248,12 @@ Deno.test("build/jobs: should keep imported routed app definitions on the defaul
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "diagnostics-di-imported-app:csr",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "diagnostics-di-imported-app",
   ]);
 });
 
-Deno.test("build/jobs: should keep mixed routed targets on both build recipes when discovery proves both modes", async () => {
+Deno.test("build/jobs: should keep mixed routed targets on one build job when discovery proves both modes", async () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -297,8 +268,7 @@ Deno.test("build/jobs: should keep mixed routed targets on both build recipes wh
 
   const jobs = await resolveBuildJobs(config, {});
 
-  assertEquals(jobs.map((job) => `${job.target.name}:${job.mode}`), [
-    "authorize-site:csr",
-    "authorize-site:ssg",
+  assertEquals(jobs.map((job) => job.target.name), [
+    "authorize-site",
   ]);
 });

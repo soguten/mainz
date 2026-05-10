@@ -9,8 +9,6 @@ import { buildSingleLocaleRoutedAppForNavigation } from "../helpers/build.ts";
 import {
   describeBuiltOutput,
   extractModuleScriptSrc,
-  isCsrBuiltOutput,
-  isSsgBuiltOutput,
   loadBuiltRoutePreview,
   resolveOutputHtmlPath,
   resolveOutputScriptPath,
@@ -45,7 +43,7 @@ async function assertRootRoute(args: TestScenarioBuildContext): Promise<void> {
   const html = await Deno.readTextFile(rootHtmlPath);
   const rootBuildOutput = describeBuiltOutput(rootBuild.outputDir);
 
-  if (isCsrBuiltOutput(rootBuild.outputDir) && args.navigation === "spa") {
+  if (args.navigation === "spa") {
     const scriptSrc = extractModuleScriptSrc(html);
     assert(
       scriptSrc,
@@ -239,34 +237,14 @@ function requireRouteBuild(
   routePath: string,
 ): TestBuildContext {
   const availableBuilds = context.availableBuilds;
+  for (const build of availableBuilds) {
+    if (routeHtmlExists(build, routePath)) {
+      return build;
+    }
+  }
+
   if (availableBuilds.length === 1) {
     return availableBuilds[0];
-  }
-
-  const ssgBuild = availableBuilds.find((build) =>
-    isSsgBuiltOutput(build.outputDir)
-  );
-  if (ssgBuild && routeHtmlExists(ssgBuild, routePath)) {
-    return ssgBuild;
-  }
-
-  const csrBuild = availableBuilds.find((build) =>
-    isCsrBuiltOutput(build.outputDir)
-  );
-  if (csrBuild && routeHtmlExists(csrBuild, routePath)) {
-    return csrBuild;
-  }
-
-  if (context.navigation === "spa" && csrBuild) {
-    return csrBuild;
-  }
-
-  if (csrBuild) {
-    return csrBuild;
-  }
-
-  if (ssgBuild) {
-    return ssgBuild;
   }
 
   throw new Error(

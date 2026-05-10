@@ -31,7 +31,6 @@ export interface DiscoveredPage {
 interface DiscoverPageOptions {
   allowMissingRoute?: boolean;
   fallbackPath?: string;
-  fallbackMode?: RenderMode;
 }
 
 export async function discoverPagesFromFiles(
@@ -144,7 +143,7 @@ function normalizePageDefinition(
 
   return {
     path,
-    ...resolveDiscoveryMode(ctor, options),
+    ...resolveDiscoveryMode(ctor),
     locales: locales ? [...locales] : undefined,
     head: undefined,
     authorization: authorization
@@ -155,21 +154,17 @@ function normalizePageDefinition(
 
 function resolveDiscoveryMode(
   ctor: PageConstructor,
-  options: DiscoverPageOptions = {},
 ): { mode: RenderMode; fallback?: RenderModeFallback } {
   const decoratorConfig = resolvePageRenderConfig(ctor);
-  const decoratorMode = decoratorConfig?.mode ?? resolvePageRenderMode(ctor);
+  const decoratorMode = decoratorConfig?.mode ?? resolvePageRenderMode(ctor) ??
+    "csr";
 
   return {
-    mode: normalizeMode(decoratorMode ?? options.fallbackMode),
+    mode: decoratorMode,
     fallback: decoratorConfig?.mode === "ssg"
       ? decoratorConfig.fallback
       : undefined,
   };
-}
-
-function normalizeMode(mode: RenderMode | undefined): RenderMode {
-  return mode ?? "csr";
 }
 
 function cloneAuthorization(

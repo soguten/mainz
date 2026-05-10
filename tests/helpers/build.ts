@@ -355,21 +355,18 @@ async function resolveBuiltOutputContexts(args: {
   navigation: TestNavigationMode;
   profile?: string;
 }): Promise<TestBuildContext[]> {
-  const builds: TestBuildContext[] = [];
-  for (const outputKind of ["csr", "ssg"] as const) {
-    const modeOutputDir = resolve(args.outputBaseDir, outputKind);
-    if (await fileExists(modeOutputDir)) {
-      builds.push({
-        testAppName: args.testAppName,
-        testAppRoot: args.testAppRoot,
-        outputDir: modeOutputDir,
-        targetName: args.targetName,
-        navigation: args.navigation,
-        profile: args.profile,
-      });
-    }
+  if (!await fileExists(args.outputBaseDir)) {
+    return [];
   }
-  return builds;
+
+  return [{
+    testAppName: args.testAppName,
+    testAppRoot: args.testAppRoot,
+    outputDir: args.outputBaseDir,
+    targetName: args.targetName,
+    navigation: args.navigation,
+    profile: args.profile,
+  }];
 }
 
 async function removeTestAppTempDir(path: string): Promise<void> {

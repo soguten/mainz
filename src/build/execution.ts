@@ -1,13 +1,12 @@
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { NormalizedMainzConfig } from "../config/index.ts";
-import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import type { NavigationMode } from "../routing/index.ts";
 import { denoToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 import {
-  emitCsrRouteArtifacts,
   emitCsrSpaAppShellMetadata,
-  emitSsgArtifacts,
+  emitRouteArtifacts,
   resolveTargetI18nConfig,
 } from "./artifacts.ts";
 import type { BuildJob } from "./jobs.ts";
@@ -32,7 +31,7 @@ export async function runSingleBuild(
   cwd: string = denoToolingRuntime.cwd(),
   runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
-  const modeOutDir = normalizePathSlashes(join(job.target.outDir, job.mode));
+  const outputDir = normalizePathSlashes(job.target.outDir);
   const navigationMode = await resolveEffectiveNavigationMode(
     job.target,
     job.profile,
@@ -49,7 +48,7 @@ export async function runSingleBuild(
     runtime,
     cwd,
     job,
-    modeOutDir,
+    outputDir,
     navigationMode,
     appLocales: appDefinition?.i18n?.locales ??
       (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
@@ -64,10 +63,10 @@ export async function runSingleBuild(
       runtime,
       cwd,
       viteConfigPath: viteConfig.path,
-      modeOutDir,
-      renderMode: job.mode,
+      outputDir,
       navigationMode,
       targetName: job.target.name,
+      buildLabel: "build",
       basePath: resolveViteBasePath(job.profile.basePath, navigationMode),
       appLocales: appDefinition?.i18n?.locales ??
         (appDefinition?.documentLanguage
@@ -81,20 +80,17 @@ export async function runSingleBuild(
     await viteConfig.cleanup?.();
   }
 
-  if (job.mode === "ssg") {
-    await emitSsgArtifacts(config, job, modeOutDir, cwd, runtime);
-    return;
-  }
-
-  if (job.mode === "csr" && navigationMode !== "spa") {
-    await emitCsrRouteArtifacts(config, job, modeOutDir, cwd, runtime);
-    return;
-  }
-
-  if (job.mode === "csr" && navigationMode === "spa") {
+  const emittedRouteArtifacts = await emitRouteArtifacts(
+    config,
+    job,
+    outputDir,
+    cwd,
+    runtime,
+  );
+  if (!emittedRouteArtifacts && navigationMode === "spa") {
     await emitCsrSpaAppShellMetadata({
       runtime,
-      modeOutDir,
+      outputDir,
       cwd,
       documentLanguage: targetI18n?.defaultLocale,
     });
@@ -132,13 +128,12 @@ export async function runDevServer(args: {
     runtime,
   );
   const targetI18n = resolveTargetI18nConfig(appDefinition);
-  const modeOutDir = normalizePathSlashes(join(target.outDir, "csr"));
+  const outputDir = normalizePathSlashes(target.outDir);
   const viteConfig = await resolveViteConfigPathForTarget({
     runtime,
     cwd,
     target,
-    modeOutDir,
-    renderMode: "csr",
+    outputDir,
     navigationMode,
     appLocales: appDefinition?.i18n?.locales ??
       (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
@@ -166,7 +161,7 @@ export async function runDevServer(args: {
       defaultLocale: targetI18n?.defaultLocale,
       localePrefix: targetI18n?.localePrefix ?? "except-default",
       siteUrl: args.profile.siteUrl,
-      modeOutDir,
+      outputDir,
     });
   } finally {
     await viteConfig.cleanup?.();
@@ -177,7 +172,7 @@ async function resolveViteConfigPathForBuild(args: {
   runtime: MainzToolingRuntime;
   cwd: string;
   job: BuildJob;
-  modeOutDir: string;
+  outputDir: string;
   navigationMode: NavigationMode;
   basePath: string;
   appLocales: readonly string[];
@@ -195,8 +190,7 @@ async function resolveViteConfigPathForBuild(args: {
     runtime: args.runtime,
     cwd: args.cwd,
     target: args.job.target,
-    modeOutDir: args.modeOutDir,
-    renderMode: args.job.mode,
+    outputDir: args.outputDir,
     navigationMode: args.navigationMode,
     basePath: args.basePath,
     appLocales: args.appLocales,
@@ -210,8 +204,7 @@ async function resolveViteConfigPathForTarget(args: {
   runtime: MainzToolingRuntime;
   cwd: string;
   target: BuildJob["target"];
-  modeOutDir: string;
-  renderMode: RenderMode;
+  outputDir: string;
   navigationMode: NavigationMode;
   basePath: string;
   appLocales: readonly string[];
@@ -227,10 +220,10 @@ async function runViteBuild(args: {
   runtime: MainzToolingRuntime;
   cwd: string;
   viteConfigPath: string;
-  modeOutDir: string;
-  renderMode: RenderMode;
+  outputDir: string;
   navigationMode: NavigationMode;
   targetName: string;
+  buildLabel: string;
   basePath: string;
   appLocales: readonly string[];
   defaultLocale?: string;
@@ -243,8 +236,7 @@ async function runViteBuild(args: {
     }),
     cwd: args.cwd,
     env: {
-      MAINZ_OUT_DIR: args.modeOutDir,
-      MAINZ_RENDER_MODE: args.renderMode,
+      MAINZ_OUT_DIR: args.outputDir,
       MAINZ_NAVIGATION_MODE: args.navigationMode,
       MAINZ_TARGET_NAME: args.targetName,
       MAINZ_BASE_PATH: args.basePath,
@@ -259,7 +251,7 @@ async function runViteBuild(args: {
   });
   if (!status.success) {
     throw new Error(
-      `Vite build failed for target "${args.targetName}" in "${args.renderMode}" mode.`,
+      `Vite ${args.buildLabel} failed for target "${args.targetName}".`,
     );
   }
 }
@@ -277,7 +269,7 @@ async function runViteDevServer(args: {
   defaultLocale?: string;
   localePrefix: "except-default" | "always";
   siteUrl?: string;
-  modeOutDir: string;
+  outputDir: string;
 }): Promise<void> {
   const status = await args.runtime.run({
     ...args.runtime.resolveViteDevCommand({
@@ -287,8 +279,7 @@ async function runViteDevServer(args: {
     }),
     cwd: args.cwd,
     env: {
-      MAINZ_OUT_DIR: args.modeOutDir,
-      MAINZ_RENDER_MODE: "csr",
+      MAINZ_OUT_DIR: args.outputDir,
       MAINZ_NAVIGATION_MODE: args.navigationMode,
       MAINZ_TARGET_NAME: args.targetName,
       MAINZ_BASE_PATH: args.basePath,

@@ -5,6 +5,7 @@ import {
   buildSsgOutputEntries,
   buildTargetRouteManifest,
   materializeRoutePath,
+  isDynamicRoutePath,
   type RenderMode,
   resolveLocaleRedirectPath,
   shouldPrefixLocaleForRoute,
@@ -36,7 +37,6 @@ export { resolveTargetI18nConfig } from "./prerender-context.ts";
 
 export interface ArtifactBuildJob {
   target: NormalizedMainzTarget;
-  mode: RenderMode;
   profile: ResolvedBuildProfile;
 }
 
@@ -50,34 +50,38 @@ interface InitialRouteSnapshot {
   head?: PageHeadDefinition;
 }
 
-export async function emitSsgArtifacts(
+export async function emitRouteArtifacts(
   config: NormalizedMainzConfig,
   job: ArtifactBuildJob,
-  modeOutDir: string,
+  outputDir: string,
   cwd: string,
   runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<void> {
+): Promise<boolean> {
   const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
     await resolveStaticRouteBuildContext(
       config,
       job,
-      modeOutDir,
+      outputDir,
       cwd,
-      "SSG",
+      "route",
       runtime,
     );
+
+  if (manifest.routes.length === 0 || outputEntries.length === 0) {
+    return false;
+  }
 
   for (const entry of outputEntries) {
     const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
     const relativeFromOutputDir = relative(
       dirname(absoluteOutputPath),
-      resolve(cwd, modeOutDir),
+      resolve(cwd, outputDir),
     );
     const normalizedRelative = normalizePathSlashes(
       relativeFromOutputDir || ".",
     );
     let html = rewriteAssetPaths(templateHtml, normalizedRelative);
-    if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
+    if (isRootFallbackOutput(entry.outputHtmlPath, outputDir)) {
       html = rewriteFallbackAssetPaths(html, job.profile.basePath);
     }
 
@@ -88,68 +92,40 @@ export async function emitSsgArtifacts(
       );
     }
 
-    let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
-    try {
-      renderedApp = await renderSsgAppHtml({
+    const routeOutput = route.mode === "ssg"
+      ? await renderSsgRouteDocument({
         html,
         absoluteOutputPath,
-        modeOutDir: resolve(cwd, modeOutDir),
-        locale: entry.locale,
-        basePath: toViteBasePath(job.profile.basePath),
-        renderPath: entry.renderPath,
+        outputDir,
+        route,
+        entry,
+        targetI18n,
+        job,
+        cwd,
+      })
+      : await renderCsrRouteDocument({
+        html,
+        absoluteOutputPath,
+        outputDir,
+        route,
+        entry,
+        targetI18n,
+        job,
+        cwd,
       });
-    } catch (error) {
-      throw new Error(formatSsgPrerenderError({
-        routePath: route.path,
-        renderPath: entry.renderPath,
-        locale: entry.locale,
-        error,
-      }));
-    }
-    for (const warning of renderedApp.warnings) {
-      console.warn(formatSsgPrerenderWarning({
-        routePath: route.path,
-        renderPath: entry.renderPath,
-        locale: entry.locale,
-        warning,
-      }));
-    }
-    html = injectAppHtml(html, renderedApp.appHtml);
-    try {
-      html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
-    } catch (error) {
-      throw new Error(
-        `SSG route snapshot for "${entry.renderPath}" (route "${route.path}", locale "${entry.locale}") contains non-public or non-serializable data: ${
-          toErrorMessage(error)
-        }`,
-      );
-    }
-    html = setHtmlLang(html, entry.locale);
-    const routeHead = buildRouteHead({
-      path: entry.params
-        ? materializeRoutePath(route.path, entry.params)
-        : route.path,
-      locale: entry.locale,
-      locales: route.locales,
-      head: renderedApp.routeSnapshot?.head ?? route.head,
-      localePrefix: targetI18n?.localePrefix,
-      defaultLocale: targetI18n?.defaultLocale,
-      basePath: job.profile.basePath,
-      siteUrl: job.profile.siteUrl,
-    });
-    html = applyRouteHead(html, { head: routeHead });
+    html = routeOutput.html;
 
     await runtime.mkdir(dirname(absoluteOutputPath), { recursive: true });
     await runtime.writeTextFile(absoluteOutputPath, html);
   }
 
-  const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
+  const routesManifestPath = resolve(cwd, outputDir, "routes.json");
   await runtime.writeTextFile(
     routesManifestPath,
     JSON.stringify(manifest, null, 2),
   );
 
-  const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
+  const hydrationManifestPath = resolve(cwd, outputDir, "hydration.json");
   await runtime.writeTextFile(
     hydrationManifestPath,
     JSON.stringify(
@@ -176,136 +152,16 @@ export async function emitSsgArtifacts(
   );
   if (localeRedirectHtml) {
     await runtime.writeTextFile(
-      resolve(cwd, modeOutDir, "index.html"),
+      resolve(cwd, outputDir, "index.html"),
       localeRedirectHtml,
     );
   }
-}
-
-export async function emitCsrRouteArtifacts(
-  config: NormalizedMainzConfig,
-  job: ArtifactBuildJob,
-  modeOutDir: string,
-  cwd: string,
-  runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<void> {
-  const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
-    await resolveStaticRouteBuildContext(
-      config,
-      job,
-      modeOutDir,
-      cwd,
-      "CSR document",
-      runtime,
-    );
-
-  for (const entry of outputEntries) {
-    const absoluteOutputPath = resolve(cwd, entry.outputHtmlPath);
-    const relativeFromOutputDir = relative(
-      dirname(absoluteOutputPath),
-      resolve(cwd, modeOutDir),
-    );
-    const normalizedRelative = normalizePathSlashes(
-      relativeFromOutputDir || ".",
-    );
-    let html = rewriteAssetPaths(templateHtml, normalizedRelative);
-    if (isRootFallbackOutput(entry.outputHtmlPath, modeOutDir)) {
-      html = rewriteFallbackAssetPaths(html, job.profile.basePath);
-    }
-
-    const route = routeById.get(entry.routeId);
-    if (!route) {
-      throw new Error(
-        `Missing route "${entry.routeId}" in manifest for target "${manifest.target}".`,
-      );
-    }
-
-    let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
-    try {
-      renderedApp = await renderSsgAppHtml({
-        html,
-        absoluteOutputPath,
-        modeOutDir: resolve(cwd, modeOutDir),
-        locale: entry.locale,
-        basePath: toViteBasePath(job.profile.basePath),
-        renderPath: entry.renderPath,
-      });
-    } catch (error) {
-      throw new Error(
-        `Failed to evaluate CSR document route "${route.path}" for output "${entry.renderPath}" (locale "${entry.locale}"): ${
-          toErrorMessage(error)
-        }`,
-      );
-    }
-
-    for (const warning of renderedApp.warnings) {
-      console.warn(
-        `CSR document evaluation warning for route "${route.path}" and output "${entry.renderPath}" (locale "${entry.locale}"): ${warning}`,
-      );
-    }
-
-    const routeHead = buildRouteHead({
-      path: entry.params
-        ? materializeRoutePath(route.path, entry.params)
-        : route.path,
-      locale: entry.locale,
-      locales: route.locales,
-      head: renderedApp.routeSnapshot?.head ?? route.head,
-      localePrefix: targetI18n?.localePrefix,
-      defaultLocale: targetI18n?.defaultLocale,
-      basePath: job.profile.basePath,
-      siteUrl: job.profile.siteUrl,
-    });
-
-    html = setHtmlLang(html, entry.locale);
-    html = applyRouteHead(html, { head: routeHead });
-
-    await runtime.mkdir(dirname(absoluteOutputPath), { recursive: true });
-    await runtime.writeTextFile(absoluteOutputPath, html);
-  }
-
-  const routesManifestPath = resolve(cwd, modeOutDir, "routes.json");
-  await runtime.writeTextFile(
-    routesManifestPath,
-    JSON.stringify(manifest, null, 2),
-  );
-
-  const hydrationManifestPath = resolve(cwd, modeOutDir, "hydration.json");
-  await runtime.writeTextFile(
-    hydrationManifestPath,
-    JSON.stringify(
-      {
-        target: job.target.name,
-        hydration: "full-page",
-        navigation: await resolveEffectiveNavigationMode(
-          job.target,
-          job.profile,
-          cwd,
-        ),
-      },
-      null,
-      2,
-    ),
-  );
-
-  const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
-    manifest,
-    targetI18n?.defaultLocale,
-    targetI18n?.localePrefix,
-    job.profile.basePath,
-    job.profile.siteUrl,
-  );
-  if (localeRedirectHtml) {
-    await runtime.writeTextFile(
-      resolve(cwd, modeOutDir, "index.html"),
-      localeRedirectHtml,
-    );
-  }
+  return true;
 }
 
 export async function emitCsrSpaAppShellMetadata(args: {
   runtime?: MainzToolingRuntime;
-  modeOutDir: string;
+  outputDir: string;
   cwd: string;
   documentLanguage?: string;
 }): Promise<void> {
@@ -314,7 +170,7 @@ export async function emitCsrSpaAppShellMetadata(args: {
     return;
   }
 
-  const indexHtmlPath = resolve(args.cwd, args.modeOutDir, "index.html");
+  const indexHtmlPath = resolve(args.cwd, args.outputDir, "index.html");
   const runtime = args.runtime ?? denoToolingRuntime;
   const html = await runtime.readTextFile(indexHtmlPath);
   await runtime.writeTextFile(
@@ -326,7 +182,7 @@ export async function emitCsrSpaAppShellMetadata(args: {
 async function resolveStaticRouteBuildContext(
   config: NormalizedMainzConfig,
   job: ArtifactBuildJob,
-  modeOutDir: string,
+  outputDir: string,
   cwd: string,
   buildLabel: string,
   runtime: MainzToolingRuntime,
@@ -341,7 +197,7 @@ async function resolveStaticRouteBuildContext(
   targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
 }> {
   const templateHtml = await readBuildTemplateHtml(
-    modeOutDir,
+    outputDir,
     cwd,
     job.target.name,
     buildLabel,
@@ -355,11 +211,8 @@ async function resolveStaticRouteBuildContext(
   );
   const outputEntries = buildSsgOutputEntries(
     prerenderContext.manifest,
-    modeOutDir,
+    outputDir,
     {
-      ...(job.mode === "csr"
-        ? { includeAllModes: true }
-        : { renderMode: job.mode }),
       localePrefix: prerenderContext.targetI18n?.localePrefix,
       defaultLocale: prerenderContext.targetI18n?.defaultLocale,
       routeEntriesByRouteId: prerenderContext.routeEntriesByRouteId,
@@ -375,14 +228,142 @@ async function resolveStaticRouteBuildContext(
   };
 }
 
+async function renderSsgRouteDocument(args: {
+  html: string;
+  absoluteOutputPath: string;
+  outputDir: string;
+  route: ReturnType<typeof buildTargetRouteManifest>["routes"][number];
+  entry: ReturnType<typeof buildSsgOutputEntries>[number];
+  targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
+  job: ArtifactBuildJob;
+  cwd: string;
+}): Promise<{ html: string }> {
+  let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
+  try {
+    renderedApp = await renderSsgAppHtml({
+      html: args.html,
+      absoluteOutputPath: args.absoluteOutputPath,
+      outputDir: resolve(args.cwd, args.outputDir),
+      locale: args.entry.locale,
+      basePath: toViteBasePath(args.job.profile.basePath),
+      renderPath: args.entry.renderPath,
+    });
+  } catch (error) {
+    throw new Error(formatSsgPrerenderError({
+      routePath: args.route.path,
+      renderPath: args.entry.renderPath,
+      locale: args.entry.locale,
+      error,
+    }));
+  }
+
+  for (const warning of renderedApp.warnings) {
+    console.warn(formatSsgPrerenderWarning({
+      routePath: args.route.path,
+      renderPath: args.entry.renderPath,
+      locale: args.entry.locale,
+      warning,
+    }));
+  }
+
+  let html = injectAppHtml(args.html, renderedApp.appHtml);
+  try {
+    html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
+  } catch (error) {
+    throw new Error(
+      `SSG route snapshot for "${args.entry.renderPath}" (route "${args.route.path}", locale "${args.entry.locale}") contains non-public or non-serializable data: ${
+        toErrorMessage(error)
+      }`,
+    );
+  }
+  html = setHtmlLang(html, args.entry.locale);
+  const routeHead = buildRouteHeadForOutput(
+    args.route,
+    args.entry,
+    renderedApp.routeSnapshot?.head ?? args.route.head,
+    args.targetI18n,
+    args.job,
+  );
+  html = applyRouteHead(html, { head: routeHead });
+
+  return { html };
+}
+
+async function renderCsrRouteDocument(args: {
+  html: string;
+  absoluteOutputPath: string;
+  outputDir: string;
+  route: ReturnType<typeof buildTargetRouteManifest>["routes"][number];
+  entry: ReturnType<typeof buildSsgOutputEntries>[number];
+  targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
+  job: ArtifactBuildJob;
+  cwd: string;
+}): Promise<{ html: string }> {
+  let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
+  try {
+    renderedApp = await renderSsgAppHtml({
+      html: args.html,
+      absoluteOutputPath: args.absoluteOutputPath,
+      outputDir: resolve(args.cwd, args.outputDir),
+      locale: args.entry.locale,
+      basePath: toViteBasePath(args.job.profile.basePath),
+      renderPath: args.entry.renderPath,
+    });
+  } catch (error) {
+    throw new Error(
+      `Failed to evaluate CSR document route "${args.route.path}" for output "${args.entry.renderPath}" (locale "${args.entry.locale}"): ${
+        toErrorMessage(error)
+      }`,
+    );
+  }
+
+  for (const warning of renderedApp.warnings) {
+    console.warn(
+      `CSR document evaluation warning for route "${args.route.path}" and output "${args.entry.renderPath}" (locale "${args.entry.locale}"): ${warning}`,
+    );
+  }
+
+  let html = setHtmlLang(args.html, args.entry.locale);
+  const routeHead = buildRouteHeadForOutput(
+    args.route,
+    args.entry,
+    renderedApp.routeSnapshot?.head ?? args.route.head,
+    args.targetI18n,
+    args.job,
+  );
+  html = applyRouteHead(html, { head: routeHead });
+  return { html };
+}
+
+function buildRouteHeadForOutput(
+  route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
+  entry: ReturnType<typeof buildSsgOutputEntries>[number],
+  head: PageHeadDefinition | undefined,
+  targetI18n: ReturnType<typeof resolveTargetI18nConfig>,
+  job: ArtifactBuildJob,
+): PageHeadDefinition | undefined {
+  return buildRouteHead({
+    path: entry.params
+      ? materializeRoutePath(route.path, entry.params)
+      : route.path,
+    locale: entry.locale,
+    locales: route.locales,
+    head,
+    localePrefix: targetI18n?.localePrefix,
+    defaultLocale: targetI18n?.defaultLocale,
+    basePath: job.profile.basePath,
+    siteUrl: job.profile.siteUrl,
+  });
+}
+
 async function readBuildTemplateHtml(
-  modeOutDir: string,
+  outputDir: string,
   cwd: string,
   targetName: string,
   buildLabel: string,
   runtime: MainzToolingRuntime,
 ): Promise<string> {
-  const indexHtmlPath = resolve(cwd, modeOutDir, "index.html");
+  const indexHtmlPath = resolve(cwd, outputDir, "index.html");
 
   try {
     return await runtime.readTextFile(indexHtmlPath);
@@ -400,7 +381,7 @@ function toViteBasePath(basePath: string): string {
 export async function renderSsgAppHtml(args: {
   html: string;
   absoluteOutputPath: string;
-  modeOutDir: string;
+  outputDir: string;
   locale: string;
   basePath: string;
   renderPath: string;
@@ -452,7 +433,7 @@ export async function renderSsgAppHtml(args: {
               resolvedSrc.startsWith(normalizedBasePath)
             ? resolvedSrc.slice(normalizedBasePath.length - 1)
             : resolvedSrc;
-          return resolve(args.modeOutDir, `.${srcWithoutBasePath}`);
+          return resolve(args.outputDir, `.${srcWithoutBasePath}`);
         })()
         : resolve(dirname(args.absoluteOutputPath), resolvedSrc);
 
@@ -692,7 +673,7 @@ function buildRenderPageUrl(renderPath: string): string {
 function resolveModuleScriptPath(args: {
   moduleScriptSrc: string;
   absoluteOutputPath: string;
-  modeOutDir: string;
+  outputDir: string;
   basePath: string;
 }): string {
   const normalizedSrc = args.moduleScriptSrc.trim();
@@ -711,7 +692,7 @@ function resolveModuleScriptPath(args: {
       normalizedBasePath !== "/" && normalizedSrc.startsWith(normalizedBasePath)
         ? normalizedSrc.slice(normalizedBasePath.length - 1)
         : normalizedSrc;
-    return resolve(args.modeOutDir, `.${srcWithoutBasePath}`);
+    return resolve(args.outputDir, `.${srcWithoutBasePath}`);
   }
 
   return resolve(dirname(args.absoluteOutputPath), normalizedSrc);
@@ -784,10 +765,10 @@ function normalizeFallbackBasePath(basePath: string): string {
 
 function isRootFallbackOutput(
   outputHtmlPath: string,
-  modeOutDir: string,
+  outputDir: string,
 ): boolean {
   const relativeOutputPath = normalizePathSlashes(
-    relative(resolve(modeOutDir), resolve(outputHtmlPath)),
+    relative(resolve(outputDir), resolve(outputHtmlPath)),
   );
   return relativeOutputPath === "404.html";
 }

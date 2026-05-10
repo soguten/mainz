@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { describeBuiltOutput, isCsrBuiltOutput, isSsgBuiltOutput } from "../helpers/built-output-io.ts";
+import { describeBuiltOutput } from "../helpers/built-output-io.ts";
 import type { TestBuildContext } from "../helpers/types.ts";
 import type { TestNavigationMode } from "../helpers/types.ts";
 
@@ -23,9 +23,9 @@ export function describeBuiltArtifact(artifact: BuiltArtifact): string {
 }
 
 export function isCsrArtifact(artifact: BuiltArtifact): boolean {
-  return isCsrBuiltOutput(artifact.context.outputDir);
+  return artifact.recipe.navigation === "spa";
 }
 
 export function isSsgArtifact(artifact: BuiltArtifact): boolean {
-  return isSsgBuiltOutput(artifact.context.outputDir);
+  return artifact.recipe.navigation === "mpa";
 }

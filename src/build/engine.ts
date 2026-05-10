@@ -2,7 +2,7 @@ import type {
   NormalizedMainzConfig,
   NormalizedMainzTarget,
 } from "../config/index.ts";
-import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import type { NavigationMode } from "../routing/index.ts";
 import { denoToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { runBuildJobs, runDevServer, runSingleBuild } from "./execution.ts";
@@ -23,7 +23,6 @@ export type BuildEngineOptions = BuildRequestOptions;
 export type BuildEngineJob = BuildJob;
 export type BuildEngineProfile = ResolvedBuildProfile;
 export type BuildEnginePublicationMetadata = PublicationMetadata;
-export type BuildEngineRenderMode = RenderMode;
 export type BuildEngineNavigationMode = NavigationMode;
 export type DevServerHostOption = string | true;
 

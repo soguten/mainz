@@ -58,7 +58,7 @@ export default defineMainzConfig({
 
 `target.vite.alias` cannot replace Mainz framework imports such as `mainz` or
 `mainz/i18n`, and `target.vite.define` cannot replace Mainz runtime values such
-as `__MAINZ_RENDER_MODE__`.
+as `__MAINZ_NAVIGATION_MODE__` and `__MAINZ_BASE_PATH__`.
 
 ## Use a custom Vite config
 
@@ -95,9 +95,6 @@ export default defineConfig({
   appType: navigationMode === "spa" ? "spa" : "mpa",
   base: process.env.MAINZ_BASE_PATH ?? "./",
   define: {
-    __MAINZ_RENDER_MODE__: JSON.stringify(
-      process.env.MAINZ_RENDER_MODE ?? "csr",
-    ),
     __MAINZ_NAVIGATION_MODE__: JSON.stringify(navigationMode),
     __MAINZ_TARGET_NAME__: JSON.stringify(
       process.env.MAINZ_TARGET_NAME ?? "site",

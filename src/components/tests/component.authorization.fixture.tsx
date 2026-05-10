@@ -1,20 +1,20 @@
 import type { Principal } from "../../authorization/index.ts";
 import { Authorize } from "../../authorization/index.ts";
+import type { RouteContext } from "../index.ts";
 import { Component, RenderStrategy } from "../index.ts";
 
 export function createRoutePrincipal(
   principal: Principal | undefined,
-): {
-  principal?: Principal;
-  authorization?: { requirement: { authenticated: true } };
-} {
+  overrides: Partial<Pick<RouteContext, "renderMode" | "navigationMode">> = {},
+): RouteContext {
   return {
+    path: "/",
+    matchedPath: "/",
+    params: {},
+    url: new URL("https://mainz.local/"),
+    renderMode: overrides.renderMode ?? "csr",
+    navigationMode: overrides.navigationMode ?? "spa",
     principal,
-    authorization: {
-      requirement: {
-        authenticated: true,
-      },
-    },
   };
 }
 
@@ -63,10 +63,7 @@ export class AuthorizedLoadPanel extends Component<{}, {}, { label: string }> {
 }
 
 export class AdminPanelHost extends Component<{
-  route?: {
-    principal?: Principal;
-    authorization?: { requirement: { authenticated: true } };
-  };
+  route?: RouteContext;
 }> {
   override render(): HTMLElement {
     return (
@@ -79,10 +76,7 @@ export class AdminPanelHost extends Component<{
 }
 
 export class AuthorizedLoadHost extends Component<{
-  route?: {
-    principal?: Principal;
-    authorization?: { requirement: { authenticated: true } };
-  };
+  route?: RouteContext;
 }> {
   override render(): HTMLElement {
     return (

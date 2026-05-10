@@ -7,8 +7,6 @@ import type {
 import { type TestAppId, resolveTestAppDefinition } from "./test-apps.ts";
 import {
   describeBuiltArtifact,
-  isCsrArtifact,
-  isSsgArtifact,
   type BuiltArtifact,
 } from "./artifacts.ts";
 import type { ResolvedTestApp } from "./render-test-app.ts";
@@ -395,39 +393,19 @@ async function resolveArtifactForRoute(
   routePath: string,
 ): Promise<BuiltArtifact> {
   const availableArtifacts = getAvailableScenarioArtifacts(args.artifacts);
-  if (availableArtifacts.length === 1) {
-    return availableArtifacts[0];
+  if (availableArtifacts.length === 0) {
+    throw new Error(
+      `Scenario app "${args.artifacts.recipe.app}" did not produce any built artifacts for ${args.artifacts.recipe.navigation}.`,
+    );
   }
 
-  const ssgArtifact = findSsgArtifact(args.artifacts.available);
-  if (ssgArtifact && await doesRouteHtmlExist(args.testApp, ssgArtifact, routePath)) {
-    return ssgArtifact;
+  for (const artifact of availableArtifacts) {
+    if (await doesRouteHtmlExist(args.testApp, artifact, routePath)) {
+      return artifact;
+    }
   }
 
-  const csrArtifact = findCsrArtifact(args.artifacts.available);
-  if (csrArtifact && await doesRouteHtmlExist(args.testApp, csrArtifact, routePath)) {
-    return csrArtifact;
-  }
-
-  if (args.artifacts.recipe.navigation === "spa" && csrArtifact) {
-    return csrArtifact;
-  }
-
-  if (ssgArtifact && await doesDocumentExist(ssgArtifact, "404.html")) {
-    return ssgArtifact;
-  }
-
-  if (csrArtifact) {
-    return csrArtifact;
-  }
-
-  if (ssgArtifact) {
-    return ssgArtifact;
-  }
-
-  throw new Error(
-    `Scenario app "${args.artifacts.recipe.app}" did not produce any built artifacts for ${args.artifacts.recipe.navigation}.`,
-  );
+  return availableArtifacts[0];
 }
 
 async function resolveArtifactForDocument(
@@ -446,25 +424,16 @@ async function resolveArtifactForDocumentFile(
   documentHtmlPath: string,
 ): Promise<BuiltArtifact> {
   const availableArtifacts = getAvailableScenarioArtifacts(args.artifacts);
-  if (availableArtifacts.length === 1) {
-    return availableArtifacts[0];
+  if (availableArtifacts.length === 0) {
+    throw new Error(
+      `Scenario app "${args.artifacts.recipe.app}" did not produce any built artifacts for ${args.artifacts.recipe.navigation}.`,
+    );
   }
 
-  if (documentHtmlPath === "404.html") {
-    const ssgArtifact = findSsgArtifact(args.artifacts.available);
-    if (ssgArtifact) {
-      return ssgArtifact;
+  for (const artifact of availableArtifacts) {
+    if (await doesDocumentExist(artifact, documentHtmlPath)) {
+      return artifact;
     }
-  }
-
-  const ssgArtifact = findSsgArtifact(args.artifacts.available);
-  if (ssgArtifact && await doesDocumentExist(ssgArtifact, documentHtmlPath)) {
-    return ssgArtifact;
-  }
-
-  const csrArtifact = findCsrArtifact(args.artifacts.available);
-  if (csrArtifact && await doesDocumentExist(csrArtifact, documentHtmlPath)) {
-    return csrArtifact;
   }
 
   return await resolveArtifactForRoute(
@@ -477,18 +446,6 @@ function getAvailableScenarioArtifacts(
   artifacts: ScenarioArtifactSet,
 ): BuiltArtifact[] {
   return [...artifacts.available];
-}
-
-function findCsrArtifact(
-  artifacts: readonly BuiltArtifact[],
-): BuiltArtifact | undefined {
-  return artifacts.find((artifact) => isCsrArtifact(artifact));
-}
-
-function findSsgArtifact(
-  artifacts: readonly BuiltArtifact[],
-): BuiltArtifact | undefined {
-  return artifacts.find((artifact) => isSsgArtifact(artifact));
 }
 
 async function doesRouteHtmlExist(

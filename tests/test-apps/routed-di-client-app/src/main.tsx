@@ -8,6 +8,10 @@ import {
 
 const app = defineApp({
   id: "routed-di-client-app",
+  i18n: {
+    locales: ["en", "pt"],
+    defaultLocale: "en",
+  },
   pages: [RoutedDiClientStoryPage],
   services: [
     singleton(ClientRouteBoardService),

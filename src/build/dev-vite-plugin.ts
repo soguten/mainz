@@ -180,7 +180,6 @@ export function createMainzDevRouteMiddlewarePlugin(
         normalizedConfig,
         {
           target,
-          mode: "ssg",
           profile: options.profile,
         },
         options.cwd,

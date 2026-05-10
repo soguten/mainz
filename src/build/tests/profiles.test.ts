@@ -126,7 +126,7 @@ Deno.test("build/profiles: should resolve publication metadata from profile and 
     assertEquals(metadata, {
       target: "site",
       profile: "gh-pages",
-      outDir: "dist/site/csr",
+      outDir: "dist/site",
       basePath: "/mainz/",
       navigation: "spa",
       siteUrl: "https://mainz.dev",
@@ -221,7 +221,7 @@ Deno.test("build/profiles: should resolve publication metadata from the app sele
     );
 
     assertEquals(metadata.navigation, "mpa");
-    assertEquals(metadata.outDir, "dist/site/ssg");
+    assertEquals(metadata.outDir, "dist/site");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -274,11 +274,11 @@ Deno.test("build/profiles: should derive spa navigation defaults when no app dec
   }
 });
 
-Deno.test("build/profiles: publication outDir should assemble a Pages artifact without an extra mode segment", async () => {
+Deno.test("build/profiles: publication outDir should assemble a Pages artifact without an extra nested mode segment", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-pages-artifact-" });
 
   try {
-    const publicationOutDir = join(cwd, "dist", "artifact", "ssg");
+    const publicationOutDir = join(cwd, "dist", "artifact");
     const stagingDir = join(cwd, "_pages");
 
     await Deno.mkdir(join(publicationOutDir, "assets"), { recursive: true });

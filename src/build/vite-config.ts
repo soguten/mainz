@@ -3,7 +3,7 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
-import type { NavigationMode, RenderMode } from "../routing/index.ts";
+import type { NavigationMode } from "../routing/index.ts";
 import type { ToolingRuntimeName } from "../tooling/runtime/index.ts";
 
 export interface GeneratedViteAlias {
@@ -15,8 +15,7 @@ export interface GeneratedViteAlias {
 export interface GeneratedViteConfigInput {
   cwd: string;
   target: NormalizedMainzTarget;
-  modeOutDir: string;
-  renderMode: RenderMode;
+  outputDir: string;
   navigationMode: NavigationMode;
   basePath: string;
   appLocales: readonly string[];
@@ -48,7 +47,7 @@ export function resolveGeneratedViteConfig(
     root: normalizePathSlashes(resolve(input.cwd, input.target.rootDir)),
     base: input.basePath,
     appType: input.navigationMode === "spa" ? "spa" : "mpa",
-    outDir: normalizePathSlashes(resolve(input.cwd, input.modeOutDir)),
+    outDir: normalizePathSlashes(resolve(input.cwd, input.outputDir)),
     cacheDir: input.cacheDir
       ? normalizePathSlashes(resolve(input.cwd, input.cacheDir))
       : undefined,
@@ -57,7 +56,6 @@ export function resolveGeneratedViteConfig(
       ...resolveTargetAliases(input.cwd, input.target),
     ],
     define: {
-      __MAINZ_RENDER_MODE__: JSON.stringify(input.renderMode),
       __MAINZ_NAVIGATION_MODE__: JSON.stringify(input.navigationMode),
       __MAINZ_TARGET_NAME__: JSON.stringify(input.target.name),
       __MAINZ_BASE_PATH__: JSON.stringify(input.basePath),

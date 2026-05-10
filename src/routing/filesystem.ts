@@ -1,14 +1,13 @@
 import {
   FilesystemRoute,
   FilesystemRoutingOptions,
-  RenderMode,
 } from "./types.ts";
 
-const PAGE_FILE_SUFFIXES = [
+const PAGE_FILE_SUFFIX = ".page.tsx";
+const LEGACY_PAGE_FILE_SUFFIXES = [
   ".ssg.page.tsx",
   ".csr.page.tsx",
   ".spa.page.tsx",
-  ".page.tsx",
 ] as const;
 
 interface RouteSegmentStats {
@@ -20,9 +19,15 @@ interface RouteSegmentStats {
 
 export function isFilesystemPageFile(filePath: string): boolean {
   const normalizedFilePath = normalizePath(filePath);
-  return PAGE_FILE_SUFFIXES.some((suffix) =>
-    normalizedFilePath.endsWith(suffix)
-  );
+  if (
+    LEGACY_PAGE_FILE_SUFFIXES.some((suffix) =>
+      normalizedFilePath.endsWith(suffix)
+    )
+  ) {
+    return false;
+  }
+
+  return normalizedFilePath.endsWith(PAGE_FILE_SUFFIX);
 }
 
 export function inferFilesystemRoute(
@@ -35,7 +40,6 @@ export function inferFilesystemRoute(
   }
 
   const relativeFilePath = toRelativePath(normalizedFilePath, options.pagesDir);
-  const mode = inferRenderMode(relativeFilePath);
   const withoutSuffix = trimPageSuffix(relativeFilePath);
 
   if (!withoutSuffix) {
@@ -46,7 +50,7 @@ export function inferFilesystemRoute(
   return {
     file: normalizedFilePath,
     source: "filesystem",
-    mode,
+    mode: "csr",
     path: parsedPattern.path,
     pattern: parsedPattern.path,
     routeKey: parsedPattern.routeKey,
@@ -70,29 +74,11 @@ export function inferFilesystemRoutes(
 }
 
 function trimPageSuffix(relativeFilePath: string): string | null {
-  for (const suffix of PAGE_FILE_SUFFIXES) {
-    if (relativeFilePath.endsWith(suffix)) {
-      return relativeFilePath.slice(0, -suffix.length);
-    }
+  if (relativeFilePath.endsWith(PAGE_FILE_SUFFIX)) {
+    return relativeFilePath.slice(0, -PAGE_FILE_SUFFIX.length);
   }
 
   return null;
-}
-
-function inferRenderMode(relativeFilePath: string): RenderMode {
-  if (relativeFilePath.endsWith(".ssg.page.tsx")) {
-    return "ssg";
-  }
-
-  if (relativeFilePath.endsWith(".csr.page.tsx")) {
-    return "csr";
-  }
-
-  if (relativeFilePath.endsWith(".spa.page.tsx")) {
-    return "csr";
-  }
-
-  return "csr";
 }
 
 function inferRoutePattern(
