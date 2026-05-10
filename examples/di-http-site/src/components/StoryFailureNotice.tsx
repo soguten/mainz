@@ -1,4 +1,4 @@
-import { Card } from "mainz/typecase";
+import { Card } from "./ui.tsx";
 
 export function StoryFailureNotice(args: { error: unknown }) {
   const message = args.error instanceof Error

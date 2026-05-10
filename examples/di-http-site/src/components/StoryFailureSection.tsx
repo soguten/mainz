@@ -5,11 +5,11 @@ import {
   RenderStrategy,
 } from "mainz";
 import { inject } from "mainz/di";
-import { Card } from "mainz/typecase";
 import { StoriesApi } from "../lib/api.ts";
 import type { StoryDetail } from "../lib/story-data.ts";
 import { StoryFailureNotice } from "./StoryFailureNotice.tsx";
 import { StoryFailureSkeleton } from "./StoryFailureSkeleton.tsx";
+import { Card } from "./ui.tsx";
 
 @RenderStrategy("defer")
 export class StoryFailureSection

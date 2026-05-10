@@ -189,8 +189,7 @@ returns `false`.
 
 Commands do not need a shortcut.
 
-When you do provide one, Mainz uses the same semantic chord vocabulary already
-shared with Typecase:
+When you do provide one, Mainz uses a simple semantic chord vocabulary:
 
 - `Mod+K`
 - `Shift+Mod+P`
@@ -200,8 +199,8 @@ Shortcut bindings are plain strings. Eligibility belongs to `when(context)`, not
 to the shortcut shape.
 
 Mainz root does not expose a public shortcut helper surface. When UI needs
-shortcut rendering or shortcut-focused utilities, that public surface lives in
-Typecase.
+shortcut rendering or shortcut-focused utilities, keep that surface in the
+consumer UI layer instead of the runtime core.
 
 ## Commands stay inside one app boundary
 

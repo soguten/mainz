@@ -5,10 +5,10 @@ import {
   RenderStrategy,
 } from "mainz";
 import { inject } from "mainz/di";
-import { Card } from "mainz/typecase";
 import { StoriesApi } from "../lib/api.ts";
 import type { StorySummary } from "../lib/story-data.ts";
 import { RelatedStoriesSkeleton } from "./RelatedStoriesSkeleton.tsx";
+import { Card } from "./ui.tsx";
 
 interface RelatedStoriesSectionProps {
   slug: string;

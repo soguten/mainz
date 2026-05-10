@@ -1,12 +1,12 @@
 import { type PageLoadContext, RenderMode, Route } from "mainz";
 import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
+import { Button, Card } from "../components/ui.tsx";
 import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
 import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 import {
   activateSessionAndNavigate,
   listSessionPresets,
 } from "../lib/session.ts";
-import { Button, Card } from "mainz/typecase";
 
 @Route("/login")
 @RenderMode("csr")

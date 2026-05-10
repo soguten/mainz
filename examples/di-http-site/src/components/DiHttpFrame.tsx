@@ -4,7 +4,7 @@ import {
   readBackendMode,
   switchBackendMode,
 } from "../lib/runtime.ts";
-import { Button, Text, TypecaseRoot } from "mainz/typecase";
+import { Button, ExampleRoot, Text } from "./ui.tsx";
 
 interface DiHttpFrameProps {
   eyebrow: string;
@@ -17,7 +17,7 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
   const backendMode = readBackendMode();
 
   return (
-    <TypecaseRoot className="di-http-app">
+    <ExampleRoot className="di-http-app">
       <div className="di-http-shell">
         <header className="di-http-hero">
           <div className="di-http-topline">
@@ -82,7 +82,7 @@ export function DiHttpFrame(props: DiHttpFrameProps) {
 
         {props.children}
       </div>
-    </TypecaseRoot>
+    </ExampleRoot>
   );
 }
 

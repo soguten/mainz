@@ -1,10 +1,10 @@
 import { type PageLoadContext, Route } from "mainz";
 import { inject } from "mainz/di";
+import { Card } from "../components/ui.tsx";
 import { DiHttpFrame } from "../components/DiHttpFrame.tsx";
 import { StoriesApi } from "../lib/api.ts";
 import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 import type { StorySummary } from "../lib/story-data.ts";
-import { Card } from "mainz/typecase";
 
 interface HomePageData {
   featured: readonly StorySummary[];

@@ -132,5 +132,5 @@ still handle:
 - click outside behavior
 - background inertness when needed
 
-This keeps `Portal` small and lets UI libraries such as Typecase build
-opinionated patterns on top.
+This keeps `Portal` small and lets consumer UI libraries build opinionated
+patterns on top.

@@ -113,6 +113,38 @@ export const diHttpExampleStyles = `
         color: var(--di-http-accent);
     }
 
+    .tc-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: var(--di-http-accent);
+        color: white;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    }
+
+    .tc-button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--di-http-shadow);
+    }
+
+    .tc-button[data-size="sm"] {
+        min-height: 40px;
+        padding: 0 16px;
+    }
+
+    .tc-button[data-variant="secondary"] {
+        background: rgba(255, 255, 255, 0.72);
+        border-color: var(--di-http-border);
+        color: var(--di-http-ink);
+    }
+
     .di-http-button[data-selected="true"] {
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
     }

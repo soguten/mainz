@@ -3,10 +3,10 @@ import { inject } from "mainz/di";
 import { DiHttpFrame } from "../components/DiHttpFrame.tsx";
 import { RelatedStoriesSection } from "../components/RelatedStoriesSection.tsx";
 import { StoryFailureSection } from "../components/StoryFailureSection.tsx";
+import { Card } from "../components/ui.tsx";
 import { StoriesApi } from "../lib/api.ts";
 import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 import type { StoryDetail } from "../lib/story-data.ts";
-import { Card } from "mainz/typecase";
 
 interface StoryPageData {
   story: StoryDetail;

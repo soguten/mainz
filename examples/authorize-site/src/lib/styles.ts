@@ -113,6 +113,41 @@ export const authorizeSiteStyles = `
         box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
     }
 
+    .tc-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    }
+
+    .tc-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    .tc-button[data-size="sm"] {
+        min-height: 42px;
+        padding: 0 16px;
+    }
+
+    .tc-button[data-variant="primary"] {
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        color: #f8fafc;
+    }
+
+    .tc-button[data-variant="secondary"] {
+        border-color: rgba(37, 99, 235, 0.16);
+        background: #ffffff;
+        color: #0f172a;
+    }
+
     .authorize-site-button-primary {
         border-color: transparent;
         background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
@@ -190,6 +225,11 @@ export const authorizeSiteStyles = `
         padding: 20px;
     }
 
+    .tc-card-header {
+        display: grid;
+        gap: 6px;
+    }
+
     .authorize-site-runtime-card h2,
     .authorize-site-runtime-card .tc-card-title {
         margin: 0;
@@ -209,6 +249,42 @@ export const authorizeSiteStyles = `
 
     .authorize-site-json-block {
         margin: 0;
+    }
+
+    .tc-code-block {
+        margin: 0;
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    .tc-code-block-header {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 10px 14px;
+        background: rgba(15, 23, 42, 0.92);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .tc-code-block-language {
+        font-family: "IBM Plex Mono", Consolas, monospace;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+    }
+
+    .tc-code-block-body {
+        margin: 0;
+        padding: 16px;
+        overflow-x: auto;
+        font-family: "IBM Plex Mono", Consolas, monospace;
+        font-size: 0.88rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
     }
 
     .authorize-site-check-list {

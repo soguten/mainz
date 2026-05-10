@@ -1,6 +1,6 @@
 import type { AuthorizeSiteShellData } from "../lib/page-data.ts";
 import { signOutAndNavigate } from "../lib/session.ts";
-import { Button, Card, CodeBlock, Text, TypecaseRoot } from "mainz/typecase";
+import { Button, Card, CodeBlock, ExampleRoot, Text } from "./ui.tsx";
 
 interface AuthorizeSiteFrameProps {
   shell?: AuthorizeSiteShellData;
@@ -14,7 +14,7 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
   const shell = props.shell;
 
   return (
-    <TypecaseRoot className="authorize-site-app">
+    <ExampleRoot className="authorize-site-app">
       <div className="authorize-site-shell">
         <header className="authorize-site-header">
           <div className="authorize-site-topline">
@@ -173,6 +173,6 @@ export function AuthorizeSiteFrame(props: AuthorizeSiteFrameProps) {
 
         <main className="authorize-site-body">{props.children}</main>
       </div>
-    </TypecaseRoot>
+    </ExampleRoot>
   );
 }

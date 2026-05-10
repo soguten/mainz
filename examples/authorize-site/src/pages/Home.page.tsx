@@ -1,9 +1,9 @@
 import { type PageLoadContext, RenderMode, Route } from "mainz";
 import { AuthorizeSiteFrame } from "../components/AuthorizeSiteFrame.tsx";
+import { Card } from "../components/ui.tsx";
 import { AuthorizeSitePage } from "../lib/AuthorizeSitePage.ts";
 import { buildAuthorizeSiteShellData } from "../lib/page-data.ts";
 import { listSessionPresets } from "../lib/session.ts";
-import { Card } from "mainz/typecase";
 
 @Route("/")
 @RenderMode("csr")
