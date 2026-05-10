@@ -2,12 +2,12 @@
 
 import { resolve } from "node:path";
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is prerendered", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "forbidden-in-ssg-build",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "forbidden-in-ssg-build",
     targetName: "forbidden-in-ssg-build",
   });
 
@@ -19,9 +19,9 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
         "./src/cli/mainz.ts",
         "build",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
       ],
       cwd: cliTestsRepoRoot,
       stdout: "piped",
@@ -43,13 +43,13 @@ Deno.test("cli/build: should fail the build when a forbidden-in-ssg component is
       "Remove it from the SSG path or render this route in a non-SSG mode.",
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/build: should warn for ownership-based defer placeholders without placeholder() during ssg prerender", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "component-load-ssg-warnings-build",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "component-load-ssg-warnings-build",
     targetName: "component-load-ssg-warnings-build",
   });
 
@@ -61,9 +61,9 @@ Deno.test("cli/build: should warn for ownership-based defer placeholders without
         "./src/cli/mainz.ts",
         "build",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
       ],
       cwd: cliTestsRepoRoot,
       stdout: "piped",
@@ -88,19 +88,19 @@ Deno.test("cli/build: should warn for ownership-based defer placeholders without
     );
 
     const html = await Deno.readTextFile(
-      resolve(fixture.outputDir, "ssg", "index.html"),
+      resolve(testApp.outputDir, "ssg", "index.html"),
     );
     assertStringIncludes(html, "Component Load SSG Warnings");
     assertStringIncludes(html, "loading related docs");
     assertStringIncludes(html, "loading recent docs");
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/build: should resolve dynamic entries() under the build-time app service container", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "entries-di-build",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "entries-di-build",
     targetName: "entries-di-build",
   });
 
@@ -112,9 +112,9 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
         "./src/cli/mainz.ts",
         "build",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
       ],
       cwd: cliTestsRepoRoot,
       stdout: "piped",
@@ -129,7 +129,7 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
 
     const html = await Deno.readTextFile(
       resolve(
-        fixture.outputDir,
+        testApp.outputDir,
         "ssg",
         "stories",
         "hello-from-di",
@@ -140,6 +140,6 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
     assertStringIncludes(html, "hello-from-di");
     assertStringIncludes(html, "en");
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });

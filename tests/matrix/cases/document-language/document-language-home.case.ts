@@ -6,20 +6,15 @@ import {
   waitForNextNavigationReady,
   waitForNextNavigationStart,
 } from "../../../helpers/navigation.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const documentLanguageHomeCase = matrixTest({
+export const documentLanguageHomeCase = scenarioTest({
   name: "documentLanguage routes stay unprefixed and set html lang",
-  fixture: "DocumentLanguageRoutedApp",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    const html = await fixture.readHtml(artifact, "/");
+  run: async ({ navigation, app }) => {
+    const html = await app.route("/").html();
     assertStringIncludes(html, '<html lang="pt-BR">');
 
-    const screen = await fixture.render(artifact, "/");
+    const screen = await app.route("/").render();
 
     try {
       await waitFor(() => document.documentElement.lang === "pt-BR");
@@ -28,7 +23,7 @@ export const documentLanguageHomeCase = matrixTest({
       assertEquals(document.documentElement.lang, "pt-BR");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
-        combo.navigation,
+        navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",
@@ -39,7 +34,7 @@ export const documentLanguageHomeCase = matrixTest({
       assertLinkHref("Guides", "/quickstart");
       assertLinkHref("Reference", "/reference");
 
-      if (combo.navigation !== "spa") {
+      if (navigation !== "spa") {
         return;
       }
 
@@ -65,7 +60,7 @@ export const documentLanguageHomeCase = matrixTest({
 
       await waitFor(() =>
         window.location.pathname === "/quickstart" &&
-        (document.body.textContent ?? "").includes("Idioma do documento")
+        (document.body.textContent ?? "").includes("Document language")
       );
     } finally {
       screen.cleanup();

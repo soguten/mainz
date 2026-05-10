@@ -2,22 +2,17 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { waitFor } from "../../../../src/testing/async-testing.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const singleLocaleQuickstartCase = matrixTest({
+export const singleLocaleQuickstartCase = scenarioTest({
   name: "single-locale child routes stay unprefixed across navigation modes",
-  fixture: "SingleLocaleRoutedApp",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    const preview = await fixture.preview(artifact, "/quickstart");
-    if (typeof preview.responseStatus === "number") {
-      assertEquals(preview.responseStatus, 200);
+  run: async ({ navigation, app }) => {
+    const response = await app.route("/quickstart").load();
+    if (typeof response.status === "number") {
+      assertEquals(response.status, 200);
     }
 
-    const screen = await fixture.render(artifact, "/quickstart");
+    const screen = await app.route("/quickstart").render();
 
     try {
       await waitFor(() =>
@@ -29,7 +24,7 @@ export const singleLocaleQuickstartCase = matrixTest({
       assertEquals(document.documentElement.lang, "en");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
-        combo.navigation,
+        navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",

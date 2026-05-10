@@ -12,24 +12,17 @@ import {
   waitForNextNavigationReady,
   waitForNextNavigationStart,
 } from "../../../helpers/navigation.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
 const matrixBasePath = "/docs/mainz/";
 const matrixSiteUrl = "https://example.com/docs/mainz";
 const localBaseUrl = "https://mainz.local/docs/mainz";
 
-export const basePathHomeCase = matrixTest({
+export const basePathHomeCase = scenarioTest({
   name: "basePath keeps localized home routes and navigation consistent",
-  fixture: "BasePathApp",
   profile: "gh-pages",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    const screen = await fixture.renderDocument({
-      artifact,
-      documentHtmlPath: "index.html",
+  run: async ({ navigation, app }) => {
+    const screen = await app.document("index.html").renderAt({
       url: `${localBaseUrl}/`,
       basePath: matrixBasePath,
       navigationReady: {
@@ -40,7 +33,7 @@ export const basePathHomeCase = matrixTest({
 
     try {
       assertDocumentState({
-        navigation: combo.navigation,
+        navigation,
         locale: "en",
         bodyIncludes: "Fixture home",
       });
@@ -79,7 +72,7 @@ export const basePathHomeCase = matrixTest({
             "href",
           ) ?? null;
 
-      if (combo.navigation === "spa") {
+      if (navigation === "spa") {
         const started = waitForNextNavigationStart({
           mode: "spa",
           path: "/",
@@ -130,7 +123,7 @@ export const basePathHomeCase = matrixTest({
         bodyIncludes: "Fixture home",
       });
 
-    if (combo.navigation === "mpa") {
+      if (navigation === "mpa") {
         assertEquals(prefetchHref, `https://mainz.local${matrixBasePath}pt/`);
         assertEquals(
           document.documentElement.dataset.mainzTransitionPhase,

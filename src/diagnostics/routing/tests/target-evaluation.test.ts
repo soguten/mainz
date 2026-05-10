@@ -3,24 +3,24 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { normalizeMainzConfig } from "../../../config/index.ts";
-import { createFixtureTargetConfig } from "../../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../../tests/helpers/test-app-config.ts";
 import { makeMainzTempDir } from "../../../../tests/helpers/temp.ts";
 import { cliTestsRepoRoot } from "../../../../tests/helpers/types.ts";
 import { resolveTargetDiagnosticsEvaluationsForTarget } from "../target-evaluation.ts";
 
 Deno.test("diagnostics/routing: target evaluation should collect all routed app candidates in lexicographic app id order", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -45,23 +45,23 @@ Deno.test("diagnostics/routing: target evaluation should collect all routed app 
       ],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/routing: target evaluation should collect root-only app candidates in lexicographic app id order", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-root-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-root-app",
     targetName: "diagnostics-multi-root-app",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -86,23 +86,23 @@ Deno.test("diagnostics/routing: target evaluation should collect root-only app c
       ],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/routing: target evaluation should read app-owned authorization policy names", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-authorization-policies",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-authorization-policies",
     targetName: "diagnostics-authorization-policies",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -114,7 +114,7 @@ Deno.test("diagnostics/routing: target evaluation should read app-owned authoriz
     assertEquals(evaluations[0]?.appId, "diagnostics-authorization-policies");
     assertEquals(evaluations[0]?.authorizationPolicyNames, ["org-member"]);
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 

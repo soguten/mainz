@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
 
-import { coreMatrixCases } from "./cases/core/core-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { coreScenarioCases } from "./cases/core/core-scenario-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/core",
-  cases: coreMatrixCases,
+  cases: coreScenarioCases,
 });

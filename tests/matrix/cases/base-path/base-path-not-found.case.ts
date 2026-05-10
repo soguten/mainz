@@ -5,24 +5,17 @@ import {
   assertDocumentState,
   assertSeoState,
 } from "../../../helpers/document.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
 const matrixBasePath = "/docs/mainz/";
 const matrixSiteUrl = "https://example.com/docs/mainz";
 const localBaseUrl = "https://mainz.local/docs/mainz";
 
-export const basePathNotFoundCase = matrixTest({
+export const basePathNotFoundCase = scenarioTest({
   name: "basePath keeps localized notFound routes and SEO consistent",
-  fixture: "BasePathApp",
   profile: "gh-pages",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    const screen = await fixture.renderDocument({
-      artifact,
-      documentHtmlPath: "404.html",
+  run: async ({ navigation, app }) => {
+    const screen = await app.document("404.html").renderAt({
       url: `${localBaseUrl}/pt/nao-existe`,
       basePath: matrixBasePath,
       navigationReady: {
@@ -33,7 +26,7 @@ export const basePathNotFoundCase = matrixTest({
 
     try {
       assertDocumentState({
-        navigation: combo.navigation,
+        navigation,
         locale: "pt",
         bodyIncludes: "Essa rota nao existe na fixture.",
       });

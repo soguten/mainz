@@ -12,19 +12,19 @@ import {
   resolveDiscoveredPagesFromDirectory,
   resolveTargetDiscoveredPagesForTarget,
 } from "../target-page-discovery.ts";
-import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test("routing/target-page-discovery: should classify invalid locale discovery failures with a structured kind", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-invalid-locales",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-invalid-locales",
     targetName: "diagnostics-invalid-locales",
   });
 
   try {
     const { discoveryErrors } = await resolveDiscoveredPagesFromDirectory(
-      resolve(fixture.fixtureRoot, "src", "pages"),
+      resolve(testApp.testAppRoot, "src", "pages"),
     );
 
     assertEquals(discoveryErrors?.length, 1);
@@ -37,7 +37,7 @@ Deno.test("routing/target-page-discovery: should classify invalid locale discove
       '@Locales() received invalid locale "en--US"',
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
@@ -84,18 +84,18 @@ Deno.test("routing/target-page-discovery: should classify generic page discovery
 });
 
 Deno.test("routing/target-page-discovery: should discover routed pages from the conventional app module", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-di",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-di",
     targetName: "diagnostics-di-app-file",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -112,7 +112,7 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
         path: page.path,
       })),
       [{
-        file: resolve(fixture.fixtureRoot, "src", "pages", "Home.page.tsx")
+        file: resolve(testApp.testAppRoot, "src", "pages", "Home.page.tsx")
           .replaceAll(
             "\\",
             "/",
@@ -122,23 +122,23 @@ Deno.test("routing/target-page-discovery: should discover routed pages from the 
       }],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("routing/target-page-discovery: should discover routed pages when main.tsx imports a default-exported app definition", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-di-imported-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-di-imported-app",
     targetName: "diagnostics-di-imported-app",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -156,7 +156,7 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
       })),
       [{
         file: resolve(
-          fixture.fixtureRoot,
+          testApp.testAppRoot,
           "src",
           "pages",
           "Home.page.tsx",
@@ -166,23 +166,23 @@ Deno.test("routing/target-page-discovery: should discover routed pages when main
       }],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("routing/target-page-discovery: should discover app-level notFound pages without requiring @Route(...)", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "not-found-csr-default",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "not-found-csr-default",
     targetName: "not-found-csr-default-app-file",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -215,24 +215,24 @@ Deno.test("routing/target-page-discovery: should discover app-level notFound pag
       ],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("routing/target-page-discovery: should select the configured appId when resolving discovered pages for a target", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app-selected",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
         appId: "beta-app",
-        outDir: fixture.outputDir,
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -253,23 +253,23 @@ Deno.test("routing/target-page-discovery: should select the configured appId whe
       }],
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("routing/target-page-discovery: should require appId when app discovery finds multiple routed apps", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app-ambiguous",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -286,24 +286,24 @@ Deno.test("routing/target-page-discovery: should require appId when app discover
       "Add appId to select one",
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("routing/target-page-discovery: should report an explicit error when target appId matches no discovered app", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app-missing-selection",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
         appId: "missing-app",
-        outDir: fixture.outputDir,
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -316,6 +316,6 @@ Deno.test("routing/target-page-discovery: should report an explicit error when t
       'selects appId "missing-app", but',
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });

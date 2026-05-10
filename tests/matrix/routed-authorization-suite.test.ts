@@ -1,9 +1,11 @@
 /// <reference lib="deno.ns" />
 
-import { routedAuthorizationCases } from "./cases/authorization/routed-authorization-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { routedAuthorizationCases } from "./cases/authorization/routed-authorization-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/routed-authorization",
+  app: "RoutedAuthorizationApp",
+  navigations: ["spa"],
   cases: routedAuthorizationCases,
 });

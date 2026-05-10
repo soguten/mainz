@@ -1,40 +1,36 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const headSeoCase = matrixTest({
+export const headSeoCase = scenarioTest({
   name: "csr document routes emit localized SEO links without siteUrl",
-  fixture: "HeadSeoApp",
-  exercise: [
-    { render: "csr", navigation: "mpa" },
-  ],
-  run: async ({ artifact }) => {
+  run: async ({ app }) => {
     await assertLocalizedSeoOutput({
-      outputDir: artifact.context.outputDir,
+      enHtml: await app.document("index.html").html(),
+      ptHtml: await app.document("pt/index.html").html(),
       expectedBaseUrl: "",
     });
   },
 });
 
 async function assertLocalizedSeoOutput(args: {
-  outputDir: string;
+  enHtml: string;
+  ptHtml: string;
   expectedBaseUrl: "" | "https://fixtures.mainz.dev" | "https://mainz.dev";
 }): Promise<void> {
-  const enHtml = await Deno.readTextFile(`${args.outputDir}/index.html`);
-  const ptHtml = await Deno.readTextFile(`${args.outputDir}/pt/index.html`);
   const enHref = `${args.expectedBaseUrl}/`;
   const ptHref = `${args.expectedBaseUrl}/pt/`;
 
-  assertEquals(extractCanonicalHrefs(enHtml), [enHref]);
-  assertEquals(extractAlternateLinks(enHtml), [
+  assertEquals(extractCanonicalHrefs(args.enHtml), [enHref]);
+  assertEquals(extractAlternateLinks(args.enHtml), [
     { href: enHref, hreflang: "en" },
     { href: ptHref, hreflang: "pt" },
     { href: enHref, hreflang: "x-default" },
   ]);
 
-  assertEquals(extractCanonicalHrefs(ptHtml), [ptHref]);
-  assertEquals(extractAlternateLinks(ptHtml), [
+  assertEquals(extractCanonicalHrefs(args.ptHtml), [ptHref]);
+  assertEquals(extractAlternateLinks(args.ptHtml), [
     { href: enHref, hreflang: "en" },
     { href: ptHref, hreflang: "pt" },
     { href: enHref, hreflang: "x-default" },

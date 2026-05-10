@@ -3,7 +3,7 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { runMainzCliCommand } from "../../../tests/helpers/cli.ts";
 import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 
@@ -25,8 +25,8 @@ Deno.test("cli/mainz: diagnose should print an empty array when no route diagnos
 });
 
 Deno.test("cli/mainz: diagnose should support CI-friendly failure on errors", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-routes",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-routes",
     targetName: "diagnostics-routes",
   });
 
@@ -38,9 +38,9 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on errors", as
         "./src/cli/mainz.ts",
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
         "--fail-on",
         "error",
       ],
@@ -55,13 +55,13 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on errors", as
     assertEquals(result.code, 1);
     assertStringIncludes(stdout, '"code": "dynamic-ssg-missing-entries"');
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-routes",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-routes",
     targetName: "diagnostics-routes",
   });
 
@@ -73,9 +73,9 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", 
         "./src/cli/mainz.ts",
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
         "--fail-on",
         "warning",
       ],
@@ -93,13 +93,13 @@ Deno.test("cli/mainz: diagnose should support CI-friendly failure on warnings", 
       '"code": "component-load-missing-placeholder"',
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/mainz: diagnose should support a human-readable format", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-routes",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-routes",
     targetName: "diagnostics-routes",
   });
 
@@ -108,9 +108,9 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
       [
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
         "--format",
         "human",
       ],
@@ -122,13 +122,13 @@ Deno.test("cli/mainz: diagnose should support a human-readable format", async ()
     assertStringIncludes(stdout, "error dynamic-ssg-missing-entries");
     assertStringIncludes(stdout, "route: /docs/:slug");
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/mainz: diagnose should support selecting one app by id", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app",
   });
 
@@ -137,9 +137,9 @@ Deno.test("cli/mainz: diagnose should support selecting one app by id", async ()
       [
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
       ],
       "diagnose default app-aware output failed for diagnostics-multi-app fixture.",
     );
@@ -147,9 +147,9 @@ Deno.test("cli/mainz: diagnose should support selecting one app by id", async ()
       [
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
         "--app",
         "beta-app",
       ],
@@ -172,13 +172,13 @@ Deno.test("cli/mainz: diagnose should support selecting one app by id", async ()
     );
     assertEquals(selectedDiagnostics, []);
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("cli/mainz: diagnose should support selecting one root-only app by id", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-root-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-root-app",
     targetName: "diagnostics-multi-root-app",
   });
 
@@ -187,9 +187,9 @@ Deno.test("cli/mainz: diagnose should support selecting one root-only app by id"
       [
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
       ],
       "diagnose default app-aware output failed for diagnostics-multi-root-app fixture.",
     );
@@ -197,9 +197,9 @@ Deno.test("cli/mainz: diagnose should support selecting one root-only app by id"
       [
         "diagnose",
         "--config",
-        fixture.configPath,
+        testApp.configPath,
         "--target",
-        fixture.targetName,
+        testApp.targetName,
         "--app",
         "beta-root-app",
       ],
@@ -222,7 +222,7 @@ Deno.test("cli/mainz: diagnose should support selecting one root-only app by id"
     );
     assertEquals(selectedDiagnostics, []);
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 

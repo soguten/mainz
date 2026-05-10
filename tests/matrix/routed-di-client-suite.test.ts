@@ -1,9 +1,11 @@
 /// <reference lib="deno.ns" />
 
-import { routedDiClientCases } from "./cases/di/routed-di-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { routedDiClientCases } from "./cases/di/routed-di-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/routed-di-client",
+  app: "RoutedDIClientApp",
+  navigations: ["spa"],
   cases: routedDiClientCases,
 });

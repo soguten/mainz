@@ -8,190 +8,167 @@ import {
   resolveEngineBuildProfile,
   runEngineBuildJobs,
 } from "../../src/build/index.ts";
-import { resolveForcedBuildJobs } from "../../src/build/testing.ts";
 import type {
-  FixtureTargetDefinition,
-  TestBuildCombination,
   TestBuildContext,
   TestNavigationMode,
-  TestRenderMode,
+  TestScenarioBuildContext,
+  TestAppTargetDefinition,
 } from "./types.ts";
 import { cliTestsRepoRoot } from "./types.ts";
 import { makeMainzTempDir } from "./temp.ts";
 
 const engineBuildLocks = new Map<string, Promise<void>>();
-const fixtureCleanupRetryDelaysMs = [25, 75, 150] as const;
+const testAppCleanupRetryDelaysMs = [25, 75, 150] as const;
 
-export async function buildRoutedAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "routed-app",
-    targetName: "routed-app",
-    combination,
-  });
-}
-
-export async function buildRootAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "root-app",
-    targetName: "root-app",
-    combination,
-  });
-}
-
-export async function buildRoutedDiEntriesAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "routed-di-app",
-    targetName: "routed-di-app",
-    combination,
-  });
-}
-
-export async function buildRoutedDiClientAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "routed-di-client-app",
-    targetName: "routed-di-client-app",
-    combination,
-  });
-}
-
-export async function buildRoutedAuthorizationAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "routed-authorization-app",
-    targetName: "routed-authorization-app",
-    combination,
-  });
-}
-
-export async function buildBasePathAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "base-path",
-    targetName: "base-path-app",
-    combination,
-    profile: "gh-pages",
-  });
-}
-
-export async function buildHeadSeoAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  return await buildNamedFixtureForCombination({
-    fixtureName: "head-seo",
-    targetName: "head-seo-app",
-    combination,
-  });
-}
-
-export async function buildGeneratedTagStabilityAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  const fixture = await createFixtureTargetDefinition({
-    fixtureName: "custom-element-generated-tag-stability",
-    targetName: "generated-tag-stability-app",
-    appNavigation: combination.navigation,
-  });
-
-  try {
-    const context = await buildFixtureForCombination({
-      fixture,
-      combination,
-    });
-
-    return {
-      ...context,
-      cleanup: fixture.cleanup,
-    };
-  } catch (error) {
-    await fixture.cleanup();
-    throw error;
-  }
-}
-
-export async function buildSingleLocaleRoutedAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  const fixture = await createFixtureTargetDefinition({
-    fixtureName: "single-locale-routing",
-    targetName: "single-locale-routed-app",
-    appNavigation: combination.navigation,
-  });
-
-  try {
-    const context = await buildFixtureForCombination({
-      fixture,
-      combination,
-    });
-
-    return {
-      ...context,
-      cleanup: fixture.cleanup,
-    };
-  } catch (error) {
-    await fixture.cleanup();
-    throw error;
-  }
-}
-
-export async function buildDocumentLanguageRoutedAppForCombination(
-  combination: TestBuildCombination,
-): Promise<TestBuildContext> {
-  const fixture = await createFixtureTargetDefinition({
-    fixtureName: "document-language-routing",
-    targetName: "document-language-routed-app",
-    appNavigation: combination.navigation,
-  });
-
-  try {
-    const context = await buildFixtureForCombination({
-      fixture,
-      combination,
-    });
-
-    return {
-      ...context,
-      cleanup: fixture.cleanup,
-    };
-  } catch (error) {
-    await fixture.cleanup();
-    throw error;
-  }
-}
-
-export async function buildFixtureForCombination(args: {
-  fixture: Pick<
-    FixtureTargetDefinition,
-    "target" | "fixtureRoot" | "outputDir" | "targetName"
-  >;
-  combination: TestBuildCombination;
+type NamedTestAppBuildSpec = {
+  testAppName: string;
+  targetName: string;
   profile?: string;
-}): Promise<TestBuildContext> {
-  await runFixtureBuildForCombination(args);
+  appFile?: string;
+};
+
+const routedAppBuildSpec = {
+  testAppName: "routed-app",
+  targetName: "routed-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const rootAppBuildSpec = {
+  testAppName: "root-app",
+  targetName: "root-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const routedDiEntriesAppBuildSpec = {
+  testAppName: "routed-di-app",
+  targetName: "routed-di-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const routedDiClientAppBuildSpec = {
+  testAppName: "routed-di-client-app",
+  targetName: "routed-di-client-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const routedAuthorizationAppBuildSpec = {
+  testAppName: "routed-authorization-app",
+  targetName: "routed-authorization-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const basePathAppBuildSpec = {
+  testAppName: "base-path",
+  targetName: "base-path-app",
+  profile: "gh-pages",
+} as const satisfies NamedTestAppBuildSpec;
+
+const headSeoAppBuildSpec = {
+  testAppName: "head-seo",
+  targetName: "head-seo-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const generatedTagStabilityAppBuildSpec = {
+  testAppName: "custom-element-generated-tag-stability",
+  targetName: "generated-tag-stability-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const singleLocaleRoutedAppBuildSpec = {
+  testAppName: "single-locale-routing",
+  targetName: "single-locale-routed-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const documentLanguageRoutedAppBuildSpec = {
+  testAppName: "document-language-routing",
+  targetName: "document-language-routed-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+export const buildRoutedAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(routedAppBuildSpec, navigation);
+
+export const buildRootAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(rootAppBuildSpec, navigation);
+
+export const buildSingleLocaleRoutedAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(
+    singleLocaleRoutedAppBuildSpec,
+    navigation,
+  );
+
+export const buildDocumentLanguageRoutedAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(
+    documentLanguageRoutedAppBuildSpec,
+    navigation,
+  );
+
+export const buildBasePathAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(basePathAppBuildSpec, navigation);
+
+export const buildRoutedDiEntriesAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(routedDiEntriesAppBuildSpec, navigation);
+
+export const buildRoutedDiClientAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(routedDiClientAppBuildSpec, navigation);
+
+export const buildRoutedAuthorizationAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(
+    routedAuthorizationAppBuildSpec,
+    navigation,
+  );
+
+export const buildHeadSeoAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(headSeoAppBuildSpec, navigation);
+
+export const buildGeneratedTagStabilityAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(
+    generatedTagStabilityAppBuildSpec,
+    navigation,
+  );
+
+export async function buildTestAppForNavigation(args: {
+  testApp: Pick<
+    TestAppTargetDefinition,
+    "target" | "testAppRoot" | "outputDir" | "targetName"
+  >;
+  navigation: TestNavigationMode;
+  profile?: string;
+}): Promise<TestScenarioBuildContext> {
+  await runTestAppBuildForNavigation(args);
 
   return {
-    fixtureName: args.fixture.targetName,
-    fixtureRoot: args.fixture.fixtureRoot,
-    outputDir: resolve(args.fixture.outputDir, args.combination.mode),
-    targetName: args.fixture.targetName,
-    mode: args.combination.mode,
-    navigation: args.combination.navigation,
+    testAppName: args.testApp.targetName,
+    testAppRoot: args.testApp.testAppRoot,
+    availableBuilds: await resolveBuiltOutputContexts({
+      outputBaseDir: args.testApp.outputDir,
+      testAppName: args.testApp.targetName,
+      testAppRoot: args.testApp.testAppRoot,
+      targetName: args.testApp.targetName,
+      navigation: args.navigation,
+      profile: args.profile,
+    }),
+    targetName: args.testApp.targetName,
+    navigation: args.navigation,
     profile: args.profile,
   };
 }
 
 export async function buildTargetWithEngine(args: {
   targetName: string;
-  mode?: TestRenderMode;
   profile?: string;
   configPath?: string;
   cwd?: string;
@@ -224,100 +201,81 @@ export async function buildTargetWithEngine(args: {
         cwd,
       );
 
-      const resolvedJobs = args.mode
-        ? (await resolveForcedBuildJobs(
-          normalizedConfig,
-          {
-            configPath: args.configPath,
-            target: args.targetName,
-            profile: args.profile,
-            mode: args.mode,
-          },
-          cwd,
-        )).map((job) => ({
-          ...job,
-          profile: job.target.name === selectedTarget.name
-            ? resolvedProfile
-            : job.profile,
-        }))
-        : (await resolveEngineBuildJobs(
-          normalizedConfig,
-          {
-            configPath: args.configPath,
-            target: args.targetName,
-            profile: args.profile,
-          },
-          cwd,
-        )).map((job) => ({
-          ...job,
-          profile: job.target.name === selectedTarget.name
-            ? resolvedProfile
-            : job.profile,
-        }));
+      const resolvedJobs = (await resolveEngineBuildJobs(
+        normalizedConfig,
+        {
+          configPath: args.configPath,
+          target: args.targetName,
+          profile: args.profile,
+        },
+        cwd,
+      )).map((job) => ({
+        ...job,
+        profile: job.target.name === selectedTarget.name
+          ? resolvedProfile
+          : job.profile,
+      }));
 
       await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd);
     } catch (error) {
       const details = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to build ${args.targetName}${
-          args.mode ? ` for ${args.mode}` : ""
-        }: ${details}`,
+        `Failed to build ${args.targetName}: ${details}`,
       );
     }
   });
 }
 
-async function runFixtureBuildForCombination(args: {
-  fixture: Pick<
-    FixtureTargetDefinition,
-    "target" | "fixtureRoot" | "outputDir" | "targetName"
+async function runTestAppBuildForNavigation(args: {
+  testApp: Pick<
+    TestAppTargetDefinition,
+    "target" | "testAppRoot" | "outputDir" | "targetName"
   >;
-  combination: TestBuildCombination;
+  navigation: TestNavigationMode;
   profile?: string;
 }): Promise<void> {
-  await buildFixtureTargetWithEngine({
-    target: args.fixture.target,
-    mode: args.combination.mode,
+  await buildTestAppTargetWithEngine({
+    target: args.testApp.target,
     profile: args.profile,
     cwd: cliTestsRepoRoot,
   });
 }
 
-export async function createFixtureTargetDefinition(args: {
-  fixtureName: string;
+export async function createTestAppTargetDefinition(args: {
+  testAppName: string;
   targetName?: string;
   appFile?: string;
   appNavigation?: TestNavigationMode;
-}): Promise<FixtureTargetDefinition> {
-  const sourceFixtureRoot = resolve(
+}): Promise<TestAppTargetDefinition> {
+  const sourceTestAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
-    args.fixtureName,
+    "test-apps",
+    args.testAppName,
   );
-  const targetName = args.targetName ?? args.fixtureName;
+  const targetName = args.targetName ?? args.testAppName;
   const tempRoot = await makeMainzTempDir({
     cwd: cliTestsRepoRoot,
-    prefix: `${args.fixtureName}-`,
-    subdirectories: ["tests", "fixtures"],
+    prefix: `${args.testAppName}-`,
+    subdirectories: ["tests", "test-apps"],
   });
-  const fixtureRoot = resolve(tempRoot, "fixture");
-  await copyDirectory(sourceFixtureRoot, fixtureRoot);
+  const testAppRoot = resolve(tempRoot, "test-app");
+  await copyDirectory(sourceTestAppRoot, testAppRoot);
   if (args.appNavigation) {
-    await applyAppNavigationToFixture(fixtureRoot, args.appNavigation);
+    await applyAppNavigationToTestApp(testAppRoot, args.appNavigation);
   }
   const outputDir = resolve(tempRoot, "dist", targetName);
   const requestedAppFile = args.appFile
-    ? resolve(fixtureRoot, args.appFile)
-    : resolve(fixtureRoot, "src", "main.tsx");
-  const buildConfigPath = resolve(fixtureRoot, "mainz.build.ts");
+    ? resolve(testAppRoot, args.appFile)
+    : resolve(testAppRoot, "src", "main.tsx");
+  const buildConfigPath = resolve(testAppRoot, "mainz.build.ts");
   const hasBuildConfig = await fileExists(buildConfigPath);
   const includeAppFile = args.appFile !== undefined ||
     await fileExists(requestedAppFile);
 
   const targetDefinition = {
     name: targetName,
-    rootDir: fixtureRoot,
+    rootDir: testAppRoot,
     ...(includeAppFile ? { appFile: requestedAppFile } : {}),
     ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
     outDir: outputDir,
@@ -329,42 +287,55 @@ export async function createFixtureTargetDefinition(args: {
   return {
     target,
     targetDefinition,
-    fixtureRoot,
+    testAppRoot,
     outputDir,
     targetName,
     async cleanup() {
-      await removeFixtureTempDir(tempRoot);
+      await removeTestAppTempDir(tempRoot);
     },
   };
 }
 
-async function buildNamedFixtureForCombination(args: {
-  fixtureName: string;
+async function buildNamedTestAppForNavigation(args: {
+  testAppName: string;
   targetName: string;
-  combination: TestBuildCombination;
+  navigation: TestNavigationMode;
   profile?: string;
-}): Promise<TestBuildContext> {
-  const fixture = await createFixtureTargetDefinition({
-    fixtureName: args.fixtureName,
+  appFile?: string;
+}): Promise<TestScenarioBuildContext> {
+  const testApp = await createTestAppTargetDefinition({
+    testAppName: args.testAppName,
     targetName: args.targetName,
-    appNavigation: args.combination.navigation,
+    appFile: args.appFile,
+    appNavigation: args.navigation,
   });
 
   try {
-    const context = await buildFixtureForCombination({
-      fixture,
-      combination: args.combination,
+    const context = await buildTestAppForNavigation({
+      testApp,
+      navigation: args.navigation,
       profile: args.profile,
     });
 
     return {
       ...context,
-      cleanup: fixture.cleanup,
+      cleanup: testApp.cleanup,
     };
   } catch (error) {
-    await fixture.cleanup();
+    await testApp.cleanup();
     throw error;
   }
+}
+
+async function buildRegisteredTestAppForNavigation(
+  spec: NamedTestAppBuildSpec,
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> {
+  return await buildNamedTestAppForNavigation({
+    ...spec,
+    navigation,
+    profile: spec.profile,
+  });
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -376,8 +347,33 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-async function removeFixtureTempDir(path: string): Promise<void> {
-  for (const delayMs of [0, ...fixtureCleanupRetryDelaysMs]) {
+async function resolveBuiltOutputContexts(args: {
+  outputBaseDir: string;
+  testAppName?: string;
+  testAppRoot?: string;
+  targetName: string;
+  navigation: TestNavigationMode;
+  profile?: string;
+}): Promise<TestBuildContext[]> {
+  const builds: TestBuildContext[] = [];
+  for (const outputKind of ["csr", "ssg"] as const) {
+    const modeOutputDir = resolve(args.outputBaseDir, outputKind);
+    if (await fileExists(modeOutputDir)) {
+      builds.push({
+        testAppName: args.testAppName,
+        testAppRoot: args.testAppRoot,
+        outputDir: modeOutputDir,
+        targetName: args.targetName,
+        navigation: args.navigation,
+        profile: args.profile,
+      });
+    }
+  }
+  return builds;
+}
+
+async function removeTestAppTempDir(path: string): Promise<void> {
+  for (const delayMs of [0, ...testAppCleanupRetryDelaysMs]) {
     try {
       await Deno.remove(path, { recursive: true });
       return;
@@ -385,7 +381,9 @@ async function removeFixtureTempDir(path: string): Promise<void> {
       if (!(error instanceof Deno.errors.NotFound)) {
         if (
           delayMs ===
-            fixtureCleanupRetryDelaysMs[fixtureCleanupRetryDelaysMs.length - 1]
+            testAppCleanupRetryDelaysMs[
+              testAppCleanupRetryDelaysMs.length - 1
+            ]
         ) {
           throw error;
         }
@@ -403,9 +401,8 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function buildFixtureTargetWithEngine(args: {
-  target: FixtureTargetDefinition["target"];
-  mode?: TestRenderMode;
+async function buildTestAppTargetWithEngine(args: {
+  target: TestAppTargetDefinition["target"];
   profile?: string;
   cwd?: string;
 }): Promise<void> {
@@ -428,52 +425,26 @@ async function buildFixtureTargetWithEngine(args: {
         cwd,
       );
 
-      const resolvedJobs = args.mode
-        ? (await resolveForcedBuildJobs(
-          normalizedConfig,
-          {
-            target: args.target.name,
-            profile: args.profile,
-            mode: args.mode,
-          },
-          cwd,
-        )).map((job) => ({
-          ...job,
-          profile: resolvedProfile,
-        }))
-        : (await resolveEngineBuildJobs(
-          normalizedConfig,
-          {
-            target: args.target.name,
-            profile: args.profile,
-          },
-          cwd,
-        )).map((job) => ({
-          ...job,
-          profile: resolvedProfile,
-        }));
+      const resolvedJobs = (await resolveEngineBuildJobs(
+        normalizedConfig,
+        {
+          target: args.target.name,
+          profile: args.profile,
+        },
+        cwd,
+      )).map((job) => ({
+        ...job,
+        profile: resolvedProfile,
+      }));
 
       await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd);
     } catch (error) {
       const details = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Failed to build ${args.target.name}${
-          args.mode ? ` for ${args.mode}` : ""
-        }: ${details}`,
+        `Failed to build ${args.target.name}: ${details}`,
       );
     }
   });
-}
-
-async function createNavigationFixtureCopy(args: {
-  sourceFixtureRoot: string;
-  tempRoot: string;
-  navigation: TestNavigationMode;
-}): Promise<string> {
-  const fixtureRoot = resolve(args.tempRoot, "fixture");
-  await copyDirectory(args.sourceFixtureRoot, fixtureRoot);
-  await applyAppNavigationToFixture(fixtureRoot, args.navigation);
-  return fixtureRoot;
 }
 
 async function copyDirectory(
@@ -494,11 +465,11 @@ async function copyDirectory(
   }
 }
 
-async function applyAppNavigationToFixture(
-  fixtureRoot: string,
+async function applyAppNavigationToTestApp(
+  testAppRoot: string,
   navigation: TestNavigationMode,
 ): Promise<void> {
-  const mainPath = resolve(fixtureRoot, "src", "main.tsx");
+  const mainPath = resolve(testAppRoot, "src", "main.tsx");
   if (!await fileExists(mainPath)) {
     return;
   }
@@ -515,7 +486,7 @@ async function applyAppNavigationToFixture(
 
   if (updated === withoutExistingNavigation) {
     throw new Error(
-      `Could not apply app navigation to fixture at ${mainPath}.`,
+      `Could not apply app navigation to test app at ${mainPath}.`,
     );
   }
 

@@ -1,9 +1,11 @@
 /// <reference lib="deno.ns" />
 
 import { headSeoCase } from "./cases/seo/head-seo.case.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/head-seo",
+  app: "HeadSeoApp",
+  navigations: ["mpa"],
   cases: [headSeoCase],
 });

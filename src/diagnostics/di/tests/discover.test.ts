@@ -56,15 +56,15 @@ Deno.test("diagnostics/di: discover should collect registrations, injections, an
 });
 
 Deno.test("diagnostics/di: discover should resolve imported default app definitions and service classes", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     Deno.cwd(),
-    "tests/fixtures/diagnostics-di-imported-app/src",
+    "tests/test-apps/diagnostics-di-imported-app/src",
   ).replaceAll("\\", "/");
   const files = [
-    `${fixtureRoot}/main.tsx`,
-    `${fixtureRoot}/app.ts`,
-    `${fixtureRoot}/pages/Home.page.tsx`,
-    `${fixtureRoot}/services/NeedsMissingDependency.ts`,
+    `${testAppRoot}/main.tsx`,
+    `${testAppRoot}/app.ts`,
+    `${testAppRoot}/pages/Home.page.tsx`,
+    `${testAppRoot}/services/NeedsMissingDependency.ts`,
   ];
 
   const facts = await discoverDiFacts(
@@ -90,7 +90,7 @@ Deno.test("diagnostics/di: discover should resolve imported default app definiti
         key: "MissingDependency",
         name: "MissingDependency",
       }],
-      file: `${fixtureRoot}/app.ts`,
+      file: `${testAppRoot}/app.ts`,
     },
   );
 });

@@ -6,17 +6,12 @@ import {
   waitForNextNavigationReady,
   waitForNextNavigationStart,
 } from "../../../helpers/navigation.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const singleLocaleHomeCase = matrixTest({
+export const singleLocaleHomeCase = scenarioTest({
   name: "single-locale home routes stay unprefixed across navigation modes",
-  fixture: "SingleLocaleRoutedApp",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    const screen = await fixture.render(artifact, "/");
+  run: async ({ navigation, app }) => {
+    const screen = await app.route("/").render();
 
     try {
       await waitFor(() => document.documentElement.lang === "en");
@@ -25,7 +20,7 @@ export const singleLocaleHomeCase = matrixTest({
       assertEquals(document.documentElement.lang, "en");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
-        combo.navigation,
+        navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",
@@ -36,7 +31,7 @@ export const singleLocaleHomeCase = matrixTest({
       assertLinkHref("Guides", "/quickstart");
       assertLinkHref("Reference", "/reference");
 
-      if (combo.navigation !== "spa") {
+      if (navigation !== "spa") {
         return;
       }
 

@@ -1,9 +1,10 @@
 /// <reference lib="deno.ns" />
 
-import { singleLocaleCases } from "./cases/single-locale/single-locale-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { singleLocaleCases } from "./cases/single-locale/single-locale-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/single-locale",
+  app: "SingleLocaleRoutedApp",
   cases: singleLocaleCases,
 });

@@ -7,17 +7,17 @@ import { resolveRoutePrerenderContext } from "../prerender-context.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test("build/prerender-context: should resolve manifest, i18n, and dynamic route entries from the shared prerender helper", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
+    "test-apps",
     "entries-di-build",
   );
   const config = normalizeMainzConfig({
     targets: [
       {
         name: "entries-di-build",
-        rootDir: fixtureRoot,
+        rootDir: testAppRoot,
       },
     ],
   });

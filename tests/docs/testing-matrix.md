@@ -9,7 +9,7 @@ API contract.
 
 Mainz supports independent execution axes that can interact in surprising ways:
 
-- render mode: `csr`, `ssg`
+- page-owned render scenarios: `csr`, `ssg`
 - navigation mode: `spa`, `mpa`
 - target: `site`, `docs`, `playground`
 - profile and publishing variants like `gh-pages` and `plain-static`
@@ -42,44 +42,44 @@ check.
 
 ## Current Shape
 
-The declarative suite in `tests/matrix/suite.test.ts` is the core matrix
-entrypoint:
+The default framework suite in `tests/matrix/suite.test.ts` is now
+scenario-based:
 
-- case-owned intent through `matrixTest(...)`
-- recipe grouping through the harness
-- fixture-family naming through `RoutedApp` and `RootApp`
-- lower-boilerplate route rendering through the resolved fixture API
+- case-owned intent through `scenarioTest(...)`
+- recipe grouping through the scenario harness
+- test-app family naming through `RoutedApp` and `RootApp`
+- route-first authoring through `app.route(...)` and `app.document(...)`
+- route-level render coverage through real CSR and SSG pages inside the test
+  app
 
 The default `test:e2e:core` task runs the declarative suite plus dedicated core
-fixture suites such as `single-locale`, `base-path`, `head-seo`,
+test-app suites such as `single-locale`, `base-path`, `head-seo`,
 `generated-tag-stability`, `routed-di-entries`, `routed-di-client`, and
 `routed-authorization`.
 
-The declarative suite expands the supported `testCombinations` from
-`tests/helpers/build.ts`, `tests/helpers/fixture-config.ts`,
-`tests/helpers/fixture-io.ts`, `tests/helpers/document.ts`, and
-`tests/helpers/navigation.ts`:
+The scenario-based core suite currently runs once per supported navigation:
 
-- `ssg + spa`
-- `ssg + mpa`
-- `ssg + mpa`
-- `csr + spa`
-- `csr + mpa`
-- `csr + mpa`
+- `spa`
+- `mpa`
 
-For each combination, the harness:
+For each navigation, the harness:
 
-1. groups cases by recipe and builds the backing fixture once
-2. executes one `t.step(...)` per matching case
-3. passes the shared resolved fixture to each case
+1. groups cases by test app, profile, and navigation
+2. builds the backing test app once from natural page-owned discovery
+3. exposes one app-facing route/document API to each case
+4. executes one `t.step(...)` per matching case
+
+All maintained `tests/matrix/*` suites now use the scenario harness and natural
+test-app builds derived from page discovery.
 
 ## What Belongs In The Core Matrix
 
 The core matrix is for contracts that share the same build shape:
 
-- target: `core-contracts`
-- mode: one of `csr` or `ssg`
+- test-app family: `RoutedApp` or `RootApp`
 - navigation: one of `spa` or `mpa`
+- route-level render coverage provided by actual page declarations inside the
+  test app
 
 Today that shared cluster covers:
 
@@ -109,21 +109,21 @@ shape or needs its own setup, for example:
 These cases belong in dedicated matrix families, target-local checks, or smoke
 suites.
 
-## Fixtures vs Real Apps
+## Test Apps vs Real Apps
 
 The repository uses two different kinds of E2E targets on purpose:
 
-- fixtures in `tests/fixtures/*`
+- test apps in `tests/test-apps/*`
 - real published apps such as `site` and `docs`
 
 The default rule is:
 
-- `core`: prefer fixtures
+- `core`: prefer test apps
 - `smoke`: prefer real apps
 
 That split exists to keep responsibilities clear.
 
-Fixtures are the default for framework-contract coverage because they are:
+Test apps are the default for framework-contract coverage because they are:
 
 - smaller
 - more explicit
@@ -146,14 +146,14 @@ suite.
 Examples:
 
 - validating shared routing, hydration, or head semantics across supported
-  combinations should usually use fixtures
+  combinations should usually use test apps
 - validating that `site` still publishes the expected `gh-pages` SEO output can
   justify a real-app test, because the target-specific publication behavior is
   the thing being protected
 
 When choosing between them, prefer this rule of thumb:
 
-- if the contract is "framework behavior in a controlled shape", use a fixture
+- if the contract is "framework behavior in a controlled shape", use a test app
 - if the contract is "behavior of the real published target", use the real app
 
 ## File Roles
@@ -162,12 +162,12 @@ The matrix works because the files have clear responsibilities.
 
 ### `tests/matrix/suite.test.ts`
 
-This file owns the declarative core matrix suite:
+This file owns the default core scenario suite:
 
-- running the default supported combinations from the harness
+- running the supported navigations from the scenario harness
 - composing the shared `matrix/core` case list from
-  `tests/matrix/cases/core/core-matrix-cases.ts`
-- validating recipe grouping and fixture resolution in a real E2E path
+  `tests/matrix/cases/core/core-scenario-cases.ts`
+- validating recipe grouping and test-app resolution in a real E2E path
 
 This file is the default core path.
 
@@ -184,12 +184,12 @@ imported directly rather than run as standalone `deno run` scripts.
 
 This helper module group owns shared test utilities:
 
-- the matrix combinations
+- scenario build-context creation for the default core suite
 - explicit build-context creation
-- engine-backed fixture build helpers
-- in-memory fixture target definitions for harness-owned builds
+- engine-backed test-app build helpers
+- in-memory test-app target definitions for harness-owned builds
 - output path resolution
-- direct-load vs preview fixture loading
+- direct-load vs preview test-app loading
 - common DOM assertions
 - temporary fixture target config generation only for tests that intentionally
   exercise `--config` or other CLI/config-loading paths
@@ -197,9 +197,9 @@ This helper module group owns shared test utilities:
 The matrix-facing build helpers now call `src/build/*` directly instead of
 shelling into `src/cli/mainz.ts`.
 
-The declarative harness now builds its fixture families from in-memory target
+The declarative harness now builds its test-app families from in-memory target
 definitions, so the default matrix path no longer needs to materialize a
-temporary `mainz.fixture.config.ts` file just to reach the engine.
+temporary `mainz.test-app.config.ts` file just to reach the engine.
 
 Profile loading and publication metadata resolution now also live under
 `src/build/profiles.ts`, which keeps the CLI closer to a thin command adapter
@@ -224,20 +224,22 @@ matrix:
 - pages discovered as `csr` only produce `csr` jobs
 - mixed targets keep both recipes when discovery proves both are present
 
-The matrix and smoke helper layer still intentionally bypasses that production
-recipe filter when a test explicitly asks for a combination, so RFC-style forced
-`csr`/`ssg` coverage stays confined to test infrastructure and the explicit
-internal `src/build/testing.ts` path rather than reappearing in public config or
-CLI surfaces.
+The scenario-based core suite now follows the production render narrative more
+closely: it builds the test app without forced render recipes and then asserts
+the actual outputs produced by page discovery.
+
+Lower-level build tests can still use the internal `src/build/testing.ts` path
+when they intentionally need to exercise recipe forcing behavior, but that
+planning model is no longer part of maintained matrix authoring.
 
 The harness now also exposes structured recipe diagnostics through
-`formatMatrixRecipeDiagnostics(...)` in [harness.ts](../matrix/harness.ts#L1).
-That output is still available in verbose mode through `MAINZ_MATRIX_VERBOSE=1`,
-and the same recipe summary is appended to build/case failures so grouping
-behavior is visible when a matrix slice breaks. When the artifact has already
-been built, the same diagnostics also include the resolved `outputDir`, which
-keeps build sharing inspectable at the artifact level rather than only at the
-recipe-key level.
+`formatScenarioRecipeDiagnostics(...)` in
+[scenario-harness.ts](../matrix/scenario-harness.ts#L1). That output is still
+available in verbose mode through `MAINZ_MATRIX_VERBOSE=1`, and the same recipe
+summary is appended to build/case failures so grouping behavior is visible when
+a matrix slice breaks. When the artifact has already been built, the same
+diagnostics also include the resolved `outputDir`, which keeps build sharing
+inspectable at the artifact level rather than only at the recipe-key level.
 
 Build execution now also lives under `src/build/execution.ts`, so serial job
 execution, per-job Vite invocation, and CSR/SSG artifact dispatch are no longer
@@ -259,8 +261,8 @@ CLI-specific process helpers now live in `tests/helpers/cli.ts` and are consumed
 directly by the CLI test files, instead of being re-exported as part of the
 default helper barrel.
 
-CLI/config-specific fixture file generation now also lives in
-`tests/helpers/fixture-config.ts`, which keeps the engine-backed matrix helpers
+CLI/config-specific test-app config generation now also lives in
+`tests/helpers/test-app-config.ts`, which keeps the engine-backed matrix helpers
 in `tests/helpers/build.ts` focused on harness-owned builds rather than
 temporary config authoring.
 
@@ -268,29 +270,29 @@ temporary config authoring.
 
 These files own the new RFC-shaped matrix layer:
 
-- `tests/matrix/harness.ts`: declarative case and suite orchestration
-- `tests/matrix/fixtures.ts`: stable fixture ids and fixture-family resolution
-- `tests/matrix/render-fixture.ts`: resolved fixture helpers such as
-  `render(...)`, `readHtml(...)`, `readJson(...)`, and preview-style route
-  loading
-- `tests/matrix/cases/core/core-matrix-cases.ts`: composition of the default
-  `matrix/core` case set so the suite file does not become the main authoring
-  surface
-- `tests/matrix/cases/di/routed-di-matrix-cases.ts`: composition of the DI case
+- `tests/matrix/scenario-harness.ts`: scenario-oriented case and suite
+  orchestration for the default `matrix/core` path
+- `tests/matrix/test-apps.ts`: stable test-app ids and test-app-family
+  resolution
+- `tests/matrix/render-test-app.ts`: built test-app helpers behind the
+  route-first authoring API
+- `tests/matrix/cases/core/core-scenario-cases.ts`: composition of the default
+  `matrix/core` case set so the suite file stays focused on orchestration
+- `tests/matrix/cases/di/routed-di-cases.ts`: composition of the DI case
   clusters so SSG `entries()` coverage and CSR client-route coverage stay split
   at suite level
-- `tests/matrix/cases/authorization/routed-authorization-matrix-cases.ts`:
+- `tests/matrix/cases/authorization/routed-authorization-cases.ts`:
   composition of the authorization case cluster so anonymous redirects and
   forbidden-member behavior stay split as separate case intents
-- `tests/matrix/cases/base-path/base-path-matrix-cases.ts`: composition of the
+- `tests/matrix/cases/base-path/base-path-cases.ts`: composition of the
   base-path case cluster so localized home/navigation behavior and localized
   notFound/SEO behavior stay split as separate case intents
-- `tests/matrix/cases/single-locale/single-locale-matrix-cases.ts`: composition
+- `tests/matrix/cases/single-locale/single-locale-cases.ts`: composition
   of the single-locale case cluster so home-route navigation behavior and
   child-route publication behavior stay split as separate case intents
 - `tests/matrix/cases/*`: modular case files organized by protected behavior
 
-### `tests/fixtures/*`
+### `tests/test-apps/*`
 
 These directories are dedicated E2E apps used to validate framework contracts
 intentionally.
@@ -315,8 +317,8 @@ Current fixture responsibilities:
 - `single-locale-routing`: unprefixed route emission and navigation for
   single-locale targets
 
-The new matrix layer is starting to map these build fixtures into RFC-style
-fixture families:
+The new matrix layer maps these buildable test apps into RFC-style test-app
+families:
 
 - `RoutedApp`
   - routing
@@ -347,22 +349,22 @@ fixture families:
   - generated page/component tag stability across prerendered HTML and client
     registration
 
-Those fixture families now have their own dedicated backing fixtures:
+Those test-app families now have their own dedicated backing test apps:
 
-- `tests/fixtures/routed-app`
-- `tests/fixtures/root-app`
-- `tests/fixtures/routed-di-app`
-- `tests/fixtures/routed-authorization-app`
-- `tests/fixtures/single-locale-routing`
-- `tests/fixtures/base-path`
-- `tests/fixtures/head-seo`
-- `tests/fixtures/custom-element-generated-tag-stability`
+- `tests/test-apps/routed-app`
+- `tests/test-apps/root-app`
+- `tests/test-apps/routed-di-app`
+- `tests/test-apps/routed-authorization-app`
+- `tests/test-apps/single-locale-routing`
+- `tests/test-apps/base-path`
+- `tests/test-apps/head-seo`
+- `tests/test-apps/custom-element-generated-tag-stability`
 
 That means the matrix cases already point at both the intended conceptual family
 and a distinct artifact source, which makes future fixture growth much less
 coupled.
 
-The DI coverage is now split into two explicit suites:
+The DI coverage stays split into two explicit suites:
 
 - `tests/matrix/routed-di-entries-suite.test.ts`
   - SSG-only `entries()` and prerender coverage on `RoutedDIEntriesApp`
@@ -404,13 +406,13 @@ The current transition rule for render ownership is:
 - `mainz build --mode` is no longer part of the public production CLI
 - render is page-owned in production and undecorated pages default to `csr`
 
-Fixture authoring direction for this layer:
+Test-app authoring direction for this layer:
 
-- each fixture family should read as a small fake app with its own theme and
+- each test-app family should read as a small fake app with its own theme and
   shell
 - test probes such as hydration widgets should live as internal subtrees, not as
   the whole app
-- fixture-specific component names should prefer the scenario language over
+- test-app-specific component names should prefer the scenario language over
   generic names like `TutorialPage`
 
 ## Build Contexts
@@ -418,17 +420,31 @@ Fixture authoring direction for this layer:
 The grouped suites now pass an explicit build context instead of relying only on
 implicit `dist/<target>/<mode>` conventions.
 
-Current helpers create and consume a `TestBuildContext` with the important build
-inputs already resolved:
+Dedicated combination suites create and consume a `TestBuildContext` with the
+important build inputs already resolved:
 
 ```ts
 type TestBuildContext = {
-  fixtureName?: string;
-  fixtureRoot?: string;
+  testAppName?: string;
+  testAppRoot?: string;
   outputDir: string;
   targetName: string;
   mode: "csr" | "ssg";
-navigation: "spa" | "mpa";
+  navigation: "spa" | "mpa";
+  profile?: string;
+  configPath?: string;
+};
+```
+
+The scenario-based core suite uses a `TestScenarioBuildContext` instead:
+
+```ts
+type TestScenarioBuildContext = {
+  testAppName?: string;
+  testAppRoot?: string;
+  availableBuilds: TestBuildContext[];
+  targetName: string;
+  navigation: "spa" | "mpa";
   profile?: string;
   configPath?: string;
 };
@@ -470,7 +486,7 @@ runtime boot process.
 
 Typical helper:
 
-- `resolveDirectLoadFixture(...)`
+- `loadBuiltDocument(...)`
 - `fixture.renderDocument(...)`
 
 Good for:
@@ -488,7 +504,7 @@ served, especially 404 behavior.
 
 Typical helper:
 
-- `resolvePreviewFixture(...)`
+- `loadBuiltRoutePreview(...)`
 - `createArtifactPreviewHandler(...)`
 - `fixture.render(...)`
 
@@ -522,12 +538,13 @@ Use when changing:
 
 ### `test:e2e:core`
 
-Shared-build matrix for the central framework contracts plus dedicated core
+Shared-build scenario coverage for the central framework contracts plus
+dedicated core
 fixtures.
 
 This task now runs:
 
-- the declarative core matrix suite
+- the default core scenario suite
 - dedicated core fixtures such as `single-locale-routing`
 - dedicated matrix families such as `routed-di`
 - dedicated matrix families such as `routed-authorization`
@@ -599,8 +616,8 @@ Those are not the same kind of change.
 
 ### Add a new `t.step(...)` when:
 
-- the new assertions use the same `core-contracts + mode + navigation` build
-  shape
+- the new assertions use the same test-app family and navigation shape as the
+  current suite
 - the generated artifact can be safely reused
 - the new domain still fits the purpose of the core matrix
 
@@ -619,14 +636,34 @@ Examples:
 Recommended shape:
 
 ```ts
-export async function runExampleMatrixCheck(args: {
-  mode: "csr" | "ssg";
-navigation: "spa" | "mpa";
-  context?: TestBuildContext;
-}): Promise<void> {
-  const context = args.context ?? await buildRoutedAppForCombination(args);
+export const exampleScenarioCase = scenarioTest({
+  name: "metadata keeps localized head state in sync",
+  app: "RoutedApp",
+  run: async ({ app }) => {
+    const screen = await app.route("/pt/").render();
 
-  // load fixture from context.outputDir
+    try {
+      // assert one contract family
+    } finally {
+      screen.cleanup();
+    }
+  },
+});
+```
+
+Dedicated smoke/check paths that still choose one fixed navigation can keep a
+small wrapper shape like this:
+
+```ts
+export async function runExampleMatrixCheck(args: {
+  navigation: "spa" | "mpa";
+  context?: TestScenarioBuildContext;
+}): Promise<void> {
+  const context = args.context ?? await buildRoutedAppForNavigation(
+    args.navigation,
+  );
+
+  // resolve the route from context.availableBuilds
   // boot runtime in isolated DOM
   // assert one contract family
 }
@@ -644,7 +681,7 @@ the core matrix.
 
 When deciding the setup, also choose the target type deliberately:
 
-- prefer fixtures for framework contracts
+- prefer test apps for framework contracts
 - prefer real apps for smoke coverage
 - use real apps in `special` only when target-specific published behavior is the
   contract
@@ -662,15 +699,15 @@ supported combinations that already exist today.
 
 Examples:
 
-- a new routing invariant for `csr + mpa`
+- a new routing invariant for `RoutedApp + mpa`
 - another head assertion over emitted localized routes
-- an extra hydration assertion over the current `core-contracts` artifact
+- an extra hydration assertion over the current `RootApp` artifact
 
 This usually means:
 
 - add a `t.step(...)`
 - extend an existing check
-- or add a new check for the same `core-contracts + mode + navigation` shape
+- or add a new case for the same fixture-family and navigation shape
 
 ### Expanding the architecture with a new axis
 
@@ -733,7 +770,7 @@ Use this split:
 For an auth decorator, a healthy rollout would usually look like this:
 
 1. add fast tests for the decorator API itself
-2. add one dedicated fixture that uses the decorator in a realistic route tree
+2. add one dedicated test app that uses the decorator in a realistic route tree
 3. decide which combinations matter: `ssg` may not need the same assertions as
    `csr`, while navigation behavior might matter a lot
 4. add a grouped E2E suite if auth becomes a reusable contract family
@@ -751,25 +788,33 @@ The key idea is:
 
 Imagine we want a new grouped domain called `metadata` for assertions that
 validate emitted document metadata after boot, but that still uses the same
-shared `core-contracts + mode + navigation` build shape.
+shared `RoutedApp + navigation` build shape.
 
 The flow should be:
 
-1. create a focused check, for example `tests/checks/metadata-matrix-check.ts`
-2. export `runMetadataMatrixCheck({ mode, navigation, context? })`
-3. default to building when `context` is absent
-4. load the generated artifact from `context.outputDir`
-5. boot the page in isolated DOM state
-6. assert only metadata-related contracts
-7. register a new declarative case under `tests/matrix/cases/*`
-8. let the harness group it with the existing recipe and reuse the shared
-   `context`
+1. create a focused case under `tests/matrix/cases/*`
+2. open the relevant route through `app.route(...)`
+3. boot the page in isolated DOM state when runtime behavior matters
+4. assert only metadata-related contracts
+6. register the new case under the `matrix/core` scenario list
+7. let the harness group it with the existing recipe and reuse the shared
+   scenario context
 
 Example:
 
 ```ts
-await t.step("metadata", async () => {
-  await runMetadataMatrixCheck({ ...combination, context });
+export const metadataScenarioCase = scenarioTest({
+  name: "metadata keeps localized head state in sync",
+  app: "RoutedApp",
+  run: async ({ app }) => {
+    const screen = await app.route("/pt/").render();
+
+    try {
+      // metadata assertions
+    } finally {
+      screen.cleanup();
+    }
+  },
 });
 ```
 
@@ -850,8 +895,8 @@ The current matrix is centered on the shared `core-contracts` build cluster, but
 the migration path is now explicit:
 
 1. keep growing the declarative matrix in `tests/matrix/*`
-2. move cases onto RFC-shaped fixture families such as `RoutedApp` and `RootApp`
-3. split the backing fixture content when the scenario families stop sharing the
+2. move cases onto RFC-shaped test-app families such as `RoutedApp` and `RootApp`
+3. split the backing test-app content when the scenario families stop sharing the
    same build shape
 
 Over time it can evolve in two directions:

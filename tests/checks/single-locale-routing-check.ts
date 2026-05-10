@@ -4,22 +4,30 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
-import { nextTick, waitFor } from "../../src/testing/async-testing.ts";
-import { buildSingleLocaleRoutedAppForCombination } from "../helpers/build.ts";
+import { waitFor } from "../../src/testing/async-testing.ts";
+import { buildSingleLocaleRoutedAppForNavigation } from "../helpers/build.ts";
 import {
+  describeBuiltOutput,
   extractModuleScriptSrc,
+  isCsrBuiltOutput,
+  isSsgBuiltOutput,
+  loadBuiltRoutePreview,
   resolveOutputHtmlPath,
   resolveOutputScriptPath,
-  resolvePreviewFixture,
-} from "../helpers/fixture-io.ts";
+} from "../helpers/built-output-io.ts";
 import { waitForNextNavigationReady } from "../helpers/navigation.ts";
-import type { TestBuildContext } from "../helpers/types.ts";
+import type {
+  TestBuildContext,
+  TestNavigationMode,
+  TestScenarioBuildContext,
+} from "../helpers/types.ts";
 
 export async function runSingleLocaleRoutingCheck(args: {
-  mode: "csr" | "ssg";
-  navigation: "spa" | "mpa";
+  navigation: TestNavigationMode;
 }): Promise<void> {
-  const context = await buildSingleLocaleRoutedAppForCombination(args);
+  const context = await buildSingleLocaleRoutedAppForNavigation(
+    args.navigation,
+  );
 
   try {
     await assertRootRoute(context);
@@ -30,12 +38,14 @@ export async function runSingleLocaleRoutingCheck(args: {
   }
 }
 
-async function assertRootRoute(args: TestBuildContext): Promise<void> {
-  const outputDir = args.outputDir;
+async function assertRootRoute(args: TestScenarioBuildContext): Promise<void> {
+  const rootBuild = requireRouteBuild(args, "/");
+  const outputDir = rootBuild.outputDir;
   const rootHtmlPath = resolve(outputDir, "index.html");
   const html = await Deno.readTextFile(rootHtmlPath);
+  const rootBuildOutput = describeBuiltOutput(rootBuild.outputDir);
 
-  if (args.mode === "csr" && args.navigation === "spa") {
+  if (isCsrBuiltOutput(rootBuild.outputDir) && args.navigation === "spa") {
     const scriptSrc = extractModuleScriptSrc(html);
     assert(
       scriptSrc,
@@ -62,7 +72,7 @@ async function assertRootRoute(args: TestBuildContext): Promise<void> {
       await import(
         `${
           pathToFileURL(scriptPath).href
-        }?e2e=${Date.now()}-${args.mode}-${args.navigation}-root`
+        }?e2e=${Date.now()}-${rootBuildOutput}-${args.navigation}-root`
       );
       await navigationReady;
       await waitFor(
@@ -85,17 +95,14 @@ async function assertRootRoute(args: TestBuildContext): Promise<void> {
   }, { url: "https://mainz.local/" });
 }
 
-async function assertHomeLinks(args: TestBuildContext): Promise<void> {
-  const fixture = await resolveRouteFixture(
-    args.outputDir,
-    args.mode,
-    args.navigation,
-    "/",
-  );
+async function assertHomeLinks(args: TestScenarioBuildContext): Promise<void> {
+  const routeBuild = requireRouteBuild(args, "/");
+  const fixture = await resolveRouteFixture(routeBuild, "/");
+  const routeBuildOutput = describeBuiltOutput(routeBuild.outputDir);
   const scriptSrc = extractModuleScriptSrc(fixture.html);
   assert(
     scriptSrc,
-    `Could not find single-locale module script for ${args.mode} + ${args.navigation} (/).`,
+    `Could not find single-locale module script for ${routeBuildOutput} + ${args.navigation} (/).`,
   );
 
   const scriptPath = resolveOutputScriptPath({
@@ -117,7 +124,7 @@ async function assertHomeLinks(args: TestBuildContext): Promise<void> {
     await import(
       `${
         pathToFileURL(scriptPath).href
-      }?e2e=${Date.now()}-${args.mode}-${args.navigation}-home`
+      }?e2e=${Date.now()}-${routeBuildOutput}-${args.navigation}-home`
     );
     await navigationReady;
     await waitFor(
@@ -127,7 +134,7 @@ async function assertHomeLinks(args: TestBuildContext): Promise<void> {
         readAnchorHref("Overview") === "/" &&
         readAnchorHref("Guides") === "/quickstart" &&
         readAnchorHref("Reference") === "/reference",
-      `Expected ${args.mode} + ${args.navigation} single-locale home links to stay unprefixed.`,
+      `Expected ${routeBuildOutput} + ${args.navigation} single-locale home links to stay unprefixed.`,
     );
 
     assertEquals(document.documentElement.lang, "en");
@@ -152,17 +159,14 @@ async function assertHomeLinks(args: TestBuildContext): Promise<void> {
   }, { url: "https://mainz.local/" });
 }
 
-async function assertDocsRoute(args: TestBuildContext): Promise<void> {
-  const fixture = await resolveRouteFixture(
-    args.outputDir,
-    args.mode,
-    args.navigation,
-    "/quickstart",
-  );
+async function assertDocsRoute(args: TestScenarioBuildContext): Promise<void> {
+  const routeBuild = requireRouteBuild(args, "/quickstart");
+  const fixture = await resolveRouteFixture(routeBuild, "/quickstart");
+  const routeBuildOutput = describeBuiltOutput(routeBuild.outputDir);
   const scriptSrc = extractModuleScriptSrc(fixture.html);
   assert(
     scriptSrc,
-    `Could not find single-locale module script for ${args.mode} + ${args.navigation} (/quickstart).`,
+    `Could not find single-locale module script for ${routeBuildOutput} + ${args.navigation} (/quickstart).`,
   );
 
   const scriptPath = resolveOutputScriptPath({
@@ -188,7 +192,7 @@ async function assertDocsRoute(args: TestBuildContext): Promise<void> {
     await import(
       `${
         pathToFileURL(scriptPath).href
-      }?e2e=${Date.now()}-${args.mode}-${args.navigation}-quickstart`
+      }?e2e=${Date.now()}-${routeBuildOutput}-${args.navigation}-quickstart`
     );
     await navigationReady;
     await waitFor(
@@ -198,7 +202,7 @@ async function assertDocsRoute(args: TestBuildContext): Promise<void> {
         (document.body.textContent ?? "").includes("Why Mainz") &&
         (document.body.textContent ?? "").includes("Create your first page") &&
         readAnchorHref("Guides") === "/quickstart",
-      `Expected ${args.mode} + ${args.navigation} docs route to finish bootstrapping at /quickstart.`,
+      `Expected ${routeBuildOutput} + ${args.navigation} docs route to finish bootstrapping at /quickstart.`,
     );
 
     assertEquals(document.documentElement.lang, "en");
@@ -213,22 +217,77 @@ async function assertDocsRoute(args: TestBuildContext): Promise<void> {
 }
 
 async function resolveRouteFixture(
-  outputDir: string,
-  renderMode: "csr" | "ssg",
-  navigationMode: "spa" | "mpa",
+  build: TestBuildContext,
   routePath: string,
 ): Promise<
   { html: string; htmlPath: string; outputDir: string; responseStatus?: number }
 > {
-  return await resolvePreviewFixture({
-    outputDir,
-    renderMode,
-    navigationMode,
+  return await loadBuiltRoutePreview({
+    outputDir: build.outputDir,
+    navigationMode: build.navigation,
     requestUrl: `http://127.0.0.1:4175${routePath}`,
-    resolveHtmlPath() {
-      return resolveOutputHtmlPath(outputDir, routePath);
+    resolveHtmlPath(responseStatus) {
+      return responseStatus === 404
+        ? resolve(build.outputDir, "404.html")
+        : resolveOutputHtmlPath(build.outputDir, routePath);
     },
   });
+}
+
+function requireRouteBuild(
+  context: TestScenarioBuildContext,
+  routePath: string,
+): TestBuildContext {
+  const availableBuilds = context.availableBuilds;
+  if (availableBuilds.length === 1) {
+    return availableBuilds[0];
+  }
+
+  const ssgBuild = availableBuilds.find((build) =>
+    isSsgBuiltOutput(build.outputDir)
+  );
+  if (ssgBuild && routeHtmlExists(ssgBuild, routePath)) {
+    return ssgBuild;
+  }
+
+  const csrBuild = availableBuilds.find((build) =>
+    isCsrBuiltOutput(build.outputDir)
+  );
+  if (csrBuild && routeHtmlExists(csrBuild, routePath)) {
+    return csrBuild;
+  }
+
+  if (context.navigation === "spa" && csrBuild) {
+    return csrBuild;
+  }
+
+  if (csrBuild) {
+    return csrBuild;
+  }
+
+  if (ssgBuild) {
+    return ssgBuild;
+  }
+
+  throw new Error(
+    `Expected at least one build output for single-locale routing (${context.navigation}).`,
+  );
+}
+
+function routeHtmlExists(
+  build: TestBuildContext,
+  routePath: string,
+): boolean {
+  try {
+    Deno.statSync(resolveOutputHtmlPath(build.outputDir, routePath));
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 function readAnchorHref(label: string): string | null {

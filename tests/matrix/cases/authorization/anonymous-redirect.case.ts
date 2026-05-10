@@ -1,16 +1,12 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals } from "@std/assert";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const anonymousRedirectCase = matrixTest({
+export const anonymousRedirectCase = scenarioTest({
   name: "authorization redirects anonymous users to localized login pages",
-  fixture: "RoutedAuthorizationApp",
-  exercise: [
-    { render: "csr", navigation: "spa" },
-  ],
-  run: async ({ artifact, fixture }) => {
-    const screen = await fixture.render(artifact, "/pt/dashboard");
+  run: async ({ app }) => {
+    const screen = await app.route("/pt/dashboard").render();
 
     try {
       assertEquals(window.location.pathname, "/pt/login");

@@ -6,35 +6,39 @@ import type {
   NormalizedMainzTarget,
 } from "../../src/config/types.ts";
 
-export type TestRenderMode = "csr" | "ssg";
 export type TestNavigationMode = "spa" | "mpa";
-export type TestBuildCombination = {
-  mode: TestRenderMode;
-  navigation: TestNavigationMode;
-};
 export type TestBuildContext = {
-  fixtureName?: string;
-  fixtureRoot?: string;
+  testAppName?: string;
+  testAppRoot?: string;
   outputDir: string;
   targetName: string;
-  mode: TestRenderMode;
   navigation: TestNavigationMode;
   profile?: string;
   configPath?: string;
   cleanup?(): Promise<void>;
 };
-export type FixtureTargetConfig = {
+export type TestScenarioBuildContext = {
+  testAppName?: string;
+  testAppRoot?: string;
+  availableBuilds: TestBuildContext[];
+  targetName: string;
+  navigation: TestNavigationMode;
+  profile?: string;
+  configPath?: string;
+  cleanup?(): Promise<void>;
+};
+export type TestAppTargetConfig = {
   target: NormalizedMainzTarget;
   configPath: string;
-  fixtureRoot: string;
+  testAppRoot: string;
   outputDir: string;
   targetName: string;
   cleanup(): Promise<void>;
 };
-export type FixtureTargetDefinition = {
+export type TestAppTargetDefinition = {
   target: NormalizedMainzTarget;
   targetDefinition: MainzTargetDefinition;
-  fixtureRoot: string;
+  testAppRoot: string;
   outputDir: string;
   targetName: string;
   cleanup(): Promise<void>;
@@ -45,9 +49,3 @@ export const cliTestsRepoRoot = resolve(
   "..",
   "..",
 );
-export const testCombinations = [
-  { mode: "ssg", navigation: "spa" },
-  { mode: "ssg", navigation: "mpa" },
-  { mode: "csr", navigation: "spa" },
-  { mode: "csr", navigation: "mpa" },
-] as const satisfies readonly TestBuildCombination[];

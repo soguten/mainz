@@ -2,43 +2,33 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { waitFor } from "../../../../src/testing/async-testing.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const documentLanguageQuickstartCase = matrixTest({
+export const documentLanguageQuickstartCase = scenarioTest({
   name: "documentLanguage child routes stay unprefixed and set html lang",
-  fixture: "DocumentLanguageRoutedApp",
-  exercise: {
-    render: ["csr", "ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ combo, artifact, fixture }) => {
-    if (!(combo.render === "csr" && combo.navigation === "spa")) {
-      const html = await fixture.readHtml(artifact, "/quickstart");
-      assertStringIncludes(html, '<html lang="pt-BR">');
+  run: async ({ navigation, app }) => {
+    const response = await app.route("/quickstart").load();
+    if (typeof response.status === "number") {
+      assertEquals(response.status, 200);
     }
 
-    const preview = await fixture.preview(artifact, "/quickstart");
-    if (typeof preview.responseStatus === "number") {
-      assertEquals(preview.responseStatus, 200);
-    }
-
-    const screen = await fixture.render(artifact, "/quickstart");
+    const screen = await app.route("/quickstart").render();
 
     try {
       await waitFor(() =>
         document.documentElement.lang === "pt-BR" &&
-        (document.body.textContent ?? "").includes("Idioma do documento")
+        (document.body.textContent ?? "").includes("Document language")
       );
 
       assertEquals(window.location.pathname, "/quickstart");
       assertEquals(document.documentElement.lang, "pt-BR");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
-        combo.navigation,
+        navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",
-        "O app declara idioma sem ativar i18n de rota.",
+        "The app declares document language without route i18n.",
       );
 
       assertLinkHref("Overview", "/");

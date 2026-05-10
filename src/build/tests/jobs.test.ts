@@ -151,17 +151,17 @@ Deno.test("build/jobs: should allow internal forced ssg jobs for an app-only tar
 });
 
 Deno.test("build/jobs: should include ssg jobs for routed app targets discovered from the conventional app module", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
+    "test-apps",
     "entries-di-build",
   );
   const config = normalizeMainzConfig({
     targets: [
       {
         name: "entries-di-build",
-        rootDir: fixtureRoot,
+        rootDir: testAppRoot,
       },
     ],
   });
@@ -178,7 +178,7 @@ Deno.test("build/jobs: should keep explicit csr routed apps on the csr build rec
     targets: [
       {
         name: "routed-di-client-app",
-        rootDir: "./tests/fixtures/routed-di-client-app",
+        rootDir: "./tests/test-apps/routed-di-client-app",
       },
     ],
   });
@@ -191,18 +191,18 @@ Deno.test("build/jobs: should keep explicit csr routed apps on the csr build rec
 });
 
 Deno.test("build/jobs: should keep undecorated notFound pages on the csr build recipe by default", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
+    "test-apps",
     "not-found-csr-default",
   );
   const config = normalizeMainzConfig({
     targets: [
       {
         name: "not-found-csr-default-app-file",
-        rootDir: fixtureRoot,
-        appFile: resolve(fixtureRoot, "src", "main.tsx"),
+        rootDir: testAppRoot,
+        appFile: resolve(testAppRoot, "src", "main.tsx"),
       },
     ],
   });
@@ -236,18 +236,18 @@ Deno.test("build/jobs: should keep mixed routed targets when undecorated pages d
 });
 
 Deno.test("build/jobs: should fail when routed app discovery is ambiguous without appId", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
+    "test-apps",
     "diagnostics-multi-app",
   );
   const config = normalizeMainzConfig({
     targets: [
       {
         name: "diagnostics-multi-app",
-        rootDir: fixtureRoot,
-        appFile: resolve(fixtureRoot, "src", "main.tsx"),
+        rootDir: testAppRoot,
+        appFile: resolve(testAppRoot, "src", "main.tsx"),
       },
     ],
   });
@@ -260,17 +260,17 @@ Deno.test("build/jobs: should fail when routed app discovery is ambiguous withou
 });
 
 Deno.test("build/jobs: should keep imported routed app definitions on the default csr recipe when discovery finds only undecorated pages", async () => {
-  const fixtureRoot = resolve(
+  const testAppRoot = resolve(
     cliTestsRepoRoot,
     "tests",
-    "fixtures",
+    "test-apps",
     "diagnostics-di-imported-app",
   );
   const config = normalizeMainzConfig({
     targets: [
       {
         name: "diagnostics-di-imported-app",
-        rootDir: fixtureRoot,
+        rootDir: testAppRoot,
       },
     ],
   });

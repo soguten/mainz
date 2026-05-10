@@ -1,9 +1,10 @@
 /// <reference lib="deno.ns" />
 
-import { documentLanguageCases } from "./cases/document-language/document-language-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { documentLanguageCases } from "./cases/document-language/document-language-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/document-language",
+  app: "DocumentLanguageRoutedApp",
   cases: documentLanguageCases,
 });

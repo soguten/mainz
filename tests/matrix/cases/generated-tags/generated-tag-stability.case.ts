@@ -2,22 +2,16 @@
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { nextTick } from "../../../../src/testing/async-testing.ts";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const generatedTagStabilityCase = matrixTest({
+export const generatedTagStabilityCase = scenarioTest({
   name: "generated custom element tags stay stable in production output",
-  fixture: "GeneratedTagStabilityApp",
-  exercise: [
-    { render: "ssg", navigation: "mpa" },
-  ],
-  run: async ({ artifact, fixture }) => {
-    const html = await fixture.readHtml(artifact, "/");
+  run: async ({ app }) => {
+    const html = await app.route("/").html();
     assertStringIncludes(html, "<x-stable-name-home-page");
     assertStringIncludes(html, "<x-stable-name-panel");
 
-    const screen = await fixture.renderDocument({
-      artifact,
-      documentHtmlPath: "index.html",
+    const screen = await app.document("index.html").renderAt({
       url: "https://mainz.local/",
       navigationReady: {
         locale: "en",

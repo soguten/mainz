@@ -1,17 +1,13 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const forbiddenMemberCase = matrixTest({
+export const forbiddenMemberCase = scenarioTest({
   name:
     "authorization renders forbidden output for blocked authenticated members",
-  fixture: "RoutedAuthorizationApp",
-  exercise: [
-    { render: "csr", navigation: "spa" },
-  ],
-  run: async ({ artifact, fixture }) => {
-    const screen = await fixture.render(artifact, "/admin");
+  run: async ({ app }) => {
+    const screen = await app.route("/admin").render();
 
     try {
       assertEquals(window.location.pathname, "/admin");

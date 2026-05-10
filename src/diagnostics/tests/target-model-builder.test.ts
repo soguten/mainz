@@ -3,22 +3,22 @@
 import { assertEquals } from "@std/assert";
 import { resolve } from "node:path";
 import { normalizeMainzConfig } from "../../config/index.ts";
-import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { buildDiagnosticsTargetModelsForTarget } from "../core/target-model-builder.ts";
 
 Deno.test("diagnostics: target model builder should build app-scoped diagnostics models", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-authorization-policies",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-authorization-policies",
     targetName: "diagnostics-authorization-policies",
   });
 
   try {
     const target = normalizeMainzConfig({
       targets: [{
-        name: fixture.targetName,
-        rootDir: fixture.fixtureRoot,
-        appFile: resolve(fixture.fixtureRoot, "src", "main.tsx"),
-        outDir: fixture.outputDir,
+        name: testApp.targetName,
+        rootDir: testApp.testAppRoot,
+        appFile: resolve(testApp.testAppRoot, "src", "main.tsx"),
+        outDir: testApp.outputDir,
       }],
     }).targets[0];
 
@@ -43,6 +43,6 @@ Deno.test("diagnostics: target model builder should build app-scoped diagnostics
       true,
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });

@@ -8,19 +8,19 @@ import {
   formatDiagnosticsHuman,
   shouldFailDiagnostics,
 } from "../index.ts";
-import { createFixtureTargetConfig } from "../../../tests/helpers/fixture-config.ts";
+import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { makeMainzTempDir } from "../../../tests/helpers/temp.ts";
 
 Deno.test("diagnostics/command: should collect route diagnostics for a fixture target", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-routes",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-routes",
     targetName: "diagnostics-routes",
   });
 
   try {
     const diagnostics = await collectFixtureDiagnostics(
-      fixture.configPath,
-      fixture.targetName,
+      testApp.configPath,
+      testApp.targetName,
     );
 
     assertEquals(
@@ -48,20 +48,20 @@ Deno.test("diagnostics/command: should collect route diagnostics for a fixture t
       true,
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/command: should report invalid locale tags declared in @Locales(...)", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-invalid-locales",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-invalid-locales",
     targetName: "diagnostics-invalid-locales",
   });
 
   try {
     const diagnostics = await collectFixtureDiagnostics(
-      fixture.configPath,
-      fixture.targetName,
+      testApp.configPath,
+      testApp.targetName,
     );
 
     assertEquals(diagnostics.length, 1);
@@ -71,28 +71,28 @@ Deno.test("diagnostics/command: should report invalid locale tags declared in @L
       'Invalid locale "en--US"',
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/command: should report authorization and DI diagnostics from fixture targets", async () => {
-  const authorizationFixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-authorization-missing-policy",
+  const authorizationTestApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-authorization-missing-policy",
     targetName: "diagnostics-authorization-missing-policy",
   });
-  const diFixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-di",
+  const diTestApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-di",
     targetName: "diagnostics-di",
   });
 
   try {
     const authorizationDiagnostics = await collectFixtureDiagnostics(
-      authorizationFixture.configPath,
-      authorizationFixture.targetName,
+      authorizationTestApp.configPath,
+      authorizationTestApp.targetName,
     );
     const diDiagnostics = await collectFixtureDiagnostics(
-      diFixture.configPath,
-      diFixture.targetName,
+      diTestApp.configPath,
+      diTestApp.targetName,
     );
 
     assertEquals(
@@ -114,8 +114,8 @@ Deno.test("diagnostics/command: should report authorization and DI diagnostics f
       true,
     );
   } finally {
-    await authorizationFixture.cleanup();
-    await diFixture.cleanup();
+    await authorizationTestApp.cleanup();
+    await diTestApp.cleanup();
   }
 });
 
@@ -207,32 +207,32 @@ Deno.test("diagnostics/command: should report duplicate stable command ids from 
 });
 
 Deno.test("diagnostics/command: should accept named authorization policies declared in app config", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-authorization-policies",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-authorization-policies",
     targetName: "diagnostics-authorization-policies",
   });
 
   try {
     const diagnostics = await collectFixtureDiagnostics(
-      fixture.configPath,
-      fixture.targetName,
+      testApp.configPath,
+      testApp.targetName,
     );
     assertEquals(diagnostics, []);
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/command: should support failure policies and human formatting", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-routes",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-routes",
     targetName: "diagnostics-routes",
   });
 
   try {
     const diagnostics = await collectFixtureDiagnostics(
-      fixture.configPath,
-      fixture.targetName,
+      testApp.configPath,
+      testApp.targetName,
     );
     const output = formatDiagnosticsHuman(diagnostics);
 
@@ -243,27 +243,27 @@ Deno.test("diagnostics/command: should support failure policies and human format
     assertStringIncludes(output, "Target: diagnostics-routes");
     assertStringIncludes(output, "error dynamic-ssg-missing-entries");
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/command: should evaluate multi-app targets by app id and allow explicit --app selection", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-app",
     targetName: "diagnostics-multi-app",
   });
 
   try {
-    const loadedConfig = await loadMainzConfig(fixture.configPath);
+    const loadedConfig = await loadMainzConfig(testApp.configPath);
     const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
     const diagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
-      target: fixture.targetName,
+      target: testApp.targetName,
     }, Deno.cwd());
     const betaDiagnostics = await collectDiagnosticsForConfig(
       normalizedConfig,
       {
-        target: fixture.targetName,
+        target: testApp.targetName,
         app: "beta-app",
       },
       Deno.cwd(),
@@ -271,7 +271,7 @@ Deno.test("diagnostics/command: should evaluate multi-app targets by app id and 
     const alphaDiagnostics = await collectDiagnosticsForConfig(
       normalizedConfig,
       {
-        target: fixture.targetName,
+        target: testApp.targetName,
         app: "alpha-app",
       },
       Deno.cwd(),
@@ -296,27 +296,27 @@ Deno.test("diagnostics/command: should evaluate multi-app targets by app id and 
       true,
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 
 Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id and allow explicit --app selection", async () => {
-  const fixture = await createFixtureTargetConfig({
-    fixtureName: "diagnostics-multi-root-app",
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "diagnostics-multi-root-app",
     targetName: "diagnostics-multi-root-app",
   });
 
   try {
-    const loadedConfig = await loadMainzConfig(fixture.configPath);
+    const loadedConfig = await loadMainzConfig(testApp.configPath);
     const normalizedConfig = normalizeMainzConfig(loadedConfig.config);
 
     const diagnostics = await collectDiagnosticsForConfig(normalizedConfig, {
-      target: fixture.targetName,
+      target: testApp.targetName,
     }, Deno.cwd());
     const betaDiagnostics = await collectDiagnosticsForConfig(
       normalizedConfig,
       {
-        target: fixture.targetName,
+        target: testApp.targetName,
         app: "beta-root-app",
       },
       Deno.cwd(),
@@ -324,7 +324,7 @@ Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id
     const alphaDiagnostics = await collectDiagnosticsForConfig(
       normalizedConfig,
       {
-        target: fixture.targetName,
+        target: testApp.targetName,
         app: "alpha-root-app",
       },
       Deno.cwd(),
@@ -350,7 +350,7 @@ Deno.test("diagnostics/command: should evaluate multi-root-app targets by app id
       true,
     );
   } finally {
-    await fixture.cleanup();
+    await testApp.cleanup();
   }
 });
 

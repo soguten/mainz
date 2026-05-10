@@ -1,19 +1,13 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest } from "../../harness.ts";
+import { type ScenarioApp, scenarioTest } from "../../scenario-harness.ts";
 
-export const routedDiCase = matrixTest({
+export const routedDiCase = scenarioTest({
   name: "di resolves route entries and page summaries",
-  fixture: "RoutedDIEntriesApp",
-  exercise: {
-    render: ["ssg"],
-    navigation: ["spa", "mpa"],
-  },
-  run: async ({ artifact, fixture }) => {
+  run: async ({ app }) => {
     await assertStoryRoute({
-      artifact,
-      fixture,
+      app,
       path: "/stories/signal-from-di/",
       expectedLocale: "en",
       expectedTitle: "DI Atlas",
@@ -22,8 +16,7 @@ export const routedDiCase = matrixTest({
     });
 
     await assertStoryRoute({
-      artifact,
-      fixture,
+      app,
       path: "/pt/stories/sinal-do-di/",
       expectedLocale: "pt",
       expectedTitle: "Atlas DI",
@@ -34,20 +27,19 @@ export const routedDiCase = matrixTest({
 });
 
 async function assertStoryRoute(args: {
-  artifact: Parameters<typeof routedDiCase.run>[0]["artifact"];
-  fixture: Parameters<typeof routedDiCase.run>[0]["fixture"];
+  app: ScenarioApp;
   path: string;
   expectedLocale: "en" | "pt";
   expectedTitle: string;
   expectedSlug: string;
   expectedSummary: string;
 }): Promise<void> {
-  const preview = await args.fixture.preview(args.artifact, args.path);
-  if (typeof preview.responseStatus === "number") {
-    assertEquals(preview.responseStatus, 200);
+  const response = await args.app.route(args.path).load();
+  if (typeof response.status === "number") {
+    assertEquals(response.status, 200);
   }
 
-  const screen = await args.fixture.render(args.artifact, args.path);
+  const screen = await args.app.route(args.path).render();
 
   try {
     assertEquals(document.documentElement.lang, args.expectedLocale);

@@ -1,9 +1,10 @@
 /// <reference lib="deno.ns" />
 
-import { basePathCases } from "./cases/base-path/base-path-matrix-cases.ts";
-import { defineMatrixSuite } from "./harness.ts";
+import { basePathCases } from "./cases/base-path/base-path-cases.ts";
+import { defineScenarioSuite } from "./scenario-harness.ts";
 
-defineMatrixSuite({
+defineScenarioSuite({
   name: "matrix/base-path",
+  app: "BasePathApp",
   cases: basePathCases,
 });

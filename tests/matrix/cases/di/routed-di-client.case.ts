@@ -1,17 +1,12 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { matrixTest } from "../../harness.ts";
+import { scenarioTest } from "../../scenario-harness.ts";
 
-export const routedDiClientCase = matrixTest({
+export const routedDiClientCase = scenarioTest({
   name: "di resolves route state and summaries on client-rendered routes",
-  fixture: "RoutedDIClientApp",
-  exercise: {
-    render: ["csr"],
-    navigation: ["spa"],
-  },
-  run: async ({ artifact, fixture }) => {
-    const screen = await fixture.render(artifact, "/stories/signal-from-di/");
+  run: async ({ app }) => {
+    const screen = await app.route("/stories/signal-from-di/").render();
 
     try {
       assertEquals(document.title, "DI Dispatch");
