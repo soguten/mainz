@@ -30,3 +30,18 @@ Deno.test("config/build-profile: should reject non-absolute siteUrl", () => {
     "Invalid build profile siteUrl",
   );
 });
+
+Deno.test("config/build-profile: should normalize and deduplicate env keys", () => {
+  const config = normalizeTargetBuildConfig({
+    profiles: {
+      production: {
+        env: [" DATABASE_URL ", "PUBLIC_SITE_URL", "DATABASE_URL"],
+      },
+    },
+  });
+
+  assertEquals(config.profiles.production?.env, [
+    "DATABASE_URL",
+    "PUBLIC_SITE_URL",
+  ]);
+});

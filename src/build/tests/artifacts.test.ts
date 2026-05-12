@@ -85,24 +85,19 @@ Deno.test("build/artifacts: builds an SSR runtime manifest from page-owned ssr r
     appDefinition: {
       id: "site-app",
     },
-    appFile: "/repo/site/src/main.tsx",
   });
 
   assertEquals(manifest, {
     version: 1,
     target: "site",
     appId: "site-app",
-    appFile: "/repo/site/src/main.tsx",
     basePath: "/",
     siteUrl: undefined,
     navigation: "spa",
-    serverOutDir: "dist/site/server",
     serverEntryPath: "server/app.mjs",
     routes: [
       {
         id: "home",
-        file: "/repo/site/src/pages/Home.page.tsx",
-        exportName: "HomePage",
         path: "/",
         pattern: "/",
         locales: ["en"],

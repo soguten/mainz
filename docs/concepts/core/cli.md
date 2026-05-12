@@ -1,6 +1,6 @@
 ---
 title: CLI
-summary: Run Mainz targets through build, dev, preview, test, publish-info, and diagnose commands.
+summary: Run Mainz targets through build, dev, preview, test, container, publish-info, and diagnose commands.
 ---
 
 ## App scaffolding
@@ -206,6 +206,55 @@ mainz publish-info --target site --profile production
 
 Use this in deployment scripts when the host needs the final output directory or
 public base path.
+
+## Container
+
+`mainz container` prepares and runs target-scoped Docker workflows.
+
+Use `mainz container init` when you want Mainz to scaffold the container files
+for one target. The command resolves `production` first, then `development`,
+and initializes both profiles with minimal defaults when neither exists yet.
+
+```bash
+mainz container init --target site
+mainz container init --target site --profile production
+```
+
+`init` writes a target-local `Dockerfile`, updates the repository-root
+`.dockerignore` for the Docker build context, resolves target-scoped `.env`
+files, and selects the correct image shape automatically:
+
+- browser-only targets produce a static web-server image
+- server-capable targets produce a runtime image backed by Mainz publication
+  artifacts
+
+Use `mainz container image build` when you want Mainz to call Docker with the
+correct repository-root build context and tag the image for you.
+
+```bash
+mainz container image build --target site
+mainz container image build --target site --tag my-site:dev
+mainz container build --target site
+```
+
+`mainz container build` is a short alias for `mainz container image build`.
+When `--tag` is omitted, Mainz uses `<target>:local`.
+
+Use `mainz container run` when you want Mainz to run the local image with the
+standard Mainz container port.
+
+```bash
+mainz container run --target site
+mainz container run --target site --tag my-site:dev
+mainz container run --target site --port 3100
+```
+
+Mainz containers publish port `3000` internally for both browser-only and
+server-capable targets. By default, `run` tries host port `3000`, then moves to
+the next available port when needed. The command prints the final local URL,
+such as [http://localhost:3000](http://localhost:3000) or
+[http://localhost:3001](http://localhost:3001), before handing control to
+Docker.
 
 ## Diagnose
 

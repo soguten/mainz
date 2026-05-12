@@ -1,75 +1,75 @@
 {
-  "nodeModulesDir": "auto",
-  "exclude": [
-    ".mainz_temp/",
-    ".mainz-temp/",
-    "dist/"
-  ],
-  "unstable": [
-    "sloppy-imports"
-  ],
-  "compilerOptions": {
-    "lib": [
-      "deno.ns",
-      "dom",
-      "esnext"
+    "nodeModulesDir": "auto",
+    "exclude": [
+        ".mainz_temp/",
+        ".mainz-temp/",
+        "dist/"
     ],
-    "jsx": "react-jsx",
-    "jsxImportSource": "mainz",
-    "strict": true,
-    "types": [
-      "npm:vite@8.0.10/client",
-      "./src/types/jsx.d.ts",
-      "./src/types/mainz-env.d.ts"
-    ]
-  },
-  "imports": {
-    "mainz": "./src/index.ts",
-    "mainz/di": "./src/di/index.ts",
-    "mainz/http": "./src/http/index.ts",
-    "mainz/http/testing": "./src/http/testing.ts",
-    "mainz/i18n": "./src/i18n/index.ts",
-    "mainz/testing": "./src/testing/index.ts",
-    "mainz/diagnostics": "./src/diagnostics.ts",
-    "mainz/config": "./src/config/index.ts",
-    "mainz/jsx-runtime": "./src/jsx-runtime.ts",
-    "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
-    "vite": "npm:vite@8.0.10",
-    "happy-dom": "npm:happy-dom@20.9.0",
-    "@std/assert": "jsr:@std/assert",
-    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-    "@/": "./src/",
-    "@components/": "./src/components/"
-  },
-  "fmt": {
-    "useTabs": false,
-    "indentWidth": 2,
-    "lineWidth": 80,
-    "semiColons": true,
-    "singleQuote": false,
-    "proseWrap": "preserve"
-  },
-  "lint": {
-    "rules": {
-      "exclude": [
-        "no-sloppy-imports"
-      ]
-    }
-  },
-  "tasks": {
-    "mainz": "deno run -A ./src/cli/mainz.ts",
-    "dev": "deno run -A ./src/cli/mainz.ts dev",
-    "build": "deno run -A ./src/cli/mainz.ts build",
-    "preview": "deno run -A ./src/cli/mainz.ts preview",
-    "publish-info": "deno run -A ./src/cli/mainz.ts publish-info",
-    "diagnose": "deno run -A ./src/cli/mainz.ts diagnose",
-    "templates:bundle": "deno run -A ./scripts/generate-built-in-templates.ts",
-    "test": "deno test -A",
-    "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests",
-    "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",
-    "test:e2e:core": "deno test -A tests/matrix/suite.test.ts tests/matrix/single-locale-suite.test.ts tests/matrix/base-path-suite.test.ts tests/matrix/document-language-suite.test.ts tests/matrix/head-seo-suite.test.ts tests/matrix/generated-tag-stability-suite.test.ts tests/matrix/routed-di-entries-suite.test.ts tests/matrix/routed-di-client-suite.test.ts tests/matrix/routed-authorization-suite.test.ts",
-    "test:e2e:special": "deno test -A tests/matrix/scenario-harness.test.ts",
-    "test:smoke": "deno test -A tests/e2e/smoke/build.site-routing.e2e.test.ts tests/e2e/smoke/build.playground-spa.e2e.test.ts tests/e2e/smoke/build.single-locale-routing.e2e.test.ts"
-  },
-  "workspace": []
+    "unstable": [
+        "sloppy-imports"
+    ],
+    "compilerOptions": {
+        "lib": [
+            "deno.ns",
+            "dom",
+            "esnext"
+        ],
+        "jsx": "react-jsx",
+        "jsxImportSource": "mainz",
+        "strict": true,
+        "types": [
+            "npm:vite@8.0.10/client",
+            "./src/types/jsx.d.ts",
+            "./src/types/mainz-env.d.ts"
+        ]
+    },
+    "imports": {
+        "mainz": "./src/index.ts",
+        "mainz/di": "./src/di/index.ts",
+        "mainz/http": "./src/http/index.ts",
+        "mainz/http/testing": "./src/http/testing.ts",
+        "mainz/i18n": "./src/i18n/index.ts",
+        "mainz/testing": "./src/testing/index.ts",
+        "mainz/diagnostics": "./src/diagnostics.ts",
+        "mainz/config": "./src/config/index.ts",
+        "mainz/jsx-runtime": "./src/jsx-runtime.ts",
+        "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
+        "vite": "npm:vite@8.0.10",
+        "happy-dom": "npm:happy-dom@20.9.0",
+        "@std/assert": "jsr:@std/assert",
+        "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
+        "@/": "./src/",
+        "@components/": "./src/components/"
+    },
+    "fmt": {
+        "useTabs": false,
+        "indentWidth": 2,
+        "lineWidth": 80,
+        "semiColons": true,
+        "singleQuote": false,
+        "proseWrap": "preserve"
+    },
+    "lint": {
+        "rules": {
+            "exclude": [
+                "no-sloppy-imports"
+            ]
+        }
+    },
+    "tasks": {
+        "mainz": "deno run -A ./src/cli/mainz.ts",
+        "dev": "deno run -A ./src/cli/mainz.ts dev",
+        "build": "deno run -A ./src/cli/mainz.ts build",
+        "preview": "deno run -A ./src/cli/mainz.ts preview",
+        "publish-info": "deno run -A ./src/cli/mainz.ts publish-info",
+        "diagnose": "deno run -A ./src/cli/mainz.ts diagnose",
+        "templates:bundle": "deno run -A ./scripts/generate-built-in-templates.ts",
+        "test": "deno test -A",
+        "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests",
+        "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",
+        "test:e2e:core": "deno test -A tests/matrix/suite.test.ts tests/matrix/single-locale-suite.test.ts tests/matrix/base-path-suite.test.ts tests/matrix/document-language-suite.test.ts tests/matrix/head-seo-suite.test.ts tests/matrix/generated-tag-stability-suite.test.ts tests/matrix/routed-di-entries-suite.test.ts tests/matrix/routed-di-client-suite.test.ts tests/matrix/routed-authorization-suite.test.ts",
+        "test:e2e:special": "deno test -A tests/matrix/scenario-harness.test.ts",
+        "test:smoke": "deno test -A tests/e2e/smoke/build.site-routing.e2e.test.ts tests/e2e/smoke/build.playground-spa.e2e.test.ts tests/e2e/smoke/build.single-locale-routing.e2e.test.ts"
+    },
+    "workspace": []
 }

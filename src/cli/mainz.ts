@@ -14,8 +14,13 @@ import type {
   MainzRuntime,
   NormalizedMainzConfig,
   NormalizedMainzTarget,
+  TargetBuildDefinition,
 } from "../config/index.ts";
-import { loadMainzConfig, normalizeMainzConfig } from "../config/index.ts";
+import {
+  loadMainzConfig,
+  normalizeMainzConfig,
+  normalizeTargetBuildConfig,
+} from "../config/index.ts";
 import {
   loadTargetBuildRoutedAppDefinition,
   renderMaterializedViteConfigModule,
@@ -91,6 +96,24 @@ type PublishInfoCommandOptions = SharedCliOptions & {
   command: "publish-info";
 };
 
+type ContainerInitCommandOptions = SharedCliOptions & {
+  command: "container-init";
+  target: string;
+};
+
+type ContainerImageBuildCommandOptions = SharedCliOptions & {
+  command: "container-image-build";
+  target: string;
+  tag?: string;
+};
+
+type ContainerRunCommandOptions = SharedCliOptions & {
+  command: "container-run";
+  target: string;
+  tag?: string;
+  port?: number;
+};
+
 type InitCommandOptions = {
   command: "init";
   name?: string;
@@ -152,6 +175,9 @@ type MainzCliCommand =
   | PreviewCommandOptions
   | TestCommandOptions
   | PublishInfoCommandOptions
+  | ContainerInitCommandOptions
+  | ContainerImageBuildCommandOptions
+  | ContainerRunCommandOptions
   | DiagnoseCommandOptions
   | AppCommandOptions
   | ProfileCommandOptions
@@ -192,6 +218,19 @@ type MaterializedViteMetadata = {
 const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
+const defaultDenoContainerImage = "denoland/deno:2.7.14";
+const containerizeDockerignoreBlock = [
+  "# >>> mainz containerize",
+  ".git/",
+  "node_modules/",
+  "dist/",
+  ".mainz_temp/",
+  ".mainz-temp/",
+  "internal-docs/",
+  "coverage/",
+  "# <<< mainz containerize",
+  "",
+].join("\n");
 
 class CliExitError extends Error {
   constructor(readonly code: number) {
@@ -226,6 +265,10 @@ type HelpTopic =
   | "preview"
   | "test"
   | "publish-info"
+  | "container"
+  | "container-init"
+  | "container-image-build"
+  | "container-run"
   | "diagnose";
 
 if (import.meta.main && detectHostRuntime() === "deno") {
@@ -365,6 +408,27 @@ async function runCli(
         await runPublishInfoCommand(command, normalizedConfig, runtime);
       } catch (error) {
         throw toCliUsageError(error, "publish-info");
+      }
+      return 0;
+    case "container-init":
+      try {
+        await runContainerInitCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "container-init");
+      }
+      return 0;
+    case "container-image-build":
+      try {
+        await runContainerImageBuildCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "container-image-build");
+      }
+      return 0;
+    case "container-run":
+      try {
+        await runContainerRunCommand(command, normalizedConfig, runtime);
+      } catch (error) {
+        throw toCliUsageError(error, "container-run");
       }
       return 0;
     case "diagnose":
@@ -551,6 +615,9 @@ async function rerunWithProjectBootstrapIfNeeded(
     | PreviewCommandOptions
     | TestCommandOptions
     | PublishInfoCommandOptions
+    | ContainerInitCommandOptions
+    | ContainerImageBuildCommandOptions
+    | ContainerRunCommandOptions
     | DiagnoseCommandOptions,
   args: readonly string[],
   hostRuntime: SupportedCliRuntime,
@@ -728,6 +795,7 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     command !== "build" && command !== "dev" && command !== "preview" &&
     command !== "test" &&
     command !== "publish-info" &&
+    command !== "container" &&
     command !== "diagnose" &&
     command !== "app" &&
     command !== "init" &&
@@ -736,7 +804,7 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     command !== "vite"
   ) {
     throw new CliUsageError(
-      `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", or "diagnose".`,
+      `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", "container", or "diagnose".`,
       "main",
     );
   }
@@ -759,6 +827,10 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 
   if (command === "vite") {
     return parseViteCommand(rest);
+  }
+
+  if (command === "container") {
+    return parseContainerCommand(rest);
   }
 
   const options = parseCommandOptions(command, rest);
@@ -1133,6 +1205,174 @@ function parseWorkflowCommand(args: string[]): WorkflowCommandOptions {
   };
 }
 
+function parseContainerCommand(args: string[]): MainzCliCommand {
+  const [section, subsection, ...rest] = args;
+
+  if (section === "init") {
+    const options = parseCommandOptions(
+      "container-init",
+      [subsection, ...rest].filter(Boolean),
+    );
+    if (!options.target?.trim()) {
+      throw new Error('Command "container init" requires --target <name>.');
+    }
+
+    return {
+      command: "container-init",
+      ...options,
+      target: options.target,
+    };
+  }
+
+  if (section === "build") {
+    const options = parseContainerImageCommandOptions(
+      [subsection, ...rest].filter(Boolean),
+    );
+    return {
+      command: "container-image-build",
+      ...options,
+      target: options.target!,
+    };
+  }
+
+  if (section === "image" && subsection === "build") {
+    const options = parseContainerImageCommandOptions(rest);
+    return {
+      command: "container-image-build",
+      ...options,
+      target: options.target!,
+    };
+  }
+
+  if (section === "run") {
+    const options = parseContainerRunCommandOptions(
+      [subsection, ...rest].filter(Boolean),
+    );
+    return {
+      command: "container-run",
+      ...options,
+      target: options.target!,
+    };
+  }
+
+  throw new Error(
+    'Command "container" requires "init", "build", "image build", or "run".',
+  );
+}
+
+function parseContainerImageCommandOptions(
+  args: string[],
+): SharedCliOptions & { target?: string; tag?: string } {
+  const options: SharedCliOptions & { target?: string; tag?: string } = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const current = args[index];
+    if (current === "--target") {
+      options.target = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--profile") {
+      options.profile = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--tag") {
+      options.tag = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  if (!options.target?.trim()) {
+    throw new Error(
+      'Command "container image build" requires --target <name>.',
+    );
+  }
+
+  return options;
+}
+
+function parseContainerRunCommandOptions(
+  args: string[],
+): SharedCliOptions & { target?: string; tag?: string; port?: number } {
+  const options: SharedCliOptions & {
+    target?: string;
+    tag?: string;
+    port?: number;
+  } = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const current = args[index];
+
+    if (current === "--target") {
+      options.target = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--profile") {
+      options.profile = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--config") {
+      options.configPath = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--runtime") {
+      options.runtime = parseRuntimeOption(args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--tag") {
+      options.tag = readOptionValue(current, args[index + 1]);
+      index += 1;
+      continue;
+    }
+
+    if (current === "--port") {
+      const nextValue = readOptionValue(current, args[index + 1]);
+      const parsedPort = Number(nextValue);
+      if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
+        throw new Error(`Invalid --port value "${nextValue}".`);
+      }
+
+      options.port = parsedPort;
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${current}".`);
+  }
+
+  if (!options.target?.trim()) {
+    throw new Error('Command "container run" requires --target <name>.');
+  }
+
+  return options;
+}
+
 function parseViteCommand(args: string[]): ViteCommandOptions {
   const [action, ...rest] = args;
   if (action !== "materialize" && action !== "dematerialize") {
@@ -1232,9 +1472,7 @@ function parseAppNavigation(
   }
 
   throw new Error(
-    `Unsupported app navigation "${
-      value ?? ""
-    }". Use "spa" or "mpa".`,
+    `Unsupported app navigation "${value ?? ""}". Use "spa" or "mpa".`,
   );
 }
 
@@ -1259,7 +1497,14 @@ function parseRuntimeOption(value: string | undefined): MainzRuntime {
 }
 
 function parseCommandOptions(
-  command: Exclude<MainzCliCommand["command"], "app">,
+  command:
+    | "build"
+    | "dev"
+    | "preview"
+    | "test"
+    | "publish-info"
+    | "container-init"
+    | "diagnose",
   args: string[],
 ):
   & SharedCliOptions
@@ -2026,6 +2271,355 @@ async function runPublishInfoCommand(
   console.log(JSON.stringify(metadata, null, 2));
 }
 
+async function runContainerInitCommand(
+  options: ContainerInitCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
+): Promise<void> {
+  const cwd = runtime.cwd();
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "container-init",
+  );
+  const buildConfigPath = resolveTargetBuildConfigFile(target, cwd);
+  const buildConfig = await loadCliTargetBuildConfig(target, cwd, runtime);
+  const ensuredProfiles = await ensureContainerizeProfiles({
+    target,
+    requestedProfile: options.profile,
+    buildConfig,
+    buildConfigPath,
+    runtime,
+  });
+  const metadata = await resolveEnginePublicationMetadata(
+    target,
+    ensuredProfiles.profile,
+    cwd,
+    runtime,
+  );
+  const envContract = buildConfig.profiles[ensuredProfiles.profile]?.env ?? [];
+  const envResolution = await resolveContainerizeProfileEnvironment({
+    target,
+    profile: ensuredProfiles.profile,
+    envKeys: envContract,
+    cwd,
+    runtime,
+  });
+  const dockerfilePath = resolve(cwd, target.rootDir, "Dockerfile");
+  const targetWorkspaceRelativePath = normalizePathSlashes(
+    relative(cwd, resolve(cwd, target.rootDir)) || target.rootDir,
+  );
+  await runtime.mkdir(dirname(dockerfilePath), { recursive: true });
+  await runtime.writeTextFile(
+    dockerfilePath,
+    renderContainerizeDockerfile({
+      target,
+      profile: ensuredProfiles.profile,
+      artifactClass: metadata.capabilities.artifactClass,
+      runtimeName: runtime.name,
+      configPath: options.configPath ?? "mainz.config.ts",
+      cwd,
+    }),
+  );
+  const dockerignorePath = resolve(cwd, ".dockerignore");
+  const dockerignoreUpdated = await ensureContainerizeDockerignore(
+    dockerignorePath,
+    runtime,
+  );
+
+  if (ensuredProfiles.initializedProfiles.length > 0) {
+    console.log(
+      `[mainz] Added minimal ${
+        ensuredProfiles.initializedProfiles.map((name) => `"${name}"`).join(
+          " and ",
+        )
+      } profiles to ${
+        normalizePathSlashes(relative(cwd, buildConfigPath) || buildConfigPath)
+      }.`,
+    );
+  }
+
+  console.log(
+    `[mainz] Resolved profile "${ensuredProfiles.profile}" for target "${target.name}".`,
+  );
+  if (envContract.length > 0) {
+    if (envResolution.loadedEnvFiles.length > 0) {
+      console.log(
+        `[mainz] Resolved target-scoped environment files for profile "${ensuredProfiles.profile}": ${
+          envResolution.loadedEnvFiles.join(", ")
+        }.`,
+      );
+    } else {
+      console.log(
+        `[mainz] No target-scoped environment files were found for profile "${ensuredProfiles.profile}".`,
+      );
+    }
+
+    if (envResolution.missingKeys.length > 0) {
+      console.warn(
+        `[mainz] Missing environment keys declared by profile "${ensuredProfiles.profile}": ${
+          envResolution.missingKeys.join(", ")
+        }.`,
+      );
+    } else {
+      console.log(
+        `[mainz] Resolved ${envResolution.resolvedKeys.length} environment key(s) declared by profile "${ensuredProfiles.profile}".`,
+      );
+    }
+  }
+  console.log(
+    `[mainz] Generated ${metadata.capabilities.artifactClass} Dockerfile for target "${target.name}" in ${
+      normalizePathSlashes(relative(cwd, dockerfilePath) || dockerfilePath)
+    }.`,
+  );
+  if (dockerignoreUpdated) {
+    console.log(
+      `[mainz] Updated build-context ignore rules in ${
+        normalizePathSlashes(
+          relative(cwd, dockerignorePath) || dockerignorePath,
+        )
+      }.`,
+    );
+  }
+  console.log(
+    `[mainz] Build from the target workspace with: docker image build -f Dockerfile ..`,
+  );
+  console.log(
+    `[mainz] Or build from the repository root with: docker image build -f ${targetWorkspaceRelativePath}/Dockerfile .`,
+  );
+}
+
+async function runContainerImageBuildCommand(
+  options: ContainerImageBuildCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
+): Promise<void> {
+  await runContainerInitCommand(
+    {
+      command: "container-init",
+      target: options.target,
+      profile: options.profile,
+      runtime: options.runtime,
+      configPath: options.configPath,
+    },
+    normalizedConfig,
+    runtime,
+  );
+
+  const cwd = runtime.cwd();
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "container image build",
+  );
+  const dockerfilePath = normalizePathSlashes(
+    join(target.rootDir, "Dockerfile"),
+  );
+  const imageTag = resolveContainerImageTag(target.name, options.tag);
+  const status = await runtime.run({
+    command: "docker",
+    args: ["image", "build", "-f", dockerfilePath, ".", "-t", imageTag],
+    cwd,
+  });
+
+  if (!status.success) {
+    throw new Error(
+      `Docker image build failed for target "${target.name}" with exit code ${status.code}.`,
+    );
+  }
+
+  console.log(
+    `[mainz] Built Docker image "${imageTag}" for target "${target.name}".`,
+  );
+}
+
+async function runContainerRunCommand(
+  options: ContainerRunCommandOptions,
+  normalizedConfig: NormalizedMainzConfig,
+  runtime: MainzToolingRuntime,
+): Promise<void> {
+  const target = resolveRequiredTarget(
+    normalizedConfig,
+    options.target,
+    "container run",
+  );
+  const imageTag = resolveContainerImageTag(target.name, options.tag);
+  const requestedPort = options.port ?? 3000;
+  const hostPort = await resolveAvailableContainerHostPort(
+    requestedPort,
+    runtime,
+  );
+  if (hostPort !== requestedPort) {
+    console.log(
+      `[mainz] Port ${requestedPort} is in use. Using ${hostPort} instead for target "${target.name}".`,
+    );
+  }
+  console.log(
+    `[mainz] Running container "${imageTag}" for target "${target.name}". Open http://localhost:${hostPort}/`,
+  );
+  const status = await runtime.run({
+    command: "docker",
+    args: [
+      "run",
+      "--rm",
+      "-p",
+      `${hostPort}:3000`,
+      imageTag,
+    ],
+    cwd: runtime.cwd(),
+  });
+
+  if (!status.success) {
+    throw new Error(
+      `Docker run failed for target "${target.name}" with exit code ${status.code}.`,
+    );
+  }
+}
+
+function resolveContainerImageTag(
+  targetName: string,
+  overrideTag?: string,
+): string {
+  const normalizedOverride = overrideTag?.trim();
+  return normalizedOverride?.length
+    ? normalizedOverride
+    : `${targetName}:local`;
+}
+
+async function resolveAvailableContainerHostPort(
+  preferredPort: number,
+  runtime: MainzToolingRuntime,
+): Promise<number> {
+  const maxAttempts = 20;
+
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const port = preferredPort + offset;
+    if (await isTcpPortAvailable(port, runtime)) {
+      return port;
+    }
+  }
+
+  throw new Error(
+    `Could not find an available host port starting at ${preferredPort}.`,
+  );
+}
+
+async function isTcpPortAvailable(
+  port: number,
+  runtime: MainzToolingRuntime,
+): Promise<boolean> {
+  if (await isDockerPublishedHostPortAllocated(port, runtime)) {
+    return false;
+  }
+
+  if (runtime.name === "deno") {
+    try {
+      const listener = Deno.listen({ hostname: "0.0.0.0", port });
+      listener.close();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const { createServer } = await import("node:net");
+  return await new Promise<boolean>((resolvePort) => {
+    const server = createServer();
+    server.once("error", () => resolvePort(false));
+    server.listen(port, "0.0.0.0", () => {
+      server.close(() => resolvePort(true));
+    });
+  });
+}
+
+async function isDockerPublishedHostPortAllocated(
+  port: number,
+  runtime: MainzToolingRuntime,
+): Promise<boolean> {
+  try {
+    const result = await runCommandWithCapturedOutput(
+      {
+        command: "docker",
+        args: ["ps", "--format", "{{.Ports}}"],
+        cwd: runtime.cwd(),
+      },
+      runtime,
+    );
+    if (!result.success) {
+      return false;
+    }
+
+    return result.stdout.split(/\r?\n/).some((line) => {
+      const normalizedLine = line.trim();
+      if (!normalizedLine.length) {
+        return false;
+      }
+
+      const publishesRequestedPort =
+        normalizedLine.includes(`0.0.0.0:${port}->`) ||
+        normalizedLine.includes(`[::]:${port}->`) ||
+        normalizedLine.includes(`:::${port}->`);
+      return publishesRequestedPort;
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function runCommandWithCapturedOutput(
+  command: {
+    command: string;
+    args?: readonly string[];
+    cwd?: string;
+    env?: Record<string, string>;
+  },
+  runtime: MainzToolingRuntime,
+): Promise<{ success: boolean; code: number; stdout: string; stderr: string }> {
+  if (runtime.name === "deno") {
+    const result = await new Deno.Command(command.command, {
+      cwd: command.cwd,
+      args: command.args ? [...command.args] : undefined,
+      env: command.env,
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    return {
+      success: result.success,
+      code: result.code,
+      stdout: new TextDecoder().decode(result.stdout),
+      stderr: new TextDecoder().decode(result.stderr),
+    };
+  }
+
+  const { spawn } = await import("node:child_process");
+  return await new Promise((resolve, reject) => {
+    const child = spawn(
+      command.command,
+      command.args ? [...command.args] : [],
+      {
+        cwd: command.cwd,
+        env: command.env ? { ...process.env, ...command.env } : process.env,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    const stdoutChunks: Uint8Array[] = [];
+    const stderrChunks: Uint8Array[] = [];
+
+    child.stdout?.on("data", (chunk: Uint8Array) => stdoutChunks.push(chunk));
+    child.stderr?.on("data", (chunk: Uint8Array) => stderrChunks.push(chunk));
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      resolve({
+        success: !signal && (code ?? 1) === 0,
+        code: signal ? 1 : code ?? 1,
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+      });
+    });
+  });
+}
+
 async function runDevCommand(
   options: DevCommandOptions,
   loadedConfig: LoadedMainzConfig,
@@ -2163,6 +2757,9 @@ function resolveRequiredTarget(
     | "dev"
     | "preview"
     | "publish-info"
+    | "container-init"
+    | "container image build"
+    | "container run"
     | "app-info"
     | "profile-create"
     | "vite-materialize"
@@ -2388,6 +2985,56 @@ function getHelpText(topic: HelpTopic): string[] {
     ];
   }
 
+  if (topic === "container") {
+    return [
+      "Mainz CLI - container",
+      "",
+      "Usage:",
+      "  mainz container init --target <name> [--profile <name>] [--config <path>]",
+      "  mainz container image build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>]",
+      "  mainz container build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>]",
+      "  mainz container run --target <name> [--tag <name:tag>] [--port <host-port>]",
+    ];
+  }
+
+  if (topic === "container-init") {
+    return [
+      "Mainz CLI - container init",
+      "",
+      "Usage:",
+      "  mainz container init --target <name> [--profile <name>] [--config <path>]",
+      "",
+      "Notes:",
+      "  Resolves production first, then development when --profile is omitted.",
+      "  If neither production nor development exists, Mainz initializes both before generating the Dockerfile.",
+    ];
+  }
+
+  if (topic === "container-image-build") {
+    return [
+      "Mainz CLI - container image build",
+      "",
+      "Usage:",
+      "  mainz container image build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>]",
+      "  mainz container build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>]",
+      "",
+      "Notes:",
+      "  Ensures container files exist, then runs Docker image build from the repository root context.",
+    ];
+  }
+
+  if (topic === "container-run") {
+    return [
+      "Mainz CLI - container run",
+      "",
+      "Usage:",
+      "  mainz container run --target <name> [--tag <name:tag>] [--port <host-port>]",
+      "",
+      "Notes:",
+      "  Runs the built image and publishes Mainz container port 3000.",
+    ];
+  }
+
   if (topic === "diagnose") {
     return [
       "Mainz CLI - diagnose",
@@ -2416,6 +3063,10 @@ function getHelpText(topic: HelpTopic): string[] {
     "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] container init --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] container image build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] container build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>] [--runtime <deno|node|bun>]",
+    "  mainz [--cli <deno|node|bun>] container run --target <name> [--tag <name:tag>] [--port <host-port>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] diagnose [--target <name|all>] [--app <id>] [--format <json|human>] [--fail-on <never|error|warning>] [--config <path>] [--runtime <deno|node|bun>]",
     "",
     "Global options:",
@@ -2455,6 +3106,9 @@ function getHelpText(topic: HelpTopic): string[] {
     "  mainz preview --target site --profile production",
     "  mainz test --target site",
     "  mainz publish-info --target site --profile gh-pages",
+    "  mainz container init --target site",
+    "  mainz container image build --target site",
+    "  mainz container run --target site",
     "  mainz diagnose",
     "  mainz diagnose --target docs",
     "  mainz diagnose --target docs --app site",
@@ -2547,6 +3201,21 @@ function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
   }
   if (command === "publish-info") {
     return "publish-info";
+  }
+  if (command === "container") {
+    if (subcommand === "init") {
+      return "container-init";
+    }
+    if (subcommand === "build") {
+      return "container-image-build";
+    }
+    if (subcommand === "run") {
+      return "container-run";
+    }
+    if (subcommand === "image" && args[2] === "build") {
+      return "container-image-build";
+    }
+    return "container";
   }
   if (command === "diagnose") {
     return "diagnose";
@@ -3639,7 +4308,7 @@ function renderGeneratedBuildConfig(profileSource: string): string {
 
 function renderBuildProfileProperty(
   profileName: string,
-  options: { basePath?: string; siteUrl?: string },
+  options: { basePath?: string; siteUrl?: string; env?: readonly string[] },
 ): string {
   const properties: string[] = [];
   if (options.basePath) {
@@ -3649,6 +4318,9 @@ function renderBuildProfileProperty(
   }
   if (options.siteUrl) {
     properties.push(`            siteUrl: ${JSON.stringify(options.siteUrl)},`);
+  }
+  if (options.env) {
+    properties.push(`            env: ${JSON.stringify([...options.env])},`);
   }
 
   return [
@@ -3819,6 +4491,403 @@ function resolveTargetBuildConfigFile(
 
 function inferDefaultProfileBasePath(targetName: string): string {
   return targetName === "site" ? "/" : `/${targetName}/`;
+}
+
+async function loadCliTargetBuildConfig(
+  target: NormalizedMainzTarget,
+  cwd: string,
+  runtime: MainzToolingRuntime,
+): Promise<ReturnType<typeof normalizeTargetBuildConfig>> {
+  const buildConfigPath = resolveTargetBuildConfigFile(target, cwd);
+  if (!(await pathExists(buildConfigPath, runtime))) {
+    return normalizeTargetBuildConfig({});
+  }
+
+  let module: unknown;
+  try {
+    module = await runtime.importModule(
+      `${pathToFileURL(buildConfigPath).href}?t=${Date.now()}`,
+    );
+  } catch (error) {
+    throw new Error(
+      `Could not load target build config at "${buildConfigPath}": ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
+  const exported = (module as { default?: unknown }).default;
+  if (!exported || typeof exported !== "object") {
+    throw new Error(
+      `Target build config "${buildConfigPath}" must export a default object.`,
+    );
+  }
+
+  return normalizeTargetBuildConfig(exported as TargetBuildDefinition);
+}
+
+async function ensureContainerizeProfiles(args: {
+  target: NormalizedMainzTarget;
+  requestedProfile?: string;
+  buildConfig: ReturnType<typeof normalizeTargetBuildConfig>;
+  buildConfigPath: string;
+  runtime: MainzToolingRuntime;
+}): Promise<{ profile: string; initializedProfiles: string[] }> {
+  const existingProfiles = args.buildConfig.profiles;
+  const hasProduction = Boolean(existingProfiles.production);
+  const hasDevelopment = Boolean(existingProfiles.development);
+  const initializedProfiles: string[] = [];
+
+  if (!hasProduction && !hasDevelopment) {
+    const productionSource = renderBuildProfileProperty("production", {
+      basePath: "/",
+      env: [],
+    });
+    const developmentSource = renderBuildProfileProperty("development", {
+      basePath: "/",
+      env: [],
+    });
+    const profileBlock = [productionSource, developmentSource].join("\n");
+
+    if (await pathExists(args.buildConfigPath, args.runtime)) {
+      const content = await args.runtime.readTextFile(args.buildConfigPath);
+      const nextContent = content.includes("profiles:")
+        ? upsertBuildProfile(
+          upsertBuildProfile(content, "production", productionSource),
+          "development",
+          developmentSource,
+        )
+        : upsertObjectProperty(
+          content,
+          "profiles",
+          [
+            "{",
+            productionSource,
+            developmentSource,
+            "        }",
+          ].join("\n"),
+        );
+      await args.runtime.writeTextFile(args.buildConfigPath, nextContent);
+    } else {
+      await args.runtime.mkdir(dirname(args.buildConfigPath), {
+        recursive: true,
+      });
+      await args.runtime.writeTextFile(
+        args.buildConfigPath,
+        renderGeneratedBuildConfig(profileBlock),
+      );
+    }
+
+    initializedProfiles.push("production", "development");
+  }
+
+  const requestedProfile = args.requestedProfile?.trim();
+  if (requestedProfile) {
+    const availableProfiles = initializedProfiles.length > 0
+      ? new Set(["production", "development"])
+      : new Set(Object.keys(existingProfiles));
+    if (!availableProfiles.has(requestedProfile)) {
+      throw new Error(
+        `Target "${args.target.name}" does not define profile "${requestedProfile}".`,
+      );
+    }
+
+    return {
+      profile: requestedProfile,
+      initializedProfiles,
+    };
+  }
+
+  if (hasProduction || initializedProfiles.includes("production")) {
+    return { profile: "production", initializedProfiles };
+  }
+
+  if (hasDevelopment || initializedProfiles.includes("development")) {
+    return { profile: "development", initializedProfiles };
+  }
+
+  throw new Error(
+    `Could not resolve a containerization profile for target "${args.target.name}".`,
+  );
+}
+
+async function resolveContainerizeProfileEnvironment(args: {
+  target: NormalizedMainzTarget;
+  profile: string;
+  envKeys: readonly string[];
+  cwd: string;
+  runtime: MainzToolingRuntime;
+}): Promise<{
+  loadedEnvFiles: string[];
+  resolvedKeys: string[];
+  missingKeys: string[];
+}> {
+  if (args.envKeys.length === 0) {
+    return {
+      loadedEnvFiles: [],
+      resolvedKeys: [],
+      missingKeys: [],
+    };
+  }
+
+  const targetRootDir = resolve(args.cwd, args.target.rootDir);
+  const candidateEnvFiles = [
+    resolve(targetRootDir, ".env"),
+    resolve(targetRootDir, `.env.${args.profile}`),
+  ];
+  const fileValues = new Map<string, string>();
+  const loadedEnvFiles: string[] = [];
+
+  for (const candidatePath of candidateEnvFiles) {
+    if (!(await pathExists(candidatePath, args.runtime))) {
+      continue;
+    }
+
+    const parsed = parseDotEnvSource(
+      await args.runtime.readTextFile(candidatePath),
+    );
+    for (const [key, value] of parsed) {
+      fileValues.set(key, value);
+    }
+    loadedEnvFiles.push(
+      normalizePathSlashes(relative(args.cwd, candidatePath) || candidatePath),
+    );
+  }
+
+  const resolvedKeys: string[] = [];
+  const missingKeys: string[] = [];
+
+  for (const key of args.envKeys) {
+    const processValue = process.env[key];
+    const resolvedValue = hasResolvedEnvironmentValue(processValue)
+      ? processValue
+      : fileValues.get(key);
+    if (hasResolvedEnvironmentValue(resolvedValue)) {
+      resolvedKeys.push(key);
+      continue;
+    }
+
+    missingKeys.push(key);
+  }
+
+  return {
+    loadedEnvFiles,
+    resolvedKeys,
+    missingKeys,
+  };
+}
+
+function parseDotEnvSource(source: string): Map<string, string> {
+  const entries = new Map<string, string>();
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const normalizedLine = line.startsWith("export ")
+      ? line.slice("export ".length).trim()
+      : line;
+    const separatorIndex = normalizedLine.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = normalizedLine.slice(0, separatorIndex).trim();
+    if (!key) {
+      continue;
+    }
+
+    const rawValue = normalizedLine.slice(separatorIndex + 1).trim();
+    entries.set(key, unquoteDotEnvValue(rawValue));
+  }
+
+  return entries;
+}
+
+function unquoteDotEnvValue(value: string): string {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
+}
+
+function hasResolvedEnvironmentValue(value: string | undefined): boolean {
+  return typeof value === "string" && value.length > 0;
+}
+
+async function ensureContainerizeDockerignore(
+  dockerignorePath: string,
+  runtime: MainzToolingRuntime,
+): Promise<boolean> {
+  if (!(await pathExists(dockerignorePath, runtime))) {
+    await runtime.writeTextFile(
+      dockerignorePath,
+      containerizeDockerignoreBlock,
+    );
+    return true;
+  }
+
+  const current = await runtime.readTextFile(dockerignorePath);
+  if (current.includes("# >>> mainz containerize")) {
+    return false;
+  }
+
+  const separator = current.endsWith("\n") ? "\n" : "\n\n";
+  await runtime.writeTextFile(
+    dockerignorePath,
+    `${current}${separator}${containerizeDockerignoreBlock}`,
+  );
+  return true;
+}
+
+function renderContainerizeDockerfile(args: {
+  target: NormalizedMainzTarget;
+  profile: string;
+  artifactClass: "browser-only" | "server-capable";
+  runtimeName: SupportedCliRuntime;
+  configPath: string;
+  cwd: string;
+}): string {
+  const relativeConfigPath = normalizePathSlashes(
+    relative(args.cwd, resolve(args.configPath)) || args.configPath,
+  );
+  const relativeOutDir = normalizePathSlashes(
+    relative(args.cwd, resolve(args.target.outDir)) || args.target.outDir,
+  );
+  const normalizedContextHint = normalizePathSlashes(
+    join(args.target.rootDir, "Dockerfile"),
+  );
+  const artifactRootDir = normalizePathSlashes(relativeOutDir);
+
+  if (args.artifactClass === "browser-only") {
+    return args.runtimeName === "node"
+      ? renderNodeBrowserOnlyDockerfile(
+        args.target.name,
+        relativeOutDir,
+        args.profile,
+        relativeConfigPath,
+        normalizedContextHint,
+      )
+      : renderDenoBrowserOnlyDockerfile(
+        args.target.name,
+        relativeOutDir,
+        args.profile,
+        relativeConfigPath,
+        normalizedContextHint,
+      );
+  }
+
+  if (args.runtimeName === "node") {
+    throw new Error(
+      `Target "${args.target.name}" publishes server/runtime artifacts, but Mainz does not yet provide a Node server adapter for container generation.`,
+    );
+  }
+
+  return renderDenoServerCapableDockerfile(
+    args.target.name,
+    args.profile,
+    relativeConfigPath,
+    artifactRootDir,
+    normalizedContextHint,
+  );
+}
+
+function renderNodeBrowserOnlyDockerfile(
+  targetName: string,
+  outDir: string,
+  profileName: string,
+  configPath: string,
+  dockerfilePath: string,
+): string {
+  return [
+    "# Build from the target workspace with:",
+    "# docker image build -f Dockerfile ..",
+    "# Or build from the repository root with:",
+    `# docker image build -f ${dockerfilePath} .`,
+    "FROM node:20-alpine AS builder",
+    "WORKDIR /workspace",
+    "COPY . .",
+    "RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi",
+    `RUN npm run build -- --target ${JSON.stringify(targetName)} --profile ${
+      JSON.stringify(profileName)
+    } --config ${JSON.stringify(configPath)}`,
+    "",
+    "FROM nginx:1.27-alpine",
+    'RUN printf "server {\\n  listen 3000;\\n  server_name _;\\n  root /usr/share/nginx/html;\\n  index index.html;\\n\\n  location / {\\n    try_files \\$uri \\$uri/ /index.html;\\n  }\\n}\\n" > /etc/nginx/conf.d/default.conf',
+    `COPY --from=builder /workspace/${
+      normalizePathSlashes(join(outDir, "browser"))
+    }/ /usr/share/nginx/html/`,
+    "EXPOSE 3000",
+    'CMD ["nginx", "-g", "daemon off;"]',
+    "",
+  ].join("\n");
+}
+
+function renderDenoBrowserOnlyDockerfile(
+  targetName: string,
+  outDir: string,
+  profileName: string,
+  configPath: string,
+  dockerfilePath: string,
+): string {
+  return [
+    "# Build from the target workspace with:",
+    "# docker image build -f Dockerfile ..",
+    "# Or build from the repository root with:",
+    `# docker image build -f ${dockerfilePath} .`,
+    `FROM ${defaultDenoContainerImage} AS builder`,
+    "WORKDIR /workspace",
+    "COPY . .",
+    `RUN deno task build --target ${JSON.stringify(targetName)} --profile ${
+      JSON.stringify(profileName)
+    } --config ${JSON.stringify(configPath)}`,
+    "",
+    "FROM nginx:1.27-alpine",
+    'RUN printf "server {\\n  listen 3000;\\n  server_name _;\\n  root /usr/share/nginx/html;\\n  index index.html;\\n\\n  location / {\\n    try_files \\$uri \\$uri/ /index.html;\\n  }\\n}\\n" > /etc/nginx/conf.d/default.conf',
+    `COPY --from=builder /workspace/${
+      normalizePathSlashes(join(outDir, "browser"))
+    }/ /usr/share/nginx/html/`,
+    "EXPOSE 3000",
+    'CMD ["nginx", "-g", "daemon off;"]',
+    "",
+  ].join("\n");
+}
+
+function renderDenoServerCapableDockerfile(
+  targetName: string,
+  profileName: string,
+  configPath: string,
+  artifactRootDir: string,
+  dockerfilePath: string,
+): string {
+  return [
+    "# Build from the target workspace with:",
+    "# docker image build -f Dockerfile ..",
+    "# Or build from the repository root with:",
+    `# docker image build -f ${dockerfilePath} .`,
+    `FROM ${defaultDenoContainerImage} AS builder`,
+    "WORKDIR /workspace",
+    "COPY . .",
+    `RUN deno task build --target ${JSON.stringify(targetName)} --profile ${
+      JSON.stringify(profileName)
+    } --config ${JSON.stringify(configPath)}`,
+    "",
+    `FROM ${defaultDenoContainerImage}`,
+    "WORKDIR /workspace",
+    "COPY --from=builder /workspace /workspace",
+    "EXPOSE 3000",
+    `CMD ["deno", "run", "-A", "./src/cli/preview-artifact.ts", ${
+      JSON.stringify(artifactRootDir)
+    }, "--host", "0.0.0.0", "--port", "3000"]`,
+    "",
+  ].join("\n");
 }
 
 async function resolveGithubPagesWorkflowTargets(
@@ -4842,6 +5911,9 @@ async function resolveCommandToolingRuntime(
     | PreviewCommandOptions
     | TestCommandOptions
     | PublishInfoCommandOptions
+    | ContainerInitCommandOptions
+    | ContainerImageBuildCommandOptions
+    | ContainerRunCommandOptions
     | DiagnoseCommandOptions,
   hostRuntime: SupportedCliRuntime,
 ): Promise<MainzToolingRuntime> {

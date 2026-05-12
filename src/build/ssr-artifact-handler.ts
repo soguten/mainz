@@ -239,8 +239,6 @@ export function toSsrArtifactRuntimeRouteEntry(
   return {
     id: route.id,
     source: "filesystem",
-    file: route.file,
-    exportName: route.exportName,
     path: route.path,
     pattern: route.pattern,
     mode: "ssr",

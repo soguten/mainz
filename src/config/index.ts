@@ -234,11 +234,27 @@ function normalizeTargetViteDefine(
 function normalizeTargetBuildProfile(profile: {
   basePath?: string;
   siteUrl?: string;
+  env?: readonly string[];
 }): NormalizedTargetBuildProfile {
   return {
     basePath: normalizeBasePath(profile.basePath),
     siteUrl: normalizeSiteUrl(profile.siteUrl),
+    env: normalizeBuildProfileEnv(profile.env),
   };
+}
+
+function normalizeBuildProfileEnv(
+  env: readonly string[] | undefined,
+): string[] {
+  if (!env?.length) {
+    return [];
+  }
+
+  const normalized = env
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return [...new Set(normalized)];
 }
 
 function normalizeMainzRuntime(

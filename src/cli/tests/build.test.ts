@@ -184,18 +184,11 @@ Deno.test("cli/build: should emit an SSR runtime manifest for page-owned ssr rou
     assertEquals(runtimeManifest.target, "ssr-build-app");
     assertEquals(runtimeManifest.appId, "ssr-build-app");
     assertEquals(runtimeManifest.navigation, "spa");
-    assertEquals(runtimeManifest.serverOutDir, normalizePathSlashes(
-      resolve(testApp.artifactRootDir, "server"),
-    ));
     assertEquals(runtimeManifest.serverEntryPath, "server/app.mjs");
     assertEquals(serverEntryStat.isFile, true);
     assertEquals(runtimeManifest.routes, [
       {
         id: "index",
-        file: normalizePathSlashes(
-          resolve(testApp.testAppRoot, "src", "pages", "Home.page.tsx"),
-        ),
-        exportName: "HomePage",
         path: "/",
         pattern: "/",
         locales: ["en"],

@@ -16,7 +16,6 @@ import {
 import type { PageHeadDefinition } from "../components/page.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import { ResourceAccessError } from "../resources/index.ts";
-import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
 import type { RoutedAppDefinition } from "../navigation/index.ts";
 import {
   type ResolvedBuildProfile,
@@ -65,8 +64,6 @@ export interface ArtifactBuildJob {
 
 export interface SsrRuntimeManifestRouteEntry {
   id: string;
-  file?: string;
-  exportName?: string;
   path: string;
   pattern: string;
   locales: string[];
@@ -79,11 +76,9 @@ export interface SsrRuntimeManifest {
   version: 1;
   target: string;
   appId?: string;
-  appFile?: string;
   basePath: string;
   siteUrl?: string;
   navigation: NavigationMode;
-  serverOutDir: string;
   serverEntryPath: string;
   routes: SsrRuntimeManifestRouteEntry[];
   i18n?: {
@@ -306,14 +301,11 @@ export function buildSsrRuntimeManifest(args: {
   navigationMode: NavigationMode;
   targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
   appDefinition?: { id?: string };
-  appFile?: string;
 }): SsrRuntimeManifest | undefined {
   const routes = args.manifest.routes
     .filter((route) => route.mode === "ssr")
     .map((route) => ({
       id: route.id,
-      ...(route.file ? { file: route.file } : {}),
-      ...(route.exportName ? { exportName: route.exportName } : {}),
       path: route.path,
       pattern: route.pattern,
       locales: [...route.locales],
@@ -332,11 +324,9 @@ export function buildSsrRuntimeManifest(args: {
     version: 1,
     target: args.target.name,
     appId: args.appDefinition?.id,
-    appFile: args.appFile ? normalizePathSlashes(args.appFile) : undefined,
     basePath: args.profile.basePath,
     siteUrl: args.profile.siteUrl,
     navigation: args.navigationMode,
-    serverOutDir: resolvePublicationServerOutDir(args.target.outDir),
     serverEntryPath: resolveArtifactRelativeServerEntryPath(),
     routes,
     i18n: args.targetI18n
@@ -367,7 +357,6 @@ async function emitSsrRuntimeArtifacts(args: {
     navigationMode: args.navigationMode,
     targetI18n: args.targetI18n,
     appDefinition: args.appDefinition,
-    appFile: resolveTargetAppFile(args.target, args.cwd),
   });
   const serverOutDir = resolve(
     args.cwd,

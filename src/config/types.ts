@@ -53,6 +53,8 @@ export interface TargetBuildProfileDefinition {
   basePath?: string;
   /** Absolute site URL used for publication metadata and SEO output. */
   siteUrl?: string;
+  /** Environment variable keys recognized by this profile. */
+  env?: readonly string[];
 }
 
 /**
@@ -99,6 +101,8 @@ export interface NormalizedTargetBuildProfile {
   basePath?: string;
   /** Normalized absolute site URL. */
   siteUrl?: string;
+  /** Normalized environment variable keys recognized by this profile. */
+  env: string[];
 }
 
 /**
