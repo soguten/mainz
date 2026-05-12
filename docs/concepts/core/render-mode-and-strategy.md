@@ -287,3 +287,6 @@ or rejection, use `@RenderPolicy(...)`.
 
 For route expansion and the ownership split between page and component, see
 [Data Loading](./data-loading.md).
+
+For the runtime and build flow behind `@RenderMode("ssr")`, see
+[SSR Runtime Flow](./ssr-runtime.md).

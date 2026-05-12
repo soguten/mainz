@@ -9,7 +9,7 @@ export async function createTestAppTargetConfig(args: {
 }): Promise<TestAppTargetConfig> {
   const testApp = await createTestAppTargetDefinition(args);
   const configPath = resolve(
-    dirname(dirname(testApp.outputDir)),
+    dirname(dirname(testApp.artifactRootDir)),
     "mainz.test-app.config.ts",
   );
   await Deno.writeTextFile(

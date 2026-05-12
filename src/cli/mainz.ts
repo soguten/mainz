@@ -24,6 +24,7 @@ import {
   resolveEngineBuildProfile,
   resolveEnginePublicationMetadata,
   resolveGeneratedViteConfig,
+  resolvePublicationBrowserOutDir,
   resolveTargetBuildProfile,
   resolveTargetI18nConfig,
   runEngineBuildJobs,
@@ -1830,7 +1831,7 @@ async function runViteMaterializeCommand(
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: runtime.cwd(),
     target,
-    outputDir: normalizePathSlashes(target.outDir),
+    outputDir: resolvePublicationBrowserOutDir(target.outDir),
     navigationMode,
     basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
     appLocales: appDefinition?.i18n?.locales ??
@@ -3864,7 +3865,7 @@ async function resolveGithubPagesWorkflowTargets(
     targets.push({
       name: target.name,
       basePath: metadata.basePath,
-      outDir: metadata.outDir,
+      outDir: metadata.browser.outDir,
       stagingPath,
     });
   }
@@ -3917,7 +3918,7 @@ function renderGithubPagesWorkflowTemplateParams(options: {
   ).join("\n");
 
   const artifactCommands = options.targets.map((target) =>
-    `                  ${target.name}_artifact_dir="$(METADATA="$${target.name}_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).outDir)')"`
+    `                  ${target.name}_artifact_dir="$(METADATA="$${target.name}_metadata" deno eval 'console.log(JSON.parse(Deno.env.get("METADATA")!).browser.outDir)')"`
   ).join("\n");
 
   const stagingCommands = options.targets.map((target) => {

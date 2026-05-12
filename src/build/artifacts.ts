@@ -1,30 +1,32 @@
 import { dirname, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import {
-  buildRouteHead,
   buildSsgOutputEntries,
   buildTargetRouteManifest,
-  materializeRoutePath,
   isDynamicRoutePath,
+  type NavigationMode,
   type RenderMode,
   resolveLocaleRedirectPath,
   shouldPrefixLocaleForRoute,
   toLocalePathSegment,
 } from "../routing/index.ts";
 import {
-  MAINZ_HEAD_MANAGED_ATTR,
-  type PageHeadDefinition,
-} from "../components/page.ts";
-import {
   type NormalizedMainzConfig,
   type NormalizedMainzTarget,
 } from "../config/index.ts";
+import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import { ResourceAccessError } from "../resources/index.ts";
-import { withHappyDom } from "../ssg/happy-dom.ts";
 import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
+import type { RoutedAppDefinition } from "../navigation/index.ts";
 import {
   type ResolvedBuildProfile,
+  resolveArtifactRelativeServerEntryPath,
   resolveEffectiveNavigationMode,
+  resolvePublicationBrowserIndexHtmlPath,
+  resolvePublicationHydrationManifestPath,
+  resolvePublicationRoutesManifestPath,
+  resolvePublicationServerOutDir,
+  resolvePublicationSsrManifestPath,
 } from "./profiles.ts";
 import { denoToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
@@ -32,6 +34,27 @@ import {
   resolveRoutePrerenderContext,
   resolveTargetI18nConfig,
 } from "./prerender-context.ts";
+import {
+  type InitialRouteSnapshot,
+  renderRouteAppHtml,
+} from "./render-core.ts";
+import {
+  applyRouteHead,
+  buildResolvedRouteHead,
+  finalizeEvaluatedRouteDocument,
+  finalizePrerenderedRouteDocument,
+  injectAppHtml,
+  injectRouteSnapshot,
+  resolveRenderedRouteHead,
+  setHtmlLang,
+} from "./render-document.ts";
+
+export {
+  applyRouteHead,
+  injectAppHtml,
+  injectRouteSnapshot,
+  setHtmlLang,
+} from "./render-document.ts";
 
 export { resolveTargetI18nConfig } from "./prerender-context.ts";
 
@@ -40,14 +63,34 @@ export interface ArtifactBuildJob {
   profile: ResolvedBuildProfile;
 }
 
-interface InitialRouteSnapshot {
-  pageTagName: string;
+export interface SsrRuntimeManifestRouteEntry {
+  id: string;
+  file?: string;
+  exportName?: string;
   path: string;
-  matchedPath: string;
-  params: Record<string, string>;
-  locale?: string;
-  data?: unknown;
+  pattern: string;
+  locales: string[];
+  notFound?: boolean;
   head?: PageHeadDefinition;
+  authorization?: PageAuthorizationMetadata;
+}
+
+export interface SsrRuntimeManifest {
+  version: 1;
+  target: string;
+  appId?: string;
+  appFile?: string;
+  basePath: string;
+  siteUrl?: string;
+  navigation: NavigationMode;
+  serverOutDir: string;
+  serverEntryPath: string;
+  routes: SsrRuntimeManifestRouteEntry[];
+  i18n?: {
+    defaultLocale?: string;
+    localePrefix?: "except-default" | "always";
+    fallbackLocale?: string;
+  };
 }
 
 export async function emitRouteArtifacts(
@@ -57,7 +100,19 @@ export async function emitRouteArtifacts(
   cwd: string,
   runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<boolean> {
-  const { templateHtml, manifest, outputEntries, routeById, targetI18n } =
+  const navigationMode = await resolveEffectiveNavigationMode(
+    job.target,
+    job.profile,
+    cwd,
+  );
+  const {
+    appDefinition,
+    templateHtml,
+    manifest,
+    outputEntries,
+    routeById,
+    targetI18n,
+  } =
     await resolveStaticRouteBuildContext(
       config,
       job,
@@ -67,7 +122,7 @@ export async function emitRouteArtifacts(
       runtime,
     );
 
-  if (manifest.routes.length === 0 || outputEntries.length === 0) {
+  if (manifest.routes.length === 0) {
     return false;
   }
 
@@ -119,29 +174,43 @@ export async function emitRouteArtifacts(
     await runtime.writeTextFile(absoluteOutputPath, html);
   }
 
-  const routesManifestPath = resolve(cwd, outputDir, "routes.json");
+  const normalizedRoutesManifestPath = resolve(
+    cwd,
+    resolvePublicationRoutesManifestPath(job.target.outDir),
+  );
   await runtime.writeTextFile(
-    routesManifestPath,
+    normalizedRoutesManifestPath,
     JSON.stringify(manifest, null, 2),
   );
 
-  const hydrationManifestPath = resolve(cwd, outputDir, "hydration.json");
+  const normalizedHydrationManifestPath = resolve(
+    cwd,
+    resolvePublicationHydrationManifestPath(job.target.outDir),
+  );
   await runtime.writeTextFile(
-    hydrationManifestPath,
+    normalizedHydrationManifestPath,
     JSON.stringify(
       {
         target: job.target.name,
         hydration: "full-page",
-        navigation: await resolveEffectiveNavigationMode(
-          job.target,
-          job.profile,
-          cwd,
-        ),
+        navigation: navigationMode,
       },
       null,
       2,
     ),
   );
+
+  await emitSsrRuntimeArtifacts({
+    runtime,
+    cwd,
+    outputDir,
+    target: job.target,
+    profile: job.profile,
+    appDefinition,
+    manifest,
+    navigationMode,
+    targetI18n,
+  });
 
   const localeRedirectHtml = buildDefaultLocaleRedirectHtml(
     manifest,
@@ -152,11 +221,11 @@ export async function emitRouteArtifacts(
   );
   if (localeRedirectHtml) {
     await runtime.writeTextFile(
-      resolve(cwd, outputDir, "index.html"),
+      resolve(cwd, resolvePublicationBrowserIndexHtmlPath(job.target.outDir)),
       localeRedirectHtml,
     );
   }
-  return true;
+  return outputEntries.length > 0;
 }
 
 export async function emitCsrSpaAppShellMetadata(args: {
@@ -187,6 +256,7 @@ async function resolveStaticRouteBuildContext(
   buildLabel: string,
   runtime: MainzToolingRuntime,
 ): Promise<{
+  appDefinition?: RoutedAppDefinition;
   templateHtml: string;
   manifest: ReturnType<typeof buildTargetRouteManifest>;
   outputEntries: ReturnType<typeof buildSsgOutputEntries>;
@@ -220,12 +290,104 @@ async function resolveStaticRouteBuildContext(
   );
 
   return {
+    appDefinition: prerenderContext.appDefinition,
     templateHtml,
     manifest: prerenderContext.manifest,
     outputEntries,
     routeById: new Map(prerenderContext.routeById),
     targetI18n: prerenderContext.targetI18n,
   };
+}
+
+export function buildSsrRuntimeManifest(args: {
+  target: NormalizedMainzTarget;
+  profile: ResolvedBuildProfile;
+  manifest: ReturnType<typeof buildTargetRouteManifest>;
+  navigationMode: NavigationMode;
+  targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
+  appDefinition?: { id?: string };
+  appFile?: string;
+}): SsrRuntimeManifest | undefined {
+  const routes = args.manifest.routes
+    .filter((route) => route.mode === "ssr")
+    .map((route) => ({
+      id: route.id,
+      ...(route.file ? { file: route.file } : {}),
+      ...(route.exportName ? { exportName: route.exportName } : {}),
+      path: route.path,
+      pattern: route.pattern,
+      locales: [...route.locales],
+      ...(route.notFound === true ? { notFound: true } : {}),
+      ...(route.head ? { head: structuredClone(route.head) } : {}),
+      ...(route.authorization
+        ? { authorization: structuredClone(route.authorization) }
+        : {}),
+    }));
+
+  if (routes.length === 0) {
+    return undefined;
+  }
+
+  return {
+    version: 1,
+    target: args.target.name,
+    appId: args.appDefinition?.id,
+    appFile: args.appFile ? normalizePathSlashes(args.appFile) : undefined,
+    basePath: args.profile.basePath,
+    siteUrl: args.profile.siteUrl,
+    navigation: args.navigationMode,
+    serverOutDir: resolvePublicationServerOutDir(args.target.outDir),
+    serverEntryPath: resolveArtifactRelativeServerEntryPath(),
+    routes,
+    i18n: args.targetI18n
+      ? {
+        defaultLocale: args.targetI18n.defaultLocale,
+        localePrefix: args.targetI18n.localePrefix,
+        fallbackLocale: args.targetI18n.fallbackLocale,
+      }
+      : undefined,
+  };
+}
+
+async function emitSsrRuntimeArtifacts(args: {
+  runtime: MainzToolingRuntime;
+  cwd: string;
+  outputDir: string;
+  target: NormalizedMainzTarget;
+  profile: ResolvedBuildProfile;
+  manifest: ReturnType<typeof buildTargetRouteManifest>;
+  navigationMode: NavigationMode;
+  targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
+  appDefinition?: { id?: string };
+}): Promise<void> {
+  const ssrManifest = buildSsrRuntimeManifest({
+    target: args.target,
+    profile: args.profile,
+    manifest: args.manifest,
+    navigationMode: args.navigationMode,
+    targetI18n: args.targetI18n,
+    appDefinition: args.appDefinition,
+    appFile: resolveTargetAppFile(args.target, args.cwd),
+  });
+  const serverOutDir = resolve(
+    args.cwd,
+    resolvePublicationServerOutDir(args.target.outDir),
+  );
+  if (!ssrManifest) {
+    try {
+      await args.runtime.remove(serverOutDir, { recursive: true });
+    } catch {
+      // Ignore missing or locked previous server artifacts here; the next build
+      // will either recreate them or leave the directory absent.
+    }
+    return;
+  }
+
+  await args.runtime.mkdir(serverOutDir, { recursive: true });
+  await args.runtime.writeTextFile(
+    resolve(args.cwd, resolvePublicationSsrManifestPath(args.target.outDir)),
+    JSON.stringify(ssrManifest, null, 2),
+  );
 }
 
 async function renderSsgRouteDocument(args: {
@@ -266,25 +428,24 @@ async function renderSsgRouteDocument(args: {
     }));
   }
 
-  let html = injectAppHtml(args.html, renderedApp.appHtml);
-  try {
-    html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
-  } catch (error) {
-    throw new Error(
+  const routeHead = resolveRenderedRouteHead({
+    route: args.route,
+    entry: args.entry,
+    renderedSnapshot: renderedApp.routeSnapshot,
+    fallbackHead: args.route.head,
+    targetI18n: args.targetI18n,
+    profile: args.job.profile,
+  });
+  const html = finalizePrerenderedRouteDocument({
+    html: args.html,
+    renderedApp,
+    locale: args.entry.locale,
+    routeHead,
+    snapshotErrorMessage: (error) =>
       `SSG route snapshot for "${args.entry.renderPath}" (route "${args.route.path}", locale "${args.entry.locale}") contains non-public or non-serializable data: ${
         toErrorMessage(error)
       }`,
-    );
-  }
-  html = setHtmlLang(html, args.entry.locale);
-  const routeHead = buildRouteHeadForOutput(
-    args.route,
-    args.entry,
-    renderedApp.routeSnapshot?.head ?? args.route.head,
-    args.targetI18n,
-    args.job,
-  );
-  html = applyRouteHead(html, { head: routeHead });
+  });
 
   return { html };
 }
@@ -323,37 +484,20 @@ async function renderCsrRouteDocument(args: {
     );
   }
 
-  let html = setHtmlLang(args.html, args.entry.locale);
-  const routeHead = buildRouteHeadForOutput(
-    args.route,
-    args.entry,
-    renderedApp.routeSnapshot?.head ?? args.route.head,
-    args.targetI18n,
-    args.job,
-  );
-  html = applyRouteHead(html, { head: routeHead });
-  return { html };
-}
-
-function buildRouteHeadForOutput(
-  route: ReturnType<typeof buildTargetRouteManifest>["routes"][number],
-  entry: ReturnType<typeof buildSsgOutputEntries>[number],
-  head: PageHeadDefinition | undefined,
-  targetI18n: ReturnType<typeof resolveTargetI18nConfig>,
-  job: ArtifactBuildJob,
-): PageHeadDefinition | undefined {
-  return buildRouteHead({
-    path: entry.params
-      ? materializeRoutePath(route.path, entry.params)
-      : route.path,
-    locale: entry.locale,
-    locales: route.locales,
-    head,
-    localePrefix: targetI18n?.localePrefix,
-    defaultLocale: targetI18n?.defaultLocale,
-    basePath: job.profile.basePath,
-    siteUrl: job.profile.siteUrl,
+  const routeHead = resolveRenderedRouteHead({
+    route: args.route,
+    entry: args.entry,
+    renderedSnapshot: renderedApp.routeSnapshot,
+    fallbackHead: args.route.head,
+    targetI18n: args.targetI18n,
+    profile: args.job.profile,
   });
+  const html = finalizeEvaluatedRouteDocument({
+    html: args.html,
+    locale: args.entry.locale,
+    routeHead,
+  });
+  return { html };
 }
 
 async function readBuildTemplateHtml(
@@ -389,344 +533,7 @@ export async function renderSsgAppHtml(args: {
 }): Promise<
   { appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }
 > {
-  const moduleScriptSrcs = Array.from(
-    args.html.matchAll(/<script[^>]*type=["']module["'][^>]*>/gi),
-  ).map((match) => match[0])
-    .map((tag) => tag.match(/src=["']([^"']+)["']/i)?.[1] ?? null)
-    .filter((src): src is string => Boolean(src));
-  if (moduleScriptSrcs.length === 0) {
-    throw new Error(
-      `Could not find module script in prerender template "${args.absoluteOutputPath}".`,
-    );
-  }
-
-  const moduleScriptUrls = moduleScriptSrcs
-    .filter((src) => {
-      const normalizedSrc = stripModuleScriptQuery(src.trim());
-      return normalizedSrc !== "/@vite/client" &&
-        !normalizedSrc.endsWith("/@vite/client");
-    })
-    .map((moduleScriptSrc) => {
-      const normalizedSrc = moduleScriptSrc.trim();
-      const srcQuery = args.loadModule
-        ? stripViteTimestampQuery(extractModuleScriptQuery(normalizedSrc))
-        : extractModuleScriptQuery(normalizedSrc);
-      const cacheBustQuery = args.loadModule
-        ? "ssg=mainz-dev"
-        : `ssg=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const importQuery = srcQuery
-        ? `${srcQuery}&${cacheBustQuery}`
-        : cacheBustQuery;
-
-      if (args.loadModule) {
-        const srcPath = stripModuleScriptQuery(normalizedSrc);
-        return `${srcPath}?${importQuery}`;
-      }
-
-      const resolvedSrc = stripModuleScriptQuery(normalizedSrc);
-      const moduleScriptPath = normalizedSrc.startsWith("/")
-        ? (() => {
-          const normalizedBasePath = args.basePath === "/"
-            ? "/"
-            : args.basePath.replace(/\/+$/, "/");
-          const srcWithoutBasePath = normalizedBasePath !== "/" &&
-              resolvedSrc.startsWith(normalizedBasePath)
-            ? resolvedSrc.slice(normalizedBasePath.length - 1)
-            : resolvedSrc;
-          return resolve(args.outputDir, `.${srcWithoutBasePath}`);
-        })()
-        : resolve(dirname(args.absoluteOutputPath), resolvedSrc);
-
-      return `${toFileUrl(moduleScriptPath)}?${importQuery}`;
-    });
-  if (moduleScriptUrls.length === 0) {
-    throw new Error(
-      `Could not find an application module script in prerender template "${args.absoluteOutputPath}".`,
-    );
-  }
-
-  const normalizedRenderPath = args.renderPath.trim() || "/";
-  const withLeadingSlash = normalizedRenderPath.startsWith("/")
-    ? normalizedRenderPath
-    : `/${normalizedRenderPath}`;
-  const pathname = withLeadingSlash === "/" || withLeadingSlash === ""
-    ? "/"
-    : withLeadingSlash.endsWith("/")
-    ? withLeadingSlash
-    : `${withLeadingSlash}/`;
-  const pageUrl = `https://mainz.local${pathname}`;
-  const htmlWithoutScripts = args.html.replace(
-    /<script\b[^>]*>[\s\S]*?<\/script>/gi,
-    "",
-  );
-
-  return await withHappyDom(async (window) => {
-    const navigatorLike = window.navigator as object;
-
-    try {
-      Object.defineProperty(navigatorLike, "language", {
-        configurable: true,
-        value: args.locale,
-        writable: true,
-      });
-
-      Object.defineProperty(navigatorLike, "languages", {
-        configurable: true,
-        value: [args.locale],
-        writable: true,
-      });
-
-      Object.defineProperty(globalThis, "navigator", {
-        configurable: true,
-        value: navigatorLike,
-        writable: true,
-      });
-    } catch {
-      // Ignore locale override failures; the app may use other locale resolution strategies.
-    }
-    const warnings: string[] = [];
-    const errors: unknown[] = [];
-    const originalWarn = console.warn;
-    const originalError = console.error;
-    console.warn = (...entries: unknown[]) => {
-      warnings.push(entries.map((entry) => String(entry)).join(" "));
-    };
-    console.error = (...entries: unknown[]) => {
-      const [firstEntry, secondEntry] = entries;
-      const mainzNavigationError =
-        firstEntry === "[mainz] SPA navigation failed." &&
-          typeof secondEntry !== "undefined"
-          ? secondEntry
-          : undefined;
-      errors.push(
-        mainzNavigationError ?? entries.map((entry) => String(entry)).join(" "),
-      );
-      originalError(...entries);
-    };
-
-    try {
-      document.write(htmlWithoutScripts);
-      document.close();
-
-      const appContainer = document.querySelector("#app");
-      if (!appContainer) {
-        throw new Error(
-          `Template "${args.absoluteOutputPath}" must include an #app container for SSG.`,
-        );
-      }
-
-      for (const moduleScriptUrl of moduleScriptUrls) {
-        if (args.loadModule) {
-          await args.loadModule(moduleScriptUrl);
-          continue;
-        }
-
-        await import(moduleScriptUrl);
-      }
-      await Promise.resolve();
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-
-      if (errors.length > 0) {
-        throw errors[0];
-      }
-
-      const hydratedContainer = document.querySelector("#app");
-      if (!hydratedContainer) {
-        throw new Error(
-          `Hydration removed #app while rendering "${args.absoluteOutputPath}".`,
-        );
-      }
-
-      const appHtml = hydratedContainer.innerHTML;
-      const routeSnapshot = extractInitialRouteSnapshot(hydratedContainer);
-
-      return {
-        appHtml,
-        routeSnapshot,
-        warnings,
-      };
-    } finally {
-      console.warn = originalWarn;
-      console.error = originalError;
-    }
-  }, { url: pageUrl });
-}
-
-function resolveCapturedMainzNavigationError(entries: unknown[]): unknown {
-  const [firstEntry, secondEntry] = entries;
-  if (
-    firstEntry === "[mainz] SPA navigation failed." &&
-    typeof secondEntry !== "undefined"
-  ) {
-    return secondEntry;
-  }
-
-  return undefined;
-}
-
-function extractInitialRouteSnapshot(
-  appContainer: Element,
-): InitialRouteSnapshot | undefined {
-  const routeElement = [
-    appContainer,
-    ...Array.from(appContainer.querySelectorAll("*")),
-  ].find(
-    (element) => {
-      const props = (element as Element & { props?: unknown }).props;
-      if (!props || typeof props !== "object") {
-        return false;
-      }
-
-      const propsRecord = props as Record<string, unknown>;
-      const route = propsRecord.route;
-      return typeof route === "object" && route !== null;
-    },
-  ) as (Element & { props?: Record<string, unknown> }) | undefined;
-
-  if (!routeElement?.props || typeof routeElement.props !== "object") {
-    return undefined;
-  }
-
-  const route = routeElement.props.route;
-  if (!route || typeof route !== "object") {
-    return undefined;
-  }
-
-  const routeRecord = route as Record<string, unknown>;
-  const params = routeRecord.params;
-  const propsHead = routeElement.props.head;
-
-  return {
-    pageTagName: routeElement.tagName.toLowerCase(),
-    path: String(routeRecord.path ?? ""),
-    matchedPath: String(routeRecord.matchedPath ?? ""),
-    params: isStringRecord(params) ? params : {},
-    locale: typeof routeRecord.locale === "string"
-      ? routeRecord.locale
-      : undefined,
-    data: routeElement.props.data,
-    head: isPageHeadDefinition(propsHead) ? propsHead : undefined,
-  };
-}
-
-function extractModuleScriptSrcs(html: string): string[] {
-  const moduleScriptTags = Array.from(
-    html.matchAll(/<script[^>]*type=["']module["'][^>]*>/gi),
-  ).map((match) => match[0]);
-
-  return moduleScriptTags
-    .map((tag) => tag.match(/src=["']([^"']+)["']/i)?.[1] ?? null)
-    .filter((src): src is string => Boolean(src));
-}
-
-function isDevHmrClientScript(moduleScriptSrc: string): boolean {
-  const normalizedSrc = stripModuleScriptQuery(moduleScriptSrc.trim());
-  return normalizedSrc === "/@vite/client" ||
-    normalizedSrc.endsWith("/@vite/client");
-}
-
-function stripModuleScriptQuery(moduleScriptSrc: string): string {
-  const [pathWithoutQuery] = moduleScriptSrc.split(/[?#]/, 1);
-  return pathWithoutQuery ?? moduleScriptSrc;
-}
-
-function extractModuleScriptQuery(moduleScriptSrc: string): string {
-  const queryIndex = moduleScriptSrc.indexOf("?");
-  if (queryIndex === -1) {
-    return "";
-  }
-
-  const hashIndex = moduleScriptSrc.indexOf("#", queryIndex);
-  return hashIndex === -1
-    ? moduleScriptSrc.slice(queryIndex + 1)
-    : moduleScriptSrc.slice(queryIndex + 1, hashIndex);
-}
-
-function stripViteTimestampQuery(query: string): string {
-  if (!query) {
-    return "";
-  }
-
-  const params = new URLSearchParams(query);
-  params.delete("t");
-  return params.toString();
-}
-
-function stripScriptTags(html: string): string {
-  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
-}
-
-function buildRenderPageUrl(renderPath: string): string {
-  const normalizedRenderPath = renderPath.trim() || "/";
-  const withLeadingSlash = normalizedRenderPath.startsWith("/")
-    ? normalizedRenderPath
-    : `/${normalizedRenderPath}`;
-  const pathname = withLeadingSlash === "/" || withLeadingSlash === ""
-    ? "/"
-    : withLeadingSlash.endsWith("/")
-    ? withLeadingSlash
-    : `${withLeadingSlash}/`;
-
-  return `https://mainz.local${pathname}`;
-}
-
-function resolveModuleScriptPath(args: {
-  moduleScriptSrc: string;
-  absoluteOutputPath: string;
-  outputDir: string;
-  basePath: string;
-}): string {
-  const normalizedSrc = args.moduleScriptSrc.trim();
-
-  if (/^https?:\/\//i.test(normalizedSrc)) {
-    throw new Error(
-      `External module script is not supported for SSG prerender: ${normalizedSrc}`,
-    );
-  }
-
-  if (normalizedSrc.startsWith("/")) {
-    const normalizedBasePath = args.basePath === "/"
-      ? "/"
-      : args.basePath.replace(/\/+$/, "/");
-    const srcWithoutBasePath =
-      normalizedBasePath !== "/" && normalizedSrc.startsWith(normalizedBasePath)
-        ? normalizedSrc.slice(normalizedBasePath.length - 1)
-        : normalizedSrc;
-    return resolve(args.outputDir, `.${srcWithoutBasePath}`);
-  }
-
-  return resolve(dirname(args.absoluteOutputPath), normalizedSrc);
-}
-
-function setNavigatorLocale(
-  windowLike: { navigator: unknown },
-  locale: string,
-): void {
-  const navigatorLike = windowLike.navigator as object;
-
-  try {
-    const navigatorProxy = Object.create(navigatorLike);
-
-    Object.defineProperty(navigatorProxy, "language", {
-      configurable: true,
-      value: locale,
-      writable: true,
-    });
-
-    Object.defineProperty(navigatorProxy, "languages", {
-      configurable: true,
-      value: [locale],
-      writable: true,
-    });
-
-    Object.defineProperty(globalThis, "navigator", {
-      configurable: true,
-      value: navigatorProxy,
-      writable: true,
-    });
-  } catch {
-    // Ignore locale override failures; the app may use other locale resolution strategies.
-  }
+  return await renderRouteAppHtml(args);
 }
 
 export function rewriteAssetPaths(
@@ -771,51 +578,6 @@ function isRootFallbackOutput(
     relative(resolve(outputDir), resolve(outputHtmlPath)),
   );
   return relativeOutputPath === "404.html";
-}
-
-export function injectAppHtml(html: string, appHtml: string): string {
-  const replacedMain = html.replace(
-    /<main id="app"><\/main>/,
-    `<main id="app">${appHtml}</main>`,
-  );
-
-  if (replacedMain !== html) {
-    return replacedMain;
-  }
-
-  return html.replace(
-    /<div id="app"><\/div>/,
-    `<div id="app">${appHtml}</div>`,
-  );
-}
-
-export function injectRouteSnapshot(
-  html: string,
-  snapshot: InitialRouteSnapshot | undefined,
-): string {
-  if (!snapshot) {
-    return html;
-  }
-
-  const serializedSnapshot = serializeRouteSnapshot(snapshot)
-    .replace(/</g, "\\u003c")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-  const scriptTag =
-    `<script id="mainz-route-snapshot" type="application/json">${serializedSnapshot}</script>`;
-
-  if (html.includes('id="mainz-route-snapshot"')) {
-    return html.replace(
-      /<script id="mainz-route-snapshot" type="application\/json">[\s\S]*?<\/script>/,
-      scriptTag,
-    );
-  }
-
-  if (html.includes("</body>")) {
-    return html.replace("</body>", `${scriptTag}\n</body>`);
-  }
-
-  return `${html}\n${scriptTag}`;
 }
 
 export function formatSsgPrerenderError(args: {
@@ -866,96 +628,6 @@ function formatSsgPrerenderCause(error: unknown): string {
 
 function appendSsgGuidance(message: string, guidance: string): string {
   return message.includes(guidance) ? message : `${message} ${guidance}`;
-}
-
-function serializeRouteSnapshot(snapshot: InitialRouteSnapshot): string {
-  return JSON.stringify(normalizePublicSnapshotValue(snapshot, "$"));
-}
-
-function normalizePublicSnapshotValue(value: unknown, path: string): unknown {
-  if (value === null) {
-    return null;
-  }
-
-  switch (typeof value) {
-    case "string":
-    case "boolean":
-      return value;
-    case "number":
-      if (!Number.isFinite(value)) {
-        throw new Error(`${path} must not contain non-finite numbers.`);
-      }
-      return value;
-    case "undefined":
-      return undefined;
-    case "bigint":
-    case "function":
-    case "symbol":
-      throw new Error(
-        `${path} must contain JSON-serializable plain data only.`,
-      );
-    case "object":
-      break;
-  }
-
-  if (Array.isArray(value)) {
-    const normalizedArray: unknown[] = [];
-    for (let index = 0; index < value.length; index += 1) {
-      if (!(index in value)) {
-        normalizedArray.push(null);
-        continue;
-      }
-
-      const normalizedEntry = normalizePublicSnapshotValue(
-        value[index],
-        `${path}[${index}]`,
-      );
-      normalizedArray.push(normalizedEntry ?? null);
-    }
-    return normalizedArray;
-  }
-
-  if (!isPlainObject(value)) {
-    throw new Error(`${path} must contain plain objects only.`);
-  }
-
-  const normalizedObject: Record<string, unknown> = {};
-  for (const [key, nested] of Object.entries(value)) {
-    const normalizedNested = normalizePublicSnapshotValue(
-      nested,
-      `${path}.${key}`,
-    );
-    if (typeof normalizedNested !== "undefined") {
-      normalizedObject[key] = normalizedNested;
-    }
-  }
-
-  return normalizedObject;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-export function setHtmlLang(html: string, locale: string): string {
-  const normalizedLocale = locale.trim();
-  if (!normalizedLocale) {
-    return html;
-  }
-
-  if (/<html[^>]*\slang=/.test(html)) {
-    return html.replace(
-      /(<html[^>]*\slang=")[^"]*(")/,
-      `$1${normalizedLocale}$2`,
-    );
-  }
-
-  return html.replace(/<html([^>]*)>/, `<html$1 lang="${normalizedLocale}">`);
 }
 
 function buildDefaultLocaleRedirectHtml(
@@ -1055,20 +727,6 @@ function buildDefaultLocaleRedirectHtml(
   ].join("\n");
 }
 
-function isStringRecord(value: unknown): value is Record<string, string> {
-  return isPlainObject(value) &&
-    Object.values(value).every((entry) => typeof entry === "string");
-}
-
-function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return "title" in candidate || "meta" in candidate || "links" in candidate;
-}
-
 function prependBuildBasePath(pathname: string, basePath: string): string {
   const normalizedBasePath = normalizeAbsoluteBasePath(basePath);
   if (normalizedBasePath === "/") {
@@ -1081,59 +739,6 @@ function prependBuildBasePath(pathname: string, basePath: string): string {
   return `${normalizedBasePath}${normalizedPath}`;
 }
 
-export function applyRouteHead(
-  html: string,
-  route: { head?: PageHeadDefinition },
-): string {
-  if (!route.head) {
-    return html;
-  }
-
-  let nextHtml = html;
-
-  if (route.head.title) {
-    if (/<title>[\s\S]*?<\/title>/i.test(nextHtml)) {
-      nextHtml = nextHtml.replace(
-        /<title>[\s\S]*?<\/title>/i,
-        `<title>${escapeHtml(route.head.title)}</title>`,
-      );
-    } else {
-      nextHtml = nextHtml.replace(
-        "</head>",
-        `  <title>${escapeHtml(route.head.title)}</title>\n</head>`,
-      );
-    }
-  }
-
-  const tags: string[] = [];
-
-  for (const meta of route.head.meta ?? []) {
-    const attributes = [
-      meta.name ? ` name="${escapeHtmlAttribute(meta.name)}"` : "",
-      meta.property ? ` property="${escapeHtmlAttribute(meta.property)}"` : "",
-      ` content="${escapeHtmlAttribute(meta.content)}"`,
-      ` ${MAINZ_HEAD_MANAGED_ATTR}="true"`,
-    ].join("");
-    tags.push(`<meta${attributes} />`);
-  }
-
-  for (const link of route.head.links ?? []) {
-    const attributes = [
-      ` rel="${escapeHtmlAttribute(link.rel)}"`,
-      ` href="${escapeHtmlAttribute(link.href)}"`,
-      link.hreflang ? ` hreflang="${escapeHtmlAttribute(link.hreflang)}"` : "",
-      ` ${MAINZ_HEAD_MANAGED_ATTR}="true"`,
-    ].join("");
-    tags.push(`<link${attributes} />`);
-  }
-
-  if (tags.length > 0) {
-    nextHtml = nextHtml.replace("</head>", `  ${tags.join("\n  ")}\n</head>`);
-  }
-
-  return nextHtml;
-}
-
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -1143,10 +748,6 @@ function escapeHtml(value: string): string {
 
 function escapeHtmlAttribute(value: string): string {
   return escapeHtml(value).replaceAll('"', "&quot;");
-}
-
-function toFileUrl(absolutePath: string): string {
-  return pathToFileURL(absolutePath).href;
 }
 
 function normalizeAbsoluteBasePath(basePath: string): string {

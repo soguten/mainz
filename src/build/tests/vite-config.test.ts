@@ -249,6 +249,49 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
   }
 });
 
+Deno.test("build/vite-config: should render an SSR server bundle config", () => {
+  const cwd = Deno.cwd();
+  const config = normalizeMainzConfig({
+    targets: [
+      {
+        name: "site",
+        rootDir: "./site",
+      },
+    ],
+  });
+
+  const generated = resolveGeneratedViteConfig({
+    cwd,
+    target: config.targets[0],
+    outputDir: "dist/site/server",
+    navigationMode: "spa",
+    basePath: "/",
+    appLocales: ["en"],
+    defaultLocale: "en",
+    localePrefix: "except-default",
+    buildTarget: "server",
+    serverBundle: {
+      entryPath: "./site/src/main.tsx",
+      outputFileName: "app.mjs",
+    },
+  });
+  const moduleSource = renderGeneratedViteConfigModule(generated);
+
+  assertEquals(generated.appType, "custom");
+  assertEquals(generated.buildTarget, "server");
+  assertEquals(
+    generated.serverBundle?.entryPath,
+    normalizePath(resolve(cwd, "site/src/main.tsx")),
+  );
+  assertStringIncludes(moduleSource, `publicDir: false`);
+  assertStringIncludes(
+    moduleSource,
+    `ssr: ${JSON.stringify(normalizePath(resolve(cwd, "site/src/main.tsx")))}`,
+  );
+  assertStringIncludes(moduleSource, `entryFileNames: "app.mjs"`);
+  assertStringIncludes(moduleSource, `format: "es"`);
+});
+
 Deno.test("build/vite-config: should use app-owned navigation for generated defaults", async () => {
   const fixture = await createAppFixture({
     navigation: "mpa",

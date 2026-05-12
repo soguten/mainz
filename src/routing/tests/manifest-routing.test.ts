@@ -201,6 +201,12 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
         mode: "ssg",
         fallback: "csr",
       },
+      {
+        file: "./site/pages/account.page.tsx",
+        exportName: "AccountPage",
+        path: "/account",
+        mode: "ssr",
+      },
     ],
   });
 
@@ -211,6 +217,7 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
       fallback: route.fallback,
     })),
     [
+      { path: "/account", mode: "ssr", fallback: undefined },
       { path: "/docs", mode: "ssg", fallback: "csr" },
       { path: "/live", mode: "csr", fallback: undefined },
     ],
@@ -343,6 +350,12 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
         mode: "ssg",
         locales: ["pt-BR"],
       },
+      {
+        file: "./site/pages/account.page.tsx",
+        exportName: "AccountPage",
+        path: "/account",
+        mode: "ssr",
+      },
     ],
   });
 
@@ -371,6 +384,20 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
           policy: undefined,
         },
       },
+    },
+    {
+      id: "account",
+      source: "filesystem",
+      file: "./site/pages/account.page.tsx",
+      exportName: "AccountPage",
+      path: "/account",
+      pattern: "/account",
+      mode: "ssr",
+      fallback: undefined,
+      notFound: undefined,
+      locales: ["en", "pt-BR"],
+      head: undefined,
+      authorization: undefined,
     },
     {
       id: "docs",
@@ -416,6 +443,14 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
         pattern: "/app",
         mode: "csr",
         locales: ["en", "pt-BR"],
+      },
+      {
+        id: "profile",
+        source: "filesystem",
+        path: "/profile",
+        pattern: "/profile",
+        mode: "ssr",
+        locales: ["en"],
       },
     ],
   };
@@ -463,6 +498,26 @@ Deno.test("routing/manifest: should map SSG outputs with locale prefix policy", 
       notFound: undefined,
     },
   ]);
+});
+
+Deno.test("routing/manifest: should not emit static outputs for ssr routes", () => {
+  const manifest: TargetRouteManifest = {
+    target: "site",
+    routes: [
+      {
+        id: "profile",
+        source: "filesystem",
+        path: "/profile",
+        pattern: "/profile",
+        mode: "ssr",
+        locales: ["en"],
+      },
+    ],
+  };
+
+  const outputs = buildSsgOutputEntries(manifest, "dist/site");
+
+  assertEquals(outputs, []);
 });
 
 Deno.test("routing/manifest: should emit no locale prefix when a route resolves to a single locale", () => {

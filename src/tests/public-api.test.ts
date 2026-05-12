@@ -89,3 +89,19 @@ Deno.test("public-api/http: should expose the HTTP surface through mainz/http", 
   assertEquals(typeof httpTesting.requestJson, "function");
   assertEquals(typeof httpTesting.sequence, "function");
 });
+
+Deno.test("public-api/tooling-build: should expose SSR artifact helpers through mainz/tooling-build", async () => {
+  const toolingBuild = await import("../public/tooling-build.ts");
+
+  assertEquals(typeof toolingBuild.createBuildArtifactHandler, "function");
+  assertEquals(typeof toolingBuild.resolveBuildArtifactBrowserRootDir, "function");
+  assertEquals(typeof toolingBuild.tryRenderSsrArtifactRequest, "function");
+  assertEquals(typeof toolingBuild.toSsrArtifactRuntimeRouteEntry, "function");
+});
+
+Deno.test("public-api/tooling-server: should expose built artifact server helpers", async () => {
+  const toolingServer = await import("../public/tooling-server.ts");
+
+  assertEquals(typeof toolingServer.serveBuildArtifacts, "function");
+  assertEquals(typeof toolingServer.serveBuildArtifactsNode, "function");
+});

@@ -25,6 +25,14 @@ export class SearchPage extends Page {
   }
 }
 
+@Route("/account")
+@RenderMode("ssr")
+export class AccountPage extends Page {
+  override render(): HTMLElement {
+    return <main>Account</main>;
+  }
+}
+
 export function Helper(): HTMLElement {
   return <div>helper</div>;
 }

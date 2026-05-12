@@ -11,9 +11,9 @@ import {
   formatSsgPrerenderWarning,
   injectAppHtml,
   injectRouteSnapshot,
-  renderSsgAppHtml,
   setHtmlLang,
 } from "./artifacts.ts";
+import { renderRouteAppHtml } from "./render-core.ts";
 
 export async function renderDevSsgHtml(args: {
   cwd: string;
@@ -41,9 +41,9 @@ export async function renderDevSsgHtml(args: {
   );
   const locale = args.locale ?? args.route.locales[0] ?? "en";
 
-  let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
+  let renderedApp: Awaited<ReturnType<typeof renderRouteAppHtml>>;
   try {
-    renderedApp = await renderSsgAppHtml({
+    renderedApp = await renderRouteAppHtml({
       html: transformedHtml,
       absoluteOutputPath: absoluteIndexHtmlPath,
       outputDir: resolve(args.cwd, args.targetRootDir),

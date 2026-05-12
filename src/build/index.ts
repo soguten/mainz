@@ -34,20 +34,40 @@ export {
   resolveViteConfigArtifact,
 } from "./vite-resolution.ts";
 export { materializeGeneratedViteConfigFile } from "./vite-workspace.ts";
+export {
+  createBuildArtifactHandler,
+  resolveBuildArtifactBrowserRootDir,
+} from "./artifact-handler.ts";
+export type { CreateBuildArtifactHandlerOptions } from "./artifact-handler.ts";
+export {
+  tryRenderSsrArtifactRequest,
+  toSsrArtifactRuntimeRouteEntry,
+} from "./ssr-artifact-handler.ts";
 export type { GeneratedViteAlias, GeneratedViteConfig } from "./vite-config.ts";
 export type {
   ResolvedViteConfigArtifact,
   ResolveGeneratedViteConfigArtifactArgs,
 } from "./vite-resolution.ts";
 export type {
+  SsrArtifactResponseHeaderContext,
+  TryRenderSsrArtifactRequestArgs,
+} from "./ssr-artifact-handler.ts";
+export type {
   ResolvedRoutePrerenderContext,
   RoutePrerenderBuildJob,
 } from "./prerender-context.ts";
 export {
   resolveEffectiveNavigationMode,
+  resolvePublicationCapabilities,
+  resolvePublicationBrowserOutDir,
   resolvePublicationMetadata,
   resolveTargetBuildProfile,
 } from "./profiles.ts";
-export type { PublicationMetadata, ResolvedBuildProfile } from "./profiles.ts";
+export type {
+  PublicationArtifactClass,
+  PublicationCapabilities,
+  PublicationMetadata,
+  ResolvedBuildProfile,
+} from "./profiles.ts";
 export { resolveBuildJobs } from "./jobs.ts";
 export type { BuildJob, BuildRequestOptions } from "./jobs.ts";

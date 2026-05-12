@@ -14,9 +14,11 @@ Deno.test("tooling/runtime/deno: should support basic filesystem operations", as
     await runtime.mkdir(nestedDir, { recursive: true });
     await runtime.writeTextFile(filePath, "hello from runtime");
 
+    const binary = await runtime.readFile(filePath);
     const content = await runtime.readTextFile(filePath);
     const stat = await runtime.stat(filePath);
 
+    assertEquals(Array.from(binary), Array.from(new TextEncoder().encode("hello from runtime")));
     assertEquals(content, "hello from runtime");
     assertEquals(stat.isFile, true);
     assertEquals(stat.isDirectory, false);

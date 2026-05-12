@@ -5,7 +5,7 @@ import type {
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
 /** Page-level render mode used by Mainz routing and build pipelines. */
-export type RenderMode = "csr" | "ssg";
+export type RenderMode = "csr" | "ssg" | "ssr";
 export type RenderModeFallback = "404" | "csr";
 /** Navigation behavior used by Mainz runtime and build outputs. */
 export type NavigationMode = "spa" | "mpa";

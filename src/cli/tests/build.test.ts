@@ -142,3 +142,75 @@ Deno.test("cli/build: should resolve dynamic entries() under the build-time app 
     await testApp.cleanup();
   }
 });
+
+Deno.test("cli/build: should emit an SSR runtime manifest for page-owned ssr routes", async () => {
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "ssr-build-app",
+    targetName: "ssr-build-app",
+  });
+
+  try {
+    const command = new Deno.Command("deno", {
+      args: [
+        "run",
+        "-A",
+        "./src/cli/mainz.ts",
+        "build",
+        "--config",
+        testApp.configPath,
+        "--target",
+        testApp.targetName,
+      ],
+      cwd: cliTestsRepoRoot,
+      stdout: "piped",
+      stderr: "piped",
+    });
+
+    const result = await command.output();
+    const stdout = new TextDecoder().decode(result.stdout);
+    const stderr = new TextDecoder().decode(result.stderr);
+
+    assertEquals(result.code, 0, `stdout:\n${stdout}\nstderr:\n${stderr}`);
+
+    const serverEntryPath = resolve(
+      testApp.artifactRootDir,
+      "server",
+      "app.mjs",
+    );
+    const runtimeManifest = JSON.parse(await Deno.readTextFile(
+      resolve(testApp.artifactRootDir, "server", "ssr-manifest.json"),
+    ));
+    const serverEntryStat = await Deno.stat(serverEntryPath);
+    assertEquals(runtimeManifest.target, "ssr-build-app");
+    assertEquals(runtimeManifest.appId, "ssr-build-app");
+    assertEquals(runtimeManifest.navigation, "spa");
+    assertEquals(runtimeManifest.serverOutDir, normalizePathSlashes(
+      resolve(testApp.artifactRootDir, "server"),
+    ));
+    assertEquals(runtimeManifest.serverEntryPath, "server/app.mjs");
+    assertEquals(serverEntryStat.isFile, true);
+    assertEquals(runtimeManifest.routes, [
+      {
+        id: "index",
+        file: normalizePathSlashes(
+          resolve(testApp.testAppRoot, "src", "pages", "Home.page.tsx"),
+        ),
+        exportName: "HomePage",
+        path: "/",
+        pattern: "/",
+        locales: ["en"],
+      },
+    ]);
+
+    const html = await Deno.readTextFile(
+      resolve(testApp.outputDir, "index.html"),
+    );
+    assertStringIncludes(html, '<div id="app"></div>');
+  } finally {
+    await testApp.cleanup();
+  }
+});
+
+function normalizePathSlashes(path: string): string {
+  return path.replaceAll("\\", "/");
+}

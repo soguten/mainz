@@ -26,6 +26,29 @@ Deno.test("build/dev-route-request: should keep csr routes on the csr path", () 
   assertEquals(resolution.currentPath, "/docs");
 });
 
+Deno.test("build/dev-route-request: should classify ssr routes separately from ssg", () => {
+  const resolution = resolveDevRouteRequest({
+    requestUrl: new URL("http://localhost/profile"),
+    basePath: "/",
+    manifest: {
+      target: "site",
+      routes: [
+        {
+          id: "site:0",
+          source: "filesystem",
+          path: "/profile",
+          pattern: "/profile",
+          mode: "ssr",
+          locales: ["en"],
+        },
+      ],
+    },
+  });
+
+  assertEquals(resolution.kind, "ssr");
+  assertEquals(resolution.currentPath, "/profile");
+});
+
 Deno.test("build/dev-route-request: should classify matching static-entry ssg requests as ssg", () => {
   const resolution = resolveDevRouteRequest({
     requestUrl: new URL("http://localhost/stories/hello-from-di"),

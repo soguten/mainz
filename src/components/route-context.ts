@@ -47,7 +47,8 @@ export function isRouteContext(value: unknown): value is RouteContext {
     (typeof candidate.locale === "string" ||
       typeof candidate.locale === "undefined") &&
     candidate.url instanceof URL &&
-    (candidate.renderMode === "csr" || candidate.renderMode === "ssg") &&
+    (candidate.renderMode === "csr" || candidate.renderMode === "ssg" ||
+      candidate.renderMode === "ssr") &&
     (candidate.navigationMode === "spa" ||
       candidate.navigationMode === "mpa");
 }

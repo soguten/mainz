@@ -8,6 +8,7 @@ export interface DevRouteRequestResolution {
     | "outside-base"
     | "unmatched"
     | "csr"
+    | "ssr"
     | "ssg"
     | "ssg-missing-entry"
     | "ssg-csr-fallback";
@@ -61,6 +62,16 @@ export function resolveDevRouteRequest(args: {
       };
     }
 
+    if (route.mode === "ssr") {
+      return {
+        kind: "ssr",
+        currentPath,
+        locale,
+        route,
+        params,
+      };
+    }
+
     const routeEntries = args.routeEntriesByRouteId?.get(route.id);
     if (!routeEntries?.length) {
       return {
@@ -105,7 +116,7 @@ export function resolveDevRouteRequest(args: {
 export function findDevNotFoundRoute(args: {
   manifest: TargetRouteManifest;
   locale?: string;
-  mode?: "ssg" | "csr";
+  mode?: "ssg" | "csr" | "ssr";
 }): RouteManifestEntry | undefined {
   return args.manifest.routes.find((route) => {
     if (route.notFound !== true) {

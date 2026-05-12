@@ -16,4 +16,19 @@ Deno.test("cli/mainz: publish-info should print artifact metadata resolved from 
   assertEquals(metadata.outDir, "dist/site");
   assertEquals(metadata.basePath, "/");
   assertEquals(metadata.navigation, "mpa");
+  assertEquals(metadata.capabilities, {
+    artifactClass: "browser-only",
+    serverRuntimeRequired: false,
+  });
+  assertEquals(metadata.browser, {
+    outDir: "dist/site/browser",
+    routesManifestPath: "dist/site/browser/routes.json",
+    hydrationManifestPath: "dist/site/browser/hydration.json",
+    indexHtmlPath: "dist/site/browser/index.html",
+  });
+  assertEquals(metadata.server, {
+    outDir: "dist/site/server",
+    ssrManifestPath: "dist/site/server/ssr-manifest.json",
+    entryPath: "dist/site/server/app.mjs",
+  });
 });

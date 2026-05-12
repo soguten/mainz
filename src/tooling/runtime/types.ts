@@ -80,6 +80,8 @@ export interface MainzToolingRuntime {
   readonly name: ToolingRuntimeName;
   /** Returns the current working directory for the host runtime. */
   cwd(): string;
+  /** Reads a binary file from the host filesystem. */
+  readFile(path: string): Promise<Uint8Array>;
   /** Reads a UTF-8 text file from the host filesystem. */
   readTextFile(path: string): Promise<string>;
   /** Writes a UTF-8 text file to the host filesystem. */

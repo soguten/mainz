@@ -47,6 +47,10 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
     return process.cwd();
   }
 
+  async readFile(path: string): Promise<Uint8Array> {
+    return await readFile(path);
+  }
+
   async readTextFile(path: string): Promise<string> {
     return await readFile(path, "utf8");
   }

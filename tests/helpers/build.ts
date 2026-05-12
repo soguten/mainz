@@ -143,7 +143,7 @@ export const buildGeneratedTagStabilityAppForNavigation = (
 export async function buildTestAppForNavigation(args: {
   testApp: Pick<
     TestAppTargetDefinition,
-    "target" | "testAppRoot" | "outputDir" | "targetName"
+    "target" | "testAppRoot" | "artifactRootDir" | "outputDir" | "targetName"
   >;
   navigation: TestNavigationMode;
   profile?: string;
@@ -153,7 +153,9 @@ export async function buildTestAppForNavigation(args: {
   return {
     testAppName: args.testApp.targetName,
     testAppRoot: args.testApp.testAppRoot,
+    artifactRootDir: args.testApp.artifactRootDir,
     availableBuilds: await resolveBuiltOutputContexts({
+      artifactRootDir: args.testApp.artifactRootDir,
       outputBaseDir: args.testApp.outputDir,
       testAppName: args.testApp.targetName,
       testAppRoot: args.testApp.testAppRoot,
@@ -229,7 +231,7 @@ export async function buildTargetWithEngine(args: {
 async function runTestAppBuildForNavigation(args: {
   testApp: Pick<
     TestAppTargetDefinition,
-    "target" | "testAppRoot" | "outputDir" | "targetName"
+    "target" | "testAppRoot" | "artifactRootDir" | "outputDir" | "targetName"
   >;
   navigation: TestNavigationMode;
   profile?: string;
@@ -264,7 +266,8 @@ export async function createTestAppTargetDefinition(args: {
   if (args.appNavigation) {
     await applyAppNavigationToTestApp(testAppRoot, args.appNavigation);
   }
-  const outputDir = resolve(tempRoot, "dist", targetName);
+  const artifactRootDir = resolve(tempRoot, "dist", targetName);
+  const outputDir = resolve(artifactRootDir, "browser");
   const requestedAppFile = args.appFile
     ? resolve(testAppRoot, args.appFile)
     : resolve(testAppRoot, "src", "main.tsx");
@@ -278,7 +281,7 @@ export async function createTestAppTargetDefinition(args: {
     rootDir: testAppRoot,
     ...(includeAppFile ? { appFile: requestedAppFile } : {}),
     ...(hasBuildConfig ? { buildConfig: buildConfigPath } : {}),
-    outDir: outputDir,
+    outDir: artifactRootDir,
   };
   const target = normalizeMainzConfig({
     targets: [targetDefinition],
@@ -288,6 +291,7 @@ export async function createTestAppTargetDefinition(args: {
     target,
     targetDefinition,
     testAppRoot,
+    artifactRootDir,
     outputDir,
     targetName,
     async cleanup() {
@@ -319,6 +323,7 @@ async function buildNamedTestAppForNavigation(args: {
 
     return {
       ...context,
+      artifactRootDir: testApp.artifactRootDir,
       cleanup: testApp.cleanup,
     };
   } catch (error) {
@@ -348,6 +353,7 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 async function resolveBuiltOutputContexts(args: {
+  artifactRootDir?: string;
   outputBaseDir: string;
   testAppName?: string;
   testAppRoot?: string;
@@ -362,6 +368,7 @@ async function resolveBuiltOutputContexts(args: {
   return [{
     testAppName: args.testAppName,
     testAppRoot: args.testAppRoot,
+    artifactRootDir: args.artifactRootDir,
     outputDir: args.outputBaseDir,
     targetName: args.targetName,
     navigation: args.navigation,

@@ -28,6 +28,7 @@
     "./tooling/config": "./src/public/tooling-config.ts",
     "./tooling/diagnostics": "./src/diagnostics/index.ts",
     "./tooling/runtime": "./src/public/tooling-runtime.ts",
+    "./tooling/server": "./src/public/tooling-server.ts",
     "./jsx-runtime": "./src/jsx-runtime.ts",
     "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts"
   },

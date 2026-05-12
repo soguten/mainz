@@ -3,6 +3,7 @@ import {
   type PageHeadContext,
   type PageHeadDefinition,
   type PageLoadContext,
+  type PageRenderMode,
   requirePageRoutePath,
   resolvePageLocales,
   resolvePageRenderMode,
@@ -2154,7 +2155,7 @@ function createRouteContext(args: {
   params: SpaRouteParams;
   locale?: string;
   url: URL;
-  renderMode: "csr" | "ssg";
+  renderMode: PageRenderMode;
   navigationMode: NavigationMode;
   principal?: Principal;
   profile?: RouteProfileContext;
@@ -3179,7 +3180,7 @@ function resolveMainzDefaultLocale(): string | undefined {
     : undefined;
 }
 
-function resolveSpaPageRenderMode(page: SpaPageConstructor): "csr" | "ssg" {
+function resolveSpaPageRenderMode(page: SpaPageConstructor): PageRenderMode {
   return resolvePageRenderMode(page as object) ?? "csr";
 }
 

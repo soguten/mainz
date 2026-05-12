@@ -97,7 +97,7 @@ export function createMainzDevRouteMiddlewarePlugin(
               mode: "ssg",
             });
             if (notFoundRoute) {
-              await respondWithSsgHtml({
+              await respondWithRenderedHtml({
                 req,
                 res,
                 server,
@@ -106,6 +106,7 @@ export function createMainzDevRouteMiddlewarePlugin(
                 params: {},
                 locale: resolution.locale,
                 statusCode: 404,
+                renderMode: "ssg",
               });
               return;
             }
@@ -122,9 +123,11 @@ export function createMainzDevRouteMiddlewarePlugin(
           }
 
           if (
-            resolution.kind === "ssg" && resolution.route && resolution.params
+            (resolution.kind === "ssg" || resolution.kind === "ssr") &&
+            resolution.route &&
+            resolution.params
           ) {
-            await respondWithSsgHtml({
+            await respondWithRenderedHtml({
               req,
               res,
               server,
@@ -133,6 +136,7 @@ export function createMainzDevRouteMiddlewarePlugin(
               params: resolution.params,
               locale: resolution.locale,
               statusCode: 200,
+              renderMode: resolution.kind,
             });
             return;
           }
@@ -141,10 +145,10 @@ export function createMainzDevRouteMiddlewarePlugin(
             const notFoundRoute = helpers.findDevNotFoundRoute({
               manifest: context.manifest,
               locale: resolution.locale,
-              mode: "ssg",
+              mode: "ssr",
             });
             if (notFoundRoute) {
-              await respondWithSsgHtml({
+              await respondWithRenderedHtml({
                 req,
                 res,
                 server,
@@ -153,6 +157,27 @@ export function createMainzDevRouteMiddlewarePlugin(
                 params: {},
                 locale: resolution.locale,
                 statusCode: 404,
+                renderMode: "ssr",
+              });
+              return;
+            }
+
+            const ssgNotFoundRoute = helpers.findDevNotFoundRoute({
+              manifest: context.manifest,
+              locale: resolution.locale,
+              mode: "ssg",
+            });
+            if (ssgNotFoundRoute) {
+              await respondWithRenderedHtml({
+                req,
+                res,
+                server,
+                requestUrl,
+                route: ssgNotFoundRoute,
+                params: {},
+                locale: resolution.locale,
+                statusCode: 404,
+                renderMode: "ssg",
               });
               return;
             }
@@ -193,7 +218,7 @@ export function createMainzDevRouteMiddlewarePlugin(
     return await contextPromise;
   }
 
-  async function respondWithSsgHtml(args: {
+  async function respondWithRenderedHtml(args: {
     req: IncomingMessage;
     res: {
       statusCode: number;
@@ -208,6 +233,7 @@ export function createMainzDevRouteMiddlewarePlugin(
     params: Record<string, string>;
     locale?: string;
     statusCode: number;
+    renderMode: "ssg" | "ssr";
   }): Promise<void> {
     const helpers = await loadDevPluginRuntime();
     const requestKey = helpers.buildDevSsgCacheKey({
@@ -248,6 +274,7 @@ export function createMainzDevRouteMiddlewarePlugin(
 
     if (options.debugSsg) {
       console.log(formatDevSsgDebugMessage({
+        renderMode: args.renderMode,
         requestPath: args.requestUrl.pathname,
         routePath: args.route.path,
         locale: args.locale ?? args.route.locales[0] ?? "en",
@@ -266,6 +293,7 @@ export function createMainzDevRouteMiddlewarePlugin(
 }
 
 function formatDevSsgDebugMessage(args: {
+  renderMode: "ssg" | "ssr";
   requestPath: string;
   routePath: string;
   locale: string;
@@ -273,7 +301,7 @@ function formatDevSsgDebugMessage(args: {
   cacheHit: boolean;
   durationMs: number;
 }): string {
-  return `[mainz][dev:ssg] ${
+  return `[mainz][dev:${args.renderMode}] ${
     args.cacheHit ? "cache-hit" : "rendered"
   } ${args.requestPath} -> ${args.routePath} (${args.locale}, ${args.statusCode}) in ${args.durationMs}ms`;
 }

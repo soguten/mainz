@@ -17,6 +17,10 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
     return Deno.cwd();
   }
 
+  async readFile(path: string): Promise<Uint8Array> {
+    return await Deno.readFile(path);
+  }
+
   async readTextFile(path: string): Promise<string> {
     return await Deno.readTextFile(path);
   }

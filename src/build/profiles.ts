@@ -17,6 +17,13 @@ export interface ResolvedBuildProfile {
   siteUrl?: string;
 }
 
+export type PublicationArtifactClass = "browser-only" | "server-capable";
+
+export interface PublicationCapabilities {
+  artifactClass: PublicationArtifactClass;
+  serverRuntimeRequired: boolean;
+}
+
 export interface PublicationMetadata {
   target: string;
   profile: string;
@@ -24,6 +31,18 @@ export interface PublicationMetadata {
   basePath: string;
   navigation: NavigationMode;
   siteUrl?: string;
+  capabilities: PublicationCapabilities;
+  browser: {
+    outDir: string;
+    routesManifestPath: string;
+    hydrationManifestPath: string;
+    indexHtmlPath: string;
+  };
+  server: {
+    outDir: string;
+    ssrManifestPath: string;
+    entryPath: string;
+  };
 }
 
 const DEFAULT_BUILD_PROFILE_NAME = "production";
@@ -82,14 +101,53 @@ export async function resolvePublicationMetadata(
     cwd,
     runtime,
   );
+  const capabilities = await resolvePublicationCapabilities(
+    target,
+    cwd,
+    runtime,
+  );
 
   return {
     target: target.name,
     profile: profile.name,
-    outDir: resolvePublicationOutDir(target.outDir, navigationMode),
+    outDir: resolvePublicationArtifactRootDir(target.outDir),
     basePath: profile.basePath,
     navigation: navigationMode,
     siteUrl: profile.siteUrl,
+    capabilities,
+    browser: {
+      outDir: resolvePublicationBrowserOutDir(target.outDir),
+      routesManifestPath: resolvePublicationRoutesManifestPath(target.outDir),
+      hydrationManifestPath: resolvePublicationHydrationManifestPath(
+        target.outDir,
+      ),
+      indexHtmlPath: resolvePublicationBrowserIndexHtmlPath(target.outDir),
+    },
+    server: {
+      outDir: resolvePublicationServerOutDir(target.outDir),
+      ssrManifestPath: resolvePublicationSsrManifestPath(target.outDir),
+      entryPath: resolvePublicationServerEntryPath(target.outDir),
+    },
+  };
+}
+
+export async function resolvePublicationCapabilities(
+  target: NormalizedMainzTarget,
+  cwd: string = denoToolingRuntime.cwd(),
+  runtime: MainzToolingRuntime = denoToolingRuntime,
+): Promise<PublicationCapabilities> {
+  const discovery = await resolveTargetDiscoveredPagesForTarget(
+    target,
+    cwd,
+    runtime,
+  );
+  const hasSsrRoutes = discovery.discoveredPages?.some((page) =>
+    page.mode === "ssr"
+  ) ?? false;
+
+  return {
+    artifactClass: hasSsrRoutes ? "server-capable" : "browser-only",
+    serverRuntimeRequired: hasSsrRoutes,
   };
 }
 
@@ -195,11 +253,42 @@ function normalizePathSlashes(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function resolvePublicationOutDir(
+export function resolvePublicationArtifactRootDir(
   outDir: string,
-  _navigation: NavigationMode,
 ): string {
   return normalizePathSlashes(outDir);
+}
+
+export function resolvePublicationBrowserOutDir(outDir: string): string {
+  return `${resolvePublicationArtifactRootDir(outDir)}/browser`;
+}
+
+export function resolvePublicationServerOutDir(outDir: string): string {
+  return `${resolvePublicationArtifactRootDir(outDir)}/server`;
+}
+
+export function resolvePublicationRoutesManifestPath(outDir: string): string {
+  return `${resolvePublicationBrowserOutDir(outDir)}/routes.json`;
+}
+
+export function resolvePublicationHydrationManifestPath(outDir: string): string {
+  return `${resolvePublicationBrowserOutDir(outDir)}/hydration.json`;
+}
+
+export function resolvePublicationBrowserIndexHtmlPath(outDir: string): string {
+  return `${resolvePublicationBrowserOutDir(outDir)}/index.html`;
+}
+
+export function resolvePublicationSsrManifestPath(outDir: string): string {
+  return `${resolvePublicationServerOutDir(outDir)}/ssr-manifest.json`;
+}
+
+export function resolvePublicationServerEntryPath(outDir: string): string {
+  return `${resolvePublicationServerOutDir(outDir)}/app.mjs`;
+}
+
+export function resolveArtifactRelativeServerEntryPath(): string {
+  return "server/app.mjs";
 }
 
 function toErrorMessage(error: unknown): string {

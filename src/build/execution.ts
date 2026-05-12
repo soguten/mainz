@@ -11,8 +11,14 @@ import {
 } from "./artifacts.ts";
 import type { BuildJob } from "./jobs.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
-import { resolveEffectiveNavigationMode } from "./profiles.ts";
+import {
+  resolveEffectiveNavigationMode,
+  resolvePublicationBrowserOutDir,
+  resolvePublicationServerOutDir,
+} from "./profiles.ts";
 import { resolveViteConfigArtifact } from "./vite-resolution.ts";
+import { resolveRoutePrerenderContext } from "./prerender-context.ts";
+import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
 
 export async function runBuildJobs(
   config: NormalizedMainzConfig,
@@ -31,7 +37,9 @@ export async function runSingleBuild(
   cwd: string = denoToolingRuntime.cwd(),
   runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<void> {
-  const outputDir = normalizePathSlashes(job.target.outDir);
+  const browserOutputDir = normalizePathSlashes(
+    resolvePublicationBrowserOutDir(job.target.outDir),
+  );
   const navigationMode = await resolveEffectiveNavigationMode(
     job.target,
     job.profile,
@@ -48,7 +56,7 @@ export async function runSingleBuild(
     runtime,
     cwd,
     job,
-    outputDir,
+    outputDir: browserOutputDir,
     navigationMode,
     appLocales: appDefinition?.i18n?.locales ??
       (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
@@ -63,7 +71,7 @@ export async function runSingleBuild(
       runtime,
       cwd,
       viteConfigPath: viteConfig.path,
-      outputDir,
+      outputDir: browserOutputDir,
       navigationMode,
       targetName: job.target.name,
       buildLabel: "build",
@@ -80,17 +88,40 @@ export async function runSingleBuild(
     await viteConfig.cleanup?.();
   }
 
+  const prerenderContext = await resolveRoutePrerenderContext(
+    config,
+    job,
+    cwd,
+    runtime,
+  );
+  if (prerenderContext.manifest.routes.some((route) => route.mode === "ssr")) {
+    await runViteServerBuild({
+      runtime,
+      cwd,
+      job,
+      navigationMode,
+      appLocales: appDefinition?.i18n?.locales ??
+        (appDefinition?.documentLanguage
+          ? [appDefinition.documentLanguage]
+          : []),
+      defaultLocale: targetI18n?.defaultLocale,
+      localePrefix: targetI18n?.localePrefix ?? "except-default",
+      siteUrl: job.profile.siteUrl,
+      basePath: resolveViteBasePath(job.profile.basePath, navigationMode),
+    });
+  }
+
   const emittedRouteArtifacts = await emitRouteArtifacts(
     config,
     job,
-    outputDir,
+    browserOutputDir,
     cwd,
     runtime,
   );
   if (!emittedRouteArtifacts && navigationMode === "spa") {
     await emitCsrSpaAppShellMetadata({
       runtime,
-      outputDir,
+      outputDir: browserOutputDir,
       cwd,
       documentLanguage: targetI18n?.defaultLocale,
     });
@@ -128,12 +159,14 @@ export async function runDevServer(args: {
     runtime,
   );
   const targetI18n = resolveTargetI18nConfig(appDefinition);
-  const outputDir = normalizePathSlashes(target.outDir);
+  const browserOutputDir = normalizePathSlashes(
+    resolvePublicationBrowserOutDir(target.outDir),
+  );
   const viteConfig = await resolveViteConfigPathForTarget({
     runtime,
     cwd,
     target,
-    outputDir,
+    outputDir: browserOutputDir,
     navigationMode,
     appLocales: appDefinition?.i18n?.locales ??
       (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
@@ -161,7 +194,7 @@ export async function runDevServer(args: {
       defaultLocale: targetI18n?.defaultLocale,
       localePrefix: targetI18n?.localePrefix ?? "except-default",
       siteUrl: args.profile.siteUrl,
-      outputDir,
+      outputDir: browserOutputDir,
     });
   } finally {
     await viteConfig.cleanup?.();
@@ -253,6 +286,66 @@ async function runViteBuild(args: {
     throw new Error(
       `Vite ${args.buildLabel} failed for target "${args.targetName}".`,
     );
+  }
+}
+
+async function runViteServerBuild(args: {
+  runtime: MainzToolingRuntime;
+  cwd: string;
+  job: BuildJob;
+  navigationMode: NavigationMode;
+  basePath: string;
+  appLocales: readonly string[];
+  defaultLocale?: string;
+  localePrefix: "except-default" | "always";
+  siteUrl?: string;
+}): Promise<void> {
+  const appEntryPath = resolveTargetAppFile(args.job.target, args.cwd);
+  if (!appEntryPath) {
+    throw new Error(
+      `SSR build for target "${args.job.target.name}" requires a resolved app entry file.`,
+    );
+  }
+
+  const outputDir = normalizePathSlashes(
+    resolvePublicationServerOutDir(args.job.target.outDir),
+  );
+  const viteConfig = await resolveViteConfigArtifact({
+    runtime: args.runtime,
+    cwd: args.cwd,
+    target: args.job.target,
+    outputDir,
+    navigationMode: args.navigationMode,
+    basePath: args.basePath,
+    appLocales: args.appLocales,
+    defaultLocale: args.defaultLocale,
+    localePrefix: args.localePrefix,
+    siteUrl: args.siteUrl,
+    buildTarget: "server",
+    preferTargetViteConfig: false,
+    serverBundle: {
+      entryPath: appEntryPath,
+      outputFileName: "app.mjs",
+    },
+  });
+
+  try {
+    await runViteBuild({
+      runtime: args.runtime,
+      cwd: args.cwd,
+      viteConfigPath: viteConfig.path,
+      outputDir,
+      navigationMode: args.navigationMode,
+      targetName: args.job.target.name,
+      buildLabel: "SSR build",
+      basePath: args.basePath,
+      appLocales: args.appLocales,
+      defaultLocale: args.defaultLocale,
+      localePrefix: args.localePrefix,
+      siteUrl: args.siteUrl,
+    });
+  } finally {
+    await viteConfig.cleanup?.();
   }
 }
 

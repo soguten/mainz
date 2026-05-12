@@ -12,7 +12,7 @@ Deno.test("site/csr seo: siteUrl from profile config should emit absolute locale
   });
 
   await assertLocalizedSeoOutput({
-    outputDir: resolve(repoRoot, "dist/site"),
+    outputDir: resolve(repoRoot, "dist/site/browser"),
     expectedBaseUrl: "https://mainz.dev",
   });
 });

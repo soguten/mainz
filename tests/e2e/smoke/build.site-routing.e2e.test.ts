@@ -14,17 +14,20 @@ import {
 } from "../../helpers/built-output-io.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../helpers/types.ts";
 
+const siteArtifactRootDir = resolve(repoRoot, "dist/site");
+const siteBrowserOutDir = resolve(siteArtifactRootDir, "browser");
+
 Deno.test("e2e/site routing: mpa build should emit localized routes and hydrate direct document loads", async () => {
   await buildSiteEnhancedMpa();
 
   const hydrationManifest = await readHydrationManifest();
   assertEquals(hydrationManifest.navigation, "mpa");
 
-  const rootHtmlPath = resolve(repoRoot, "dist/site/index.html");
+  const rootHtmlPath = resolve(siteBrowserOutDir, "index.html");
   const rootHtml = await Deno.readTextFile(rootHtmlPath);
   assertStringIncludes(rootHtml, '<html lang="en">');
 
-  const ptRouteHtmlPath = resolve(repoRoot, "dist/site/pt/index.html");
+  const ptRouteHtmlPath = resolve(siteBrowserOutDir, "pt/index.html");
   const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
   assertStringIncludes(ptHtml, '<html lang="pt">');
   assertStringIncludes(ptHtml, "<title>Mainz</title>");
@@ -61,11 +64,14 @@ Deno.test("e2e/site routing: mpa build should emit localized routes and hydrate 
   }, { url: "https://mainz.local/pt/" });
 });
 
-Deno.test("e2e/site preview: mpa build should serve localized routes and custom 404 page", async () => {
+Deno.test({
+  name: "e2e/site preview: mpa build should serve localized routes and custom 404 page",
+  sanitizeOps: false,
+  fn: async () => {
   await buildSiteEnhancedMpa();
 
   const handler = createArtifactPreviewHandler(
-    resolve(repoRoot, "dist/site"),
+    siteArtifactRootDir,
   );
 
   const enResponse = await handler(new Request("http://127.0.0.1:4173/"));
@@ -91,7 +97,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
     "Could not find module script src in site 404 html.",
   );
   const notFoundScriptPath = resolveOutputScriptPath({
-    outputDir: resolve(repoRoot, "dist/site"),
+    outputDir: siteBrowserOutDir,
     scriptSrc: notFoundScriptSrc,
   });
 
@@ -129,7 +135,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
     "Could not find module script src in localized site 404 html.",
   );
   const localizedNotFoundScriptPath = resolveOutputScriptPath({
-    outputDir: resolve(repoRoot, "dist/site"),
+    outputDir: siteBrowserOutDir,
     scriptSrc: localizedNotFoundScriptSrc,
   });
 
@@ -150,6 +156,7 @@ Deno.test("e2e/site preview: mpa build should serve localized routes and custom 
       "Essa rota nao existe no Mainz.",
     );
   }, { url: "https://mainz.local/pt/dfdfhsdfsdf" });
+  },
 });
 
 async function buildSiteEnhancedMpa(): Promise<void> {
@@ -162,8 +169,8 @@ async function readHydrationManifest(): Promise<
   { target: string; hydration: string; navigation: string }
 > {
   const hydrationManifestPath = resolve(
-    repoRoot,
-    "dist/site/hydration.json",
+    siteBrowserOutDir,
+    "hydration.json",
   );
   return await readJsonFile(hydrationManifestPath);
 }

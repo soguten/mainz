@@ -28,12 +28,18 @@ export interface ResolveGeneratedViteConfigArtifactArgs {
   localePrefix: "except-default" | "always";
   siteUrl?: string;
   devSsgDebug?: boolean;
+  preferTargetViteConfig?: boolean;
+  buildTarget?: "browser" | "server";
+  serverBundle?: {
+    entryPath: string;
+    outputFileName?: string;
+  };
 }
 
 export async function resolveViteConfigArtifact(
   args: ResolveGeneratedViteConfigArtifactArgs,
 ): Promise<ResolvedViteConfigArtifact> {
-  if (args.target.viteConfig) {
+  if (args.preferTargetViteConfig !== false && args.target.viteConfig) {
     return {
       path: normalizePathSlashes(resolve(args.cwd, args.target.viteConfig)),
     };
@@ -50,6 +56,8 @@ export async function resolveViteConfigArtifact(
     localePrefix: args.localePrefix,
     siteUrl: args.siteUrl,
     devSsgDebug: args.devSsgDebug,
+    buildTarget: args.buildTarget,
+    serverBundle: args.serverBundle,
     cacheDir: args.runtime.name === "node"
       ? join(".mainz_temp", "vite-cache", args.target.name)
       : undefined,

@@ -225,6 +225,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     "cli",
     "diagnostics-cli",
     "render-mode-and-strategy",
+    "ssr-runtime",
     "resource-model",
     "public-shell-private-island",
     "route-metadata",

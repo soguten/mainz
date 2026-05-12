@@ -19,49 +19,53 @@
       "slug": "render-mode-and-strategy",
       "order": 4
     },
+    "ssr-runtime.md": {
+      "slug": "ssr-runtime",
+      "order": 5
+    },
     "resource-model.md": {
       "slug": "resource-model",
-      "order": 5
+      "order": 6
     },
     "public-shell-private-island.md": {
       "slug": "public-shell-private-island",
-      "order": 6
+      "order": 7
     },
     "route-metadata.md": {
       "slug": "route-metadata",
-      "order": 7
+      "order": 8
     },
     "data-loading.md": {
       "slug": "data-loading",
-      "order": 8
+      "order": 9
     },
     "navigation-runtime.md": {
       "slug": "navigation-runtime",
-      "order": 9
+      "order": 10
     },
     "portal-rendering.md": {
       "slug": "portal-rendering",
-      "order": 10
+      "order": 11
     },
     "authorization.md": {
       "slug": "authorization",
-      "order": 11
+      "order": 12
     },
     "dependency-injection.md": {
       "slug": "dependency-injection",
-      "order": 12
+      "order": 13
     },
     "controllers-and-coordinators.md": {
       "slug": "controllers-and-coordinators",
-      "order": 13
+      "order": 14
     },
     "app-scoped-commands.md": {
       "slug": "app-scoped-commands",
-      "order": 14
+      "order": 15
     },
     "templates.md": {
       "slug": "templates",
-      "order": 15
+      "order": 16
     }
   }
 }

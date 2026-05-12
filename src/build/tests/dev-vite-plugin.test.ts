@@ -246,6 +246,120 @@ Deno.test("build/dev-vite-plugin: should answer HEAD ssg document requests witho
   }
 });
 
+Deno.test("build/dev-vite-plugin: should render ssr routes instead of falling through to the csr shell", async () => {
+  const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-ssr-" });
+
+  try {
+    const rootDir = `${cwd.replaceAll("\\", "/")}/app`;
+    await Deno.mkdir(`${rootDir}/src`, { recursive: true });
+    await writeTestAppDefinition(rootDir, {
+      docsMode: "ssr",
+    });
+    await Deno.writeTextFile(
+      `${rootDir}/index.html`,
+      [
+        "<!doctype html>",
+        "<html>",
+        "  <head>",
+        "  </head>",
+        "  <body>",
+        '    <main id="app"></main>',
+        '    <script type="module" src="/src/main.js"></script>',
+        "  </body>",
+        "</html>",
+      ].join("\n"),
+    );
+    await Deno.writeTextFile(
+      `${rootDir}/src/main.js`,
+      [
+        'const app = document.querySelector("#app");',
+        'app.innerHTML = "<section data-page=\\"docs-ssr\\">SSR Docs</section>";',
+        'app.firstElementChild.props = { route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" }, head: { title: "SSR Docs" } };',
+      ].join("\n"),
+    );
+
+    const plugin = createMainzDevRouteMiddlewarePlugin({
+      cwd,
+      runtimeName: "deno",
+      target: {
+        name: "app",
+        rootDir: "app",
+        appFile: "app/src/app.tsx",
+        appId: "app",
+        outDir: "dist/app",
+      },
+      profile: {
+        name: "development",
+        basePath: "/",
+      },
+      defaultLocale: "en",
+      localePrefix: "except-default",
+    });
+
+    const middlewareHandlers: Array<
+      (
+        req: { method?: string; headers: Record<string, string>; url?: string },
+        res: ReturnType<typeof createMockResponse>,
+        next: (error?: Error) => void,
+      ) => Promise<void> | void
+    > = [];
+
+    invokeConfigureServer(plugin, {
+      config: {
+        server: {
+          https: false,
+        },
+      },
+      watcher: {
+        on() {
+          return this;
+        },
+      },
+      middlewares: {
+        use(handler: unknown) {
+          middlewareHandlers.push(handler as typeof middlewareHandlers[number]);
+          return this;
+        },
+      },
+      async transformIndexHtml(_url: string, html: string) {
+        return html;
+      },
+    } as never);
+
+    const middleware = middlewareHandlers[0];
+    if (!middleware) {
+      throw new Error("Expected Mainz dev middleware to be registered.");
+    }
+
+    const res = createMockResponse();
+    let nextCalled = false;
+    await middleware(
+      {
+        method: "GET",
+        headers: {
+          accept: "text/html",
+          host: "localhost:5173",
+        },
+        url: "/docs",
+      },
+      res,
+      (error?: Error) => {
+        if (error) {
+          throw error;
+        }
+        nextCalled = true;
+      },
+    );
+
+    assertEquals(nextCalled, false);
+    assertEquals(res.statusCode, 200);
+    assertStringIncludes(res.body, 'data-page="docs-ssr"');
+    assertStringIncludes(res.body, "<title>SSR Docs</title>");
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("build/dev-vite-plugin: should prerender ssg routes for curl-style wildcard accept headers", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-curl-" });
 
@@ -1584,6 +1698,7 @@ function createMockResponse() {
 async function writeTestAppDefinition(
   rootDir: string,
   options: {
+    docsMode?: "ssg" | "ssr";
     docsFallback?: "404" | "csr";
     docsPath?: string;
     docsEntries?: Array<{ locale?: string; params: Record<string, string> }>;
@@ -1591,7 +1706,9 @@ async function writeTestAppDefinition(
 ): Promise<void> {
   const mainzEntryUrl = pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href;
   const docsPath = options.docsPath ?? "/docs";
-  const docsRenderMode = options.docsFallback === "csr"
+  const docsRenderMode = options.docsMode === "ssr"
+    ? '@RenderMode("ssr")'
+    : options.docsFallback === "csr"
     ? `@RenderMode("ssg", { fallback: "csr" })`
     : '@RenderMode("ssg")';
   await Deno.writeTextFile(

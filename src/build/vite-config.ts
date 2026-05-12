@@ -24,16 +24,26 @@ export interface GeneratedViteConfigInput {
   siteUrl?: string;
   devSsgDebug?: boolean;
   cacheDir?: string;
+  buildTarget?: "browser" | "server";
+  serverBundle?: {
+    entryPath: string;
+    outputFileName?: string;
+  };
 }
 
 export interface GeneratedViteConfig {
   root: string;
   base: string;
-  appType: "spa" | "mpa";
+  appType: "spa" | "mpa" | "custom";
   outDir: string;
   cacheDir?: string;
   aliases: readonly GeneratedViteAlias[];
   define: Record<string, string>;
+  buildTarget: "browser" | "server";
+  serverBundle?: {
+    entryPath: string;
+    outputFileName?: string;
+  };
   devMiddleware: {
     modulePath: string;
     options: Record<string, unknown>;
@@ -43,10 +53,16 @@ export interface GeneratedViteConfig {
 export function resolveGeneratedViteConfig(
   input: GeneratedViteConfigInput,
 ): GeneratedViteConfig {
+  const buildTarget = input.buildTarget ?? "browser";
+
   return {
     root: normalizePathSlashes(resolve(input.cwd, input.target.rootDir)),
     base: input.basePath,
-    appType: input.navigationMode === "spa" ? "spa" : "mpa",
+    appType: buildTarget === "server"
+      ? "custom"
+      : input.navigationMode === "spa"
+      ? "spa"
+      : "mpa",
     outDir: normalizePathSlashes(resolve(input.cwd, input.outputDir)),
     cacheDir: input.cacheDir
       ? normalizePathSlashes(resolve(input.cwd, input.cacheDir))
@@ -65,6 +81,15 @@ export function resolveGeneratedViteConfig(
       __MAINZ_SITE_URL__: JSON.stringify(input.siteUrl),
       ...input.target.vite?.define,
     },
+    buildTarget,
+    serverBundle: input.serverBundle
+      ? {
+        entryPath: normalizePathSlashes(
+          resolve(input.cwd, input.serverBundle.entryPath),
+        ),
+        outputFileName: input.serverBundle.outputFileName,
+      }
+      : undefined,
     devMiddleware: {
       modulePath: resolveMainzBuildModulePath("./dev-vite-plugin.ts"),
       options: {
@@ -185,6 +210,10 @@ function renderViteConfigModule(
     `    }),`,
   );
 
+  if (config.buildTarget === "server") {
+    configLines.push(`    publicDir: false,`);
+  }
+
   configLines.push(
     `    resolve: {`,
     `        alias: [`,
@@ -205,6 +234,19 @@ function renderViteConfigModule(
     `        emptyOutDir: true,`,
     ...(runtime === "deno" ? [`        minify: false,`] : []),
     `        sourcemap: true,`,
+    ...(config.serverBundle
+      ? [
+        `        ssr: ${JSON.stringify(config.serverBundle.entryPath)},`,
+        `        rollupOptions: {`,
+        `            output: {`,
+        `                entryFileNames: ${
+          JSON.stringify(config.serverBundle.outputFileName ?? "app.mjs")
+        },`,
+        `                format: "es",`,
+        `            },`,
+        `        },`,
+      ]
+      : []),
     `    },`,
     `    define: ${renderObjectLiteral(config.define, 4)},`,
     `    esbuild: {`,

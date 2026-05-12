@@ -110,6 +110,10 @@ export function buildSsgOutputEntries(
   }
 
   for (const route of manifest.routes) {
+    if (route.mode === "ssr") {
+      continue;
+    }
+
     const normalizedPath = normalizeRoutePath(route.path);
     const routeEntries = options.routeEntriesByRouteId?.get(route.id);
 

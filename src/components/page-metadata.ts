@@ -6,7 +6,7 @@ const PAGE_LOCALES = Symbol.for("mainz.page.locales");
 type DecoratedPageClass = abstract new (...args: unknown[]) => object;
 
 /** Public page render-mode contract used by page decorators and metadata helpers. */
-export type PageRenderMode = "csr" | "ssg";
+export type PageRenderMode = "csr" | "ssg" | "ssr";
 export type PageSsgFallback = "404" | "csr";
 export interface PageRenderConfig {
   mode: PageRenderMode;
@@ -44,6 +44,7 @@ export function Route(
  *
  * - `"csr"`: the page renders in the client runtime
  * - `"ssg"`: the page participates in static generation
+ * - `"ssr"`: the page renders in the server/runtime environment
  *
  * `ssg` pages default to strict `404` behavior for missing dynamic entries.
  * Use `{ fallback: "csr" }` to keep known entries prerendered while allowing
@@ -54,6 +55,12 @@ export function Route(
  */
 export function RenderMode(
   mode: "csr",
+): <T extends abstract new (...args: unknown[]) => object>(
+  value: T,
+  _context?: ClassDecoratorContext<T>,
+) => void;
+export function RenderMode(
+  mode: "ssr",
 ): <T extends abstract new (...args: unknown[]) => object>(
   value: T,
   _context?: ClassDecoratorContext<T>,
@@ -198,7 +205,7 @@ function normalizePageRenderConfig(
   mode: PageRenderMode,
   options?: { fallback?: PageSsgFallback },
 ): PageRenderConfig {
-  if (mode === "csr") {
+  if (mode !== "ssg") {
     return { mode };
   }
 
@@ -219,6 +226,6 @@ function normalizeStoredPageRenderConfig(
   }
 
   return {
-    mode: "csr",
+    mode: config.mode === "ssr" ? "ssr" : "csr",
   };
 }

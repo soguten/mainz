@@ -24,3 +24,11 @@ export class DecoratedSearchPage extends Page {
     return <main>Search</main>;
   }
 }
+
+@Route("/account")
+@RenderMode("ssr")
+export class DecoratedAccountPage extends Page {
+  override render(): HTMLElement {
+    return <main>Account</main>;
+  }
+}

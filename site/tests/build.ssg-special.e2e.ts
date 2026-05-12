@@ -19,6 +19,9 @@ import {
 } from "../../tests/helpers/built-output-io.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../tests/helpers/types.ts";
 
+const siteArtifactRootDir = resolve(repoRoot, "dist/site");
+const siteBrowserOutDir = resolve(siteArtifactRootDir, "browser");
+
 Deno.test(
   "site/ssg output: site app should preserve hydration, preview 404 behavior, and relative SEO",
   async (t) => {
@@ -28,7 +31,7 @@ Deno.test(
       const hydrationManifest = await readHydrationManifest();
       assertEquals(hydrationManifest.navigation, "mpa");
 
-      const routeHtmlPath = resolve(repoRoot, "dist/site/index.html");
+      const routeHtmlPath = resolve(siteBrowserOutDir, "index.html");
       const html = await Deno.readTextFile(routeHtmlPath);
 
       assertStringIncludes(html, "<x-mainz-tutorial-page>");
@@ -45,7 +48,7 @@ Deno.test(
       const scriptPath = resolve(dirname(routeHtmlPath), scriptSrc);
       await Deno.stat(scriptPath);
 
-      const ptRouteHtmlPath = resolve(repoRoot, "dist/site/pt/index.html");
+      const ptRouteHtmlPath = resolve(siteBrowserOutDir, "pt/index.html");
       const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
       assertStringIncludes(ptHtml, "Iniciar trilha guiada");
       assertStringIncludes(ptHtml, "Trilha guiada");
@@ -137,10 +140,10 @@ Deno.test(
 
     await t.step("relative seo", async () => {
       const enHtml = await Deno.readTextFile(
-        resolve(repoRoot, "dist/site/index.html"),
+        resolve(siteBrowserOutDir, "index.html"),
       );
       const ptHtml = await Deno.readTextFile(
-        resolve(repoRoot, "dist/site/pt/index.html"),
+        resolve(siteBrowserOutDir, "pt/index.html"),
       );
 
       assertEquals(extractCanonicalHrefs(enHtml), ["/"]);
@@ -159,7 +162,7 @@ Deno.test(
     });
 
     await t.step("404 artifact", async () => {
-      const notFoundHtmlPath = resolve(repoRoot, "dist/site/404.html");
+      const notFoundHtmlPath = resolve(siteBrowserOutDir, "404.html");
       const html = await Deno.readTextFile(notFoundHtmlPath);
 
       assertStringIncludes(html, "<x-mainz-not-found-page>");
@@ -173,7 +176,7 @@ Deno.test(
       assertStringIncludes(scriptSrc, "/assets/");
 
       const scriptPath = resolveOutputScriptPath({
-        outputDir: resolve(repoRoot, "dist/site"),
+        outputDir: siteBrowserOutDir,
         scriptSrc,
       });
       await Deno.stat(scriptPath);
@@ -200,7 +203,7 @@ Deno.test(
 
     await t.step("preview missing route", async () => {
       const handler = createArtifactPreviewHandler(
-        resolve(repoRoot, "dist/site"),
+        siteArtifactRootDir,
       );
       const response = await handler(new Request("http://127.0.0.1:4173/bba/"));
       const html = await response.text();
@@ -216,7 +219,7 @@ Deno.test(
 
     await t.step("preview localized missing route", async () => {
       const handler = createArtifactPreviewHandler(
-        resolve(repoRoot, "dist/site"),
+        siteArtifactRootDir,
       );
       const response = await handler(
         new Request("http://127.0.0.1:4173/pt/dfdfhsdfsdf"),
@@ -232,7 +235,7 @@ Deno.test(
         "Could not find module script src in localized prerendered 404 html.",
       );
       const scriptPath = resolveOutputScriptPath({
-        outputDir: resolve(repoRoot, "dist/site"),
+        outputDir: siteBrowserOutDir,
         scriptSrc,
       });
       await Deno.stat(scriptPath);
@@ -263,10 +266,10 @@ Deno.test(
 
     await t.step("absolute seo", async () => {
       const enHtml = await Deno.readTextFile(
-        resolve(repoRoot, "dist/site/index.html"),
+        resolve(siteBrowserOutDir, "index.html"),
       );
       const ptHtml = await Deno.readTextFile(
-        resolve(repoRoot, "dist/site/pt/index.html"),
+        resolve(siteBrowserOutDir, "pt/index.html"),
       );
 
       assertEquals(extractCanonicalHrefs(enHtml), ["https://mainz.dev/"]);
@@ -285,7 +288,7 @@ Deno.test(
     });
 
     await t.step("hydration", async () => {
-      const ptRouteHtmlPath = resolve(repoRoot, "dist/site/pt/index.html");
+      const ptRouteHtmlPath = resolve(siteBrowserOutDir, "pt/index.html");
       const ptHtml = await Deno.readTextFile(ptRouteHtmlPath);
 
       assertStringIncludes(ptHtml, "Iniciar trilha guiada");
@@ -334,7 +337,7 @@ Deno.test(
     const hydrationManifest = await readHydrationManifest();
     assertEquals(hydrationManifest.navigation, "mpa");
 
-    const routeHtmlPath = resolve(repoRoot, "dist/site/index.html");
+    const routeHtmlPath = resolve(siteBrowserOutDir, "index.html");
     const html = await Deno.readTextFile(routeHtmlPath);
     const scriptSrc = extractModuleScriptSrc(html);
     assert(
@@ -392,7 +395,7 @@ async function readHydrationManifest(): Promise<
 > {
   const hydrationManifestPath = resolve(
     repoRoot,
-    "dist/site/hydration.json",
+    "dist/site/browser/hydration.json",
   );
   return await readJsonFile(hydrationManifestPath);
 }

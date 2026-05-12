@@ -86,6 +86,20 @@ Deno.test("components/page helpers: RenderMode should preserve explicit ssg fall
   });
 });
 
+Deno.test("components/page helpers: RenderMode should preserve explicit ssr config without fallback", () => {
+  @RenderMode("ssr")
+  class ServerPage extends Page {
+    override render(): HTMLElement {
+      return document.createElement("main");
+    }
+  }
+
+  assertEquals(resolvePageRenderMode(ServerPage), "ssr");
+  assertEquals(resolvePageRenderConfig(ServerPage), {
+    mode: "ssr",
+  });
+});
+
 Deno.test("components/page helpers: Locales decorator should normalize and diagnose locale tags", () => {
   @Locales("en_us", "sr_latn_rs")
   class CanonicalizedPage extends Page {

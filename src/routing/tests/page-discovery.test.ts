@@ -15,6 +15,18 @@ Deno.test("routing/page-discovery: should discover exported Page subclasses and 
 
   assertEquals(pages, [
     {
+      exportName: "AccountPage",
+      file: file.replaceAll("\\", "/"),
+      page: {
+        path: "/account",
+        mode: "ssr",
+        fallback: undefined,
+        head: undefined,
+        locales: undefined,
+        authorization: undefined,
+      },
+    },
+    {
       exportName: "HomePage",
       file: file.replaceAll("\\", "/"),
       page: {
@@ -50,6 +62,18 @@ Deno.test("routing/page-discovery: should discover route metadata declared with 
   const pages = await discoverPagesFromFile(file);
 
   assertEquals(pages, [
+    {
+      exportName: "DecoratedAccountPage",
+      file: file.replaceAll("\\", "/"),
+      page: {
+        path: "/account",
+        mode: "ssr",
+        fallback: undefined,
+        locales: undefined,
+        head: undefined,
+        authorization: undefined,
+      },
+    },
     {
       exportName: "DecoratedHomePage",
       file: file.replaceAll("\\", "/"),

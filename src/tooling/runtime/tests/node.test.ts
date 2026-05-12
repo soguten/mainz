@@ -1,5 +1,6 @@
 /// <reference lib="deno.ns" />
 
+import { join } from "node:path";
 import { assertEquals } from "@std/assert";
 import { NodeToolingRuntime } from "../index.ts";
 
@@ -40,4 +41,30 @@ Deno.test("tooling/runtime/node: should resolve Vite build and dev commands thro
       ],
     },
   );
+});
+
+Deno.test("tooling/runtime/node: should support basic filesystem operations", async () => {
+  const runtime = new NodeToolingRuntime();
+  const tempDir = await runtime.makeTempDir({ prefix: "mainz-cli-node-" });
+  const nestedDir = join(tempDir, "nested");
+  const filePath = join(nestedDir, "note.txt");
+
+  try {
+    await runtime.mkdir(nestedDir, { recursive: true });
+    await runtime.writeTextFile(filePath, "hello from runtime");
+
+    const binary = await runtime.readFile(filePath);
+    const content = await runtime.readTextFile(filePath);
+    const stat = await runtime.stat(filePath);
+
+    assertEquals(
+      Array.from(binary),
+      Array.from(new TextEncoder().encode("hello from runtime")),
+    );
+    assertEquals(content, "hello from runtime");
+    assertEquals(stat.isFile, true);
+    assertEquals(stat.isDirectory, false);
+  } finally {
+    await runtime.remove(tempDir, { recursive: true });
+  }
 });

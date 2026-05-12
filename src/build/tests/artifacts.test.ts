@@ -9,6 +9,7 @@ import {
 } from "@std/assert";
 import {
   applyRouteHead,
+  buildSsrRuntimeManifest,
   emitCsrSpaAppShellMetadata,
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
@@ -37,6 +38,82 @@ Deno.test("build/artifacts: keeps asset paths for root route", () => {
   const output = rewriteAssetPaths(input, ".");
 
   assertEquals(output, input);
+});
+
+Deno.test("build/artifacts: builds an SSR runtime manifest from page-owned ssr routes", () => {
+  const manifest = buildSsrRuntimeManifest({
+    target: {
+      name: "site",
+      rootDir: "./site",
+      outDir: "dist/site",
+    },
+    profile: {
+      name: "production",
+      basePath: "/",
+    },
+    manifest: {
+      target: "site",
+      routes: [
+        {
+          id: "home",
+          source: "filesystem",
+          file: "/repo/site/src/pages/Home.page.tsx",
+          exportName: "HomePage",
+          path: "/",
+          pattern: "/",
+          mode: "ssr",
+          locales: ["en"],
+        },
+        {
+          id: "docs",
+          source: "filesystem",
+          file: "/repo/site/src/pages/Docs.page.tsx",
+          exportName: "DocsPage",
+          path: "/docs",
+          pattern: "/docs",
+          mode: "ssg",
+          locales: ["en"],
+        },
+      ],
+    },
+    navigationMode: "spa",
+    targetI18n: {
+      defaultLocale: "en",
+      localePrefix: "except-default",
+      fallbackLocale: "en",
+    },
+    appDefinition: {
+      id: "site-app",
+    },
+    appFile: "/repo/site/src/main.tsx",
+  });
+
+  assertEquals(manifest, {
+    version: 1,
+    target: "site",
+    appId: "site-app",
+    appFile: "/repo/site/src/main.tsx",
+    basePath: "/",
+    siteUrl: undefined,
+    navigation: "spa",
+    serverOutDir: "dist/site/server",
+    serverEntryPath: "server/app.mjs",
+    routes: [
+      {
+        id: "home",
+        file: "/repo/site/src/pages/Home.page.tsx",
+        exportName: "HomePage",
+        path: "/",
+        pattern: "/",
+        locales: ["en"],
+      },
+    ],
+    i18n: {
+      defaultLocale: "en",
+      localePrefix: "except-default",
+      fallbackLocale: "en",
+    },
+  });
 });
 
 Deno.test("build/artifacts: injects app html in #app", () => {

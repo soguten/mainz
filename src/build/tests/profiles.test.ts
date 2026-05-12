@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertRejects } from "@std/assert";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import {
@@ -130,6 +130,21 @@ Deno.test("build/profiles: should resolve publication metadata from profile and 
       basePath: "/mainz/",
       navigation: "spa",
       siteUrl: "https://mainz.dev",
+      capabilities: {
+        artifactClass: "browser-only",
+        serverRuntimeRequired: false,
+      },
+      browser: {
+        outDir: "dist/site/browser",
+        routesManifestPath: "dist/site/browser/routes.json",
+        hydrationManifestPath: "dist/site/browser/hydration.json",
+        indexHtmlPath: "dist/site/browser/index.html",
+      },
+      server: {
+        outDir: "dist/site/server",
+        ssrManifestPath: "dist/site/server/ssr-manifest.json",
+        entryPath: "dist/site/server/app.mjs",
+      },
     });
   } finally {
     await Deno.remove(fixture.cwd, { recursive: true });
@@ -222,8 +237,86 @@ Deno.test("build/profiles: should resolve publication metadata from the app sele
 
     assertEquals(metadata.navigation, "mpa");
     assertEquals(metadata.outDir, "dist/site");
+    assertEquals(metadata.capabilities, {
+      artifactClass: "browser-only",
+      serverRuntimeRequired: false,
+    });
+    assertEquals(metadata.browser.outDir, "dist/site/browser");
+    assertEquals(metadata.server.outDir, "dist/site/server");
   } finally {
     await Deno.remove(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/profiles: should classify targets with SSR pages as server-capable", async () => {
+  const fixture = await createTargetBuildFixture(
+    `export default {
+             profiles: {
+                 production: {},
+             },
+         };
+        `,
+    {
+      appSource: [
+        `import { defineApp } from ${
+          JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
+        };`,
+        'import { HomePage } from "./HomePage.ts";',
+        "",
+        "export const app = defineApp({",
+        '  id: "site",',
+        '  navigation: "spa",',
+        "  pages: [HomePage],",
+        "});",
+        "",
+      ].join("\n"),
+      files: {
+        "src/HomePage.ts": [
+          `import { Page, RenderMode, Route } from ${
+            JSON.stringify(
+              pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href,
+            )
+          };`,
+          "",
+          '@Route("/")',
+          '@RenderMode("ssr")',
+          "export class HomePage extends Page {",
+          "  override render(): HTMLElement {",
+          '    return document.createElement("main");',
+          "  }",
+          "}",
+          "",
+        ].join("\n"),
+      },
+    },
+  );
+
+  try {
+    const config = normalizeMainzConfig({
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+          viteConfig: "./vite.config.site.ts",
+          buildConfig: fixture.relativeConfigPath,
+          outDir: "dist/site",
+          appFile: "./site/src/main.tsx",
+        },
+      ],
+    });
+
+    const metadata = await resolvePublicationMetadata(
+      config.targets[0],
+      "production",
+      fixture.cwd,
+    );
+
+    assertEquals(metadata.capabilities, {
+      artifactClass: "server-capable",
+      serverRuntimeRequired: true,
+    });
+  } finally {
+    await Deno.remove(fixture.cwd, { recursive: true });
   }
 });
 
@@ -306,6 +399,10 @@ Deno.test("build/profiles: publication outDir should assemble a Pages artifact w
 
 async function createTargetBuildFixture(
   source: string,
+  options: {
+    appSource?: string;
+    files?: Record<string, string>;
+  } = {},
 ): Promise<{ cwd: string; relativeConfigPath: string }> {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-build-profile-" });
   const siteDir = join(cwd, "site");
@@ -317,19 +414,25 @@ async function createTargetBuildFixture(
   await Deno.mkdir(join(siteDir, "src"), { recursive: true });
   await Deno.writeTextFile(
     join(siteDir, "src", "main.tsx"),
-    [
-      `import { defineApp } from ${
-        JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
-      };`,
-      "",
-      "export const app = defineApp({",
-      '  id: "site",',
-      '  navigation: "spa",',
-      "  pages: [],",
-      "});",
-      "",
-    ].join("\n"),
+    options.appSource ??
+      [
+        `import { defineApp } from ${
+          JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
+        };`,
+        "",
+        "export const app = defineApp({",
+        '  id: "site",',
+        '  navigation: "spa",',
+        "  pages: [],",
+        "});",
+        "",
+      ].join("\n"),
   );
+  for (const [relativePath, fileSource] of Object.entries(options.files ?? {})) {
+    const absolutePath = join(siteDir, relativePath);
+    await Deno.mkdir(dirname(absolutePath), { recursive: true });
+    await Deno.writeTextFile(absolutePath, fileSource);
+  }
 
   return { cwd, relativeConfigPath };
 }

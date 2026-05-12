@@ -10,6 +10,7 @@ export type TestNavigationMode = "spa" | "mpa";
 export type TestBuildContext = {
   testAppName?: string;
   testAppRoot?: string;
+  artifactRootDir?: string;
   outputDir: string;
   targetName: string;
   navigation: TestNavigationMode;
@@ -20,6 +21,7 @@ export type TestBuildContext = {
 export type TestScenarioBuildContext = {
   testAppName?: string;
   testAppRoot?: string;
+  artifactRootDir?: string;
   availableBuilds: TestBuildContext[];
   targetName: string;
   navigation: TestNavigationMode;
@@ -31,6 +33,7 @@ export type TestAppTargetConfig = {
   target: NormalizedMainzTarget;
   configPath: string;
   testAppRoot: string;
+  artifactRootDir: string;
   outputDir: string;
   targetName: string;
   cleanup(): Promise<void>;
@@ -39,6 +42,7 @@ export type TestAppTargetDefinition = {
   target: NormalizedMainzTarget;
   targetDefinition: MainzTargetDefinition;
   testAppRoot: string;
+  artifactRootDir: string;
   outputDir: string;
   targetName: string;
   cleanup(): Promise<void>;

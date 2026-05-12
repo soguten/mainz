@@ -11,6 +11,7 @@ Deno.test("config/load: should load config modules through the supplied tooling 
   const runtime: MainzToolingRuntime = {
     name: "deno",
     cwd: () => Deno.cwd(),
+    readFile: async () => new Uint8Array(),
     readTextFile: async () => "",
     writeTextFile: async () => undefined,
     readDir: async function* () {},

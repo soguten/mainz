@@ -51,7 +51,7 @@ export interface RouteDiagnosticsPageInput {
   exportName: string;
   page: {
     path: string;
-    mode: "csr" | "ssg";
+    mode: "csr" | "ssg" | "ssr";
     notFound?: boolean;
     locales?: readonly string[];
     authorization?: PageAuthorizationMetadata;
