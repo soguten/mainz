@@ -47,6 +47,14 @@ Deno.test("cli/mainz: container init should initialize minimal profiles and gene
     assertStringIncludes(buildConfig, 'basePath: "/"');
     assertStringIncludes(buildConfig, "env: []");
     assertStringIncludes(dockerfile, "FROM denoland/deno:2.7.14 AS builder");
+    assertStringIncludes(
+      dockerfile,
+      "# mainz container image build --target entries-di-build",
+    );
+    assertStringIncludes(
+      dockerfile,
+      "# mainz container run --target entries-di-build",
+    );
     assertStringIncludes(dockerfile, "FROM nginx:1.27-alpine");
     assertStringIncludes(
       dockerfile,
@@ -59,7 +67,10 @@ Deno.test("cli/mainz: container init should initialize minimal profiles and gene
       "COPY --from=builder /workspace/dist/entries-di-build/browser/ /usr/share/nginx/html/",
     );
     assertStringIncludes(dockerfile, "listen 3000;");
-    assertStringIncludes(dockerfile, "try_files \\$uri \\$uri/ /index.html;");
+    assertStringIncludes(
+      dockerfile,
+      "try_files $uri $uri/ /index.html;",
+    );
     assertStringIncludes(dockerfile, "EXPOSE 3000");
     assertStringIncludes(dockerignore, "node_modules/");
     assertStringIncludes(dockerignore, "dist/");
@@ -126,6 +137,77 @@ Deno.test("cli/mainz: container init should generate a server-capable Dockerfile
     assertStringIncludes(
       dockerfile,
       'CMD ["deno", "run", "-A", "./src/cli/preview-artifact.ts", "dist/ssr-build-app", "--host", "0.0.0.0", "--port", "3000"]',
+    );
+  } finally {
+    await testApp.cleanup();
+  }
+});
+
+Deno.test("cli/mainz: container init should generate MPA browser-only Dockerfiles with locale-aware 404 handling", async () => {
+  const testApp = await createTestAppTargetConfig({
+    testAppName: "routed-app",
+    targetName: "routed-app-container-mpa",
+    appFile: "src/app.ts",
+  });
+
+  try {
+    await Deno.writeTextFile(
+      resolve(testApp.testAppRoot, "src", "app.ts"),
+      [
+        'import { defineApp, startApp } from "mainz";',
+        'import { RoutedAppHomePage } from "./pages/Home.page.tsx";',
+        'import { RoutedAppNotFoundPage } from "./pages/NotFound.page.tsx";',
+        "",
+        "const app = defineApp({",
+        '  id: "routed-app-container-mpa",',
+        '  navigation: "mpa",',
+        "  i18n: {",
+        '    locales: ["en", "pt"],',
+        '    defaultLocale: "en",',
+        '    localePrefix: "except-default",',
+        "  },",
+        "  pages: [RoutedAppHomePage],",
+        "  notFound: RoutedAppNotFoundPage,",
+        "});",
+        "",
+        'startApp(app, { mount: "#app" });',
+        "",
+      ].join("\n"),
+    );
+
+    const { stdout } = await runMainzCliCommand(
+      dirname(testApp.configPath),
+      [
+        "container",
+        "init",
+        "--target",
+        testApp.targetName,
+        "--config",
+        testApp.configPath,
+      ],
+      "container init failed.",
+    );
+
+    const dockerfile = await Deno.readTextFile(
+      resolve(testApp.testAppRoot, "Dockerfile"),
+    );
+
+    assertStringIncludes(stdout, "Generated browser-only Dockerfile");
+    assertStringIncludes(
+      dockerfile,
+      "try_files $uri $uri/ $uri.html =404;",
+    );
+    assertStringIncludes(
+      dockerfile,
+      "error_page 404 /404/index.html;",
+    );
+    assertStringIncludes(
+      dockerfile,
+      "location /pt/ {",
+    );
+    assertStringIncludes(
+      dockerfile,
+      "error_page 404 /pt/404/index.html;",
     );
   } finally {
     await testApp.cleanup();

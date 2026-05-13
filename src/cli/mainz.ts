@@ -219,8 +219,8 @@ const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 const defaultDenoContainerImage = "denoland/deno:2.7.14";
-const containerizeDockerignoreBlock = [
-  "# >>> mainz containerize",
+const containerDockerignoreBlock = [
+  "# >>> mainz container",
   ".git/",
   "node_modules/",
   "dist/",
@@ -228,7 +228,7 @@ const containerizeDockerignoreBlock = [
   ".mainz-temp/",
   "internal-docs/",
   "coverage/",
-  "# <<< mainz containerize",
+  "# <<< mainz container",
   "",
 ].join("\n");
 
@@ -2284,7 +2284,7 @@ async function runContainerInitCommand(
   );
   const buildConfigPath = resolveTargetBuildConfigFile(target, cwd);
   const buildConfig = await loadCliTargetBuildConfig(target, cwd, runtime);
-  const ensuredProfiles = await ensureContainerizeProfiles({
+  const ensuredProfiles = await ensureContainerProfiles({
     target,
     requestedProfile: options.profile,
     buildConfig,
@@ -2297,8 +2297,14 @@ async function runContainerInitCommand(
     cwd,
     runtime,
   );
+  const appDefinition = await loadTargetBuildRoutedAppDefinition(
+    target,
+    cwd,
+    runtime,
+  );
+  const targetI18n = resolveTargetI18nConfig(appDefinition);
   const envContract = buildConfig.profiles[ensuredProfiles.profile]?.env ?? [];
-  const envResolution = await resolveContainerizeProfileEnvironment({
+  const envResolution = await resolveContainerProfileEnvironment({
     target,
     profile: ensuredProfiles.profile,
     envKeys: envContract,
@@ -2312,17 +2318,22 @@ async function runContainerInitCommand(
   await runtime.mkdir(dirname(dockerfilePath), { recursive: true });
   await runtime.writeTextFile(
     dockerfilePath,
-    renderContainerizeDockerfile({
+    renderContainerDockerfile({
       target,
       profile: ensuredProfiles.profile,
       artifactClass: metadata.capabilities.artifactClass,
+      navigation: metadata.navigation,
+      localizedNotFoundPrefixes: resolveContainerLocalizedNotFoundPrefixes(
+        appDefinition,
+        targetI18n,
+      ),
       runtimeName: runtime.name,
       configPath: options.configPath ?? "mainz.config.ts",
       cwd,
     }),
   );
   const dockerignorePath = resolve(cwd, ".dockerignore");
-  const dockerignoreUpdated = await ensureContainerizeDockerignore(
+  const dockerignoreUpdated = await ensureContainerDockerignore(
     dockerignorePath,
     runtime,
   );
@@ -4526,7 +4537,7 @@ async function loadCliTargetBuildConfig(
   return normalizeTargetBuildConfig(exported as TargetBuildDefinition);
 }
 
-async function ensureContainerizeProfiles(args: {
+async function ensureContainerProfiles(args: {
   target: NormalizedMainzTarget;
   requestedProfile?: string;
   buildConfig: ReturnType<typeof normalizeTargetBuildConfig>;
@@ -4611,7 +4622,7 @@ async function ensureContainerizeProfiles(args: {
   );
 }
 
-async function resolveContainerizeProfileEnvironment(args: {
+async function resolveContainerProfileEnvironment(args: {
   target: NormalizedMainzTarget;
   profile: string;
   envKeys: readonly string[];
@@ -4722,35 +4733,37 @@ function hasResolvedEnvironmentValue(value: string | undefined): boolean {
   return typeof value === "string" && value.length > 0;
 }
 
-async function ensureContainerizeDockerignore(
+async function ensureContainerDockerignore(
   dockerignorePath: string,
   runtime: MainzToolingRuntime,
 ): Promise<boolean> {
   if (!(await pathExists(dockerignorePath, runtime))) {
     await runtime.writeTextFile(
       dockerignorePath,
-      containerizeDockerignoreBlock,
+      containerDockerignoreBlock,
     );
     return true;
   }
 
   const current = await runtime.readTextFile(dockerignorePath);
-  if (current.includes("# >>> mainz containerize")) {
+  if (current.includes("# >>> mainz container")) {
     return false;
   }
 
   const separator = current.endsWith("\n") ? "\n" : "\n\n";
   await runtime.writeTextFile(
     dockerignorePath,
-    `${current}${separator}${containerizeDockerignoreBlock}`,
+    `${current}${separator}${containerDockerignoreBlock}`,
   );
   return true;
 }
 
-function renderContainerizeDockerfile(args: {
+function renderContainerDockerfile(args: {
   target: NormalizedMainzTarget;
   profile: string;
   artifactClass: "browser-only" | "server-capable";
+  navigation: "spa" | "mpa";
+  localizedNotFoundPrefixes: string[];
   runtimeName: SupportedCliRuntime;
   configPath: string;
   cwd: string;
@@ -4772,6 +4785,8 @@ function renderContainerizeDockerfile(args: {
         args.target.name,
         relativeOutDir,
         args.profile,
+        args.navigation,
+        args.localizedNotFoundPrefixes,
         relativeConfigPath,
         normalizedContextHint,
       )
@@ -4779,6 +4794,8 @@ function renderContainerizeDockerfile(args: {
         args.target.name,
         relativeOutDir,
         args.profile,
+        args.navigation,
+        args.localizedNotFoundPrefixes,
         relativeConfigPath,
         normalizedContextHint,
       );
@@ -4803,14 +4820,17 @@ function renderNodeBrowserOnlyDockerfile(
   targetName: string,
   outDir: string,
   profileName: string,
+  navigation: "spa" | "mpa",
+  localizedNotFoundPrefixes: readonly string[],
   configPath: string,
   dockerfilePath: string,
 ): string {
+  const nginxConfig = renderBrowserOnlyNginxConfig(
+    navigation,
+    localizedNotFoundPrefixes,
+  );
   return [
-    "# Build from the target workspace with:",
-    "# docker image build -f Dockerfile ..",
-    "# Or build from the repository root with:",
-    `# docker image build -f ${dockerfilePath} .`,
+    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
     "FROM node:20-alpine AS builder",
     "WORKDIR /workspace",
     "COPY . .",
@@ -4820,7 +4840,9 @@ function renderNodeBrowserOnlyDockerfile(
     } --config ${JSON.stringify(configPath)}`,
     "",
     "FROM nginx:1.27-alpine",
-    'RUN printf "server {\\n  listen 3000;\\n  server_name _;\\n  root /usr/share/nginx/html;\\n  index index.html;\\n\\n  location / {\\n    try_files \\$uri \\$uri/ /index.html;\\n  }\\n}\\n" > /etc/nginx/conf.d/default.conf',
+    "RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf",
+    nginxConfig.trimEnd(),
+    "EOF",
     `COPY --from=builder /workspace/${
       normalizePathSlashes(join(outDir, "browser"))
     }/ /usr/share/nginx/html/`,
@@ -4834,14 +4856,17 @@ function renderDenoBrowserOnlyDockerfile(
   targetName: string,
   outDir: string,
   profileName: string,
+  navigation: "spa" | "mpa",
+  localizedNotFoundPrefixes: readonly string[],
   configPath: string,
   dockerfilePath: string,
 ): string {
+  const nginxConfig = renderBrowserOnlyNginxConfig(
+    navigation,
+    localizedNotFoundPrefixes,
+  );
   return [
-    "# Build from the target workspace with:",
-    "# docker image build -f Dockerfile ..",
-    "# Or build from the repository root with:",
-    `# docker image build -f ${dockerfilePath} .`,
+    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
     `FROM ${defaultDenoContainerImage} AS builder`,
     "WORKDIR /workspace",
     "COPY . .",
@@ -4850,7 +4875,9 @@ function renderDenoBrowserOnlyDockerfile(
     } --config ${JSON.stringify(configPath)}`,
     "",
     "FROM nginx:1.27-alpine",
-    'RUN printf "server {\\n  listen 3000;\\n  server_name _;\\n  root /usr/share/nginx/html;\\n  index index.html;\\n\\n  location / {\\n    try_files \\$uri \\$uri/ /index.html;\\n  }\\n}\\n" > /etc/nginx/conf.d/default.conf',
+    "RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf",
+    nginxConfig.trimEnd(),
+    "EOF",
     `COPY --from=builder /workspace/${
       normalizePathSlashes(join(outDir, "browser"))
     }/ /usr/share/nginx/html/`,
@@ -4868,10 +4895,7 @@ function renderDenoServerCapableDockerfile(
   dockerfilePath: string,
 ): string {
   return [
-    "# Build from the target workspace with:",
-    "# docker image build -f Dockerfile ..",
-    "# Or build from the repository root with:",
-    `# docker image build -f ${dockerfilePath} .`,
+    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
     `FROM ${defaultDenoContainerImage} AS builder`,
     "WORKDIR /workspace",
     "COPY . .",
@@ -4888,6 +4912,94 @@ function renderDenoServerCapableDockerfile(
     }, "--host", "0.0.0.0", "--port", "3000"]`,
     "",
   ].join("\n");
+}
+
+function renderContainerDockerfileHeader(
+  targetName: string,
+  dockerfilePath: string,
+): string[] {
+  return [
+    "# Mainz:",
+    `# mainz container image build --target ${targetName}`,
+    `# mainz container run --target ${targetName}`,
+    "# Docker:",
+    "# docker image build -f Dockerfile ..",
+    `# docker image build -f ${dockerfilePath} .`,
+  ];
+}
+
+function renderBrowserOnlyNginxConfig(
+  navigation: "spa" | "mpa",
+  localizedNotFoundPrefixes: readonly string[],
+): string {
+  if (navigation === "spa") {
+    return [
+      "server {",
+      "  listen 3000;",
+      "  server_name _;",
+      "  root /usr/share/nginx/html;",
+      "  index index.html;",
+      "",
+      "  location / {",
+      "    try_files $uri $uri/ /index.html;",
+      "  }",
+      "}",
+      "",
+    ].join("\n");
+  }
+
+  const locationBlocks = localizedNotFoundPrefixes.map((prefix) =>
+    [
+      `  location /${prefix}/ {`,
+      "    try_files $uri $uri/ $uri.html =404;",
+      `    error_page 404 /${prefix}/404/index.html;`,
+      "  }",
+      "",
+    ].join("\n")
+  );
+
+  return [
+    "server {",
+    "  listen 3000;",
+    "  server_name _;",
+    "  root /usr/share/nginx/html;",
+    "  index index.html;",
+    "",
+    ...locationBlocks,
+    "  location / {",
+    "    try_files $uri $uri/ $uri.html =404;",
+    "    error_page 404 /404/index.html;",
+    "  }",
+    "}",
+    "",
+  ].join("\n");
+}
+
+function resolveContainerLocalizedNotFoundPrefixes(
+  appDefinition:
+    | Pick<
+      NonNullable<
+        Awaited<ReturnType<typeof loadTargetBuildRoutedAppDefinition>>
+      >,
+      "documentLanguage" | "i18n"
+    >
+    | undefined,
+  args: {
+    defaultLocale?: string;
+    localePrefix: "always" | "except-default";
+  } | undefined,
+): string[] {
+  if (!args) {
+    return [];
+  }
+
+  const locales = appDefinition?.i18n?.locales ??
+    (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []);
+  if (args.localePrefix === "always") {
+    return [...locales];
+  }
+
+  return locales.filter((locale) => locale !== args.defaultLocale);
 }
 
 async function resolveGithubPagesWorkflowTargets(
