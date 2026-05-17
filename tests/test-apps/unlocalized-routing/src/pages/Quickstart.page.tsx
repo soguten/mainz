@@ -1,20 +1,20 @@
 import { CustomElement, Page, RenderMode, Route } from "mainz";
 
-@CustomElement("x-mainz-fixture-document-language-quickstart-page")
+@CustomElement("x-mainz-fixture-unlocalized-routing-quickstart-page")
 @Route("/quickstart")
 @RenderMode("csr")
-export class FixtureDocumentLanguageQuickstartPage extends Page {
+export class FixtureUnlocalizedRoutingQuickstartPage extends Page {
   override head() {
     return {
-      title: "Fixture Document Language Quickstart",
+      title: "Fixture Unlocalized Routing Quickstart",
     };
   }
 
   override render() {
     return (
       <article>
-        <h1>Document language</h1>
-        <p>The app declares document language without route i18n.</p>
+        <h1>Unlocalized routing</h1>
+        <p>The app omits i18n and keeps locale routing inactive.</p>
         <nav>
           <a href="/">Overview</a>
           <a href="/quickstart">Guides</a>

@@ -5,7 +5,6 @@ import { denoToolingRuntime } from "../tooling/runtime/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 import {
-  emitCsrSpaAppShellMetadata,
   emitRouteArtifacts,
   resolveTargetI18nConfig,
 } from "./artifacts.ts";
@@ -52,14 +51,14 @@ export async function runSingleBuild(
     runtime,
   );
   const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const appLocales = appDefinition?.i18n?.locales ?? [];
   const viteConfig = await resolveViteConfigPathForBuild({
     runtime,
     cwd,
     job,
     outputDir: browserOutputDir,
     navigationMode,
-    appLocales: appDefinition?.i18n?.locales ??
-      (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
+    appLocales,
     defaultLocale: targetI18n?.defaultLocale,
     localePrefix: targetI18n?.localePrefix ?? "except-default",
     siteUrl: job.profile.siteUrl,
@@ -76,10 +75,7 @@ export async function runSingleBuild(
       targetName: job.target.name,
       buildLabel: "build",
       basePath: resolveViteBasePath(job.profile.basePath, navigationMode),
-      appLocales: appDefinition?.i18n?.locales ??
-        (appDefinition?.documentLanguage
-          ? [appDefinition.documentLanguage]
-          : []),
+      appLocales,
       defaultLocale: targetI18n?.defaultLocale,
       localePrefix: targetI18n?.localePrefix ?? "except-default",
       siteUrl: job.profile.siteUrl,
@@ -100,10 +96,7 @@ export async function runSingleBuild(
       cwd,
       job,
       navigationMode,
-      appLocales: appDefinition?.i18n?.locales ??
-        (appDefinition?.documentLanguage
-          ? [appDefinition.documentLanguage]
-          : []),
+      appLocales,
       defaultLocale: targetI18n?.defaultLocale,
       localePrefix: targetI18n?.localePrefix ?? "except-default",
       siteUrl: job.profile.siteUrl,
@@ -118,14 +111,7 @@ export async function runSingleBuild(
     cwd,
     runtime,
   );
-  if (!emittedRouteArtifacts && navigationMode === "spa") {
-    await emitCsrSpaAppShellMetadata({
-      runtime,
-      outputDir: browserOutputDir,
-      cwd,
-      documentLanguage: targetI18n?.defaultLocale,
-    });
-  }
+  void emittedRouteArtifacts;
 }
 
 export async function runDevServer(args: {
@@ -159,6 +145,7 @@ export async function runDevServer(args: {
     runtime,
   );
   const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const appLocales = appDefinition?.i18n?.locales ?? [];
   const browserOutputDir = normalizePathSlashes(
     resolvePublicationBrowserOutDir(target.outDir),
   );
@@ -168,8 +155,7 @@ export async function runDevServer(args: {
     target,
     outputDir: browserOutputDir,
     navigationMode,
-    appLocales: appDefinition?.i18n?.locales ??
-      (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
+    appLocales,
     defaultLocale: targetI18n?.defaultLocale,
     localePrefix: targetI18n?.localePrefix ?? "except-default",
     siteUrl: args.profile.siteUrl,
@@ -187,10 +173,7 @@ export async function runDevServer(args: {
       port: args.port,
       navigationMode,
       basePath: resolveViteBasePath(args.profile.basePath, navigationMode),
-      appLocales: appDefinition?.i18n?.locales ??
-        (appDefinition?.documentLanguage
-          ? [appDefinition.documentLanguage]
-          : []),
+      appLocales,
       defaultLocale: targetI18n?.defaultLocale,
       localePrefix: targetI18n?.localePrefix ?? "except-default",
       siteUrl: args.profile.siteUrl,

@@ -10,7 +10,7 @@ import {
   type MainzNavigationReadyDetail,
   type MainzNavigationStartDetail,
 } from "../../src/runtime-events.ts";
-import { waitForCustomEvent } from "../../src/testing/async-testing.ts";
+import { waitForCustomEvent } from "mainz/testing";
 
 export async function waitForNextLocaleChange(
   expectedLocale?: string,

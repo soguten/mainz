@@ -1,33 +1,33 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { waitFor } from "../../../../src/testing/async-testing.ts";
+import { waitFor } from "mainz/testing";
 import {
   waitForNextNavigationReady,
   waitForNextNavigationStart,
 } from "../../../helpers/navigation.ts";
 import { scenarioTest } from "../../scenario-harness.ts";
 
-export const documentLanguageHomeCase = scenarioTest({
-  name: "documentLanguage routes stay unprefixed and set html lang",
+export const unlocalizedRoutingHomeCase = scenarioTest({
+  name: "routes stay unprefixed when locale routing is absent",
   run: async ({ navigation, app }) => {
     const html = await app.route("/").html();
-    assertStringIncludes(html, '<html lang="pt-BR">');
+    assertStringIncludes(html, "<html>");
 
     const screen = await app.route("/").render();
 
     try {
-      await waitFor(() => document.documentElement.lang === "pt-BR");
+      await waitFor(() => document.documentElement.lang === "");
 
       assertEquals(window.location.pathname, "/");
-      assertEquals(document.documentElement.lang, "pt-BR");
+      assertEquals(document.documentElement.lang, "");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
         navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",
-        "Document-language fixture",
+        "Unlocalized routing fixture",
       );
 
       assertLinkHref("Overview", "/");
@@ -42,14 +42,14 @@ export const documentLanguageHomeCase = scenarioTest({
         mode: "spa",
         path: "/quickstart",
         matchedPath: "/quickstart",
-        locale: "pt-BR",
+        locale: undefined,
         navigationType: "push",
       });
       const ready = waitForNextNavigationReady({
         mode: "spa",
         path: "/quickstart",
         matchedPath: "/quickstart",
-        locale: "pt-BR",
+        locale: undefined,
         navigationType: "push",
       });
 
@@ -60,7 +60,7 @@ export const documentLanguageHomeCase = scenarioTest({
 
       await waitFor(() =>
         window.location.pathname === "/quickstart" &&
-        (document.body.textContent ?? "").includes("Document language")
+        (document.body.textContent ?? "").includes("Unlocalized routing")
       );
     } finally {
       screen.cleanup();

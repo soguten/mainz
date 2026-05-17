@@ -6,7 +6,7 @@ import type { InitialRouteSnapshot } from "./render-core.ts";
 
 export function buildResolvedRouteHead(args: {
   route: RouteManifestEntry;
-  locale: string;
+  locale?: string;
   head: PageHeadDefinition | undefined;
   targetI18n?: {
     defaultLocale?: string;
@@ -21,7 +21,7 @@ export function buildResolvedRouteHead(args: {
       (args.params
         ? materializeRoutePath(args.route.path, args.params)
         : args.route.path),
-    locale: args.locale,
+    locale: args.locale ?? "",
     locales: args.route.locales,
     head: args.head,
     localePrefix: args.targetI18n?.localePrefix,
@@ -37,7 +37,7 @@ export function finalizePrerenderedRouteDocument(args: {
     appHtml: string;
     routeSnapshot?: InitialRouteSnapshot;
   };
-  locale: string;
+  locale?: string;
   routeHead?: PageHeadDefinition;
   snapshotErrorMessage?: (error: unknown) => string;
 }): string {
@@ -58,7 +58,7 @@ export function finalizePrerenderedRouteDocument(args: {
 
 export function finalizeEvaluatedRouteDocument(args: {
   html: string;
-  locale: string;
+  locale?: string;
   routeHead?: PageHeadDefinition;
 }): string {
   let html = setHtmlLang(args.html, args.locale);
@@ -133,8 +133,8 @@ export function injectRouteSnapshot(
   return `${html}\n${scriptTag}`;
 }
 
-export function setHtmlLang(html: string, locale: string): string {
-  const normalizedLocale = locale.trim();
+export function setHtmlLang(html: string, locale?: string): string {
+  const normalizedLocale = locale?.trim();
   if (!normalizedLocale) {
     return html;
   }

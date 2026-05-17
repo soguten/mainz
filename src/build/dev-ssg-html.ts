@@ -39,7 +39,7 @@ export async function renderDevSsgHtml(args: {
   const transformedHtml = stripViteTimestampFromModuleScripts(
     await args.transformIndexHtml(args.requestUrl.pathname, templateHtml),
   );
-  const locale = args.locale ?? args.route.locales[0] ?? "en";
+  const locale = args.locale ?? args.route.locales[0];
 
   let renderedApp: Awaited<ReturnType<typeof renderRouteAppHtml>>;
   try {

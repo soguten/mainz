@@ -73,9 +73,9 @@ const singleLocaleRoutedAppBuildSpec = {
   targetName: "single-locale-routed-app",
 } as const satisfies NamedTestAppBuildSpec;
 
-const documentLanguageRoutedAppBuildSpec = {
-  testAppName: "document-language-routing",
-  targetName: "document-language-routed-app",
+const unlocalizedRoutedAppBuildSpec = {
+  testAppName: "unlocalized-routing",
+  targetName: "unlocalized-routed-app",
 } as const satisfies NamedTestAppBuildSpec;
 
 export const buildRoutedAppForNavigation = (
@@ -96,11 +96,11 @@ export const buildSingleLocaleRoutedAppForNavigation = (
     navigation,
   );
 
-export const buildDocumentLanguageRoutedAppForNavigation = (
+export const buildUnlocalizedRoutedAppForNavigation = (
   navigation: TestNavigationMode,
 ): Promise<TestScenarioBuildContext> =>
   buildRegisteredTestAppForNavigation(
-    documentLanguageRoutedAppBuildSpec,
+    unlocalizedRoutedAppBuildSpec,
     navigation,
   );
 

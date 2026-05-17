@@ -64,7 +64,7 @@ as `mainz diagnose --target <name> --app <id>`.
 The selected target points at the app with `appFile` and, when needed, `appId`.
 Routed pages and `notFound` belong to the app definition.
 
-### Locale routing and document language
+### Locale routing
 
 Use `i18n` when the app has locale-aware routing:
 
@@ -80,13 +80,11 @@ export const app = defineApp({
 });
 ```
 
-Use `documentLanguage` when the app is monolingual and Mainz should set
-`<html lang>` without turning on locale routing:
+When `i18n` is absent, routed apps stay unlocalized:
 
 ```tsx title="app.ts"
 export const app = defineApp({
   id: "docs",
-  documentLanguage: "pt-BR",
   pages: [HomePage],
 });
 ```
@@ -95,9 +93,7 @@ The rules are:
 
 - `i18n` present: routes are localized and `<html lang>` follows the resolved
   route locale
-- no `i18n`, `documentLanguage` present: routes stay unlocalized and
-  `<html lang>` uses that value
-- neither present: Mainz does not invent a document language
+- no `i18n`: routes stay unlocalized and Mainz does not invent a route locale
 
 ## Root-only apps
 
@@ -152,7 +148,7 @@ They represent different responsibilities.
 
 - what pages or root belong to this app?
 - what default navigation intent belongs to this routed app?
-- does this routed app own locale routing or a fixed document language?
+- does this routed app own locale routing?
 - which services belong to this app composition?
 - what stable app `id` should tooling use?
 

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { waitFor } from "../../../../src/testing/async-testing.ts";
+import { waitFor } from "mainz/testing";
 import { scenarioTest } from "../../scenario-harness.ts";
 
 export const singleLocaleQuickstartCase = scenarioTest({

@@ -223,26 +223,6 @@ export async function emitRouteArtifacts(
   return outputEntries.length > 0;
 }
 
-export async function emitCsrSpaAppShellMetadata(args: {
-  runtime?: MainzToolingRuntime;
-  outputDir: string;
-  cwd: string;
-  documentLanguage?: string;
-}): Promise<void> {
-  const normalizedDocumentLanguage = args.documentLanguage?.trim();
-  if (!normalizedDocumentLanguage) {
-    return;
-  }
-
-  const indexHtmlPath = resolve(args.cwd, args.outputDir, "index.html");
-  const runtime = args.runtime ?? denoToolingRuntime;
-  const html = await runtime.readTextFile(indexHtmlPath);
-  await runtime.writeTextFile(
-    indexHtmlPath,
-    setHtmlLang(html, normalizedDocumentLanguage),
-  );
-}
-
 async function resolveStaticRouteBuildContext(
   config: NormalizedMainzConfig,
   job: ArtifactBuildJob,
@@ -515,7 +495,7 @@ export async function renderSsgAppHtml(args: {
   html: string;
   absoluteOutputPath: string;
   outputDir: string;
-  locale: string;
+  locale?: string;
   basePath: string;
   renderPath: string;
   loadModule?: (specifier: string) => Promise<unknown>;
@@ -572,10 +552,12 @@ function isRootFallbackOutput(
 export function formatSsgPrerenderError(args: {
   routePath: string;
   renderPath: string;
-  locale: string;
+  locale?: string;
   error: unknown;
 }): string {
-  return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}" (locale "${args.locale}"): ${
+  return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}"${
+    args.locale ? ` (locale "${args.locale}")` : ""
+  }: ${
     formatSsgPrerenderCause(args.error)
   }`;
 }
@@ -583,10 +565,12 @@ export function formatSsgPrerenderError(args: {
 export function formatSsgPrerenderWarning(args: {
   routePath: string;
   renderPath: string;
-  locale: string;
+  locale?: string;
   warning: string;
 }): string {
-  return `SSG prerender warning for route "${args.routePath}" and output "${args.renderPath}" (locale "${args.locale}"): ${args.warning}`;
+  return `SSG prerender warning for route "${args.routePath}" and output "${args.renderPath}"${
+    args.locale ? ` (locale "${args.locale}")` : ""
+  }: ${args.warning}`;
 }
 
 function formatSsgPrerenderCause(error: unknown): string {
@@ -659,10 +643,10 @@ function buildDefaultLocaleRedirectHtml(
     : targetPath;
   const supportedLocaleSegmentsJson = JSON.stringify(supportedLocaleSegments);
   const fallbackPathJson = JSON.stringify(targetPath);
-  const redirectDocumentLanguage = defaultLocale?.trim() ||
+  const redirectLang = defaultLocale?.trim() ||
     rootRoute.locales[0]?.trim() || "";
-  const htmlOpenTag = redirectDocumentLanguage
-    ? `<html lang="${escapeHtmlAttribute(redirectDocumentLanguage)}">`
+  const htmlOpenTag = redirectLang
+    ? `<html lang="${escapeHtmlAttribute(redirectLang)}">`
     : "<html>";
 
   return [

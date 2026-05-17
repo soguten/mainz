@@ -85,7 +85,7 @@ export async function resolveRoutePrerenderContext(
 }
 
 export function resolveTargetI18nConfig(
-  appDefinition?: Pick<RoutedAppDefinition, "documentLanguage" | "i18n">,
+  appDefinition?: Pick<RoutedAppDefinition, "i18n">,
 ): {
   defaultLocale?: string;
   localePrefix?: "except-default" | "always";
@@ -97,15 +97,6 @@ export function resolveTargetI18nConfig(
       defaultLocale: appI18n.defaultLocale,
       localePrefix: appI18n.localePrefix,
       fallbackLocale: appI18n.defaultLocale,
-    };
-  }
-
-  const documentLanguage = appDefinition?.documentLanguage?.trim();
-  if (documentLanguage) {
-    return {
-      defaultLocale: documentLanguage,
-      localePrefix: "except-default",
-      fallbackLocale: documentLanguage,
     };
   }
 
@@ -182,7 +173,8 @@ async function resolveSsgRouteEntriesByRouteId(
     }
 
     const resolvedEntries: ResolvedSsgRouteEntry[] = [];
-    for (const locale of route.locales) {
+    const routeLocales = route.locales.length > 0 ? route.locales : [undefined];
+    for (const locale of routeLocales) {
       const localizedEntries = await withServiceContainer(
         buildServiceContainer,
         () =>

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { nextTick } from "../../../../src/testing/async-testing.ts";
+import { nextTick } from "mainz/testing";
 import { scenarioTest } from "../../scenario-harness.ts";
 
 export const generatedTagStabilityCase = scenarioTest({

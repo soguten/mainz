@@ -45,7 +45,7 @@ Deno.test("build/route-manifest-input: should preserve discovered page modes", (
   );
 });
 
-Deno.test("build/route-manifest-input: should treat documentLanguage as a single app locale when app i18n is absent", () => {
+Deno.test("build/route-manifest-input: should leave app locale inputs undefined when app i18n is absent", () => {
   const config = normalizeMainzConfig({
     targets: [
       {
@@ -60,13 +60,12 @@ Deno.test("build/route-manifest-input: should treat documentLanguage as a single
     target: config.targets[0],
     appDefinition: {
       id: "docs-app",
-      documentLanguage: "pt-BR",
       pages: [],
     },
   });
 
-  assertEquals(manifestInput.appLocales, ["pt-BR"]);
-  assertEquals(manifestInput.appLocaleSource, "documentLanguage");
+  assertEquals(manifestInput.appLocales, undefined);
+  assertEquals(manifestInput.appLocaleSource, undefined);
 });
 
 Deno.test("build/route-manifest-input: should mark app locales sourced from app i18n", () => {

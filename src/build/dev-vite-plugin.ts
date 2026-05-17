@@ -277,7 +277,7 @@ export function createMainzDevRouteMiddlewarePlugin(
         renderMode: args.renderMode,
         requestPath: args.requestUrl.pathname,
         routePath: args.route.path,
-        locale: args.locale ?? args.route.locales[0] ?? "en",
+        locale: args.locale ?? args.route.locales[0],
         statusCode: args.statusCode,
         cacheHit,
         durationMs: Date.now() - startedAt,
@@ -296,14 +296,16 @@ function formatDevSsgDebugMessage(args: {
   renderMode: "ssg" | "ssr";
   requestPath: string;
   routePath: string;
-  locale: string;
+  locale?: string;
   statusCode: number;
   cacheHit: boolean;
   durationMs: number;
 }): string {
   return `[mainz][dev:${args.renderMode}] ${
     args.cacheHit ? "cache-hit" : "rendered"
-  } ${args.requestPath} -> ${args.routePath} (${args.locale}, ${args.statusCode}) in ${args.durationMs}ms`;
+  } ${args.requestPath} -> ${args.routePath}${
+    args.locale ? ` (${args.locale}, ${args.statusCode})` : ` (${args.statusCode})`
+  } in ${args.durationMs}ms`;
 }
 
 function isHtmlDocumentRequest(req: IncomingMessage, requestUrl: URL): boolean {

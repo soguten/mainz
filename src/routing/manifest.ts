@@ -48,7 +48,7 @@ interface ExpandedRouteLocale {
   mode: RenderMode;
   fallback?: "404" | "csr";
   notFound?: boolean;
-  locale: string;
+  locale?: string;
   head?: PageHeadDefinition;
   authorization?: PageAuthorizationMetadata;
 }
@@ -131,7 +131,8 @@ export function buildSsgOutputEntries(
       continue;
     }
 
-    for (const locale of route.locales) {
+    const routeLocales = route.locales.length > 0 ? route.locales : [undefined];
+    for (const locale of routeLocales) {
       const localePathSegment = toLocalePathSegment(locale);
       const shouldPrefixLocale = shouldPrefixLocaleForRouteLocale({
         locales: route.locales,
@@ -164,7 +165,7 @@ export function buildSsgOutputEntries(
         outputEntries.push({
           target: manifest.target,
           routeId: route.id,
-          locale,
+          ...(locale ? { locale } : {}),
           outputHtmlPath,
           renderPath,
           ...(Object.keys(localizedEntry.params).length > 0
@@ -194,7 +195,7 @@ export function buildSsgOutputEntries(
     outputEntries.push({
       target: manifest.target,
       routeId: notFoundRoute.id,
-      locale,
+      ...(locale ? { locale } : {}),
       outputHtmlPath: `${trimTrailingSlash(normalizePath(outDir))}/404.html`,
       renderPath: buildLocalizedRoutePath({
         routePath: normalizedPath,
@@ -208,8 +209,8 @@ export function buildSsgOutputEntries(
   return outputEntries;
 }
 
-export function toLocalePathSegment(locale: string): string {
-  return toLocalePathSegmentFromI18n(locale);
+export function toLocalePathSegment(locale: string | undefined): string {
+  return locale ? toLocalePathSegmentFromI18n(locale) : "";
 }
 
 export function isDynamicRoutePath(path: string): boolean {
@@ -330,11 +331,11 @@ export function shouldPrefixLocaleForRoute(
 
 function shouldPrefixLocaleForRouteLocale(args: {
   locales: readonly string[];
-  locale: string;
+  locale: string | undefined;
   defaultLocale?: string;
   localePrefix?: I18nConfig["localePrefix"];
 }): boolean {
-  if (args.locales.length === 0) {
+  if (args.locales.length === 0 || !args.locale) {
     return false;
   }
 
@@ -497,6 +498,39 @@ function upsertByLocale(
   candidate: CandidateRoute,
   targetName: string,
 ): void {
+  if (candidate.locales.length === 0) {
+    const key = `${candidate.routeKey}::__no_locale__`;
+    const existing = destination.get(key);
+    if (!existing) {
+      destination.set(key, {
+        idHint: candidate.idHint,
+        source: candidate.source,
+        file: candidate.file,
+        exportName: candidate.exportName,
+        path: candidate.path,
+        pattern: candidate.pattern,
+        routeKey: candidate.routeKey,
+        mode: candidate.mode,
+        fallback: candidate.mode === "ssg" ? candidate.fallback : undefined,
+        notFound: candidate.notFound === true ? true : undefined,
+        head: candidate.head,
+        authorization: candidate.authorization
+          ? cloneAuthorization(candidate.authorization)
+          : undefined,
+      });
+      return;
+    }
+
+    throw new Error(
+      [
+        `Target "${targetName}" has conflicting routes for pattern "${candidate.routeKey}" without locale routing capability.`,
+        `Existing source: ${describeRouteSource(existing)}`,
+        `New source: ${describeRouteSource(candidate)}`,
+        `Suggestion: rename one page or change its path metadata.`,
+      ].join(" "),
+    );
+  }
+
   for (const locale of candidate.locales) {
     const localeKey = normalizeLocaleTag(locale).toLowerCase();
     const key = `${candidate.routeKey}::${localeKey}`;
@@ -563,7 +597,7 @@ function aggregateRoutes(
         mode: route.mode,
         fallback: route.mode === "ssg" ? route.fallback : undefined,
         notFound: route.notFound === true ? true : undefined,
-        locales: [route.locale],
+        locales: route.locale ? [route.locale] : [],
         head: route.head ? cloneHead(route.head) : undefined,
         authorization: route.authorization
           ? cloneAuthorization(route.authorization)
@@ -572,7 +606,7 @@ function aggregateRoutes(
       continue;
     }
 
-    if (!existing.locales.includes(route.locale)) {
+    if (route.locale && !existing.locales.includes(route.locale)) {
       existing.locales.push(route.locale);
     }
   }
@@ -638,7 +672,7 @@ function assignStableRouteIds(
 function resolveRouteLocales(args: {
   routeLocales?: readonly string[];
   appLocales?: readonly string[];
-  appLocaleSource?: "i18n" | "documentLanguage";
+  appLocaleSource?: "i18n";
   targetName: string;
   routeLabel: string;
 }): string[] {
@@ -649,23 +683,19 @@ function resolveRouteLocales(args: {
 
   const effectiveLocales = args.appLocales?.length ? [...args.appLocales] : [];
 
-  if (effectiveLocales.length === 0) {
-    throw new Error(
-      `Target "${args.targetName}" route "${args.routeLabel}" has no resolved app locales.`,
-    );
-  }
-
-  return dedupeLocales(effectiveLocales.map(normalizeLocaleTag));
+  return effectiveLocales.length === 0
+    ? []
+    : dedupeLocales(effectiveLocales.map(normalizeLocaleTag));
 }
 
 function validatePageLocalesAgainstAppLocales(args: {
   routeLocales?: readonly string[];
   appLocales?: readonly string[];
-  appLocaleSource?: "i18n" | "documentLanguage";
+  appLocaleSource?: "i18n";
   targetName: string;
   routeLabel: string;
 }): void {
-  if (args.appLocaleSource === "documentLanguage" || !args.appLocales?.length) {
+  if (args.appLocaleSource !== "i18n" || !args.appLocales?.length) {
     throw new Error(
       `Target "${args.targetName}" route "${args.routeLabel}" declares @Locales(...) but its app does not define i18n.`,
     );
@@ -880,7 +910,11 @@ function buildLocalizedRoutePath(args: {
 function resolveNotFoundOutputLocale(
   locales: readonly string[],
   defaultLocale: string | undefined,
-): string {
+): string | undefined {
+  if (locales.length === 0) {
+    return undefined;
+  }
+
   const normalizedDefaultLocale = defaultLocale
     ? normalizeLocaleTag(defaultLocale)
     : undefined;

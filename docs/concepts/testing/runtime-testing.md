@@ -375,7 +375,7 @@ Prefer tests that assert user-visible runtime effects:
 - current pathname
 - mounted page
 - document title
-- document language
+- `html lang` when locale routing is active
 - canonical and alternate links
 - transition metadata on `document.documentElement`
 

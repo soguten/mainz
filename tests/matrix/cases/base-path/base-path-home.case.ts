@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { assert, assertEquals } from "@std/assert";
-import { nextTick } from "../../../../src/testing/async-testing.ts";
+import { nextTick } from "mainz/testing";
 import {
   assertDocumentState,
   assertSeoState,

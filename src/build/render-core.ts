@@ -17,7 +17,7 @@ export async function renderRouteAppHtml(args: {
   html: string;
   absoluteOutputPath: string;
   outputDir: string;
-  locale: string;
+  locale?: string;
   basePath: string;
   renderPath: string;
   loadModule?: (specifier: string) => Promise<unknown>;
@@ -99,17 +99,19 @@ export async function renderRouteAppHtml(args: {
     const navigatorLike = window.navigator as object;
 
     try {
-      Object.defineProperty(navigatorLike, "language", {
-        configurable: true,
-        value: args.locale,
-        writable: true,
-      });
+      if (args.locale) {
+        Object.defineProperty(navigatorLike, "language", {
+          configurable: true,
+          value: args.locale,
+          writable: true,
+        });
 
-      Object.defineProperty(navigatorLike, "languages", {
-        configurable: true,
-        value: [args.locale],
-        writable: true,
-      });
+        Object.defineProperty(navigatorLike, "languages", {
+          configurable: true,
+          value: [args.locale],
+          writable: true,
+        });
+      }
 
       Object.defineProperty(globalThis, "navigator", {
         configurable: true,

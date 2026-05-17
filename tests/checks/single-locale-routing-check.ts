@@ -4,7 +4,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
-import { waitFor } from "../../src/testing/async-testing.ts";
+import { waitFor } from "mainz/testing";
 import { buildSingleLocaleRoutedAppForNavigation } from "../helpers/build.ts";
 import {
   describeBuiltOutput,

@@ -11,7 +11,7 @@ import {
   type ScenarioApp,
   scenarioTest,
 } from "../../scenario-harness.ts";
-import { nextTick, waitFor } from "../../../../src/testing/async-testing.ts";
+import { nextTick, waitFor } from "mainz/testing";
 import {
   waitForNextNavigationReady,
   waitForNextNavigationStart,

@@ -498,7 +498,7 @@ function resolvePageHeadContext(
     path: fallbackUrl.pathname,
     matchedPath: fallbackUrl.pathname,
     params: {},
-    locale: document.documentElement.lang || undefined,
+    locale: undefined,
     url: fallbackUrl,
     renderMode: "csr",
     navigationMode: "spa",

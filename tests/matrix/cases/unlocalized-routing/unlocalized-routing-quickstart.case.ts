@@ -1,11 +1,11 @@
 /// <reference lib="deno.ns" />
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { waitFor } from "../../../../src/testing/async-testing.ts";
+import { waitFor } from "mainz/testing";
 import { scenarioTest } from "../../scenario-harness.ts";
 
-export const documentLanguageQuickstartCase = scenarioTest({
-  name: "documentLanguage child routes stay unprefixed and set html lang",
+export const unlocalizedRoutingQuickstartCase = scenarioTest({
+  name: "child routes stay unprefixed when locale routing is absent",
   run: async ({ navigation, app }) => {
     const response = await app.route("/quickstart").load();
     if (typeof response.status === "number") {
@@ -16,19 +16,19 @@ export const documentLanguageQuickstartCase = scenarioTest({
 
     try {
       await waitFor(() =>
-        document.documentElement.lang === "pt-BR" &&
-        (document.body.textContent ?? "").includes("Document language")
+        document.documentElement.lang === "" &&
+        (document.body.textContent ?? "").includes("Unlocalized routing")
       );
 
       assertEquals(window.location.pathname, "/quickstart");
-      assertEquals(document.documentElement.lang, "pt-BR");
+      assertEquals(document.documentElement.lang, "");
       assertEquals(
         document.documentElement.dataset.mainzNavigation,
         navigation,
       );
       assertStringIncludes(
         document.body.textContent ?? "",
-        "The app declares document language without route i18n.",
+        "The app omits i18n and keeps locale routing inactive.",
       );
 
       assertLinkHref("Overview", "/");

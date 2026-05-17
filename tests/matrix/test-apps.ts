@@ -2,7 +2,6 @@
 
 import {
   buildBasePathAppForNavigation,
-  buildDocumentLanguageRoutedAppForNavigation,
   buildGeneratedTagStabilityAppForNavigation,
   buildHeadSeoAppForNavigation,
   buildRootAppForNavigation,
@@ -11,6 +10,7 @@ import {
   buildRoutedDiClientAppForNavigation,
   buildRoutedDiEntriesAppForNavigation,
   buildSingleLocaleRoutedAppForNavigation,
+  buildUnlocalizedRoutedAppForNavigation,
 } from "../helpers/build.ts";
 import type {
   TestNavigationMode,
@@ -34,7 +34,7 @@ export type TestAppId =
   | "RoutedDIClientApp"
   | "RoutedAuthorizationApp"
   | "SingleLocaleRoutedApp"
-  | "DocumentLanguageRoutedApp"
+  | "UnlocalizedRoutedApp"
   | "BasePathApp"
   | "HeadSeoApp"
   | "GeneratedTagStabilityApp";
@@ -108,9 +108,9 @@ export const testApps: Record<TestAppId, TestAppDefinition> = {
     id: "SingleLocaleRoutedApp",
     buildNavigation: buildSingleLocaleRoutedAppForNavigation,
   }),
-  "DocumentLanguageRoutedApp": defineNavigationScenarioTestApp({
-    id: "DocumentLanguageRoutedApp",
-    buildNavigation: buildDocumentLanguageRoutedAppForNavigation,
+  "UnlocalizedRoutedApp": defineNavigationScenarioTestApp({
+    id: "UnlocalizedRoutedApp",
+    buildNavigation: buildUnlocalizedRoutedAppForNavigation,
   }),
   "BasePathApp": defineNavigationScenarioTestApp({
     id: "BasePathApp",

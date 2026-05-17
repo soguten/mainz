@@ -4,7 +4,7 @@ import { Window } from "happy-dom";
 import {
   createTestScreen,
   type TestScreen,
-} from "../../src/testing/test-screen.ts";
+} from "mainz/testing";
 import { disposeHappyDomWindow } from "../../src/ssg/happy-dom.ts";
 import {
   describeBuiltOutput,

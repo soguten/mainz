@@ -1225,7 +1225,7 @@ Deno.test("navigation/runtime: startApp should prefer app-owned i18n locales ove
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: startApp should apply documentLanguage for non-localized apps", async () => {
+Deno.test("navigation/runtime: startApp should keep locale undefined for routed apps without i18n", async () => {
   const { defineApp, startApp } = await prepareNavigationTest();
   const { SpaHomePage, SpaNotFoundPage } = await loadSpaFixtures();
 
@@ -1233,14 +1233,12 @@ Deno.test("navigation/runtime: startApp should apply documentLanguage for non-lo
   (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/";
   delete (globalThis as Record<string, unknown>).__MAINZ_APP_LOCALES__;
 
-  document.documentElement.lang = "";
   document.body.innerHTML =
     `<main id="app"><${SpaHomePage.getTagName()}></${SpaHomePage.getTagName()}></main>`;
   window.history.replaceState(null, "", "/");
 
   const app = defineApp({
-    id: "navigation-runtime-document-language-test",
-    documentLanguage: "pt-BR",
+    id: "navigation-runtime-locale-absent-test",
     pages: [SpaHomePage],
     notFound: SpaNotFoundPage,
   });
@@ -1248,13 +1246,12 @@ Deno.test("navigation/runtime: startApp should apply documentLanguage for non-lo
 
   await waitForNavigationReady({
     mode: "mpa",
-    locale: "pt-BR",
     navigationType: "initial",
     message:
-      "Expected documentLanguage to set the document lang for non-localized apps.",
+      "Expected routed apps without i18n to start without an active locale.",
   });
 
-  assertEquals(document.documentElement.lang, "pt-BR");
+  assertEquals(document.documentElement.lang, "");
 
   controller.cleanup();
 });

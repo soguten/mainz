@@ -10,7 +10,6 @@ import {
 import {
   applyRouteHead,
   buildSsrRuntimeManifest,
-  emitCsrSpaAppShellMetadata,
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
   injectAppHtml,
@@ -447,28 +446,6 @@ Deno.test("build/artifacts: sets lang for rendered locale", () => {
   assertStringIncludes(output, '<html lang="pt">');
 });
 
-Deno.test("build/artifacts: sets document language on CSR SPA app shell", async () => {
-  const tempDir = await Deno.makeTempDir();
-
-  try {
-    await Deno.writeTextFile(
-      `${tempDir}/index.html`,
-      "<html><head></head><body></body></html>",
-    );
-
-    await emitCsrSpaAppShellMetadata({
-      cwd: tempDir,
-      outputDir: ".",
-      documentLanguage: "pt-BR",
-    });
-
-    const output = await Deno.readTextFile(`${tempDir}/index.html`);
-    assertStringIncludes(output, '<html lang="pt-BR">');
-  } finally {
-    await Deno.remove(tempDir, { recursive: true });
-  }
-});
-
 Deno.test("build/artifacts: locale redirect should use navigator preferred locale when supported", () => {
   const output = resolveLocaleRedirectPath({
     supportedLocales: ["en", "pt"],
@@ -652,16 +629,10 @@ Deno.test("build/artifacts: should resolve build i18n from app-owned i18n", () =
   });
 });
 
-Deno.test("build/artifacts: should resolve build language from documentLanguage when app i18n is absent", () => {
-  const targetI18n = resolveTargetI18nConfig({
-    documentLanguage: "pt-BR",
-  });
+Deno.test("build/artifacts: should resolve no build i18n when app i18n is absent", () => {
+  const targetI18n = resolveTargetI18nConfig({});
 
-  assertEquals(targetI18n, {
-    defaultLocale: "pt-BR",
-    localePrefix: "except-default",
-    fallbackLocale: "pt-BR",
-  });
+  assertEquals(targetI18n, undefined);
 });
 
 async function writePrerenderFixtureApp(

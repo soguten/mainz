@@ -65,14 +65,14 @@ export interface TargetRouteManifest {
 export interface BuildTargetRouteManifestInput {
   target: TargetDefinition;
   appLocales?: readonly string[];
-  appLocaleSource?: "i18n" | "documentLanguage";
+  appLocaleSource?: "i18n";
   discoveredPages?: readonly DiscoveredPageDefinition[];
 }
 
 export interface SsgOutputEntry {
   target: string;
   routeId: string;
-  locale: string;
+  locale?: string;
   outputHtmlPath: string;
   renderPath: string;
   params?: PageEntryDefinition["params"];
@@ -80,5 +80,5 @@ export interface SsgOutputEntry {
 }
 
 export interface ResolvedSsgRouteEntry extends PageEntryDefinition {
-  locale: string;
+  locale?: string;
 }

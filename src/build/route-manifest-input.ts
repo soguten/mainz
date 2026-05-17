@@ -12,15 +12,8 @@ interface ResolveRouteManifestBuildInputOptions {
 export function resolveRouteManifestBuildInput(
   options: ResolveRouteManifestBuildInputOptions,
 ): BuildTargetRouteManifestInput {
-  const appLocales = options.appDefinition?.i18n?.locales ??
-    (options.appDefinition?.documentLanguage
-      ? [options.appDefinition.documentLanguage]
-      : undefined);
-  const appLocaleSource = options.appDefinition?.i18n
-    ? "i18n"
-    : options.appDefinition?.documentLanguage
-    ? "documentLanguage"
-    : undefined;
+  const appLocales = options.appDefinition?.i18n?.locales;
+  const appLocaleSource = options.appDefinition?.i18n ? "i18n" : undefined;
 
   return {
     target: options.target,

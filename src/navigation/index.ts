@@ -197,7 +197,6 @@ export interface InternalStartNavigationOptions {
   commands?: readonly MainzCommand<never>[];
   mode: NavigationMode;
   basePath?: string;
-  documentLanguage?: string;
   mount?: string | Element;
   pages?:
     readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
@@ -246,8 +245,6 @@ export interface RoutedAppDefinition {
   navigation?: NavigationMode;
   /** Internationalization settings for routed pages. */
   i18n?: RoutedAppI18nDefinition;
-  /** Language assigned to the root HTML document while the app is active. */
-  documentLanguage?: string;
   /** Page entries available to the routed application. */
   pages:
     readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
@@ -336,7 +333,6 @@ interface SpaRouteMatch {
 interface ResolvedPageNavigationOptions {
   appId?: string;
   commands?: readonly MainzCommand<never>[];
-  documentLanguage?: string;
   pages:
     readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
   notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
@@ -588,7 +584,6 @@ export function startApp(
     basePath: resolveMainzBasePath(),
     appId: appOrRoot.id,
     commands: appOrRoot.commands,
-    documentLanguage: appOrRoot.documentLanguage,
     mount: options?.mount,
     pages: appOrRoot.pages,
     notFound: appOrRoot.notFound,
@@ -753,7 +748,6 @@ function isRoutedPageEntry(value: unknown): boolean {
 function validateRoutedAppDefinition(app: RoutedAppDefinition): void {
   validateRoutedAppAuthorizationDefinition(app);
   validateRoutedAppI18nDefinition(app);
-  validateDocumentLanguage(app);
   validateImmediatePageLocaleRestrictions(app);
 }
 
@@ -834,31 +828,6 @@ function validateRoutedAppI18nDefinition(app: RoutedAppDefinition): void {
   ) {
     throw new Error(
       `App "${app.id}" i18n.localePrefix must be "always" or "except-default".`,
-    );
-  }
-}
-
-function validateDocumentLanguage(app: RoutedAppDefinition): void {
-  if (app.documentLanguage === undefined) {
-    return;
-  }
-
-  if (
-    typeof app.documentLanguage !== "string" ||
-    app.documentLanguage.trim().length === 0
-  ) {
-    throw new Error(
-      `App "${app.id}" documentLanguage must be a string locale tag.`,
-    );
-  }
-
-  try {
-    normalizeLocaleTag(app.documentLanguage);
-  } catch (error) {
-    throw new Error(
-      `App "${app.id}" documentLanguage is not a valid locale tag: ${
-        toErrorMessage(error)
-      }`,
     );
   }
 }
@@ -960,9 +929,6 @@ export function __internalStartNavigation(
     pageOptions.appId = options.appId;
     pageOptions.commands = options.commands;
     pageOptions.serviceContainer = createServiceContainer(pageOptions.services);
-    if (!pageOptions.locales?.length) {
-      applyDocumentLanguage(pageOptions.documentLanguage);
-    }
     assertRegisteredNavigationPolicies(pageOptions);
   }
 
@@ -1343,7 +1309,7 @@ function startSpaNavigation(
         navigationType: "initial",
         path: window.location.pathname,
         matchedPath: window.location.pathname,
-        locale: document.documentElement.lang || undefined,
+        locale: undefined,
         url: new URL(window.location.href),
         basePath: normalizedBasePath,
         reason: "cleanup",
@@ -2737,10 +2703,7 @@ function resolveNavigationLocale(
   locales?: readonly string[],
 ): string | undefined {
   if (!locales?.length) {
-    const documentLocale = typeof document === "undefined"
-      ? ""
-      : document.documentElement.lang.trim();
-    return documentLocale || undefined;
+    return undefined;
   }
 
   const appPath = toAppRelativePath(url, basePath) ?? "/";
@@ -2840,7 +2803,6 @@ function resolvePageNavigationOptions(
   const legacySpaOptions = options.spa;
   const pages = options.pages ?? legacySpaOptions?.pages;
   const notFound = options.notFound ?? legacySpaOptions?.notFound;
-  const documentLanguage = options.documentLanguage;
   const mount = options.mount ?? legacySpaOptions?.mount;
   const auth = options.auth ?? legacySpaOptions?.auth;
   const services = options.services ?? legacySpaOptions?.services;
@@ -2860,7 +2822,6 @@ function resolvePageNavigationOptions(
   return {
     pages: pages ?? [],
     notFound,
-    documentLanguage,
     mount,
     auth,
     services,
@@ -2869,15 +2830,6 @@ function resolvePageNavigationOptions(
     onLocaleChange,
     onRoute,
   };
-}
-
-function applyDocumentLanguage(documentLanguage: string | undefined): void {
-  const normalizedLanguage = documentLanguage?.trim();
-  if (!normalizedLanguage || typeof document === "undefined") {
-    return;
-  }
-
-  document.documentElement.lang = normalizedLanguage;
 }
 
 function assertRegisteredNavigationPolicies(

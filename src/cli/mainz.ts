@@ -2073,14 +2073,14 @@ async function runViteMaterializeCommand(
     runtime,
   );
   const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const appLocales = appDefinition?.i18n?.locales ?? [];
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: runtime.cwd(),
     target,
     outputDir: resolvePublicationBrowserOutDir(target.outDir),
     navigationMode,
     basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
-    appLocales: appDefinition?.i18n?.locales ??
-      (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []),
+    appLocales,
     defaultLocale: targetI18n?.defaultLocale,
     localePrefix: targetI18n?.localePrefix ?? "except-default",
     siteUrl: profile.siteUrl,
@@ -4981,7 +4981,7 @@ function resolveContainerLocalizedNotFoundPrefixes(
       NonNullable<
         Awaited<ReturnType<typeof loadTargetBuildRoutedAppDefinition>>
       >,
-      "documentLanguage" | "i18n"
+      "i18n"
     >
     | undefined,
   args: {
@@ -4993,8 +4993,7 @@ function resolveContainerLocalizedNotFoundPrefixes(
     return [];
   }
 
-  const locales = appDefinition?.i18n?.locales ??
-    (appDefinition?.documentLanguage ? [appDefinition.documentLanguage] : []);
+  const locales = appDefinition?.i18n?.locales ?? [];
   if (args.localePrefix === "always") {
     return [...locales];
   }

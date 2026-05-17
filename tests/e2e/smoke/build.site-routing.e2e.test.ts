@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createArtifactPreviewHandler } from "../../../src/preview/artifact-server.ts";
 import { withHappyDom } from "../../../src/ssg/happy-dom.ts";
-import { nextTick } from "../../../src/testing/async-testing.ts";
+import { nextTick } from "mainz/testing";
 import { buildTargetWithEngine } from "../../helpers/build.ts";
 import {
   extractModuleScriptSrc,

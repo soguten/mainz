@@ -28,7 +28,7 @@ export interface SsrArtifactResponseHeaderContext {
   requestUrl: URL;
   route: RouteManifestEntry;
   params: Record<string, string>;
-  locale: string;
+  locale?: string;
   status: number;
   cacheKey: string;
 }
@@ -122,7 +122,7 @@ async function renderSsrArtifactResponse(args: {
   const indexHtmlPath = resolve(args.browserRootDir, "index.html");
   const templateHtml = await args.runtime.readTextFile(indexHtmlPath);
   const locale = args.locale ?? args.route.locales[0] ??
-    args.manifest.i18n?.defaultLocale ?? "en";
+    args.manifest.i18n?.defaultLocale;
   const loadServerEntryModule = createArtifactServerEntryLoader(
     resolve(args.rootDir, args.manifest.serverEntryPath),
   );
@@ -154,7 +154,9 @@ async function renderSsrArtifactResponse(args: {
     locale,
     routeHead,
     snapshotErrorMessage: (error) =>
-      `SSR artifact snapshot for "${args.requestUrl.pathname}" (route "${args.route.path}", locale "${locale}") contains non-public or non-serializable data: ${
+      `SSR artifact snapshot for "${args.requestUrl.pathname}" (route "${args.route.path}")${
+        locale ? ` (locale "${locale}")` : ""
+      } contains non-public or non-serializable data: ${
         toErrorMessage(error)
       }`,
   });

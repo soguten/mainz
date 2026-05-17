@@ -10,7 +10,7 @@ import {
   type BuiltArtifact,
 } from "./artifacts.ts";
 import type { ResolvedTestApp } from "./render-test-app.ts";
-import type { TestScreen } from "../../src/testing/test-screen.ts";
+import type { TestScreen } from "mainz/testing";
 
 export type ScenarioNavigation = TestNavigationMode;
 export type ScenarioAppId = TestAppId;

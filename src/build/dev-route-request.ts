@@ -24,7 +24,7 @@ export function resolveDevRouteRequest(args: {
   manifest: TargetRouteManifest;
   routeEntriesByRouteId?: ReadonlyMap<
     string,
-    readonly { locale: string; params: Record<string, string> }[]
+    readonly { locale?: string; params: Record<string, string> }[]
   >;
   defaultLocale?: string;
   localePrefix?: "except-default" | "always";

@@ -79,31 +79,6 @@ Deno.test("routing/manifest: should reject @Locales(...) when app i18n is absent
   );
 });
 
-Deno.test("routing/manifest: should reject @Locales(...) when app only declares documentLanguage", () => {
-  assertThrows(
-    () =>
-      buildTargetRouteManifest({
-        target: {
-          name: "site",
-          rootDir: "./site",
-        },
-        appLocales: ["pt-BR"],
-        appLocaleSource: "documentLanguage",
-        discoveredPages: [
-          {
-            file: "./site/pages/localized.page.tsx",
-            exportName: "LocalizedPage",
-            path: "/localized",
-            mode: "ssg",
-            locales: ["pt-BR"],
-          },
-        ],
-      }),
-    Error,
-    "declares @Locales(...) but its app does not define i18n",
-  );
-});
-
 Deno.test("routing/manifest: should reject @Locales(...) outside app i18n locales", () => {
   assertThrows(
     () =>
@@ -136,6 +111,7 @@ Deno.test("routing/manifest: should prefer app locales for pages without @Locale
       rootDir: "./site",
     },
     appLocales: ["en", "pt-BR"],
+    appLocaleSource: "i18n",
     discoveredPages: [
       {
         file: "./site/pages/from-app.page.tsx",
@@ -147,6 +123,25 @@ Deno.test("routing/manifest: should prefer app locales for pages without @Locale
   });
 
   assertEquals(manifest.routes[0]?.locales, ["en", "pt-BR"]);
+});
+
+Deno.test("routing/manifest: should represent locale-absent routed apps with empty route locales", () => {
+  const manifest = buildTargetRouteManifest({
+    target: {
+      name: "site",
+      rootDir: "./site",
+    },
+    discoveredPages: [
+      {
+        file: "./site/pages/from-app.page.tsx",
+        exportName: "FromApp",
+        path: "/from-app",
+        mode: "ssg",
+      },
+    ],
+  });
+
+  assertEquals(manifest.routes[0]?.locales, []);
 });
 
 Deno.test("routing/manifest: should emit no locale prefix when route locale is inferred from a single app locale", () => {
@@ -187,6 +182,7 @@ Deno.test("routing/manifest: should preserve discovered page modes even when fil
       rootDir: "./site",
     },
     appLocales: ["en", "pt-BR"],
+    appLocaleSource: "i18n",
     discoveredPages: [
       {
         file: "./site/pages/live.page.tsx",
@@ -327,6 +323,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
       rootDir: "./site",
     },
     appLocales: ["en", "pt-BR"],
+    appLocaleSource: "i18n",
     discoveredPages: [
       {
         file: "./site/pages/index.page.tsx",
