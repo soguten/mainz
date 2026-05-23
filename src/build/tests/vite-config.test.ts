@@ -38,7 +38,11 @@ Deno.test("build/vite-config: should generate framework aliases from public Main
   const frameworkAliases = generated.aliases.filter((alias) => alias.framework);
   assertEquals(
     [...frameworkAliases].map((alias) => alias.find).sort(),
-    MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => entrypoint.specifier).sort(),
+    [
+      ...MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => entrypoint.specifier),
+      "react/jsx-runtime",
+      "react/jsx-dev-runtime",
+    ].sort(),
   );
   assertEquals(frameworkAliases.at(-1)?.find, "mainz");
 });
@@ -152,12 +156,14 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
 
   const generated = resolveGeneratedViteConfig({
     cwd,
+    runtimeName: "deno",
     target: config.targets[0],
     outputDir: "dist/site",
     navigationMode: "spa",
     basePath: "/",
     appLocales: [],
     localePrefix: "except-default",
+    cacheDir: ".mainz_temp/vite-cache/site",
   });
   const moduleSource = renderGeneratedViteConfigModule(generated);
 
@@ -186,11 +192,26 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
   );
   assertStringIncludes(
     moduleSource,
+    `{ find: "react/jsx-dev-runtime", replacement:`,
+  );
+  assertStringIncludes(
+    moduleSource,
     `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`,
   );
+  assertStringIncludes(moduleSource, `jsxImportSource: "mainz"`);
+  assertStringIncludes(moduleSource, `esbuild: {`);
+  assertStringIncludes(moduleSource, `keepNames: true`);
   assertStringIncludes(moduleSource, `awaitWriteFinish: {`);
   assertStringIncludes(moduleSource, `stabilityThreshold: 250`);
   assertStringIncludes(moduleSource, `pollInterval: 25`);
+  assertStringIncludes(
+    moduleSource,
+    `cacheDir: ${
+      JSON.stringify(
+        normalizePath(resolve(cwd, ".mainz_temp/vite-cache/site")),
+      )
+    }`,
+  );
   assertEquals(moduleSource.includes(`mainz-typescript-decorators`), false);
 });
 
@@ -210,6 +231,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
 
     const generated = resolveGeneratedViteConfig({
       cwd,
+      runtimeName: "node",
       target: config.targets[0],
       outputDir: "dist/site",
       navigationMode: "spa",

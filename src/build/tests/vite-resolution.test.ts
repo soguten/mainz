@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { assert } from "@std/assert";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { DenoToolingRuntime } from "../../tooling/runtime/index.ts";
@@ -83,6 +83,12 @@ Deno.test("build/vite-resolution: should resolve generated Vite configs into .ma
         "vite.config.ts",
       )
         .replaceAll("\\", "/"),
+    );
+    assertStringIncludes(
+      await Deno.readTextFile(resolved.path),
+      JSON.stringify(
+        resolveMainzTempPath(cwd, "vite-cache", "site").replaceAll("\\", "/"),
+      ),
     );
     await assertRejectsNotFound(resolve(cwd, "site", "vite.config.ts"));
   } finally {

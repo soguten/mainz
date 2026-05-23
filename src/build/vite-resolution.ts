@@ -1,6 +1,7 @@
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { NavigationMode } from "../routing/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
+import { resolveMainzTempPath } from "../tooling/temp-paths.ts";
 import type { BuildJob } from "./jobs.ts";
 import {
   renderGeneratedViteConfigModule,
@@ -47,6 +48,7 @@ export async function resolveViteConfigArtifact(
 
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: args.cwd,
+    runtimeName: args.runtime.name,
     target: args.target,
     outputDir: args.outputDir,
     navigationMode: args.navigationMode,
@@ -58,9 +60,9 @@ export async function resolveViteConfigArtifact(
     devSsgDebug: args.devSsgDebug,
     buildTarget: args.buildTarget,
     serverBundle: args.serverBundle,
-    cacheDir: args.runtime.name === "node"
-      ? join(".mainz_temp", "vite-cache", args.target.name)
-      : undefined,
+    cacheDir: normalizePathSlashes(
+      resolveMainzTempPath(args.cwd, "vite-cache", args.target.name),
+    ),
   });
   const moduleSource = renderGeneratedViteConfigModule(
     generatedConfig,

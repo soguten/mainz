@@ -2076,6 +2076,7 @@ async function runViteMaterializeCommand(
   const appLocales = appDefinition?.i18n?.locales ?? [];
   const generatedConfig = resolveGeneratedViteConfig({
     cwd: runtime.cwd(),
+    runtimeName: runtime.name,
     target,
     outputDir: resolvePublicationBrowserOutDir(target.outDir),
     navigationMode,
@@ -2085,11 +2086,9 @@ async function runViteMaterializeCommand(
     localePrefix: targetI18n?.localePrefix ?? "except-default",
     siteUrl: profile.siteUrl,
     devSsgDebug: false,
-    cacheDir: projectRuntime === "node"
-      ? normalizePathSlashes(
-        resolveMainzTempPath(runtime.cwd(), "vite-cache", target.name),
-      )
-      : undefined,
+    cacheDir: normalizePathSlashes(
+      resolveMainzTempPath(runtime.cwd(), "vite-cache", target.name),
+    ),
   });
 
   const materializedModule = [

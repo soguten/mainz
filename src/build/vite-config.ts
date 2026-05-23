@@ -14,6 +14,7 @@ export interface GeneratedViteAlias {
 
 export interface GeneratedViteConfigInput {
   cwd: string;
+  runtimeName?: ToolingRuntimeName;
   target: NormalizedMainzTarget;
   outputDir: string;
   navigationMode: NavigationMode;
@@ -54,6 +55,7 @@ export function resolveGeneratedViteConfig(
   input: GeneratedViteConfigInput,
 ): GeneratedViteConfig {
   const buildTarget = input.buildTarget ?? "browser";
+  const runtimeName = input.runtimeName ?? "deno";
 
   return {
     root: normalizePathSlashes(resolve(input.cwd, input.target.rootDir)),
@@ -94,7 +96,7 @@ export function resolveGeneratedViteConfig(
       modulePath: resolveMainzBuildModulePath("./dev-vite-plugin.ts"),
       options: {
         cwd: normalizePathSlashes(input.cwd),
-        runtimeName: input.cacheDir ? "node" : "deno",
+        runtimeName,
         target: {
           name: input.target.name,
           rootDir: input.target.rootDir,
@@ -266,12 +268,28 @@ function renderViteConfigModule(
 }
 
 function resolveFrameworkAliases(cwd: string): GeneratedViteAlias[] {
-  return MAINZ_PUBLIC_ENTRYPOINTS
+  const publicAliases = MAINZ_PUBLIC_ENTRYPOINTS
     .map((entrypoint) => ({
       find: entrypoint.specifier,
       replacement: normalizePathSlashes(resolve(cwd, entrypoint.sourcePath)),
       framework: true,
-    }))
+    }));
+  // Vite's dev dependency scan may look for React's automatic JSX runtime names
+  // even though Mainz provides the actual implementation.
+  const compatAliases: GeneratedViteAlias[] = [
+    {
+      find: "react/jsx-runtime",
+      replacement: normalizePathSlashes(resolve(cwd, "src/jsx-runtime.ts")),
+      framework: true,
+    },
+    {
+      find: "react/jsx-dev-runtime",
+      replacement: normalizePathSlashes(resolve(cwd, "src/jsx-dev-runtime.ts")),
+      framework: true,
+    },
+  ];
+
+  return [...publicAliases, ...compatAliases]
     .filter((alias) => existsSync(alias.replacement))
     .sort((a, b) => b.find.length - a.find.length);
 }
