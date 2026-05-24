@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 
-import { dirname, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import { assertStringIncludes } from "@std/assert";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
@@ -440,12 +440,21 @@ Deno.test("cli/mainz: container build should invoke docker image build with the 
 
   try {
     const dockerArgsPath = resolve(dockerSpyDir, "docker-args.txt");
-    await Deno.writeTextFile(
-      resolve(dockerSpyDir, "docker.cmd"),
-      `@echo off\r\necho %*>>"${dockerArgsPath}"\r\nexit /b 0\r\n`,
+    await writeDockerSpy(
+      dockerSpyDir,
+      [
+        "@echo off",
+        `echo %*>>"${dockerArgsPath}"`,
+        "exit /b 0",
+      ].join("\r\n"),
+      [
+        "#!/bin/sh",
+        `printf '%s\n' \"$*\" >> ${JSON.stringify(dockerArgsPath)}`,
+        "exit 0",
+      ].join("\n"),
     );
 
-    const path = `${dockerSpyDir};${Deno.env.get("PATH") ?? ""}`;
+    const path = `${dockerSpyDir}${delimiter}${Deno.env.get("PATH") ?? ""}`;
     const { stdout } = await runMainzCliCommand(
       dirname(testApp.configPath),
       [
@@ -496,12 +505,21 @@ Deno.test("cli/mainz: container run should invoke docker run with Mainz port 300
 
   try {
     const dockerArgsPath = resolve(dockerSpyDir, "docker-args.txt");
-    await Deno.writeTextFile(
-      resolve(dockerSpyDir, "docker.cmd"),
-      `@echo off\r\necho %*>>"${dockerArgsPath}"\r\nexit /b 0\r\n`,
+    await writeDockerSpy(
+      dockerSpyDir,
+      [
+        "@echo off",
+        `echo %*>>"${dockerArgsPath}"`,
+        "exit /b 0",
+      ].join("\r\n"),
+      [
+        "#!/bin/sh",
+        `printf '%s\n' \"$*\" >> ${JSON.stringify(dockerArgsPath)}`,
+        "exit 0",
+      ].join("\n"),
     );
 
-    const path = `${dockerSpyDir};${Deno.env.get("PATH") ?? ""}`;
+    const path = `${dockerSpyDir}${delimiter}${Deno.env.get("PATH") ?? ""}`;
     const { stdout } = await runMainzCliCommand(
       dirname(testApp.configPath),
       [
@@ -549,12 +567,21 @@ Deno.test("cli/mainz: container run should use the next available port when 3000
 
   try {
     const dockerArgsPath = resolve(dockerSpyDir, "docker-args.txt");
-    await Deno.writeTextFile(
-      resolve(dockerSpyDir, "docker.cmd"),
-      `@echo off\r\necho %*>>"${dockerArgsPath}"\r\nexit /b 0\r\n`,
+    await writeDockerSpy(
+      dockerSpyDir,
+      [
+        "@echo off",
+        `echo %*>>"${dockerArgsPath}"`,
+        "exit /b 0",
+      ].join("\r\n"),
+      [
+        "#!/bin/sh",
+        `printf '%s\n' \"$*\" >> ${JSON.stringify(dockerArgsPath)}`,
+        "exit 0",
+      ].join("\n"),
     );
 
-    const path = `${dockerSpyDir};${Deno.env.get("PATH") ?? ""}`;
+    const path = `${dockerSpyDir}${delimiter}${Deno.env.get("PATH") ?? ""}`;
     const { stdout } = await runMainzCliCommand(
       dirname(testApp.configPath),
       [
@@ -602,8 +629,8 @@ Deno.test("cli/mainz: container run should skip ports already published by Docke
 
   try {
     const dockerArgsPath = resolve(dockerSpyDir, "docker-args.txt");
-    await Deno.writeTextFile(
-      resolve(dockerSpyDir, "docker.cmd"),
+    await writeDockerSpy(
+      dockerSpyDir,
       [
         "@echo off",
         "if /I [%~1]==[ps] (",
@@ -614,9 +641,18 @@ Deno.test("cli/mainz: container run should skip ports already published by Docke
         "exit /b 0",
         "",
       ].join("\r\n"),
+      [
+        "#!/bin/sh",
+        "if [ \"$1\" = \"ps\" ]; then",
+        "  echo 0.0.0.0:3000->3000/tcp",
+        "  exit 0",
+        "fi",
+        `printf '%s\n' \"$*\" >> ${JSON.stringify(dockerArgsPath)}`,
+        "exit 0",
+      ].join("\n"),
     );
 
-    const path = `${dockerSpyDir};${Deno.env.get("PATH") ?? ""}`;
+    const path = `${dockerSpyDir}${delimiter}${Deno.env.get("PATH") ?? ""}`;
     const { stdout } = await runMainzCliCommand(
       dirname(testApp.configPath),
       [
@@ -709,4 +745,15 @@ async function assertRejectsContainerInit(
   }
 
   assertStringIncludes(stderr, expectedMessage);
+}
+
+async function writeDockerSpy(
+  directory: string,
+  windowsScript: string,
+  posixScript: string,
+): Promise<void> {
+  await Deno.writeTextFile(resolve(directory, "docker.cmd"), `${windowsScript}\r\n`);
+  const posixPath = resolve(directory, "docker");
+  await Deno.writeTextFile(posixPath, `${posixScript}\n`);
+  await Deno.chmod(posixPath, 0o755);
 }
