@@ -473,18 +473,20 @@ Deno.test("cli/mainz: container build should invoke docker image build with the 
       },
     );
 
-    const dockerArgs = await Deno.readTextFile(dockerArgsPath);
-    assertStringIncludes(
-      dockerArgs,
-      '"image" "build"',
+    const dockerArgs = normalizeDockerArgs(
+      await Deno.readTextFile(dockerArgsPath),
     );
     assertStringIncludes(
       dockerArgs,
-      `"${resolve(testApp.testAppRoot, "Dockerfile").replaceAll("\\", "/")}"`,
+      "image build",
     );
     assertStringIncludes(
       dockerArgs,
-      `"${testApp.targetName}:local"`,
+      `-f ${resolve(testApp.testAppRoot, "Dockerfile").replaceAll("\\", "/")}`,
+    );
+    assertStringIncludes(
+      dockerArgs,
+      `-t ${testApp.targetName}:local`,
     );
     assertStringIncludes(
       stdout,
@@ -538,14 +540,16 @@ Deno.test("cli/mainz: container run should invoke docker run with Mainz port 300
       },
     );
 
-    const dockerArgs = await Deno.readTextFile(dockerArgsPath);
-    assertStringIncludes(
-      dockerArgs,
-      '"run" "--rm" "-p" "3000:3000"',
+    const dockerArgs = normalizeDockerArgs(
+      await Deno.readTextFile(dockerArgsPath),
     );
     assertStringIncludes(
       dockerArgs,
-      `"${testApp.targetName}:local"`,
+      "run --rm -p 3000:3000",
+    );
+    assertStringIncludes(
+      dockerArgs,
+      `${testApp.targetName}:local`,
     );
     assertStringIncludes(
       stdout,
@@ -600,10 +604,12 @@ Deno.test("cli/mainz: container run should use the next available port when 3000
       },
     );
 
-    const dockerArgs = await Deno.readTextFile(dockerArgsPath);
+    const dockerArgs = normalizeDockerArgs(
+      await Deno.readTextFile(dockerArgsPath),
+    );
     assertStringIncludes(
       dockerArgs,
-      '"run" "--rm" "-p" "3001:3000"',
+      "run --rm -p 3001:3000",
     );
     assertStringIncludes(
       stdout,
@@ -644,7 +650,7 @@ Deno.test("cli/mainz: container run should skip ports already published by Docke
       [
         "#!/bin/sh",
         "if [ \"$1\" = \"ps\" ]; then",
-        "  echo 0.0.0.0:3000->3000/tcp",
+        "  echo '0.0.0.0:3000->3000/tcp'",
         "  exit 0",
         "fi",
         `printf '%s\n' \"$*\" >> ${JSON.stringify(dockerArgsPath)}`,
@@ -671,10 +677,12 @@ Deno.test("cli/mainz: container run should skip ports already published by Docke
       },
     );
 
-    const dockerArgs = await Deno.readTextFile(dockerArgsPath);
+    const dockerArgs = normalizeDockerArgs(
+      await Deno.readTextFile(dockerArgsPath),
+    );
     assertStringIncludes(
       dockerArgs,
-      '"run" "--rm" "-p" "3001:3000"',
+      "run --rm -p 3001:3000",
     );
     assertStringIncludes(
       stdout,
@@ -756,4 +764,8 @@ async function writeDockerSpy(
   const posixPath = resolve(directory, "docker");
   await Deno.writeTextFile(posixPath, `${posixScript}\n`);
   await Deno.chmod(posixPath, 0o755);
+}
+
+function normalizeDockerArgs(content: string): string {
+  return content.replaceAll('"', "");
 }
