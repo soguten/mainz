@@ -239,7 +239,7 @@ Deno.test("cli/mainz init: should let app create register the first target", asy
     assertStringIncludes(config, 'runtime: "deno"');
     assertStringIncludes(config, 'name: "docs"');
     assertStringIncludes(config, 'rootDir: "./docs"');
-    assertStringIncludes(config, "    ],");
+    assertStringIncludes(config, "  ],");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -489,7 +489,7 @@ Deno.test("cli/mainz app: create should keep node as the project runtime in an e
     assertStringIncludes(config, 'runtime: "node"');
     assertStringIncludes(config, 'name: "docs"');
     assertStringIncludes(config, 'rootDir: "./docs"');
-    assertStringIncludes(config, "    ],");
+    assertStringIncludes(config, "  ],");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -1278,7 +1278,7 @@ Deno.test("cli/mainz app: remove should keep config formatting when removing the
     const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
     assertStringIncludes(config, 'name: "site"');
     assert(!config.includes('name: "docs"'));
-    assertStringIncludes(config, "    ],");
+    assertStringIncludes(config, "  ],");
     assert(!config.includes("\n],"));
     assert(!config.includes("        ],"));
   } finally {

@@ -1,10 +1,7 @@
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
-import {
-  listBuiltInTemplateBundleKeys,
-  resolveBuiltInTemplateBundle,
-} from "./built-in-templates.generated.ts";
 
 export interface LoadedTemplate {
   manifest: Record<string, unknown>;
@@ -28,66 +25,76 @@ export interface LoadedRemoteTemplate {
 }
 
 const tarBlockSize = 512;
+const templatesRootDir = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "templates",
+);
 
 export function resolveBuiltInTemplateRoot(kind: string, name: string): string {
-  return `builtin:${kind}/${name}`.replaceAll("\\", "/");
+  return resolve(templatesRootDir, kind, name).replaceAll("\\", "/");
 }
 
 export function joinTemplateRoot(root: string, child: string): string {
-  if (isBuiltInTemplateRoot(root)) {
-    const normalizedRoot = normalizeBuiltInTemplateKey(root);
-    const normalizedChild = normalizeBuiltInTemplateKey(child);
-    const key = [normalizedRoot, normalizedChild].filter((segment) =>
-      segment.length > 0
-    ).join("/");
-    return `builtin:${key}`;
-  }
-
   return resolve(root, child);
 }
 
 export function builtInTemplateExists(templateRoot: string): boolean {
-  if (!isBuiltInTemplateRoot(templateRoot)) {
+  try {
+    const manifestPath = resolve(templateRoot, "template.json");
+    const stat = Deno.statSync(manifestPath);
+    return stat.isFile;
+  } catch {
     return false;
   }
-
-  return resolveBuiltInTemplateBundleByKey(
-    normalizeBuiltInTemplateKey(templateRoot),
-  ) !== undefined;
 }
 
 export function listBuiltInTemplateNames(templateRoot: string): string[] {
-  if (!isBuiltInTemplateRoot(templateRoot)) {
+  try {
+    const names: string[] = [];
+    for (const entry of Deno.readDirSync(templateRoot)) {
+      if (
+        entry.isDirectory &&
+        directoryContainsTemplateManifest(resolve(templateRoot, entry.name))
+      ) {
+        names.push(entry.name);
+      }
+    }
+
+    return names.sort();
+  } catch {
     return [];
   }
+}
 
-  const prefix = normalizeBuiltInTemplateKey(templateRoot);
-  const prefixWithSlash = prefix.length > 0 ? `${prefix}/` : "";
-  const names = new Set<string>();
-
-  for (const key of listBuiltInTemplateBundleKeys()) {
-    if (prefix.length > 0 && !key.startsWith(prefixWithSlash)) {
-      continue;
-    }
-
-    const suffix = prefix.length > 0 ? key.slice(prefixWithSlash.length) : key;
-    const [name] = suffix.split("/");
-    if (name) {
-      names.add(name);
-    }
+function directoryContainsTemplateManifest(root: string): boolean {
+  if (builtInTemplateExists(root)) {
+    return true;
   }
 
-  return [...names].sort();
+  try {
+    for (const entry of Deno.readDirSync(root)) {
+      if (!entry.isDirectory) {
+        continue;
+      }
+
+      if (directoryContainsTemplateManifest(resolve(root, entry.name))) {
+        return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 export async function loadTemplate(
   templateRoot: string,
   runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<LoadedTemplate> {
-  if (isBuiltInTemplateRoot(templateRoot)) {
-    return loadBuiltInTemplate(templateRoot);
-  }
-
   const manifestPath = resolve(templateRoot, "template.json");
   const manifestSource = await runtime.readTextFile(manifestPath);
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
@@ -101,25 +108,6 @@ export async function loadTemplate(
     manifestSource,
     root: templateRoot,
     filesRoot: resolve(templateRoot, "files"),
-  };
-}
-
-function loadBuiltInTemplate(templateRoot: string): LoadedTemplate {
-  const key = normalizeBuiltInTemplateKey(templateRoot);
-  const bundle = resolveBuiltInTemplateBundleByKey(key);
-  if (!bundle) {
-    throw new Error(`Built-in template "${key}" was not found.`);
-  }
-
-  const manifestSource = bundle.manifestSource;
-  const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
-
-  return {
-    manifest,
-    manifestSource,
-    root: templateRoot,
-    filesRoot: `${templateRoot}/files`,
-    files: bundle.files.map((file) => ({ ...file })),
   };
 }
 
@@ -174,29 +162,6 @@ function resolveRemoteTemplateArchiveUrl(templateSourceUrl: string): URL {
   throw new Error(
     `Remote template source "${templateSourceUrl}" must point to a .tar.gz or .tgz archive.`,
   );
-}
-
-export function isBuiltInTemplateRoot(templateRoot: string): boolean {
-  return templateRoot.startsWith("builtin:");
-}
-
-function normalizeBuiltInTemplateKey(templateRoot: string): string {
-  const key = templateRoot.startsWith("builtin:")
-    ? templateRoot.slice("builtin:".length)
-    : templateRoot;
-
-  return key
-    .replaceAll("\\", "/")
-    .split("/")
-    .filter((segment) => segment.length > 0 && segment !== ".")
-    .join("/");
-}
-
-function resolveBuiltInTemplateBundleByKey(
-  key: string,
-): ReturnType<typeof resolveBuiltInTemplateBundle> {
-  const [kind, ...nameParts] = key.split("/");
-  return resolveBuiltInTemplateBundle(kind ?? "", nameParts.join("/"));
 }
 
 async function fetchRemoteTemplateBytes(url: URL): Promise<Uint8Array> {

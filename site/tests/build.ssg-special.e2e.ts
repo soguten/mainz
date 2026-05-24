@@ -12,7 +12,6 @@ import { createArtifactPreviewHandler } from "../../src/preview/artifact-server.
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
 import { nextTick } from "../../src/testing/async-testing.ts";
 import { buildTargetWithEngine } from "../../tests/helpers/build.ts";
-import { fullSuiteIgnore } from "../../tests/helpers/full-suite.ts";
 import {
   extractModuleScriptSrc,
   readJsonFile,
@@ -26,7 +25,6 @@ const siteBrowserOutDir = resolve(siteArtifactRootDir, "browser");
 Deno.test({
   name:
     "site/ssg output: site app should preserve hydration, preview 404 behavior, and relative SEO",
-  ignore: fullSuiteIgnore(),
   async fn(t) {
     await buildSiteSsg();
 
@@ -265,7 +263,6 @@ Deno.test({
 Deno.test({
   name:
     "site/gh-pages: site app should emit absolute SEO links while preserving hydration",
-  ignore: fullSuiteIgnore(),
   async fn(t) {
     await buildSiteGhPages();
 
@@ -337,7 +334,6 @@ Deno.test({
 Deno.test({
   name:
     "site/plain-static: site app should force MPA runtime without enhanced hooks",
-  ignore: fullSuiteIgnore(),
   async fn() {
     await buildSitePlainStatic();
 

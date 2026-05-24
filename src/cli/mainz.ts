@@ -53,7 +53,6 @@ import {
   builtInTemplateExists,
   instantiateTemplate,
   joinTemplateRoot,
-  listBuiltInTemplateNames as listBuiltInTemplateNamesFromBundle,
   materializeTemplatePlan,
   resolveBuiltInTemplateRoot,
 } from "./templates/index.ts";
@@ -3494,10 +3493,10 @@ function renderGeneratedConfig(
     'import { defineMainzConfig } from "mainz/config";',
     "",
     "export default defineMainzConfig({",
-    `    runtime: ${JSON.stringify(projectRuntime)},`,
-    "    targets: [",
+    `  runtime: ${JSON.stringify(projectRuntime)},`,
+    "  targets: [",
     target,
-    "    ],",
+    "  ],",
     "});",
     "",
   ].join("\n");
@@ -3505,14 +3504,16 @@ function renderGeneratedConfig(
 
 function insertConfigTarget(content: string, target: string): string {
   const targetsArray = findTargetsArray(content);
+  const arrayIndent = inferLineIndent(content, targetsArray.openIndex);
+  const normalizedTarget = reindentBlock(target, `${arrayIndent}  `);
   const existingBody = content.slice(
     targetsArray.openIndex + 1,
     targetsArray.closeIndex,
   );
 
-  if (existingBody.includes(targetNameNeedle(target))) {
+  if (existingBody.includes(targetNameNeedle(normalizedTarget))) {
     throw new Error(
-      `Target ${targetNameNeedle(target)} already exists in Mainz config.`,
+      `Target ${targetNameNeedle(normalizedTarget)} already exists in Mainz config.`,
     );
   }
 
@@ -3521,14 +3522,12 @@ function insertConfigTarget(content: string, target: string): string {
     "",
   );
   const afterClose = content.slice(targetsArray.closeIndex);
-  const closeLineStart = content.lastIndexOf("\n", targetsArray.closeIndex) + 1;
-  const closeIndent = content.slice(closeLineStart, targetsArray.closeIndex);
   const needsComma = !beforeClose.endsWith("[") && !beforeClose.endsWith(",");
   const separator = beforeClose.endsWith("[")
     ? "\n"
     : `${needsComma ? "," : ""}\n`;
 
-  return `${beforeClose}${separator}${target}\n${closeIndent}${afterClose}`;
+  return `${beforeClose}${separator}${normalizedTarget}\n${arrayIndent}${afterClose}`;
 }
 
 function removeConfigTarget(content: string, targetName: string): string {
@@ -3725,6 +3724,31 @@ function findMatchingBracket(
 function targetNameNeedle(target: string): string {
   const match = target.match(/name:\s*("[^"]+")/);
   return match?.[1] ? `name: ${match[1]}` : "target";
+}
+
+function inferLineIndent(content: string, index: number): string {
+  const lineStart = content.lastIndexOf("\n", index) + 1;
+  const linePrefix = content.slice(lineStart, index);
+  const indentMatch = linePrefix.match(/^\s*/);
+  return indentMatch?.[0] ?? "";
+}
+
+function reindentBlock(content: string, indent: string): string {
+  const lines = content.split("\n");
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
+  const baseIndent = nonEmptyLines.reduce((smallest, line) => {
+    const currentIndent = line.match(/^\s*/)?.[0].length ?? 0;
+    return Math.min(smallest, currentIndent);
+  }, Number.POSITIVE_INFINITY);
+  const normalizedBaseIndent = Number.isFinite(baseIndent) ? baseIndent : 0;
+
+  return lines.map((line) => {
+    if (line.trim().length === 0) {
+      return "";
+    }
+
+    return `${indent}${line.slice(normalizedBaseIndent)}`;
+  }).join("\n");
 }
 
 function removeObjectProperty(
@@ -4118,13 +4142,13 @@ function renderConfigTarget(target: {
   outDir: string;
 }): string {
   return [
-    "        {",
-    `            name: ${JSON.stringify(target.name)},`,
-    `            rootDir: ${JSON.stringify(target.rootDir)},`,
-    `            appFile: ${JSON.stringify(target.appFile)},`,
-    `            appId: ${JSON.stringify(target.appId)},`,
-    `            outDir: ${JSON.stringify(target.outDir)},`,
-    "        },",
+    "{",
+    `  name: ${JSON.stringify(target.name)},`,
+    `  rootDir: ${JSON.stringify(target.rootDir)},`,
+    `  appFile: ${JSON.stringify(target.appFile)},`,
+    `  appId: ${JSON.stringify(target.appId)},`,
+    `  outDir: ${JSON.stringify(target.outDir)},`,
+    "},",
   ].join("\n");
 }
 
@@ -4262,10 +4286,6 @@ async function listBuiltInTemplateNames(
   root: string,
   runtime: MainzToolingRuntime,
 ): Promise<string[]> {
-  if (root.startsWith("builtin:")) {
-    return listBuiltInTemplateNamesFromBundle(root);
-  }
-
   if (!(await pathExists(root, runtime))) {
     return [];
   }
@@ -4274,13 +4294,39 @@ async function listBuiltInTemplateNames(
   for await (const entry of runtime.readDir(root)) {
     if (
       entry.isDirectory &&
-      await pathExists(resolve(root, entry.name, "template.json"), runtime)
+      await directoryContainsTemplateManifest(
+        resolve(root, entry.name),
+        runtime,
+      )
     ) {
       names.push(entry.name);
     }
   }
 
   return names.sort();
+}
+
+async function directoryContainsTemplateManifest(
+  root: string,
+  runtime: MainzToolingRuntime,
+): Promise<boolean> {
+  if (await pathExists(resolve(root, "template.json"), runtime)) {
+    return true;
+  }
+
+  for await (const entry of runtime.readDir(root)) {
+    if (!entry.isDirectory) {
+      continue;
+    }
+
+    if (
+      await directoryContainsTemplateManifest(resolve(root, entry.name), runtime)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function formatTemplateNames(names: readonly string[]): string {

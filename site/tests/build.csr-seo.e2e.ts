@@ -3,13 +3,11 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { buildTargetWithEngine } from "../../tests/helpers/build.ts";
-import { fullSuiteIgnore } from "../../tests/helpers/full-suite.ts";
 import { cliTestsRepoRoot as repoRoot } from "../../tests/helpers/types.ts";
 
 Deno.test({
   name:
     "site/csr seo: siteUrl from profile config should emit absolute locale seo links for document routes",
-  ignore: fullSuiteIgnore(),
   async fn() {
     await buildTargetWithEngine({
       targetName: "site",

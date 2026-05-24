@@ -1,5 +1,5 @@
 {
-    "name": "{{appName}}",
-    "private": true,
-    "type": "module"
+  "name": "{{appName}}",
+  "private": true,
+  "type": "module"
 }

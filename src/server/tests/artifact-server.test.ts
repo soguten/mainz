@@ -4,14 +4,12 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { serveBuildArtifacts } from "../artifact-server.ts";
 import { createArtifactFixture } from "../../../tests/helpers/artifact-fixture.ts";
-import { fullSuiteIgnore } from "../../../tests/helpers/full-suite.ts";
 import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test({
   name:
     "server/artifact-server: should serve SSR routes from built server artifacts",
-  ignore: fullSuiteIgnore(),
   async fn() {
     const testApp = await createTestAppTargetConfig({
       testAppName: "ssr-build-app",
@@ -59,7 +57,6 @@ Deno.test({
 Deno.test({
   name:
     "server/artifact-server: should serve browser shell when no SSR manifest exists",
-  ignore: fullSuiteIgnore(),
   async fn() {
     const testApp = await createTestAppTargetConfig({
       testAppName: "entries-di-build",

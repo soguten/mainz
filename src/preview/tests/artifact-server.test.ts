@@ -4,14 +4,12 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { createArtifactPreviewHandler } from "../artifact-server.ts";
 import { createArtifactFixture } from "../../../tests/helpers/artifact-fixture.ts";
-import { fullSuiteIgnore } from "../../../tests/helpers/full-suite.ts";
 import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test({
   name:
     "preview/artifact-server: should render ssr routes from runtime artifacts instead of serving the csr shell",
-  ignore: fullSuiteIgnore(),
   async fn() {
     const testApp = await createTestAppTargetConfig({
       testAppName: "ssr-build-app",

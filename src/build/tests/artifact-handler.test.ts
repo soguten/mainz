@@ -4,14 +4,12 @@ import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
 import { createBuildArtifactHandler } from "../artifact-handler.ts";
 import { createArtifactFixture } from "../../../tests/helpers/artifact-fixture.ts";
-import { fullSuiteIgnore } from "../../../tests/helpers/full-suite.ts";
 import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 Deno.test({
   name:
     "build/artifact-handler: should render built ssr routes without falling back to the browser shell",
-  ignore: fullSuiteIgnore(),
   async fn() {
     const testApp = await createTestAppTargetConfig({
       testAppName: "ssr-build-app",
@@ -49,7 +47,6 @@ Deno.test({
 Deno.test({
   name:
     "build/artifact-handler: should serve browser artifacts when no built ssr manifest exists",
-  ignore: fullSuiteIgnore(),
   async fn() {
     const testApp = await createTestAppTargetConfig({
       testAppName: "entries-di-build",
