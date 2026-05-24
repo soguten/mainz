@@ -66,7 +66,7 @@
         "test": "deno test -A",
         "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests",
         "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",
-        "test:e2e:core": "deno test -A tests/matrix/suite.test.ts tests/matrix/single-locale-suite.test.ts tests/matrix/base-path-suite.test.ts tests/matrix/document-language-suite.test.ts tests/matrix/head-seo-suite.test.ts tests/matrix/generated-tag-stability-suite.test.ts tests/matrix/routed-di-entries-suite.test.ts tests/matrix/routed-di-client-suite.test.ts tests/matrix/routed-authorization-suite.test.ts",
+        "test:e2e:core": "deno test -A tests/matrix/suite.test.ts tests/matrix/single-locale-suite.test.ts tests/matrix/base-path-suite.test.ts tests/matrix/unlocalized-routing-suite.test.ts tests/matrix/head-seo-suite.test.ts tests/matrix/generated-tag-stability-suite.test.ts tests/matrix/routed-di-entries-suite.test.ts tests/matrix/routed-di-client-suite.test.ts tests/matrix/routed-authorization-suite.test.ts",
         "test:e2e:special": "deno test -A tests/matrix/scenario-harness.test.ts",
         "test:smoke": "deno test -A tests/e2e/smoke/build.site-routing.e2e.test.ts tests/e2e/smoke/build.playground-spa.e2e.test.ts tests/e2e/smoke/build.single-locale-routing.e2e.test.ts"
     },
