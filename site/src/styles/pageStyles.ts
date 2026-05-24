@@ -407,6 +407,77 @@ export const pageStyles = /* css */ `
         color: #7a3131;
     }
 
+    .diagnostics-panel {
+        background:
+            linear-gradient(135deg, rgba(20, 20, 20, 0.04), rgba(20, 20, 20, 0.01)),
+            var(--surface);
+    }
+
+    .diagnostics-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .diagnostics-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 4.6rem;
+        padding: 0.38rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+    }
+
+    .diagnostics-lead {
+        margin-top: 0.75rem;
+    }
+
+    .diagnostics-grid {
+        margin: 0.95rem 0 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.7rem;
+    }
+
+    .diagnostics-item {
+        margin: 0;
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        background: #fff;
+        padding: 0.75rem 0.8rem;
+    }
+
+    .diagnostics-item-wide {
+        grid-column: 1 / -1;
+    }
+
+    .diagnostics-item dt {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+    }
+
+    .diagnostics-item dd {
+        margin: 0.45rem 0 0;
+        color: var(--ink);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .diagnostics-item code {
+        font-size: 0.8rem;
+    }
+
     .checkpoint-actions {
         display: flex;
         gap: 0.5rem;

@@ -12,6 +12,7 @@ import { createArtifactPreviewHandler } from "../../src/preview/artifact-server.
 import { withHappyDom } from "../../src/ssg/happy-dom.ts";
 import { nextTick } from "../../src/testing/async-testing.ts";
 import { buildTargetWithEngine } from "../../tests/helpers/build.ts";
+import { fullSuiteIgnore } from "../../tests/helpers/full-suite.ts";
 import {
   extractModuleScriptSrc,
   readJsonFile,
@@ -22,9 +23,11 @@ import { cliTestsRepoRoot as repoRoot } from "../../tests/helpers/types.ts";
 const siteArtifactRootDir = resolve(repoRoot, "dist/site");
 const siteBrowserOutDir = resolve(siteArtifactRootDir, "browser");
 
-Deno.test(
-  "site/ssg output: site app should preserve hydration, preview 404 behavior, and relative SEO",
-  async (t) => {
+Deno.test({
+  name:
+    "site/ssg output: site app should preserve hydration, preview 404 behavior, and relative SEO",
+  ignore: fullSuiteIgnore(),
+  async fn(t) {
     await buildSiteSsg();
 
     await t.step("hydration", async () => {
@@ -257,11 +260,13 @@ Deno.test(
       }, { url: "https://mainz.local/pt/dfdfhsdfsdf" });
     });
   },
-);
+});
 
-Deno.test(
-  "site/gh-pages: site app should emit absolute SEO links while preserving hydration",
-  async (t) => {
+Deno.test({
+  name:
+    "site/gh-pages: site app should emit absolute SEO links while preserving hydration",
+  ignore: fullSuiteIgnore(),
+  async fn(t) {
     await buildSiteGhPages();
 
     await t.step("absolute seo", async () => {
@@ -327,11 +332,13 @@ Deno.test(
       }, { url: "https://mainz.local/pt/" });
     });
   },
-);
+});
 
-Deno.test(
-  "site/plain-static: site app should force MPA runtime without enhanced hooks",
-  async () => {
+Deno.test({
+  name:
+    "site/plain-static: site app should force MPA runtime without enhanced hooks",
+  ignore: fullSuiteIgnore(),
+  async fn() {
     await buildSitePlainStatic();
 
     const hydrationManifest = await readHydrationManifest();
@@ -368,7 +375,7 @@ Deno.test(
       );
     }, { url: "https://mainz.local/en/" });
   },
-);
+});
 
 async function buildSiteSsg(): Promise<void> {
   await buildTargetWithEngine({

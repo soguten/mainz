@@ -38,6 +38,8 @@ Deno.test("server/node-artifact-server: should serve SSR routes from built serve
     assertEquals(response.status, 200);
     assertStringIncludes(html, "SSR Build App");
     assertStringIncludes(html, 'id="mainz-route-snapshot"');
+    assertStringIncludes(html, 'id="mainz-route-generation"');
+    assertStringIncludes(html, '"documentRenderMode":"ssr"');
   } finally {
     await server?.close();
     await testApp.cleanup();

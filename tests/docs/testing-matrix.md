@@ -596,7 +596,8 @@ test job:
   `site` or `docs-site`
 - target-local publication checks such as `site/tests/*.e2e.ts` can be run
   separately when those targets change
-- `test`: still runs as the authoritative full suite on `main`
+- `test`: runs the default local suite and skips `full-only` tests
+- `test:full`: runs the authoritative full suite on `main`
 
 This keeps local and CI execution aligned with the same family names used in
 `deno.json`.
@@ -796,8 +797,8 @@ The flow should be:
 2. open the relevant route through `app.route(...)`
 3. boot the page in isolated DOM state when runtime behavior matters
 4. assert only metadata-related contracts
-6. register the new case under the `matrix/core` scenario list
-7. let the harness group it with the existing recipe and reuse the shared
+5. register the new case under the `matrix/core` scenario list
+6. let the harness group it with the existing recipe and reuse the shared
    scenario context
 
 Example:
@@ -879,6 +880,7 @@ Useful commands:
 - `deno task test:e2e:core`
 - `deno task test:smoke`
 - `deno task test`
+- `deno task test:full`
 - `deno test -A site/tests/*.e2e.ts`
 
 For day-to-day work:
@@ -887,7 +889,23 @@ For day-to-day work:
 - run `test:e2e:core` for changes that affect build/runtime contracts
 - run `deno test -A site/tests/*.e2e.ts` for target-owned publication checks
 - run `test:smoke` when validating real app behavior
-- run `test` before merge for broad changes
+- run `test` for the default local sweep
+- run `test:full` before merge for broad changes
+
+## Full-only Suites
+
+Some suites are intentionally marked `full-only` because they do real builds,
+server boots, or target publication checks that noticeably slow down the default
+developer loop.
+
+Those suites are skipped unless `MAINZ_TEST_FULL=1` is present. In practice:
+
+- `deno test -A` skips `full-only` suites by default
+- `deno task test` skips `full-only` suites by default
+- `deno task test:full` enables them
+
+Use `full-only` for suites that are valuable for release confidence but too slow
+to run on every local iteration.
 
 ## Future Direction
 

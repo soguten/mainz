@@ -28,6 +28,17 @@ const pt: SiteDictionary = {
   common: {
     backToTop: "Voltar ao inicio",
   },
+  diagnostics: {
+    eyebrow: "Diagnostico de renderizacao",
+    title: "Como esta pagina foi gerada",
+    description: "Ajuda a comparar preview local, build final e imagem Docker.",
+    routeModeLabel: "Modo de render da rota",
+    documentModeLabel: "Modo final do documento",
+    generatedAtLabel: "Gerado em",
+    runtimeLabel: "Ambiente de geracao",
+    routePathLabel: "Caminho da rota",
+    renderPathLabel: "Caminho renderizado",
+  },
   hero: {
     eyebrow: "Mainz, 1450",
     title: "mainz: tutorial de componentes inspirado na imprensa de Gutenberg",

@@ -18,8 +18,8 @@ import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import { ResourceAccessError } from "../resources/index.ts";
 import type { RoutedAppDefinition } from "../navigation/index.ts";
 import {
-  type ResolvedBuildProfile,
   resolveArtifactRelativeServerEntryPath,
+  type ResolvedBuildProfile,
   resolveEffectiveNavigationMode,
   resolvePublicationBrowserIndexHtmlPath,
   resolvePublicationHydrationManifestPath,
@@ -43,6 +43,7 @@ import {
   finalizeEvaluatedRouteDocument,
   finalizePrerenderedRouteDocument,
   injectAppHtml,
+  injectRouteGenerationMetadata,
   injectRouteSnapshot,
   resolveRenderedRouteHead,
   setHtmlLang,
@@ -51,6 +52,7 @@ import {
 export {
   applyRouteHead,
   injectAppHtml,
+  injectRouteGenerationMetadata,
   injectRouteSnapshot,
   setHtmlLang,
 } from "./render-document.ts";
@@ -107,15 +109,14 @@ export async function emitRouteArtifacts(
     outputEntries,
     routeById,
     targetI18n,
-  } =
-    await resolveStaticRouteBuildContext(
-      config,
-      job,
-      outputDir,
-      cwd,
-      "route",
-      runtime,
-    );
+  } = await resolveStaticRouteBuildContext(
+    config,
+    job,
+    outputDir,
+    cwd,
+    "route",
+    runtime,
+  );
 
   if (manifest.routes.length === 0) {
     return false;
@@ -416,7 +417,17 @@ async function renderSsgRouteDocument(args: {
       }`,
   });
 
-  return { html };
+  return {
+    html: injectRouteGenerationMetadata(html, {
+      routeRenderMode: args.route.mode,
+      documentRenderMode: "ssg",
+      generatedAt: new Date().toISOString(),
+      generationRuntime: "build",
+      routePath: args.route.path,
+      renderPath: args.entry.renderPath,
+      locale: args.entry.locale,
+    }),
+  };
 }
 
 async function renderCsrRouteDocument(args: {
@@ -466,7 +477,17 @@ async function renderCsrRouteDocument(args: {
     locale: args.entry.locale,
     routeHead,
   });
-  return { html };
+  return {
+    html: injectRouteGenerationMetadata(html, {
+      routeRenderMode: args.route.mode,
+      documentRenderMode: "csr",
+      generatedAt: new Date().toISOString(),
+      generationRuntime: "build",
+      routePath: args.route.path,
+      renderPath: args.entry.renderPath,
+      locale: args.entry.locale,
+    }),
+  };
 }
 
 async function readBuildTemplateHtml(
@@ -557,9 +578,7 @@ export function formatSsgPrerenderError(args: {
 }): string {
   return `Failed to prerender SSG route "${args.routePath}" for output "${args.renderPath}"${
     args.locale ? ` (locale "${args.locale}")` : ""
-  }: ${
-    formatSsgPrerenderCause(args.error)
-  }`;
+  }: ${formatSsgPrerenderCause(args.error)}`;
 }
 
 export function formatSsgPrerenderWarning(args: {

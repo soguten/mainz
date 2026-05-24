@@ -8,6 +8,7 @@ import { renderRouteAppHtml } from "./render-core.ts";
 import {
   buildResolvedRouteHead,
   finalizePrerenderedRouteDocument,
+  injectRouteGenerationMetadata,
 } from "./render-document.ts";
 import {
   buildDevSsgCacheKey,
@@ -156,9 +157,16 @@ async function renderSsrArtifactResponse(args: {
     snapshotErrorMessage: (error) =>
       `SSR artifact snapshot for "${args.requestUrl.pathname}" (route "${args.route.path}")${
         locale ? ` (locale "${locale}")` : ""
-      } contains non-public or non-serializable data: ${
-        toErrorMessage(error)
-      }`,
+      } contains non-public or non-serializable data: ${toErrorMessage(error)}`,
+  });
+  const htmlWithMetadata = injectRouteGenerationMetadata(html, {
+    routeRenderMode: args.route.mode,
+    documentRenderMode: "ssr",
+    generatedAt: new Date().toISOString(),
+    generationRuntime: "preview",
+    routePath: args.route.path,
+    renderPath: args.requestUrl.pathname,
+    locale,
   });
   const cacheKey = buildDevSsgCacheKey({
     requestUrl: args.requestUrl,
@@ -184,7 +192,7 @@ async function renderSsrArtifactResponse(args: {
   );
 
   return new Response(
-    args.request.method === "HEAD" ? null : html,
+    args.request.method === "HEAD" ? null : htmlWithMetadata,
     {
       status: args.status,
       headers,

@@ -3,9 +3,11 @@ import {
   denoToolingRuntime,
   type MainzToolingRuntime,
 } from "../tooling/runtime/index.ts";
+import { type TargetRouteManifest } from "../routing/index.ts";
+import { resolveDevRouteRequest } from "./dev-route-request.ts";
 import {
-  tryRenderSsrArtifactRequest,
   type SsrArtifactResponseHeaderContext,
+  tryRenderSsrArtifactRequest,
 } from "./ssr-artifact-handler.ts";
 
 export interface CreateBuildArtifactHandlerOptions {
@@ -25,6 +27,9 @@ export function createBuildArtifactHandler(
     resolvedRootDir,
     runtime,
   );
+  const browserRoutesManifestPromise = browserRootDirPromise.then((
+    browserRoot,
+  ) => readBrowserRoutesManifest(browserRoot, runtime));
 
   return async function handleRequest(request: Request): Promise<Response> {
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -39,15 +44,24 @@ export function createBuildArtifactHandler(
     const browserRootDir = await browserRootDirPromise;
 
     if (isHtmlDocumentRequest(request)) {
-      const ssrResponse = await tryRenderSsrArtifactRequest({
-        rootDir: resolvedRootDir,
-        browserRootDir,
-        request,
-        runtime,
-        responseHeaders: options.ssrResponseHeaders,
-      });
-      if (ssrResponse) {
-        return ssrResponse;
+      const browserRoutesManifest = await browserRoutesManifestPromise;
+
+      if (
+        shouldAttemptSsrArtifactRequest(
+          request,
+          browserRoutesManifest,
+        )
+      ) {
+        const ssrResponse = await tryRenderSsrArtifactRequest({
+          rootDir: resolvedRootDir,
+          browserRootDir,
+          request,
+          runtime,
+          responseHeaders: options.ssrResponseHeaders,
+        });
+        if (ssrResponse) {
+          return ssrResponse;
+        }
       }
     }
 
@@ -79,6 +93,39 @@ export function createBuildArtifactHandler(
 
     return new Response("Not Found", { status: 404 });
   };
+}
+
+async function readBrowserRoutesManifest(
+  browserRootDir: string,
+  runtime: MainzToolingRuntime,
+): Promise<TargetRouteManifest | undefined> {
+  const manifestPath = resolve(browserRootDir, "routes.json");
+
+  try {
+    const text = await runtime.readTextFile(manifestPath);
+    return JSON.parse(text) as TargetRouteManifest;
+  } catch {
+    return undefined;
+  }
+}
+
+function shouldAttemptSsrArtifactRequest(
+  request: Request,
+  browserRoutesManifest: TargetRouteManifest | undefined,
+): boolean {
+  if (!browserRoutesManifest) {
+    return true;
+  }
+
+  const requestUrl = new URL(request.url);
+  const resolution = resolveDevRouteRequest({
+    requestUrl,
+    basePath: "/",
+    manifest: browserRoutesManifest,
+  });
+
+  return resolution.kind === "ssr" || resolution.kind === "unmatched" ||
+    resolution.kind === "outside-base";
 }
 
 export async function resolveBuildArtifactBrowserRootDir(

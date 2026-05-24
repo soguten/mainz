@@ -7,14 +7,23 @@ import { ConceptCard } from "./ConceptCard.tsx";
 import { HeroIntro } from "./HeroIntro.tsx";
 import { InteractiveSandbox } from "./InteractiveSandbox.tsx";
 import { LanguageSwitcher } from "./LanguageSwitcher.tsx";
+import {
+  RenderDiagnosticsPanel,
+  type RouteGenerationMetadata,
+} from "./RenderDiagnosticsPanel.tsx";
 import type { ConceptCardData, NextStepCardData, StageData } from "./types.ts";
+
+interface MainzTutorialPageProps {
+  diagnostics?: Partial<RouteGenerationMetadata>;
+}
 
 interface TutorialState {
   currentStage: number;
 }
 
 @CustomElement("x-mainz-tutorial-page")
-export class MainzTutorialPage extends Component<{}, TutorialState> {
+export class MainzTutorialPage
+  extends Component<MainzTutorialPageProps, TutorialState> {
   static override styles = pageStyles;
 
   protected override initState(): TutorialState {
@@ -137,6 +146,8 @@ export class MainzTutorialPage extends Component<{}, TutorialState> {
         <CheckpointQuiz />
 
         <InteractiveSandbox />
+
+        <RenderDiagnosticsPanel initialMetadata={this.props.diagnostics} />
 
         <section id={anchors.nextSteps} className="panel next-steps">
           <div className="section-head">

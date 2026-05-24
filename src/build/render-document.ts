@@ -4,6 +4,16 @@ import type { RouteManifestEntry, SsgOutputEntry } from "../routing/types.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 import type { InitialRouteSnapshot } from "./render-core.ts";
 
+export interface RouteGenerationMetadata {
+  routeRenderMode: "csr" | "ssg" | "ssr";
+  documentRenderMode: "csr" | "ssg" | "ssr";
+  generatedAt: string;
+  generationRuntime: "build" | "preview";
+  routePath: string;
+  renderPath: string;
+  locale?: string;
+}
+
 export function buildResolvedRouteHead(args: {
   route: RouteManifestEntry;
   locale?: string;
@@ -124,6 +134,35 @@ export function injectRouteSnapshot(
       /<script id="mainz-route-snapshot" type="application\/json">[\s\S]*?<\/script>/,
       scriptTag,
     );
+  }
+
+  if (html.includes("</body>")) {
+    return html.replace("</body>", `${scriptTag}\n</body>`);
+  }
+
+  return `${html}\n${scriptTag}`;
+}
+
+export function injectRouteGenerationMetadata(
+  html: string,
+  metadata: RouteGenerationMetadata,
+): string {
+  const serializedMetadata = JSON.stringify(metadata)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+  const scriptTag =
+    `<script id="mainz-route-generation" type="application/json">${serializedMetadata}</script>`;
+
+  if (html.includes('id="mainz-route-generation"')) {
+    return html.replace(
+      /<script id="mainz-route-generation" type="application\/json">[\s\S]*?<\/script>/,
+      scriptTag,
+    );
+  }
+
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `  ${scriptTag}\n</head>`);
   }
 
   if (html.includes("</body>")) {

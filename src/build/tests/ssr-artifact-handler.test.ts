@@ -29,6 +29,8 @@ Deno.test("build/ssr-artifact-handler: should render built ssr artifacts without
     assertEquals(response?.status, 200);
     assertStringIncludes(html ?? "", "SSR Build App");
     assertStringIncludes(html ?? "", 'id="mainz-route-snapshot"');
+    assertStringIncludes(html ?? "", 'id="mainz-route-generation"');
+    assertStringIncludes(html ?? "", '"documentRenderMode":"ssr"');
   } finally {
     await testApp.cleanup();
   }

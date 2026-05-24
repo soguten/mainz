@@ -966,7 +966,7 @@ export function __internalStartNavigation(
     detectViewTransitionSupport();
   restoreScrollPosition();
   let enteringTransitionTimeoutId:
-    | ReturnType<typeof globalThis.setTimeout>
+    | ReturnType<Window["setTimeout"]>
     | undefined;
 
   const handleFocusIn = (event: Event) => {

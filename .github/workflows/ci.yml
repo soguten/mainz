@@ -158,4 +158,4 @@ jobs:
           deno-version: v2.x
 
       - name: Run full suite
-        run: deno task test
+        run: deno task test:full

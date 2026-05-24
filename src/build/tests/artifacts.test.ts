@@ -13,6 +13,7 @@ import {
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
   injectAppHtml,
+  injectRouteGenerationMetadata,
   injectRouteSnapshot,
   renderSsgAppHtml,
   resolveTargetI18nConfig,
@@ -132,6 +133,23 @@ Deno.test("build/artifacts: injects route snapshot into html", () => {
   assertStringIncludes(output, 'id="mainz-route-snapshot"');
   assertStringIncludes(output, '"matchedPath":"/docs/intro"');
   assertStringIncludes(output, '"head":{"title":"Intro | Docs"}');
+});
+
+Deno.test("build/artifacts: injects route generation metadata into html head", () => {
+  const input = "<html><head></head><body></body></html>";
+  const output = injectRouteGenerationMetadata(input, {
+    routeRenderMode: "csr",
+    documentRenderMode: "csr",
+    generatedAt: "2026-05-23T20:10:00.000Z",
+    generationRuntime: "build",
+    routePath: "/",
+    renderPath: "/",
+    locale: "en",
+  });
+
+  assertStringIncludes(output, 'id="mainz-route-generation"');
+  assertStringIncludes(output, '"routeRenderMode":"csr"');
+  assertStringIncludes(output, '"generatedAt":"2026-05-23T20:10:00.000Z"');
 });
 
 Deno.test("build/artifacts: prerender captures nested JSX custom elements before reading route snapshot", async () => {

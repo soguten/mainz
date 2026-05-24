@@ -32,6 +32,17 @@ export interface SiteDictionary {
   common: {
     backToTop: string;
   };
+  diagnostics: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    routeModeLabel: string;
+    documentModeLabel: string;
+    generatedAtLabel: string;
+    runtimeLabel: string;
+    routePathLabel: string;
+    renderPathLabel: string;
+  };
   hero: {
     eyebrow: string;
     title: string;
