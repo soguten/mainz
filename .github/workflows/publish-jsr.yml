@@ -1,9 +1,9 @@
 name: Publish JSR packages
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types:
+      - published
   workflow_dispatch:
 
 jobs:

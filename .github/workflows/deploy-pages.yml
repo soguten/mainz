@@ -1,7 +1,10 @@
-name: Deploy Pages Shared
+name: Deploy Mainz Pages
 
 on:
-  workflow_call:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
