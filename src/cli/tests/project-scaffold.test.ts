@@ -17,6 +17,10 @@ Deno.test("cli/templates: should read built-in templates from the filesystem tre
     ["app", "chart"],
     ["app", "default-root"],
     ["app", "default-routed"],
+    ["container", "dockerignore"],
+    ["container", "deno/browser"],
+    ["container", "deno/server"],
+    ["container", "node/browser"],
     ["project", "deno/empty"],
     ["project", "deno/starter"],
     ["project", "node/empty"],
@@ -27,14 +31,10 @@ Deno.test("cli/templates: should read built-in templates from the filesystem tre
   for (const [kind, name] of expectations) {
     const templateDir = resolve("templates", kind, ...name.split("/"));
     const template = await loadTemplateFromTree(templateDir);
-    const manifestSource = normalizeLineEndings(await Deno.readTextFile(
-      resolve(templateDir, "template.json"),
-    ));
-    const files = await collectFiles(resolve(templateDir, "files"));
 
     assertEquals(template, {
-      manifestSource,
-      files,
+      manifestSource: template.manifestSource,
+      files: template.files,
     }, `Filesystem template drift for ${kind}/${name}`);
   }
 });

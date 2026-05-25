@@ -1,0 +1,8 @@
+{
+  "kind": "container",
+  "name": "dockerfile",
+  "compatibility": {
+    "runtimes": ["deno"],
+    "artifactClasses": ["browser-only"]
+  }
+}

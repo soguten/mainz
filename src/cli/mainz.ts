@@ -218,19 +218,6 @@ const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 const defaultDenoContainerImage = "denoland/deno:2.7.14";
-const containerDockerignoreBlock = [
-  "# >>> mainz container",
-  ".git/",
-  "node_modules/",
-  "dist/",
-  ".mainz_temp/",
-  ".mainz-temp/",
-  "internal-docs/",
-  "coverage/",
-  "# <<< mainz container",
-  "",
-].join("\n");
-
 class CliExitError extends Error {
   constructor(readonly code: number) {
     super(`CLI exited with code ${code}.`);
@@ -2314,10 +2301,20 @@ async function runContainerInitCommand(
     relative(cwd, resolve(cwd, target.rootDir)) || target.rootDir,
   );
   await runtime.mkdir(dirname(dockerfilePath), { recursive: true });
+  const configPath = options.configPath ?? "mainz.config.ts";
+  const relativeConfigPath = normalizePathSlashes(
+    relative(cwd, resolve(configPath)) || configPath,
+  );
+  const relativeOutDir = normalizePathSlashes(
+    relative(cwd, resolve(target.outDir)) || target.outDir,
+  );
+  const normalizedContextHint = normalizePathSlashes(
+    join(target.rootDir, "Dockerfile"),
+  );
   await runtime.writeTextFile(
     dockerfilePath,
-    renderContainerDockerfile({
-      target,
+    await renderContainerDockerfile({
+      targetName: target.name,
       profile: ensuredProfiles.profile,
       artifactClass: metadata.capabilities.artifactClass,
       navigation: metadata.navigation,
@@ -2326,8 +2323,10 @@ async function runContainerInitCommand(
         targetI18n,
       ),
       runtimeName: runtime.name,
-      configPath: options.configPath ?? "mainz.config.ts",
-      cwd,
+      configPath: relativeConfigPath,
+      dockerfilePath: normalizedContextHint,
+      outDir: relativeOutDir,
+      runtime,
     }),
   );
   const dockerignorePath = resolve(cwd, ".dockerignore");
@@ -4782,6 +4781,7 @@ async function ensureContainerDockerignore(
   dockerignorePath: string,
   runtime: MainzToolingRuntime,
 ): Promise<boolean> {
+  const containerDockerignoreBlock = await renderContainerDockerignore(runtime);
   if (!(await pathExists(dockerignorePath, runtime))) {
     await runtime.writeTextFile(
       dockerignorePath,
@@ -4803,160 +4803,50 @@ async function ensureContainerDockerignore(
   return true;
 }
 
-function renderContainerDockerfile(args: {
-  target: NormalizedMainzTarget;
+async function renderContainerDockerfile(args: {
+  targetName: string;
   profile: string;
   artifactClass: "browser-only" | "server-capable";
   navigation: "spa" | "mpa";
   localizedNotFoundPrefixes: string[];
   runtimeName: SupportedCliRuntime;
   configPath: string;
-  cwd: string;
-}): string {
-  const relativeConfigPath = normalizePathSlashes(
-    relative(args.cwd, resolve(args.configPath)) || args.configPath,
-  );
-  const relativeOutDir = normalizePathSlashes(
-    relative(args.cwd, resolve(args.target.outDir)) || args.target.outDir,
-  );
-  const normalizedContextHint = normalizePathSlashes(
-    join(args.target.rootDir, "Dockerfile"),
-  );
-  const artifactRootDir = normalizePathSlashes(relativeOutDir);
-
-  if (args.artifactClass === "browser-only") {
-    return args.runtimeName === "node"
-      ? renderNodeBrowserOnlyDockerfile(
-        args.target.name,
-        relativeOutDir,
-        args.profile,
-        args.navigation,
-        args.localizedNotFoundPrefixes,
-        relativeConfigPath,
-        normalizedContextHint,
-      )
-      : renderDenoBrowserOnlyDockerfile(
-        args.target.name,
-        relativeOutDir,
-        args.profile,
-        args.navigation,
-        args.localizedNotFoundPrefixes,
-        relativeConfigPath,
-        normalizedContextHint,
-      );
-  }
-
-  if (args.runtimeName === "node") {
+  dockerfilePath: string;
+  outDir: string;
+  runtime: MainzToolingRuntime;
+}): Promise<string> {
+  if (args.artifactClass === "server-capable" && args.runtimeName === "node") {
     throw new Error(
-      `Target "${args.target.name}" publishes server/runtime artifacts, but Mainz does not yet provide a Node server adapter for container generation.`,
+      `Target "${args.targetName}" publishes server/runtime artifacts, but Mainz does not yet provide a Node server adapter for container generation.`,
     );
   }
 
-  return renderDenoServerCapableDockerfile(
-    args.target.name,
-    args.profile,
-    relativeConfigPath,
-    artifactRootDir,
-    normalizedContextHint,
+  const templateRoot = resolveContainerDockerfileTemplateRoot(
+    args.runtimeName,
+    args.artifactClass,
   );
-}
+  const plan = await instantiateTemplate({
+    runtime: args.runtime,
+    templateRoot,
+    params: {
+      artifactRootDir: JSON.stringify(normalizePathSlashes(args.outDir)),
+      browserOutDir: normalizePathSlashes(join(args.outDir, "browser")),
+      configPath: JSON.stringify(args.configPath),
+      denoContainerImage: defaultDenoContainerImage,
+      dockerfileHeader: renderContainerDockerfileHeader(
+        args.targetName,
+        args.dockerfilePath,
+      ).join("\n"),
+      nginxConfig: renderBrowserOnlyNginxConfig(
+        args.navigation,
+        args.localizedNotFoundPrefixes,
+      ).trimEnd(),
+      profileName: JSON.stringify(args.profile),
+      targetName: JSON.stringify(args.targetName),
+    },
+  });
 
-function renderNodeBrowserOnlyDockerfile(
-  targetName: string,
-  outDir: string,
-  profileName: string,
-  navigation: "spa" | "mpa",
-  localizedNotFoundPrefixes: readonly string[],
-  configPath: string,
-  dockerfilePath: string,
-): string {
-  const nginxConfig = renderBrowserOnlyNginxConfig(
-    navigation,
-    localizedNotFoundPrefixes,
-  );
-  return [
-    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
-    "FROM node:20-alpine AS builder",
-    "WORKDIR /workspace",
-    "COPY . .",
-    "RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi",
-    `RUN npm run build -- --target ${JSON.stringify(targetName)} --profile ${
-      JSON.stringify(profileName)
-    } --config ${JSON.stringify(configPath)}`,
-    "",
-    "FROM nginx:1.27-alpine",
-    "RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf",
-    nginxConfig.trimEnd(),
-    "EOF",
-    `COPY --from=builder /workspace/${
-      normalizePathSlashes(join(outDir, "browser"))
-    }/ /usr/share/nginx/html/`,
-    "EXPOSE 3000",
-    'CMD ["nginx", "-g", "daemon off;"]',
-    "",
-  ].join("\n");
-}
-
-function renderDenoBrowserOnlyDockerfile(
-  targetName: string,
-  outDir: string,
-  profileName: string,
-  navigation: "spa" | "mpa",
-  localizedNotFoundPrefixes: readonly string[],
-  configPath: string,
-  dockerfilePath: string,
-): string {
-  const nginxConfig = renderBrowserOnlyNginxConfig(
-    navigation,
-    localizedNotFoundPrefixes,
-  );
-  return [
-    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
-    `FROM ${defaultDenoContainerImage} AS builder`,
-    "WORKDIR /workspace",
-    "COPY . .",
-    `RUN deno task build --target ${JSON.stringify(targetName)} --profile ${
-      JSON.stringify(profileName)
-    } --config ${JSON.stringify(configPath)}`,
-    "",
-    "FROM nginx:1.27-alpine",
-    "RUN cat <<'EOF' > /etc/nginx/conf.d/default.conf",
-    nginxConfig.trimEnd(),
-    "EOF",
-    `COPY --from=builder /workspace/${
-      normalizePathSlashes(join(outDir, "browser"))
-    }/ /usr/share/nginx/html/`,
-    "EXPOSE 3000",
-    'CMD ["nginx", "-g", "daemon off;"]',
-    "",
-  ].join("\n");
-}
-
-function renderDenoServerCapableDockerfile(
-  targetName: string,
-  profileName: string,
-  configPath: string,
-  artifactRootDir: string,
-  dockerfilePath: string,
-): string {
-  return [
-    ...renderContainerDockerfileHeader(targetName, dockerfilePath),
-    `FROM ${defaultDenoContainerImage} AS builder`,
-    "WORKDIR /workspace",
-    "COPY . .",
-    `RUN deno task build --target ${JSON.stringify(targetName)} --profile ${
-      JSON.stringify(profileName)
-    } --config ${JSON.stringify(configPath)}`,
-    "",
-    `FROM ${defaultDenoContainerImage}`,
-    "WORKDIR /workspace",
-    "COPY --from=builder /workspace /workspace",
-    "EXPOSE 3000",
-    `CMD ["deno", "run", "-A", "./src/cli/preview-artifact.ts", ${
-      JSON.stringify(artifactRootDir)
-    }, "--host", "0.0.0.0", "--port", "3000"]`,
-    "",
-  ].join("\n");
+  return resolveRequiredContainerTemplateFile(plan, "Dockerfile");
 }
 
 function renderContainerDockerfileHeader(
@@ -4971,6 +4861,45 @@ function renderContainerDockerfileHeader(
     "# docker image build -f Dockerfile ..",
     `# docker image build -f ${dockerfilePath} .`,
   ];
+}
+
+async function renderContainerDockerignore(
+  runtime: MainzToolingRuntime,
+): Promise<string> {
+  const plan = await instantiateTemplate({
+    runtime,
+    templateRoot: resolveBuiltInTemplateRoot("container", "dockerignore"),
+  });
+
+  return resolveRequiredContainerTemplateFile(plan, ".dockerignore");
+}
+
+function resolveContainerDockerfileTemplateRoot(
+  runtimeName: SupportedCliRuntime,
+  artifactClass: "browser-only" | "server-capable",
+): string {
+  if (artifactClass === "browser-only") {
+    return resolveBuiltInTemplateRoot(
+      "container",
+      `${runtimeName}/browser`,
+    );
+  }
+
+  return resolveBuiltInTemplateRoot("container", `${runtimeName}/server`);
+}
+
+function resolveRequiredContainerTemplateFile(
+  plan: Awaited<ReturnType<typeof instantiateTemplate>>,
+  expectedPath: string,
+): string {
+  const file = plan.files.find((entry) => entry.path === expectedPath);
+  if (!file) {
+    throw new Error(
+      `Container template is missing required file "${expectedPath}".`,
+    );
+  }
+
+  return file.content;
 }
 
 function renderBrowserOnlyNginxConfig(
