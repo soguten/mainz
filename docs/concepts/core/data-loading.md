@@ -91,9 +91,9 @@ read route context through `context` and page data through `this.data`.
 
 That signal belongs to the current managed navigation and should be treated as
 the web-native equivalent of a propagated cancellation token. If a later
-navigation supersedes the current one, or the controller is cleaned up, Mainz
-aborts that signal so route-owned work can stop early and avoid applying stale
-results.
+navigation supersedes the current one, or the navigation `AbortController` is
+aborted during cleanup, Mainz aborts that signal so route-owned work can stop
+early and avoid applying stale results.
 
 ```ts
 override async load(context: PageLoadContext) {

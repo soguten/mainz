@@ -36,6 +36,7 @@ export type {
 const INJECT_REFERENCE_SET_OWNER = Symbol.for("mainz.di.inject-ref.set-owner");
 const INJECT_REFERENCE_CLONE = Symbol.for("mainz.di.inject-ref.clone");
 const injectedReferenceOwners = new WeakMap<object, object>();
+const injectedReferenceBindings = new WeakMap<object, Set<object>>();
 
 /**
  * Creates a lazily resolved service reference bound to the nearest active service container.
@@ -56,6 +57,21 @@ export function inject<T>(token: ServiceToken<T>): T {
 
       if (property === INJECT_REFERENCE_CLONE) {
         return () => inject(token);
+      }
+
+      if (property === "bind") {
+        return (owner: object) => {
+          injectedReferenceOwners.set(reference, owner);
+
+          let bindings = injectedReferenceBindings.get(reference);
+          if (!bindings) {
+            bindings = new Set<object>();
+            injectedReferenceBindings.set(reference, bindings);
+          }
+          bindings.add(owner);
+
+          return reference as T;
+        };
       }
 
       const service = resolveInjectedReferenceService(reference, token);
@@ -120,5 +136,30 @@ function resolveInjectedReferenceService<T>(
     );
   }
 
-  return container.get(token);
+  const service = container.get(token);
+  applyPendingReferenceBindings(reference, token, service);
+  return service;
+}
+
+function applyPendingReferenceBindings<T>(
+  reference: object,
+  token: ServiceToken<T>,
+  service: T,
+): void {
+  const bindings = injectedReferenceBindings.get(reference);
+  if (!bindings || bindings.size === 0) {
+    return;
+  }
+
+  const bind = (service as Record<PropertyKey, unknown>).bind;
+  if (typeof bind !== "function") {
+    throw new Error(
+      `Injected service "${describeToken(token)}" does not support .bind(...). ` +
+        "Only Store-like services should use inject(Token).bind(this).",
+    );
+  }
+
+  for (const owner of bindings) {
+    bind.call(service, owner);
+  }
 }

@@ -12,6 +12,7 @@ export {
   resolveComponentRenderPolicy,
   resolveComponentRenderStrategy,
 } from "../components/component.ts";
+export { Store } from "../components/store.ts";
 export { ensureMainzCustomElementDefined } from "../components/registry.ts";
 export type { PublicComponentRenderArgs } from "../components/component.ts";
 export type {

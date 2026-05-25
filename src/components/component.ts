@@ -13,6 +13,7 @@ import {
   resolveAuthorizationRenderContextFromProps,
 } from "../authorization/render-context.ts";
 import { DefaultProps, DefaultState } from "./types.ts";
+import { cleanupStoreBindingsForComponent } from "./store.ts";
 import { popRenderOwner, pushRenderOwner } from "../jsx/render-owner.ts";
 import {
   type ComponentRenderConfig,
@@ -318,6 +319,7 @@ export abstract class Component<
 
     this.eventListeners = [];
     this.cleanupPortalEntries();
+    cleanupStoreBindingsForComponent(this);
   }
 
   /**

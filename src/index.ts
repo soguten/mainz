@@ -3,6 +3,7 @@ export {
   CustomElement,
   RenderPolicy,
   RenderStrategy,
+  Store,
   resolveComponentRenderConfig,
   resolveComponentRenderPolicy,
   resolveComponentRenderStrategy,

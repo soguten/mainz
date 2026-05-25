@@ -7,6 +7,7 @@ Deno.test("public-api/root: should expose the ownership-based surface without re
 
   assertEquals(typeof mainz.Component, "function");
   assertEquals(typeof mainz.Page, "function");
+  assertEquals(typeof mainz.Store, "function");
   assertEquals(typeof mainz.RenderStrategy, "function");
   assertEquals(typeof mainz.Authorize, "function");
   assertEquals(typeof mainz.AllowAnonymous, "function");
@@ -44,6 +45,7 @@ Deno.test("public-api/components: should keep the main components barrel ownersh
 
   assertEquals(typeof components.Component, "function");
   assertEquals(typeof components.Page, "function");
+  assertEquals(typeof components.Store, "function");
   assertEquals(typeof components.RenderStrategy, "function");
   assertEquals(typeof components.Authorize, "function");
   assertEquals(typeof components.AllowAnonymous, "function");

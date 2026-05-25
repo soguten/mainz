@@ -30,13 +30,23 @@ Register commands with `defineCommand(...)` and attach them through
 `defineApp({ commands: [...] })`:
 
 ```ts title="app.ts"
-import { defineApp, defineCommand } from "mainz";
+import { defineApp, defineCommand, Store } from "mainz";
 import { singleton } from "mainz/di";
-import { DocsSearchController } from "./DocsSearchController.ts";
+import { DocsSearchStore } from "./DocsSearchStore.ts";
 
-class DocsSearchController {
+class DocsSearchStore extends Store<{ open: boolean; initialQuery: string }> {
+  protected override initState() {
+    return {
+      open: false,
+      initialQuery: "",
+    };
+  }
+
   show(initialQuery = "") {
-    console.log("open search", initialQuery);
+    this.state = {
+      open: true,
+      initialQuery,
+    };
   }
 }
 
@@ -52,13 +62,13 @@ export const openDocsSearchCommand = defineCommand({
       ? payload.initialQuery
       : "";
 
-    services.get(DocsSearchController).show(initialQuery);
+    services.get(DocsSearchStore).show(initialQuery);
   },
 });
 
 export const app = defineApp({
   id: "docs-site",
-  services: [singleton(DocsSearchController)],
+  services: [singleton(DocsSearchStore)],
   commands: [openDocsSearchCommand],
 });
 ```
@@ -76,7 +86,7 @@ export const openDocsSearchCommand = defineCommand<OpenDocsSearchPayload>({
   title: "Search documentation",
   shortcuts: ["Mod+K"],
   execute: ({ payload, services }) => {
-    services.get(DocsSearchController).show(payload?.initialQuery ?? "");
+    services.get(DocsSearchStore).show(payload?.initialQuery ?? "");
   },
 });
 ```
@@ -85,10 +95,9 @@ This is the recommended shape when:
 
 - the action is app-wide
 - keyboard and non-keyboard paths should reuse the same semantic command
-- a stable controller or coordinator owns the real behavior
+- a stable store owns the real behavior
 
-For the controller/coordinator side of that pattern, see
-[Controllers And Coordinators](./controllers-and-coordinators.md).
+For the shared-state side of that pattern, see [Stores](./stores.md).
 
 The `services` value in command execution context is the app DI container, so
 command functions can call `services.get(...)` directly. Use `inject(...)` in

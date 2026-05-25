@@ -7,6 +7,7 @@ export {
   resolveComponentRenderPolicy,
   resolveComponentRenderStrategy,
 } from "./component.ts";
+export { Store } from "./store.ts";
 export {
   AllowAnonymous,
   Authorize,

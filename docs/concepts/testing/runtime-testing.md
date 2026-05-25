@@ -73,7 +73,7 @@ Deno.test("spa route resolves the current path", async () => {
     id: "docs-test",
     pages: [HomePage, DocsPage],
   });
-  const controller = startApp(app, {
+  const appRuntime = startApp(app, {
     mount: "#app",
   });
 
@@ -82,7 +82,7 @@ Deno.test("spa route resolves the current path", async () => {
   assertEquals(window.location.pathname, "/docs/intro");
   assertEquals(document.title, "Docs");
 
-  controller.cleanup();
+  appRuntime.cleanup();
 });
 ```
 
@@ -114,7 +114,7 @@ Deno.test("left app can be synchronized independently", async () => {
     navigationType: "initial",
   });
 
-  const leftController = startApp(
+  const leftAppRuntime = startApp(
     defineApp({
       id: "left-app-test",
       pages: [LeftHomePage],
@@ -124,7 +124,7 @@ Deno.test("left app can be synchronized independently", async () => {
     },
   );
 
-  const rightController = startApp(
+  const rightAppRuntime = startApp(
     defineApp({
       id: "right-app-test",
       pages: [RightHomePage],
@@ -138,8 +138,8 @@ Deno.test("left app can be synchronized independently", async () => {
 
   assertEquals(leftApp.textContent?.includes("Left"), true);
 
-  leftController.cleanup();
-  rightController.cleanup();
+  leftAppRuntime.cleanup();
+  rightAppRuntime.cleanup();
 });
 ```
 
@@ -171,7 +171,7 @@ Deno.test("broken route emits navigationerror", async () => {
     navigationType: "initial",
   });
 
-  const controller = startApp(
+  const appRuntime = startApp(
     defineApp({
       id: "broken-route-test",
       pages: [HomePage, BrokenPage],
@@ -200,7 +200,7 @@ Deno.test("broken route emits navigationerror", async () => {
   assertEquals(error.phase, "route-load");
   assertEquals(error.path, "/broken");
 
-  controller.cleanup();
+  appRuntime.cleanup();
 });
 ```
 

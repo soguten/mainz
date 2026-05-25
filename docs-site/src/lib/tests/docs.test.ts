@@ -234,7 +234,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     "portal-rendering",
     "authorization",
     "dependency-injection",
-    "controllers-and-coordinators",
+    "stores",
     "app-scoped-commands",
     "templates",
   ]);
@@ -291,20 +291,20 @@ Deno.test("docs helpers compute previous and next article links", () => {
   assertEquals(docs.getPagerBySlug("dependency-injection"), {
     previous: { slug: "authorization", title: "Authorization" },
     next: {
-      slug: "controllers-and-coordinators",
-      title: "Controllers And Coordinators",
+      slug: "stores",
+      title: "Stores",
     },
   });
 
-  assertEquals(docs.getPagerBySlug("controllers-and-coordinators"), {
+  assertEquals(docs.getPagerBySlug("stores"), {
     previous: { slug: "dependency-injection", title: "Dependency Injection" },
     next: { slug: "app-scoped-commands", title: "App-Scoped Commands" },
   });
 
   assertEquals(docs.getPagerBySlug("app-scoped-commands"), {
     previous: {
-      slug: "controllers-and-coordinators",
-      title: "Controllers And Coordinators",
+      slug: "stores",
+      title: "Stores",
     },
     next: { slug: "templates", title: "CLI Templates" },
   });

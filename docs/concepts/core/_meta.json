@@ -55,8 +55,8 @@
       "slug": "dependency-injection",
       "order": 13
     },
-    "controllers-and-coordinators.md": {
-      "slug": "controllers-and-coordinators",
+    "stores.md": {
+      "slug": "stores",
       "order": 14
     },
     "app-scoped-commands.md": {
