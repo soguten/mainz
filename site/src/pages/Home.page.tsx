@@ -6,7 +6,7 @@ import { MainzTutorialPage } from "../components/MainzTutorialPage.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Mainz",
       meta: [
@@ -23,3 +23,4 @@ export class HomePage extends Page {
     return <MainzTutorialPage />;
   }
 }
+

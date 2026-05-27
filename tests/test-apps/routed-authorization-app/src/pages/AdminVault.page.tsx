@@ -13,7 +13,7 @@ import {
 @RenderMode("csr")
 @Locales("en", "pt")
 export class AdminVaultPage extends Page {
-  override head() {
+  override metadata() {
     const locale = this.route.locale ?? "en";
     return {
       title: locale === "pt" ? "Cofre admin" : "Admin vault",
@@ -37,3 +37,4 @@ export class AdminVaultPage extends Page {
     );
   }
 }
+

@@ -13,7 +13,7 @@ import {
 @RenderMode("csr")
 @Locales("en", "pt")
 export class MemberDashboardPage extends Page {
-  override head() {
+  override metadata() {
     const locale = this.route.locale ?? "en";
     return {
       title: locale === "pt" ? "Painel do membro" : "Member dashboard",
@@ -37,3 +37,4 @@ export class MemberDashboardPage extends Page {
     );
   }
 }
+

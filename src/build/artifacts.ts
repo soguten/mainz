@@ -13,7 +13,7 @@ import {
   type NormalizedMainzConfig,
   type NormalizedMainzTarget,
 } from "../config/index.ts";
-import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageMetadataDefinition } from "../components/page.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import { ResourceAccessError } from "../resources/index.ts";
 import type { RoutedAppDefinition } from "../navigation/index.ts";
@@ -38,19 +38,19 @@ import {
   renderRouteAppHtml,
 } from "./render-core.ts";
 import {
-  applyRouteHead,
-  buildResolvedRouteHead,
+  applyRouteMetadata,
+  buildResolvedRouteMetadata,
   finalizeEvaluatedRouteDocument,
   finalizePrerenderedRouteDocument,
   injectAppHtml,
   injectRouteGenerationMetadata,
   injectRouteSnapshot,
-  resolveRenderedRouteHead,
+  resolveRenderedRouteMetadata,
   setHtmlLang,
 } from "./render-document.ts";
 
 export {
-  applyRouteHead,
+  applyRouteMetadata,
   injectAppHtml,
   injectRouteGenerationMetadata,
   injectRouteSnapshot,
@@ -70,7 +70,7 @@ export interface SsrRuntimeManifestRouteEntry {
   pattern: string;
   locales: string[];
   notFound?: boolean;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   authorization?: PageAuthorizationMetadata;
 }
 
@@ -291,7 +291,7 @@ export function buildSsrRuntimeManifest(args: {
       pattern: route.pattern,
       locales: [...route.locales],
       ...(route.notFound === true ? { notFound: true } : {}),
-      ...(route.head ? { head: structuredClone(route.head) } : {}),
+      ...(route.metadata ? { metadata: structuredClone(route.metadata) } : {}),
       ...(route.authorization
         ? { authorization: structuredClone(route.authorization) }
         : {}),
@@ -398,11 +398,11 @@ async function renderSsgRouteDocument(args: {
     }));
   }
 
-  const routeHead = resolveRenderedRouteHead({
+  const routeMetadata = resolveRenderedRouteMetadata({
     route: args.route,
     entry: args.entry,
     renderedSnapshot: renderedApp.routeSnapshot,
-    fallbackHead: args.route.head,
+    fallbackMetadata: args.route.metadata,
     targetI18n: args.targetI18n,
     profile: args.job.profile,
   });
@@ -410,7 +410,7 @@ async function renderSsgRouteDocument(args: {
     html: args.html,
     renderedApp,
     locale: args.entry.locale,
-    routeHead,
+    routeMetadata,
     snapshotErrorMessage: (error) =>
       `SSG route snapshot for "${args.entry.renderPath}" (route "${args.route.path}", locale "${args.entry.locale}") contains non-public or non-serializable data: ${
         toErrorMessage(error)
@@ -464,18 +464,18 @@ async function renderCsrRouteDocument(args: {
     );
   }
 
-  const routeHead = resolveRenderedRouteHead({
+  const routeMetadata = resolveRenderedRouteMetadata({
     route: args.route,
     entry: args.entry,
     renderedSnapshot: renderedApp.routeSnapshot,
-    fallbackHead: args.route.head,
+    fallbackMetadata: args.route.metadata,
     targetI18n: args.targetI18n,
     profile: args.job.profile,
   });
   const html = finalizeEvaluatedRouteDocument({
     html: args.html,
     locale: args.entry.locale,
-    routeHead,
+    routeMetadata,
   });
   return {
     html: injectRouteGenerationMetadata(html, {

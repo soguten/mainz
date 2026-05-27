@@ -5,7 +5,7 @@ import { resolvePageAuthorization } from "../authorization/index.ts";
 import {
   isPageConstructor,
   type PageConstructor,
-  type PageHeadDefinition,
+  type PageMetadataDefinition,
   requirePageRoutePath,
   resolvePageLocales,
   resolvePageRenderConfig,
@@ -23,7 +23,7 @@ export interface DiscoveredPage {
     mode: RenderMode;
     fallback?: RenderModeFallback;
     locales?: readonly string[];
-    head?: PageHeadDefinition;
+    metadata?: PageMetadataDefinition;
     authorization?: PageAuthorizationMetadata;
   };
 }
@@ -145,7 +145,7 @@ function normalizePageDefinition(
     path,
     ...resolveDiscoveryMode(ctor),
     locales: locales ? [...locales] : undefined,
-    head: undefined,
+    metadata: undefined,
     authorization: authorization
       ? cloneAuthorization(authorization)
       : undefined,

@@ -1,5 +1,5 @@
-import type { PageHeadDefinition } from "../components/page.ts";
-import { buildRouteHead, materializeRoutePath } from "../routing/index.ts";
+import type { PageMetadataDefinition } from "../components/page.ts";
+import { buildRouteMetadata, materializeRoutePath } from "../routing/index.ts";
 import type { RouteManifestEntry, SsgOutputEntry } from "../routing/types.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
 import type { InitialRouteSnapshot } from "./render-core.ts";
@@ -14,10 +14,10 @@ export interface RouteGenerationMetadata {
   locale?: string;
 }
 
-export function buildResolvedRouteHead(args: {
+export function buildResolvedRouteMetadata(args: {
   route: RouteManifestEntry;
   locale?: string;
-  head: PageHeadDefinition | undefined;
+  metadata: PageMetadataDefinition | undefined;
   targetI18n?: {
     defaultLocale?: string;
     localePrefix?: "except-default" | "always";
@@ -25,15 +25,15 @@ export function buildResolvedRouteHead(args: {
   profile: ResolvedBuildProfile;
   params?: Record<string, string>;
   matchedPath?: string;
-}): PageHeadDefinition | undefined {
-  return buildRouteHead({
+}): PageMetadataDefinition | undefined {
+  return buildRouteMetadata({
     path: args.matchedPath ??
       (args.params
         ? materializeRoutePath(args.route.path, args.params)
         : args.route.path),
     locale: args.locale ?? "",
     locales: args.route.locales,
-    head: args.head,
+    metadata: args.metadata,
     localePrefix: args.targetI18n?.localePrefix,
     defaultLocale: args.targetI18n?.defaultLocale,
     basePath: args.profile.basePath,
@@ -48,7 +48,7 @@ export function finalizePrerenderedRouteDocument(args: {
     routeSnapshot?: InitialRouteSnapshot;
   };
   locale?: string;
-  routeHead?: PageHeadDefinition;
+  routeMetadata?: PageMetadataDefinition;
   snapshotErrorMessage?: (error: unknown) => string;
 }): string {
   let html = injectAppHtml(args.html, args.renderedApp.appHtml);
@@ -62,37 +62,37 @@ export function finalizePrerenderedRouteDocument(args: {
     throw new Error(args.snapshotErrorMessage(error));
   }
   html = setHtmlLang(html, args.locale);
-  html = applyRouteHead(html, { head: args.routeHead });
+  html = applyRouteMetadata(html, { metadata: args.routeMetadata });
   return html;
 }
 
 export function finalizeEvaluatedRouteDocument(args: {
   html: string;
   locale?: string;
-  routeHead?: PageHeadDefinition;
+  routeMetadata?: PageMetadataDefinition;
 }): string {
   let html = setHtmlLang(args.html, args.locale);
-  html = applyRouteHead(html, { head: args.routeHead });
+  html = applyRouteMetadata(html, { metadata: args.routeMetadata });
   return html;
 }
 
-export function resolveRenderedRouteHead(args: {
+export function resolveRenderedRouteMetadata(args: {
   route: RouteManifestEntry;
   entry: SsgOutputEntry;
   renderedSnapshot?: InitialRouteSnapshot;
-  fallbackHead?: PageHeadDefinition;
+  fallbackMetadata?: PageMetadataDefinition;
   targetI18n?: {
     defaultLocale?: string;
     localePrefix?: "except-default" | "always";
   };
   profile: ResolvedBuildProfile;
-}): PageHeadDefinition | undefined {
-  return buildResolvedRouteHead({
+}): PageMetadataDefinition | undefined {
+  return buildResolvedRouteMetadata({
     route: args.route,
     locale: args.entry.locale,
     params: args.entry.params,
     matchedPath: args.renderedSnapshot?.matchedPath,
-    head: args.renderedSnapshot?.head ?? args.fallbackHead,
+    metadata: args.renderedSnapshot?.metadata ?? args.fallbackMetadata,
     targetI18n: args.targetI18n,
     profile: args.profile,
   });
@@ -188,48 +188,48 @@ export function setHtmlLang(html: string, locale?: string): string {
   return html.replace(/<html([^>]*)>/, `<html$1 lang="${normalizedLocale}">`);
 }
 
-export function applyRouteHead(
+export function applyRouteMetadata(
   html: string,
-  route: { head?: PageHeadDefinition },
+  route: { metadata?: PageMetadataDefinition },
 ): string {
-  if (!route.head) {
+  if (!route.metadata) {
     return html;
   }
 
   let nextHtml = html;
 
-  if (route.head.title) {
+  if (route.metadata.title) {
     if (/<title>[\s\S]*?<\/title>/i.test(nextHtml)) {
       nextHtml = nextHtml.replace(
         /<title>[\s\S]*?<\/title>/i,
-        `<title>${escapeHtml(route.head.title)}</title>`,
+        `<title>${escapeHtml(route.metadata.title)}</title>`,
       );
     } else {
       nextHtml = nextHtml.replace(
         "</head>",
-        `  <title>${escapeHtml(route.head.title)}</title>\n</head>`,
+        `  <title>${escapeHtml(route.metadata.title)}</title>\n</head>`,
       );
     }
   }
 
   const tags: string[] = [];
 
-  for (const meta of route.head.meta ?? []) {
+  for (const meta of route.metadata.meta ?? []) {
     const attributes = [
       meta.name ? ` name="${escapeHtmlAttribute(meta.name)}"` : "",
       meta.property ? ` property="${escapeHtmlAttribute(meta.property)}"` : "",
       ` content="${escapeHtmlAttribute(meta.content)}"`,
-      ' data-mainz-head-managed="true"',
+      ' data-mainz-metadata-managed="true"',
     ].join("");
     tags.push(`<meta${attributes} />`);
   }
 
-  for (const link of route.head.links ?? []) {
+  for (const link of route.metadata.links ?? []) {
     const attributes = [
       ` rel="${escapeHtmlAttribute(link.rel)}"`,
       ` href="${escapeHtmlAttribute(link.href)}"`,
       link.hreflang ? ` hreflang="${escapeHtmlAttribute(link.hreflang)}"` : "",
-      ' data-mainz-head-managed="true"',
+      ' data-mainz-metadata-managed="true"',
     ].join("");
     tags.push(`<link${attributes} />`);
   }

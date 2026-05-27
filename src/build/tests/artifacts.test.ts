@@ -8,7 +8,7 @@ import {
   assertThrows,
 } from "@std/assert";
 import {
-  applyRouteHead,
+  applyRouteMetadata,
   buildSsrRuntimeManifest,
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
@@ -21,7 +21,7 @@ import {
   setHtmlLang,
 } from "../artifacts.ts";
 import {
-  buildRouteHead,
+  buildRouteMetadata,
   resolveLocaleRedirectPath,
 } from "../../routing/index.ts";
 import { ResourceAccessError } from "../../resources/index.ts";
@@ -127,12 +127,12 @@ Deno.test("build/artifacts: injects route snapshot into html", () => {
     params: { slug: "intro" },
     locale: "en",
     data: { title: "Intro" },
-    head: { title: "Intro | Docs" },
+    metadata: { title: "Intro | Docs" },
   });
 
   assertStringIncludes(output, 'id="mainz-route-snapshot"');
   assertStringIncludes(output, '"matchedPath":"/docs/intro"');
-  assertStringIncludes(output, '"head":{"title":"Intro | Docs"}');
+  assertStringIncludes(output, '"metadata":{"title":"Intro | Docs"}');
 });
 
 Deno.test("build/artifacts: injects route generation metadata into html head", () => {
@@ -496,8 +496,8 @@ Deno.test("build/artifacts: locale redirect should fallback to english when defa
 
 Deno.test("build/artifacts: applies route head metadata to prerendered html", () => {
   const input = "<html><head><title>Old</title></head><body></body></html>";
-  const output = applyRouteHead(input, {
-    head: {
+  const output = applyRouteMetadata(input, {
+    metadata: {
       title: "Docs",
       meta: [
         { name: "description", content: "Docs page" },
@@ -511,20 +511,20 @@ Deno.test("build/artifacts: applies route head metadata to prerendered html", ()
   assertStringIncludes(output, "<title>Docs</title>");
   assertStringIncludes(
     output,
-    '<meta name="description" content="Docs page" data-mainz-head-managed="true" />',
+    '<meta name="description" content="Docs page" data-mainz-metadata-managed="true" />',
   );
   assertStringIncludes(
     output,
-    '<link rel="canonical" href="/docs" data-mainz-head-managed="true" />',
+    '<link rel="canonical" href="/docs" data-mainz-metadata-managed="true" />',
   );
 });
 
 Deno.test("build/artifacts: generates canonical and alternate locale links for routes", () => {
-  const head = buildRouteHead(
+  const head = buildRouteMetadata(
     {
       path: "/docs",
       locales: ["en", "pt-BR"],
-      head: {
+      metadata: {
         title: "Docs",
       },
       locale: "pt-BR",
@@ -542,11 +542,11 @@ Deno.test("build/artifacts: generates canonical and alternate locale links for r
 });
 
 Deno.test("build/artifacts: should keep a single canonical when manual head also provides one", () => {
-  const head = buildRouteHead(
+  const head = buildRouteMetadata(
     {
       path: "/docs",
       locales: ["en", "pt"],
-      head: {
+      metadata: {
         links: [
           { rel: "canonical", href: "/" },
         ],
@@ -566,11 +566,11 @@ Deno.test("build/artifacts: should keep a single canonical when manual head also
 });
 
 Deno.test("build/artifacts: should keep generated alternates canonical per hreflang", () => {
-  const head = buildRouteHead(
+  const head = buildRouteMetadata(
     {
       path: "/docs",
       locales: ["en", "pt"],
-      head: {
+      metadata: {
         links: [
           { rel: "alternate", href: "/custom-en", hreflang: "en" },
           { rel: "alternate", href: "/custom-pt", hreflang: "pt" },
@@ -593,7 +593,7 @@ Deno.test("build/artifacts: should keep generated alternates canonical per hrefl
 });
 
 Deno.test("build/artifacts: should fallback x-default to first route locale when default locale is unavailable", () => {
-  const head = buildRouteHead(
+  const head = buildRouteMetadata(
     {
       path: "/docs",
       locales: ["pt", "ja"],
@@ -612,7 +612,7 @@ Deno.test("build/artifacts: should fallback x-default to first route locale when
 });
 
 Deno.test("build/artifacts: should emit absolute locale SEO links when siteUrl is configured", () => {
-  const head = buildRouteHead(
+  const head = buildRouteMetadata(
     {
       path: "/docs",
       locales: ["en", "pt"],
@@ -724,3 +724,5 @@ async function writePrerenderFixtureApp(
 
   return appDir;
 }
+
+

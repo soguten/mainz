@@ -15,7 +15,7 @@ export class HomePage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Authorization Example",
     };
@@ -107,3 +107,4 @@ export class HomePage extends AuthorizeSitePage {
     );
   }
 }
+

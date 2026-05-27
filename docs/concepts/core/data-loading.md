@@ -9,7 +9,7 @@ Mainz now treats async loading as an ownership question.
 
 - `entries()` belongs to the page because route expansion is a page concern
 - `Page.load()` belongs to the page instance when the page owns the data
-- `Page.head()` belongs to the page instance when the document head depends on
+- `Page.metadata()` belongs to the page instance when the document head depends on
   resolved page data
 - `Component.load()` belongs to the component when the component owns the async
   assembly
@@ -71,7 +71,7 @@ export class DocsPage extends Page {
     };
   }
 
-  override head() {
+  override metadata() {
     return {
       title: this.data.article.title,
     };
@@ -84,7 +84,7 @@ export class DocsPage extends Page {
 ```
 
 Use `Page.load()` when the page owns the answer. `render(data)` is the preferred
-explicit rendering surface for resolved page data, while `head()` continues to
+explicit rendering surface for resolved page data, while `metadata()` continues to
 read route context through `context` and page data through `this.data`.
 
 `Page.load()` now also receives `context.signal`.
@@ -176,7 +176,7 @@ That means:
 - `load()` stays the async hook
 - `render(data)` stays synchronous
 - `this.data` remains available for helpers, lifecycle members, and
-  `Page.head()`
+  `Page.metadata()`
 
 ```tsx
 @RenderStrategy("blocking")
@@ -361,3 +361,4 @@ The short version is:
 - `@RenderPolicy(...)` belongs to the component and defines what SSG should do
   with that component
 - `Component.load()` is the normal component-owned async path
+

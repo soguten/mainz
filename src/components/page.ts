@@ -8,9 +8,9 @@ import {
 } from "../resources/resource.ts";
 import type {
   PageEntryDefinition,
-  PageHeadDefinition,
-  PageHeadLinkDefinition,
-  PageHeadMetaDefinition,
+  PageMetadataDefinition,
+  PageMetadataLinkDefinition,
+  PageMetadataMetaDefinition,
   PageRouteParams,
 } from "./page-contract.ts";
 import type { RouteContext, RouteProfileContext } from "./route-context.ts";
@@ -49,14 +49,14 @@ export type {
 } from "./page-metadata.ts";
 export type {
   PageEntryDefinition,
-  PageHeadDefinition,
-  PageHeadLinkDefinition,
-  PageHeadMetaDefinition,
+  PageMetadataDefinition,
+  PageMetadataLinkDefinition,
+  PageMetadataMetaDefinition,
   PageRouteParams,
 } from "./page-contract.ts";
 export type { RouteContext, RouteProfileContext } from "./route-context.ts";
 
-/** Navigation mode visible to page-owned load and head helpers. */
+/** Navigation mode visible to page-owned load and metadata helpers. */
 export type PageNavigationMode = "spa" | "mpa";
 
 /** Runtime channel used when resolving page-owned resources. */
@@ -103,7 +103,7 @@ export interface PageLoadHelpers {
   ): (context: PageLoadContext) => Value | Promise<Value>;
 }
 
-/** Full route-aware context passed to page `load()` and `head()` helpers. */
+/** Full route-aware context passed to page `load()` and `metadata()` helpers. */
 export interface PageLoadContext {
   /** Current requested path. */
   path: string;
@@ -131,8 +131,8 @@ export interface PageLoadContext {
   resources: PageLoadResources;
 }
 
-/** Context passed to `Page.head()`. */
-export type PageHeadContext = PageLoadContext;
+/** Context passed to `Page.metadata()`. */
+export type PageMetadataContext = PageLoadContext;
 
 /** Resource helpers available from `PageLoadContext.resources`. */
 export interface PageLoadResources {
@@ -170,7 +170,7 @@ export interface PageLoadContextInit {
   runtime?: PageLoadRuntime;
 }
 
-export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
+export const MAINZ_METADATA_MANAGED_ATTR = "data-mainz-metadata-managed";
 
 /**
  * Base class for Mainz pages.
@@ -179,14 +179,15 @@ export const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
  *
  * - route path and route params
  * - page render mode
- * - document head metadata
+ * - document metadata
  * - static entry generation for SSG
  *
  * Use `Page` when the class represents a navigable route in the application.
  * Use `Component` for reusable view pieces inside a page.
  *
  * Like `Component`, `Page` uses the generic order `Page<Props, State, Data>`.
- * Page data is typically resolved through `load()` and then consumed by `render()` and `head()`.
+ * Page data is typically resolved through `load()` and then consumed by `render()` and
+ * `metadata()`.
  */
 export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown>
   extends Component<
@@ -211,31 +212,31 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown>
   }
 
   /**
-   * Returns document head metadata for this page.
+   * Returns document metadata for this page.
    *
-   * Mainz calls `head()` with the current page context so the page can derive title, meta tags,
-   * and link tags from route state and resolved page data.
+   * Mainz calls `metadata()` with the current page context so the page can derive title, meta
+   * tags, and link tags from route state and resolved page data.
    *
-   * Use `head()` for document metadata only.
+   * Use `metadata()` for document metadata only.
    * Use `render()` for visible page content.
    */
-  head(_context?: PageHeadContext): PageHeadDefinition | undefined {
+  metadata(_context?: PageMetadataContext): PageMetadataDefinition | undefined {
     return undefined;
   }
 
-  /** Connects the page and applies managed document head metadata when ready to render. */
+  /** Connects the page and applies managed document metadata when ready to render. */
   override connectedCallback() {
     if (this.shouldDeferInitialPageRender()) {
       return;
     }
 
     super.connectedCallback();
-    applyPageHeadToDocument(this, this.props);
+    applyPageMetadataToDocument(this, this.props);
   }
 
-  /** Reapplies managed document head metadata after each page render. */
+  /** Reapplies managed document metadata after each page render. */
   override afterRender(): void {
-    applyPageHeadToDocument(this, this.props);
+    applyPageMetadataToDocument(this, this.props);
     super.afterRender?.();
   }
 
@@ -385,7 +386,7 @@ export function isPageConstructor(value: unknown): value is PageConstructor {
       ] === true;
 }
 
-export function applyPageHeadToDocument(
+export function applyPageMetadataToDocument(
   page: Page<any, any, any>,
   props?: unknown,
 ): void {
@@ -398,20 +399,20 @@ export function applyPageHeadToDocument(
     return;
   }
 
-  head.querySelectorAll(`[${MAINZ_HEAD_MANAGED_ATTR}]`).forEach((node) =>
+  head.querySelectorAll(`[${MAINZ_METADATA_MANAGED_ATTR}]`).forEach((node) =>
     node.remove()
   );
 
-  const headDefinition = resolvePageHeadDefinition(page, props);
-  if (!headDefinition) {
+  const metadataDefinition = resolvePageMetadataDefinition(page, props);
+  if (!metadataDefinition) {
     return;
   }
 
-  if (headDefinition.title) {
-    document.title = headDefinition.title;
+  if (metadataDefinition.title) {
+    document.title = metadataDefinition.title;
   }
 
-  for (const meta of headDefinition.meta ?? []) {
+  for (const meta of metadataDefinition.meta ?? []) {
     const element = document.createElement("meta");
     if (meta.name) {
       element.setAttribute("name", meta.name);
@@ -420,26 +421,26 @@ export function applyPageHeadToDocument(
       element.setAttribute("property", meta.property);
     }
     element.setAttribute("content", meta.content);
-    element.setAttribute(MAINZ_HEAD_MANAGED_ATTR, "true");
+    element.setAttribute(MAINZ_METADATA_MANAGED_ATTR, "true");
     head.appendChild(element);
   }
 
-  for (const link of headDefinition.links ?? []) {
+  for (const link of metadataDefinition.links ?? []) {
     const element = document.createElement("link");
     element.setAttribute("rel", link.rel);
     element.setAttribute("href", link.href);
     if (link.hreflang) {
       element.setAttribute("hreflang", link.hreflang);
     }
-    element.setAttribute(MAINZ_HEAD_MANAGED_ATTR, "true");
+    element.setAttribute(MAINZ_METADATA_MANAGED_ATTR, "true");
     head.appendChild(element);
   }
 }
 
-function resolvePageHeadDefinition(
+function resolvePageMetadataDefinition(
   page: Page<any, any, any>,
   props?: unknown,
-): PageHeadDefinition | undefined {
+): PageMetadataDefinition | undefined {
   const propsRecord = typeof props === "object" && props !== null
     ? props as Record<string, unknown>
     : undefined;
@@ -447,24 +448,26 @@ function resolvePageHeadDefinition(
   const routeRecord = typeof routeValue === "object" && routeValue !== null
     ? routeValue as Record<string, unknown>
     : undefined;
-  const directHead = propsRecord?.head;
-  const routeHead = routeRecord?.head;
-  const instanceHead = page.head(resolvePageHeadContext(page, routeRecord));
-  const mergedRouteHead = mergePageHeadDefinitions(
-    instanceHead,
-    isPageHeadDefinition(routeHead) ? routeHead : undefined,
+  const directMetadata = propsRecord?.metadata;
+  const routeMetadata = routeRecord?.metadata;
+  const instanceMetadata = page.metadata(
+    resolvePageMetadataContext(page, routeRecord),
+  );
+  const mergedRouteMetadata = mergePageMetadataDefinitions(
+    instanceMetadata,
+    isPageMetadataDefinition(routeMetadata) ? routeMetadata : undefined,
   );
 
-  return mergePageHeadDefinitions(
-    mergedRouteHead,
-    isPageHeadDefinition(directHead) ? directHead : undefined,
+  return mergePageMetadataDefinitions(
+    mergedRouteMetadata,
+    isPageMetadataDefinition(directMetadata) ? directMetadata : undefined,
   );
 }
 
-function resolvePageHeadContext(
+function resolvePageMetadataContext(
   page: Page<any, any, any>,
   routeRecord: Record<string, unknown> | undefined,
-): PageHeadContext {
+): PageMetadataContext {
   let routeContext: RouteContext | undefined = isRouteContext(routeRecord)
     ? routeRecord
     : undefined;
@@ -505,7 +508,9 @@ function resolvePageHeadContext(
   });
 }
 
-function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
+function isPageMetadataDefinition(
+  value: unknown,
+): value is PageMetadataDefinition {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -514,10 +519,10 @@ function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
   return "title" in candidate || "meta" in candidate || "links" in candidate;
 }
 
-export function mergePageHeadDefinitions(
-  base: PageHeadDefinition | undefined,
-  override: PageHeadDefinition | undefined,
-): PageHeadDefinition | undefined {
+export function mergePageMetadataDefinitions(
+  base: PageMetadataDefinition | undefined,
+  override: PageMetadataDefinition | undefined,
+): PageMetadataDefinition | undefined {
   if (!base) {
     return override;
   }
@@ -528,15 +533,15 @@ export function mergePageHeadDefinitions(
 
   return {
     title: override.title ?? base.title,
-    meta: mergePageHeadMetaDefinitions(base.meta, override.meta),
-    links: mergePageHeadLinkDefinitions(base.links, override.links),
+    meta: mergePageMetadataMetaDefinitions(base.meta, override.meta),
+    links: mergePageMetadataLinkDefinitions(base.links, override.links),
   };
 }
 
-function mergePageHeadMetaDefinitions(
-  base: readonly PageHeadMetaDefinition[] | undefined,
-  override: readonly PageHeadMetaDefinition[] | undefined,
-): readonly PageHeadMetaDefinition[] | undefined {
+function mergePageMetadataMetaDefinitions(
+  base: readonly PageMetadataMetaDefinition[] | undefined,
+  override: readonly PageMetadataMetaDefinition[] | undefined,
+): readonly PageMetadataMetaDefinition[] | undefined {
   if (!base) {
     return override;
   }
@@ -548,14 +553,14 @@ function mergePageHeadMetaDefinitions(
   const merged = [...base];
 
   for (const item of override) {
-    const key = getPageHeadMetaKey(item);
+    const key = getPageMetadataMetaKey(item);
     if (!key) {
       merged.push(item);
       continue;
     }
 
     const existingIndex = merged.findIndex((candidate) =>
-      getPageHeadMetaKey(candidate) === key
+      getPageMetadataMetaKey(candidate) === key
     );
     if (existingIndex >= 0) {
       merged[existingIndex] = item;
@@ -568,10 +573,10 @@ function mergePageHeadMetaDefinitions(
   return merged;
 }
 
-function mergePageHeadLinkDefinitions(
-  base: readonly PageHeadLinkDefinition[] | undefined,
-  override: readonly PageHeadLinkDefinition[] | undefined,
-): readonly PageHeadLinkDefinition[] | undefined {
+function mergePageMetadataLinkDefinitions(
+  base: readonly PageMetadataLinkDefinition[] | undefined,
+  override: readonly PageMetadataLinkDefinition[] | undefined,
+): readonly PageMetadataLinkDefinition[] | undefined {
   if (!base) {
     return override;
   }
@@ -583,14 +588,14 @@ function mergePageHeadLinkDefinitions(
   const merged = [...base];
 
   for (const item of override) {
-    const key = getPageHeadLinkKey(item);
+    const key = getPageMetadataLinkKey(item);
     if (!key) {
       merged.push(item);
       continue;
     }
 
     const existingIndex = merged.findIndex((candidate) =>
-      getPageHeadLinkKey(candidate) === key
+      getPageMetadataLinkKey(candidate) === key
     );
     if (existingIndex >= 0) {
       merged[existingIndex] = item;
@@ -603,7 +608,9 @@ function mergePageHeadLinkDefinitions(
   return merged;
 }
 
-function getPageHeadMetaKey(item: PageHeadMetaDefinition): string | undefined {
+function getPageMetadataMetaKey(
+  item: PageMetadataMetaDefinition,
+): string | undefined {
   if (item.name) {
     return `name:${item.name}`;
   }
@@ -615,7 +622,9 @@ function getPageHeadMetaKey(item: PageHeadMetaDefinition): string | undefined {
   return undefined;
 }
 
-function getPageHeadLinkKey(item: PageHeadLinkDefinition): string | undefined {
+function getPageMetadataLinkKey(
+  item: PageMetadataLinkDefinition,
+): string | undefined {
   if (item.rel === "canonical") {
     return "rel:canonical";
   }

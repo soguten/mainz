@@ -24,7 +24,7 @@ import { Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Hello Mainz",
     };
@@ -38,7 +38,7 @@ export class HomePage extends Page {
 
 `@Route(...)` keeps route metadata on the page, `@RenderMode(...)` declares the
 route envelope, and `@Locales(...)` declares locale-specific routing close to
-the page. The page instance then owns `load()`, `head()`, and `render()` for
+the page. The page instance then owns `load()`, `metadata()`, and `render()` for
 each concrete route.
 
 If you want an explicit stable tag instead of the generated class-based one, add
@@ -65,3 +65,4 @@ startApp(app);
 For the deeper split between app definition, static consumers such as
 build/diagnostics, and runtime startup, see
 [App Definition](../concepts/core/app-definition.md).
+

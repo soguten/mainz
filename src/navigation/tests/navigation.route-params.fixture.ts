@@ -3,7 +3,7 @@ import { CustomElement, load, Locales, Page, Route } from "../../index.ts";
 @CustomElement("x-mainz-route-params-home-page")
 @Route("/")
 export class RouteParamsHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Home",
     };
@@ -21,7 +21,7 @@ export class RouteParamsHomePage extends Page {
 @Route("/docs/:slug")
 @Locales("en", "pt")
 export class RouteParamsDocsPage extends Page<{}, {}, { title: string }> {
-  override head() {
+  override metadata() {
     return {
       title: "Docs",
     };
@@ -53,7 +53,7 @@ export class RouteParamsDocsPage extends Page<{}, {}, { title: string }> {
 @Route("/docs/*")
 @Locales("en", "pt")
 export class RouteParamsCatchAllPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Docs CatchAll",
     };
@@ -72,7 +72,7 @@ export class RouteParamsCatchAllPage extends Page {
 @CustomElement("x-mainz-route-params-not-found-page")
 @Locales("en", "pt")
 export class RouteParamsNotFoundPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Not Found",
     };
@@ -85,3 +85,4 @@ export class RouteParamsNotFoundPage extends Page {
     return element;
   }
 }
+

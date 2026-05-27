@@ -14,7 +14,7 @@ export class BillingPage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Billing",
     };
@@ -71,3 +71,4 @@ export class BillingPage extends AuthorizeSitePage {
     );
   }
 }
+

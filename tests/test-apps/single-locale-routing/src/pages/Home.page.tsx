@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en")
 export class FixtureSingleLocaleHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Single Locale",
     };
@@ -25,3 +25,4 @@ export class FixtureSingleLocaleHomePage extends Page {
     );
   }
 }
+

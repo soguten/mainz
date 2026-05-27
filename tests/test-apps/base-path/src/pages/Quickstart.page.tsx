@@ -6,7 +6,7 @@ import { buildLocaleHref } from "./shared.ts";
 @RenderMode("csr")
 @Locales("en", "pt")
 export class FixtureBasePathQuickstartPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Base Path Quickstart",
     };
@@ -46,3 +46,4 @@ export class FixtureBasePathQuickstartPage extends Page {
     );
   }
 }
+

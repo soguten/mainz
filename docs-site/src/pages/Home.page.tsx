@@ -13,7 +13,7 @@ import { DocsService } from "../services/DocsService.ts";
 export class HomePage extends Page {
   readonly docs = inject(DocsService);
 
-  override head() {
+  override metadata() {
     const page = this.docs.getPageById("home");
     if (!page) {
       throw new Error('Missing docs page content "home".');
@@ -40,3 +40,4 @@ export class HomePage extends Page {
     );
   }
 }
+

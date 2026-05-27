@@ -12,7 +12,7 @@ import { DocsService } from "../services/DocsService.ts";
 export class NotFoundPage extends Page {
   readonly docs = inject(DocsService);
 
-  override head() {
+  override metadata() {
     const page = this.docs.getPageById("not-found");
 
     if (!page) {
@@ -54,3 +54,4 @@ export class NotFoundPage extends Page {
     );
   }
 }
+

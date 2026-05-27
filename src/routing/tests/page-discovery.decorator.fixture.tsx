@@ -11,7 +11,7 @@ export class DecoratedHomePage extends Page {
 @RenderMode("ssg", { fallback: "csr" })
 @Locales("pt-BR", "en-US")
 export class DecoratedSearchPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Search",
       meta: [
@@ -32,3 +32,4 @@ export class DecoratedAccountPage extends Page {
     return <main>Account</main>;
   }
 }
+

@@ -4,7 +4,7 @@ import { CustomElement, Page, RenderMode, Route } from "mainz";
 @Route("/")
 @RenderMode("ssg")
 export class FixtureUnlocalizedRoutingHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Unlocalized Routing",
     };
@@ -24,3 +24,4 @@ export class FixtureUnlocalizedRoutingHomePage extends Page {
     );
   }
 }
+

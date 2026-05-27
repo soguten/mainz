@@ -1,7 +1,7 @@
 import {
   CustomElement,
   Page,
-  type PageHeadDefinition,
+  type PageMetadataDefinition,
   Route,
 } from "../../index.ts";
 
@@ -19,8 +19,8 @@ export function readSnapshotLoadCount(): number {
 @Route("/docs/:slug")
 export class SnapshotDocsPage
   extends Page<{}, {}, { slug: string; source: string }> {
-  override head(): PageHeadDefinition {
-    const parent = super.head();
+  override metadata(): PageMetadataDefinition {
+    const parent = super.metadata();
 
     return {
       ...parent,
@@ -56,3 +56,4 @@ export class SnapshotDocsPage
     return element;
   }
 }
+

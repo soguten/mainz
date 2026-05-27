@@ -6,7 +6,7 @@ import { HydrationTestComponent } from "../components/HydrationTestComponent.tsx
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class RootAppHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Mainz",
     };
@@ -39,3 +39,4 @@ export class RootAppHomePage extends Page {
     );
   }
 }
+

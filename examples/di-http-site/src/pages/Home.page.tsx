@@ -22,7 +22,7 @@ export class HomePage extends DiHttpExamplePage<HomePageData> {
     };
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Mainz DI + HTTP Example",
     };
@@ -67,3 +67,4 @@ export class HomePage extends DiHttpExamplePage<HomePageData> {
     );
   }
 }
+

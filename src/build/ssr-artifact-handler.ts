@@ -6,7 +6,7 @@ import type {
 } from "./artifacts.ts";
 import { renderRouteAppHtml } from "./render-core.ts";
 import {
-  buildResolvedRouteHead,
+  buildResolvedRouteMetadata,
   finalizePrerenderedRouteDocument,
   injectRouteGenerationMetadata,
 } from "./render-document.ts";
@@ -136,12 +136,12 @@ async function renderSsrArtifactResponse(args: {
     renderPath: args.requestUrl.pathname,
     loadModule: loadServerEntryModule,
   });
-  const routeHead = buildResolvedRouteHead({
+  const routeMetadata = buildResolvedRouteMetadata({
     route: args.route,
     locale,
     params: args.params,
     matchedPath: renderedApp.routeSnapshot?.matchedPath,
-    head: renderedApp.routeSnapshot?.head ?? args.route.head,
+    metadata: renderedApp.routeSnapshot?.metadata ?? args.route.metadata,
     targetI18n: args.manifest.i18n,
     profile: {
       name: "artifact-runtime",
@@ -153,7 +153,7 @@ async function renderSsrArtifactResponse(args: {
     html: templateHtml,
     renderedApp,
     locale,
-    routeHead,
+    routeMetadata,
     snapshotErrorMessage: (error) =>
       `SSR artifact snapshot for "${args.requestUrl.pathname}" (route "${args.route.path}")${
         locale ? ` (locale "${locale}")` : ""
@@ -254,7 +254,7 @@ export function toSsrArtifactRuntimeRouteEntry(
     mode: "ssr",
     notFound: route.notFound === true ? true : undefined,
     locales: [...route.locales],
-    head: route.head,
+    metadata: route.metadata,
     authorization: route.authorization,
   };
 }

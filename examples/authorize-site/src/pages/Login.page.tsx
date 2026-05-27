@@ -18,7 +18,7 @@ export class LoginPage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Choose Session",
     };
@@ -65,3 +65,4 @@ export class LoginPage extends AuthorizeSitePage {
     );
   }
 }
+

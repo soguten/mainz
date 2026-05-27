@@ -9,7 +9,7 @@ import { pageStyles } from "../styles/pageStyles.ts";
 export class NotFoundPage extends Page {
   static override styles = pageStyles;
 
-  override head() {
+  override metadata() {
     return {
       title: "404 | Mainz",
       meta: [
@@ -81,3 +81,4 @@ export class NotFoundPage extends Page {
     }
   }
 }
+

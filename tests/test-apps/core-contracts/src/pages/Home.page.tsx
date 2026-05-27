@@ -6,7 +6,7 @@ import { TutorialPage } from "../components/TutorialPage.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class CoreContractsHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Mainz",
     };
@@ -17,3 +17,4 @@ export class CoreContractsHomePage extends Page {
     return <TutorialPage locale={locale} />;
   }
 }
+

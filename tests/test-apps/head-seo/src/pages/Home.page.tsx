@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class FixtureHeadSeoHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Head SEO",
       meta: [
@@ -33,3 +33,4 @@ export class FixtureHeadSeoHomePage extends Page {
     );
   }
 }
+

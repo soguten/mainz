@@ -4,7 +4,7 @@ import { CustomElement, Locales, Page, RenderMode } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class RoutedAppNotFoundPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "404 | Mainz",
     };
@@ -56,3 +56,4 @@ function buildAlternateHref(
 
   return pathname;
 }
+

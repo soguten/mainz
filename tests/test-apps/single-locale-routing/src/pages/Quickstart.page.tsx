@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("csr")
 @Locales("en")
 export class FixtureSingleLocaleQuickstartPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Quickstart",
     };
@@ -25,3 +25,4 @@ export class FixtureSingleLocaleQuickstartPage extends Page {
     );
   }
 }
+

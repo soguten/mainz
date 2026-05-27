@@ -14,7 +14,7 @@ export class ReportsPage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Reports",
     };
@@ -52,3 +52,4 @@ export class ReportsPage extends AuthorizeSitePage {
     );
   }
 }
+

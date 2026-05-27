@@ -20,15 +20,15 @@ export {
 export type { PageRenderMode } from "../components/page-metadata.ts";
 export type {
   PageEntryDefinition,
-  PageHeadDefinition,
-  PageHeadLinkDefinition,
-  PageHeadMetaDefinition,
+  PageMetadataDefinition,
+  PageMetadataLinkDefinition,
+  PageMetadataMetaDefinition,
   PageRouteParams,
 } from "../components/page-contract.ts";
 export type {
   PageConstructor,
   PageEntriesContext,
-  PageHeadContext,
+  PageMetadataContext,
   PageLoadContext,
   PageLoadContextInit,
   PageLoadHelpers,

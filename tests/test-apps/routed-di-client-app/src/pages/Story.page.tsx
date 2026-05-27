@@ -13,7 +13,7 @@ export class RoutedDiClientStoryPage extends Page {
   readonly board = inject(ClientRouteBoardService);
   readonly summaries = inject(ClientStorySummaryService);
 
-  override head() {
+  override metadata() {
     return {
       title: this.board.title(),
     };
@@ -38,3 +38,4 @@ export class RoutedDiClientStoryPage extends Page {
     );
   }
 }
+

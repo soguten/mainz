@@ -330,7 +330,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
         exportName: "HomePage",
         path: "/",
         mode: "csr",
-        head: {
+        metadata: {
           title: "Home",
         },
         authorization: {
@@ -368,7 +368,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
       fallback: undefined,
       notFound: undefined,
       locales: ["en", "pt-BR"],
-      head: {
+      metadata: {
         title: "Home",
         meta: undefined,
         links: undefined,
@@ -393,7 +393,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
       fallback: undefined,
       notFound: undefined,
       locales: ["en", "pt-BR"],
-      head: undefined,
+      metadata: undefined,
       authorization: undefined,
     },
     {
@@ -407,7 +407,7 @@ Deno.test("routing/manifest: should build routes from discovered page metadata",
       fallback: undefined,
       notFound: undefined,
       locales: ["pt-BR"],
-      head: undefined,
+      metadata: undefined,
       authorization: undefined,
     },
   ]);
@@ -847,3 +847,4 @@ Deno.test("routing/manifest: locale path segment should be lowercase", () => {
   assertEquals(toLocalePathSegment("pt-BR"), "pt-br");
   assertEquals(toLocalePathSegment("EN-us"), "en-us");
 });
+

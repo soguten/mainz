@@ -5,7 +5,7 @@ import { StableNamePanel } from "../components/StableNamePanel.tsx";
 @RenderMode("ssg")
 @Locales("en")
 export class StableNameHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Generated Tag Stability",
     };
@@ -20,3 +20,4 @@ export class StableNameHomePage extends Page {
     );
   }
 }
+

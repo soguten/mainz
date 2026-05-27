@@ -6,7 +6,7 @@ import { JourneyGuidePanel } from "../components/JourneyGuidePanel.tsx";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class RoutedAppHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Mainz",
     };
@@ -35,3 +35,4 @@ export class RoutedAppHomePage extends Page {
     );
   }
 }
+

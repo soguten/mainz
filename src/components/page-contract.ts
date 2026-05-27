@@ -1,8 +1,8 @@
 /** Route params resolved for the active page or component request. */
 export type PageRouteParams = Readonly<Record<string, string>>;
 
-/** `<meta>` definition emitted by a page head contract. */
-export interface PageHeadMetaDefinition {
+/** `<meta>` definition emitted by a page metadata contract. */
+export interface PageMetadataMetaDefinition {
   /** Optional `name` attribute for standard document metadata. */
   name?: string;
   /** Optional `property` attribute for graph-style metadata such as Open Graph. */
@@ -11,8 +11,8 @@ export interface PageHeadMetaDefinition {
   content: string;
 }
 
-/** `<link>` definition emitted by a page head contract. */
-export interface PageHeadLinkDefinition {
+/** `<link>` definition emitted by a page metadata contract. */
+export interface PageMetadataLinkDefinition {
   /** `rel` attribute for the emitted `<link>` tag. */
   rel: string;
   /** `href` attribute for the emitted `<link>` tag. */
@@ -21,14 +21,14 @@ export interface PageHeadLinkDefinition {
   hreflang?: string;
 }
 
-/** Document head contract returned by a page. */
-export interface PageHeadDefinition {
+/** Document metadata contract returned by a page. */
+export interface PageMetadataDefinition {
   /** Document title emitted for the page. */
   title?: string;
-  /** Metadata tags emitted for the page head. */
-  meta?: readonly PageHeadMetaDefinition[];
-  /** Link tags emitted for the page head. */
-  links?: readonly PageHeadLinkDefinition[];
+  /** Metadata tags emitted for the page document metadata. */
+  meta?: readonly PageMetadataMetaDefinition[];
+  /** Link tags emitted for the page document metadata. */
+  links?: readonly PageMetadataLinkDefinition[];
 }
 
 /** Static entry definition returned by `Page.entries()` for SSG expansion. */

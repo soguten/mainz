@@ -38,7 +38,7 @@ Deno.test("build/dev-vite-plugin: should prerender the localized ssg notFound pa
         '  : "<section data-page=\\"docs\\">Docs</section>";',
         "app.firstElementChild.props = {",
         '  route: { path: "/404", matchedPath: path, params: {}, locale: "en" },',
-        '  head: { title: "404 | Dev" },',
+        '  metadata: { title: "404 | Dev" },',
         "};",
       ].join("\n"),
     );
@@ -274,7 +274,7 @@ Deno.test("build/dev-vite-plugin: should render ssr routes instead of falling th
       [
         'const app = document.querySelector("#app");',
         'app.innerHTML = "<section data-page=\\"docs-ssr\\">SSR Docs</section>";',
-        'app.firstElementChild.props = { route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" }, head: { title: "SSR Docs" } };',
+        'app.firstElementChild.props = { route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" }, metadata: { title: "SSR Docs" } };',
       ].join("\n"),
     );
 
@@ -1442,7 +1442,7 @@ Deno.test("build/dev-vite-plugin: should refresh title and managed head metadata
         'app.innerHTML = "<section data-page=\\"docs\\">Docs v1</section>";',
         "app.firstElementChild.props = {",
         '  route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" },',
-        '  head: { title: "Docs v1", meta: [{ name: "description", content: "Version 1" }] },',
+        '  metadata: { title: "Docs v1", meta: [{ name: "description", content: "Version 1" }] },',
         "};",
       ].join("\n"),
     );
@@ -1522,7 +1522,7 @@ Deno.test("build/dev-vite-plugin: should refresh title and managed head metadata
     assertStringIncludes(first.body, "<title>Docs v1</title>");
     assertStringIncludes(
       first.body,
-      '<meta name="description" content="Version 1" data-mainz-head-managed="true" />',
+      '<meta name="description" content="Version 1" data-mainz-metadata-managed="true" />',
     );
 
     await Deno.writeTextFile(
@@ -1532,7 +1532,7 @@ Deno.test("build/dev-vite-plugin: should refresh title and managed head metadata
         'app.innerHTML = "<section data-page=\\"docs\\">Docs v2</section>";',
         "app.firstElementChild.props = {",
         '  route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" },',
-        '  head: { title: "Docs v2", meta: [{ name: "description", content: "Version 2" }, { property: "og:title", content: "Docs social v2" }] },',
+        '  metadata: { title: "Docs v2", meta: [{ name: "description", content: "Version 2" }, { property: "og:title", content: "Docs social v2" }] },',
         "};",
       ].join("\n"),
     );
@@ -1560,11 +1560,11 @@ Deno.test("build/dev-vite-plugin: should refresh title and managed head metadata
     assertStringIncludes(second.body, "<title>Docs v2</title>");
     assertStringIncludes(
       second.body,
-      '<meta name="description" content="Version 2" data-mainz-head-managed="true" />',
+      '<meta name="description" content="Version 2" data-mainz-metadata-managed="true" />',
     );
     assertStringIncludes(
       second.body,
-      '<meta property="og:title" content="Docs social v2" data-mainz-head-managed="true" />',
+      '<meta property="og:title" content="Docs social v2" data-mainz-metadata-managed="true" />',
     );
     assertEquals(second.body.includes("<title>Docs v1</title>"), false);
     assertEquals(second.body.includes('content="Version 1"'), false);
@@ -1815,3 +1815,4 @@ function invokeHandleHotUpdate(
 
   hook.handler.call(pluginContext as never, context as never);
 }
+

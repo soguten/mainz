@@ -4,7 +4,7 @@ import { CustomElement, Page, RenderMode, Route } from "mainz";
 @Route("/quickstart")
 @RenderMode("csr")
 export class FixtureUnlocalizedRoutingQuickstartPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Unlocalized Routing Quickstart",
     };
@@ -24,3 +24,4 @@ export class FixtureUnlocalizedRoutingQuickstartPage extends Page {
     );
   }
 }
+

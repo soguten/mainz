@@ -5,7 +5,7 @@ import {
   NoState,
   Page,
   type PageEntriesContext,
-  type PageHeadDefinition,
+  type PageMetadataDefinition,
   RenderMode,
   Route,
 } from "mainz";
@@ -31,7 +31,7 @@ export class DocsPage extends Page<NoProps, NoState> {
     }));
   }
 
-  override head(): PageHeadDefinition {
+  override metadata(): PageMetadataDefinition {
     const article = this.docs.getArticleMetaBySlug(this.route.params.slug);
 
     if (!article) {
@@ -75,3 +75,4 @@ export class DocsPage extends Page<NoProps, NoState> {
     );
   }
 }
+

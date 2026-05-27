@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("csr")
 @Locales("en", "pt")
 export class LoginPage extends Page {
-  override head() {
+  override metadata() {
     const locale = this.route.locale ?? "en";
     return {
       title: locale === "pt" ? "Entrar" : "Login",
@@ -29,3 +29,4 @@ export class LoginPage extends Page {
     );
   }
 }
+

@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("csr")
 @Locales("en", "pt")
 export class RoutedAppQuickstartPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Quickstart | Mainz",
     };
@@ -39,3 +39,4 @@ export class RoutedAppQuickstartPage extends Page {
     );
   }
 }
+

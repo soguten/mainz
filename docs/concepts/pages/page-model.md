@@ -1,14 +1,14 @@
 ---
 title: Page Model
-summary: Keep routes, head metadata, and behavior close to the page itself.
+summary: Keep routes, page metadata, and behavior close to the page itself.
 ---
 
 ## A page is the center of gravity
 
 In Mainz, a page owns the metadata that matters to that page.
 
-That includes the route annotation, render mode, locales, authorization, head
-information, and any optional explicit custom element name.
+That includes the route annotation, render mode, locales, authorization, page
+metadata, and any optional explicit custom element name.
 
 ```tsx title="Page contract"
 import { Locales, Page, RenderMode, Route } from "mainz";
@@ -17,7 +17,7 @@ import { Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Home",
     };
@@ -27,10 +27,10 @@ export class HomePage extends Page {
 
 The split is intentional: `@Route(...)` describes where the page lives, while
 `@RenderMode(...)` and `@Locales(...)` declare the route contract up front. The
-page instance then owns `load()`, `head()`, and `render()` for that concrete
+page instance then owns `load()`, `metadata()`, and `render()` for that concrete
 route.
 
-Document metadata should live in `head()`. App-level fallback concerns such as
+Document metadata should live in `metadata()`. App-level fallback concerns such as
 `notFound` belong in `defineApp({ notFound })`, not in the page class.
 
 When access control belongs to the route itself, keep that on the page too with
@@ -59,13 +59,13 @@ full matrix.
 ## Inheriting page metadata
 
 When a family of pages shares route-level metadata, let the base page define
-`head()` and refine it from subclasses with `super.head()`.
+`metadata()` and refine it from subclasses with `super.metadata()`.
 
-```tsx title="Inherited head()"
+```tsx title="Inherited metadata()"
 import { Page, Route } from "mainz";
 
 class DocsBasePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Docs",
       meta: [
@@ -77,8 +77,8 @@ class DocsBasePage extends Page {
 
 @Route("/intro")
 export class IntroPage extends DocsBasePage {
-  override head() {
-    const parent = super.head();
+  override metadata() {
+    const parent = super.metadata();
 
     return {
       ...parent,
@@ -105,7 +105,7 @@ and the same route is available on `this.route` for page and component
 instances.
 
 When that page data should be consumed explicitly by the visible output, prefer
-`render(data)`. `head(context)` remains route-focused and can continue reading
+`render(data)`. `metadata(context)` remains route-focused and can continue reading
 resolved page data from `this.data`.
 
 That signal represents the lifetime of the current managed navigation in the
@@ -116,3 +116,4 @@ This is specifically about runtime navigation.
 
 `entries()` still belongs to build/prerender route expansion and is not part of
 the `navigationabort` lifecycle.
+

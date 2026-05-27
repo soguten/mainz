@@ -61,7 +61,7 @@ export class DocsPage extends Page {
   override async load() {
     const article = await docsArticleData.load(this.route.params.slug);
     return {
-      head: buildDocsHead(article),
+      metadata: buildDocsHead(article),
     };
   }
 }
@@ -123,3 +123,4 @@ Mainz now keeps the async model simple:
 - `@RenderMode(...)` and `@RenderStrategy(...)` describe rendering behavior
 
 For the ownership-first loading flow, see [Data Loading](./data-loading.md).
+

@@ -446,13 +446,13 @@ function assertSeoLinks(args: {
   );
   assertEquals(
     document.head.querySelectorAll(
-      'link[rel="canonical"][data-mainz-head-managed="true"]',
+      'link[rel="canonical"][data-mainz-metadata-managed="true"]',
     ).length,
     1,
   );
   assertEquals(
     document.head.querySelectorAll(
-      'link[rel="alternate"][hreflang][data-mainz-head-managed="true"]',
+      'link[rel="alternate"][hreflang][data-mainz-metadata-managed="true"]',
     ).length,
     Object.keys(args.alternates).length,
   );
@@ -482,3 +482,4 @@ async function waitForPostClick(
 
   await nextTick();
 }
+

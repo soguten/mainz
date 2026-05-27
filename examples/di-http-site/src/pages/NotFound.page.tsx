@@ -4,7 +4,7 @@ import { DiHttpExamplePage } from "../lib/DiHttpExamplePage.ts";
 
 @RenderMode("ssg")
 export class NotFoundPage extends DiHttpExamplePage {
-  override head() {
+  override metadata() {
     return {
       title: "DI + HTTP Example | Not Found",
     };
@@ -28,3 +28,4 @@ export class NotFoundPage extends DiHttpExamplePage {
     );
   }
 }
+

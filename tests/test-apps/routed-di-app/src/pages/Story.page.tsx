@@ -26,7 +26,7 @@ export class RoutedDiStoryPage extends Page {
     return this.stories.resolve(locale);
   }
 
-  override head() {
+  override metadata() {
     const locale = (this.route.locale ?? "en") as "en" | "pt";
     return {
       title: locale === "pt" ? "Atlas DI" : "DI Atlas",
@@ -63,3 +63,4 @@ export class RoutedDiStoryPage extends Page {
     );
   }
 }
+

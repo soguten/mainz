@@ -4,7 +4,7 @@ export {
   isFilesystemPageFile,
 } from "./filesystem.ts";
 export {
-  buildRouteHead,
+  buildRouteMetadata,
   buildSsgOutputEntries,
   buildTargetRouteManifest,
   isDynamicRoutePath,

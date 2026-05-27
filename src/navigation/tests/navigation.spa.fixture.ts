@@ -68,7 +68,7 @@ export class GreetingService {
 @CustomElement("x-mainz-navigation-spa-home-page")
 @Route("/")
 export class SpaHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Home",
     };
@@ -85,7 +85,7 @@ export class SpaHomePage extends Page {
 @CustomElement("x-mainz-navigation-spa-docs-page")
 @Route("/docs/:slug")
 export class SpaDocsPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Docs",
     };
@@ -105,7 +105,7 @@ export class SpaDocsPage extends Page {
 
 @CustomElement("x-mainz-navigation-spa-not-found-page")
 export class SpaNotFoundPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Not Found",
     };
@@ -122,7 +122,7 @@ export class SpaNotFoundPage extends Page {
 @CustomElement("x-mainz-navigation-spa-login-page")
 @Route("/login")
 export class SpaLoginPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Login",
     };
@@ -140,7 +140,7 @@ export class SpaLoginPage extends Page {
 @Authorize()
 @Route("/dashboard")
 export class SpaProtectedPage extends Page<{}, {}, { userId: string }> {
-  override head() {
+  override metadata() {
     return {
       title: "Dashboard",
     };
@@ -169,7 +169,7 @@ export class SpaProtectedPage extends Page<{}, {}, { userId: string }> {
 @Authorize({ roles: ["admin"] })
 @Route("/admin")
 export class SpaAdminPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Admin",
     };
@@ -187,7 +187,7 @@ export class SpaAdminPage extends Page {
 @Authorize({ policy: "org-member" })
 @Route("/org")
 export class SpaPolicyPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Organization",
     };
@@ -204,7 +204,7 @@ export class SpaPolicyPage extends Page {
 @CustomElement("x-mainz-navigation-spa-broken-page")
 @Route("/broken")
 export class SpaBrokenPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Broken",
     };
@@ -225,7 +225,7 @@ export class SpaBrokenPage extends Page {
 @CustomElement("x-mainz-navigation-spa-slow-page")
 @Route("/slow")
 export class SpaSlowPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Slow",
     };
@@ -300,3 +300,4 @@ export class SpaDiPage extends Page<{}, {}, { message: string }> {
     return section;
   }
 }
+

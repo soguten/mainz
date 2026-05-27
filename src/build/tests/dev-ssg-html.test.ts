@@ -49,7 +49,7 @@ Deno.test("build/dev-ssg-html: should prerender dev html while ignoring the vite
         pattern: "/docs",
         mode: "ssg",
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -112,7 +112,7 @@ Deno.test("build/dev-ssg-html: should prerender dev html when vite app scripts i
         pattern: "/docs",
         mode: "ssg",
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -174,7 +174,7 @@ Deno.test("build/dev-ssg-html: should prefer the provided module loader over dir
         pattern: "/docs",
         mode: "ssg",
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -248,7 +248,7 @@ Deno.test("build/dev-ssg-html: should keep the provided loader specifier stable 
         pattern: "/docs",
         mode: "ssg" as const,
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -323,7 +323,7 @@ Deno.test("build/dev-ssg-html: should preserve non-Vite module query params for 
         pattern: "/docs",
         mode: "ssg",
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -393,7 +393,7 @@ Deno.test("build/dev-ssg-html: should strip Vite timestamp queries from returned
         pattern: "/docs",
         mode: "ssg",
         locales: ["en"],
-        head: {
+        metadata: {
           title: "Docs | Mainz",
         },
       },
@@ -411,3 +411,4 @@ Deno.test("build/dev-ssg-html: should strip Vite timestamp queries from returned
     await Deno.remove(cwd, { recursive: true });
   }
 });
+

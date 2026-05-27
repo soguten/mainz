@@ -12,7 +12,7 @@ export class NotFoundPage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Not Found",
     };
@@ -45,3 +45,4 @@ export class NotFoundPage extends AuthorizeSitePage {
     );
   }
 }
+

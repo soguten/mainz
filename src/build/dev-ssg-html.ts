@@ -1,12 +1,12 @@
 import { resolve } from "node:path";
 import {
-  buildRouteHead,
+  buildRouteMetadata,
   materializeRoutePath,
   type RouteManifestEntry,
 } from "../routing/index.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import {
-  applyRouteHead,
+  applyRouteMetadata,
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
   injectAppHtml,
@@ -73,13 +73,13 @@ export async function renderDevSsgHtml(args: {
   let html = injectAppHtml(transformedHtml, renderedApp.appHtml);
   html = injectRouteSnapshot(html, renderedApp.routeSnapshot);
   html = setHtmlLang(html, locale);
-  html = applyRouteHead(html, {
-    head: buildRouteHead({
+  html = applyRouteMetadata(html, {
+    metadata: buildRouteMetadata({
       path: renderedApp.routeSnapshot?.matchedPath ??
         materializeRoutePath(args.route.path, args.params),
       locale,
       locales: args.route.locales,
-      head: renderedApp.routeSnapshot?.head ?? args.route.head,
+      metadata: renderedApp.routeSnapshot?.metadata ?? args.route.metadata,
       localePrefix: args.targetLocalesPrefix,
       defaultLocale: args.targetLocalesDefaultLocale,
       basePath: args.basePath,

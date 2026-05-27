@@ -5,7 +5,7 @@ import { CustomElement, Locales, Page, RenderMode, Route } from "mainz";
 @RenderMode("ssg")
 @Locales("en--US")
 export class DiagnosticsInvalidLocaleHomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Invalid locale fixture",
     };
@@ -15,3 +15,4 @@ export class DiagnosticsInvalidLocaleHomePage extends Page {
     return <section>Invalid locale fixture</section>;
   }
 }
+

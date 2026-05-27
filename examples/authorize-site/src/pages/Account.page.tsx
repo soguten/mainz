@@ -15,7 +15,7 @@ export class AccountPage extends AuthorizeSitePage {
     });
   }
 
-  override head() {
+  override metadata() {
     return {
       title: "Account",
     };
@@ -82,3 +82,4 @@ export class AccountPage extends AuthorizeSitePage {
     );
   }
 }
+

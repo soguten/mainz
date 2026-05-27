@@ -6,23 +6,23 @@ import { renderMainzComponent, setupMainzDom } from "../../testing/index.ts";
 await setupMainzDom();
 
 const fixtures = await import(
-  "./page.head.fixture.tsx"
-) as typeof import("./page.head.fixture.tsx");
+  "./page.metadata.fixture.tsx"
+) as typeof import("./page.metadata.fixture.tsx");
 
-Deno.test("components/page head: should apply managed head tags when a Page is mounted", () => {
+Deno.test("components/page metadata: should apply managed metadata tags when a Page is mounted", () => {
   const screen = renderMainzComponent(fixtures.HeadFixturePage);
 
   assertEquals(document.title, "Fixture Title");
   assertEquals(
     document.head.querySelector(
-      'meta[data-mainz-head-managed="true"][name="description"]',
+      'meta[data-mainz-metadata-managed="true"][name="description"]',
     )
       ?.getAttribute("content"),
     "Fixture description",
   );
   assertEquals(
     document.head.querySelector(
-      'link[data-mainz-head-managed="true"][rel="canonical"]',
+      'link[data-mainz-metadata-managed="true"][rel="canonical"]',
     )
       ?.getAttribute("href"),
     "/head",
@@ -31,7 +31,7 @@ Deno.test("components/page head: should apply managed head tags when a Page is m
   screen.cleanup();
 });
 
-Deno.test("components/page head: should replace managed tags when navigating between pages and preserve unmanaged nodes", () => {
+Deno.test("components/page metadata: should replace managed tags when navigating between pages and preserve unmanaged nodes", () => {
   const unmanagedMeta = document.createElement("meta");
   unmanagedMeta.setAttribute("name", "viewport-marker");
   unmanagedMeta.setAttribute("content", "persist");
@@ -48,18 +48,18 @@ Deno.test("components/page head: should replace managed tags when navigating bet
   try {
     assertEquals(document.title, "Alternate Fixture Title");
     assertEquals(
-      document.head.querySelectorAll('[data-mainz-head-managed="true"]').length,
+      document.head.querySelectorAll('[data-mainz-metadata-managed="true"]').length,
       3,
     );
     assertEquals(
       document.head.querySelector(
-        'meta[data-mainz-head-managed="true"][name="description"]',
+        'meta[data-mainz-metadata-managed="true"][name="description"]',
       ),
       null,
     );
     assertEquals(
       document.head.querySelector(
-        'meta[data-mainz-head-managed="true"][property="og:title"]',
+        'meta[data-mainz-metadata-managed="true"][property="og:title"]',
       )
         ?.getAttribute(
           "content",
@@ -68,14 +68,14 @@ Deno.test("components/page head: should replace managed tags when navigating bet
     );
     assertEquals(
       document.head.querySelector(
-        'link[data-mainz-head-managed="true"][rel="canonical"]',
+        'link[data-mainz-metadata-managed="true"][rel="canonical"]',
       )
         ?.getAttribute("href"),
       "/head-alt",
     );
     assertEquals(
       document.head.querySelector(
-        'link[data-mainz-head-managed="true"][rel="alternate"][hreflang="en"]',
+        'link[data-mainz-metadata-managed="true"][rel="alternate"][hreflang="en"]',
       )?.getAttribute("href"),
       "/head-alt",
     );
@@ -98,12 +98,12 @@ Deno.test("components/page head: should replace managed tags when navigating bet
   }
 });
 
-Deno.test("components/page head: should remove previously managed tags when a headless page is mounted", () => {
+Deno.test("components/page metadata: should remove previously managed tags when a metadata-less page is mounted", () => {
   const firstScreen = renderMainzComponent(fixtures.HeadFixturePage);
   const secondScreen = renderMainzComponent(fixtures.HeadlessFixturePage);
 
   assertEquals(
-    document.head.querySelectorAll('[data-mainz-head-managed="true"]').length,
+    document.head.querySelectorAll('[data-mainz-metadata-managed="true"]').length,
     0,
   );
 
@@ -111,10 +111,10 @@ Deno.test("components/page head: should remove previously managed tags when a he
   secondScreen.cleanup();
 });
 
-Deno.test("components/page head: should merge inherited head with props head without dropping unrelated metadata", () => {
+Deno.test("components/page metadata: should merge inherited metadata with props metadata without dropping unrelated metadata", () => {
   const screen = renderMainzComponent(fixtures.MergedHeadFixturePage, {
     props: {
-      head: {
+      metadata: {
         meta: [
           { name: "description", content: "Override description" },
         ],
@@ -129,7 +129,7 @@ Deno.test("components/page head: should merge inherited head with props head wit
     assertEquals(document.title, "Merged Fixture Title");
     assertEquals(
       document.head.querySelector(
-        'meta[data-mainz-head-managed="true"][name="description"]',
+        'meta[data-mainz-metadata-managed="true"][name="description"]',
       )
         ?.getAttribute(
           "content",
@@ -138,7 +138,7 @@ Deno.test("components/page head: should merge inherited head with props head wit
     );
     assertEquals(
       document.head.querySelector(
-        'meta[data-mainz-head-managed="true"][property="og:type"]',
+        'meta[data-mainz-metadata-managed="true"][property="og:type"]',
       )
         ?.getAttribute(
           "content",
@@ -147,14 +147,14 @@ Deno.test("components/page head: should merge inherited head with props head wit
     );
     assertEquals(
       document.head.querySelector(
-        'link[data-mainz-head-managed="true"][rel="canonical"]',
+        'link[data-mainz-metadata-managed="true"][rel="canonical"]',
       )
         ?.getAttribute("href"),
       "/override",
     );
     assertEquals(
       document.head.querySelector(
-        'link[data-mainz-head-managed="true"][rel="preconnect"]',
+        'link[data-mainz-metadata-managed="true"][rel="preconnect"]',
       )
         ?.getAttribute("href"),
       "https://cdn.example.com",
@@ -163,3 +163,4 @@ Deno.test("components/page head: should merge inherited head with props head wit
     screen.cleanup();
   }
 });
+

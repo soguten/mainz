@@ -3,7 +3,7 @@ import { ts } from "../compiler/typescript.ts";
 import { discoverPageExportFromFile, discoverPagesFromFile } from "./server.ts";
 import type { RenderMode, RenderModeFallback } from "./index.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
-import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageMetadataDefinition } from "../components/page.ts";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import {
   invalidLocalePageDiscoveryErrorKind,
@@ -22,7 +22,7 @@ export interface CliDiscoveredPage {
   fallback?: RenderModeFallback;
   notFound?: boolean;
   locales?: readonly string[];
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   authorization?: PageAuthorizationMetadata;
 }
 

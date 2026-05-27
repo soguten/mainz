@@ -5,7 +5,7 @@ import { buildLocaleHref } from "./shared.ts";
 @RenderMode("ssg")
 @Locales("en", "pt")
 export class FixtureBasePathNotFoundPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "404 | Fixture Base Path",
     };
@@ -47,3 +47,4 @@ export class FixtureBasePathNotFoundPage extends Page {
     );
   }
 }
+

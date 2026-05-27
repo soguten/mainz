@@ -1692,7 +1692,7 @@ Deno.test("navigation/runtime: should reuse route snapshot for document-first bo
         params: { slug: "intro" },
         locale: undefined,
         data: { slug: "intro", source: "snapshot" },
-        head: { title: "Snapshot:intro" },
+        metadata: { title: "Snapshot:intro" },
       })
     }</script>`;
   window.history.replaceState(null, "", "/docs/intro");
@@ -1725,7 +1725,7 @@ Deno.test("navigation/runtime: should reuse route snapshot for document-first bo
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should merge dynamic instance head with inherited head()", async () => {
+Deno.test("navigation/runtime: should merge dynamic instance metadata with inherited metadata()", async () => {
   const { startNavigation } = await prepareNavigationTest();
   const { SnapshotDocsPage, resetSnapshotLoadCount } =
     await loadSnapshotFixture();
@@ -2259,3 +2259,4 @@ function readAlternateHref(hreflang: string): string | null {
   )
     ?.getAttribute("href") ?? null;
 }
+

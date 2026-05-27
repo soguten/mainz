@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { PageHeadDefinition } from "../components/page.ts";
+import type { PageMetadataDefinition } from "../components/page.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
 
 export interface InitialRouteSnapshot {
@@ -10,7 +10,7 @@ export interface InitialRouteSnapshot {
   params: Record<string, string>;
   locale?: string;
   data?: unknown;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
 }
 
 export async function renderRouteAppHtml(args: {
@@ -219,7 +219,7 @@ function extractInitialRouteSnapshot(
 
   const routeRecord = route as Record<string, unknown>;
   const params = routeRecord.params;
-  const propsHead = routeElement.props.head;
+  const propsMetadata = routeElement.props.metadata;
 
   return {
     pageTagName: routeElement.tagName.toLowerCase(),
@@ -230,7 +230,9 @@ function extractInitialRouteSnapshot(
       ? routeRecord.locale
       : undefined,
     data: routeElement.props.data,
-    head: isPageHeadDefinition(propsHead) ? propsHead : undefined,
+    metadata: isPageMetadataDefinition(propsMetadata)
+      ? propsMetadata
+      : undefined,
   };
 }
 
@@ -266,7 +268,9 @@ function isStringRecord(value: unknown): value is Record<string, string> {
     Object.values(value).every((entry) => typeof entry === "string");
 }
 
-function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
+function isPageMetadataDefinition(
+  value: unknown,
+): value is PageMetadataDefinition {
   if (!value || typeof value !== "object") {
     return false;
   }

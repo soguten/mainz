@@ -2,7 +2,7 @@ import { Locales, Page, RenderMode, Route } from "../../index.ts";
 
 @Route("/")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Home",
       meta: [
@@ -36,3 +36,4 @@ export class AccountPage extends Page {
 export function Helper(): HTMLElement {
   return <div>helper</div>;
 }
+

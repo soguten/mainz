@@ -1,7 +1,7 @@
 import { Page } from "../../index.ts";
 
 export class HeadFixturePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Fixture Title",
       meta: [
@@ -19,7 +19,7 @@ export class HeadFixturePage extends Page {
 }
 
 export class AlternateHeadFixturePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Alternate Fixture Title",
       meta: [
@@ -44,7 +44,7 @@ export class HeadlessFixturePage extends Page {
 }
 
 abstract class MergedHeadBasePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Merged Fixture Title",
       meta: [
@@ -64,3 +64,4 @@ export class MergedHeadFixturePage extends MergedHeadBasePage {
     return <main>Merged head fixture</main>;
   }
 }
+

@@ -1,7 +1,7 @@
 import {
   createPageLoadContext,
-  type PageHeadContext,
-  type PageHeadDefinition,
+  type PageMetadataContext,
+  type PageMetadataDefinition,
   type PageLoadContext,
   type PageRenderMode,
   requirePageRoutePath,
@@ -36,7 +36,7 @@ import {
   type MainzNavigationStartDetail,
 } from "../runtime-events.ts";
 import {
-  buildRouteHead,
+  buildRouteMetadata,
   resolveLocaleRedirectPath,
   toLocalePathSegment,
 } from "../routing/index.ts";
@@ -70,7 +70,7 @@ import type { MainzCommand } from "../commands/command.ts";
 const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
 const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
 const MAINZ_ENTERING_TRANSITION_MS = 260;
-const MAINZ_HEAD_MANAGED_ATTR = "data-mainz-head-managed";
+const MAINZ_METADATA_MANAGED_ATTR = "data-mainz-metadata-managed";
 const MAINZ_DEFINED_APP_CAPTURE_STACK_KEY: unique symbol = Symbol.for(
   "mainz.definedAppCaptureStack",
 ) as typeof MAINZ_DEFINED_APP_CAPTURE_STACK_KEY;
@@ -114,8 +114,8 @@ export interface NavigationLocaleContext {
 export interface SpaPageConstructor extends CustomElementConstructor {
   /** Optional page metadata discovered from decorators on the constructor. */
   page?: {
-    /** Page-level head metadata collected from the constructor. */
-    head?: PageHeadDefinition;
+    /** Page-level document metadata collected from the constructor. */
+    metadata?: PageMetadataDefinition;
     /** Page-level authorization metadata collected from the constructor. */
     authorization?: PageAuthorizationMetadata;
   };
@@ -166,7 +166,7 @@ export interface SpaNavigationRenderContext {
   principal: Principal;
   authorization?: PageAuthorizationMetadata;
   data?: unknown;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   locale?: string;
   url: URL;
   navigationType: "initial" | "push" | "pop";
@@ -353,14 +353,14 @@ interface InitialRouteSnapshot {
   params: Record<string, string>;
   locale?: string;
   data?: unknown;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
 }
 
 type RoutedPageElement = HTMLElement & {
   props?: Record<string, unknown>;
   rerender?: () => void;
   load?(context: PageLoadContext): unknown | Promise<unknown>;
-  head(context?: PageHeadContext): PageHeadDefinition | undefined;
+  metadata(context?: PageMetadataContext): PageMetadataDefinition | undefined;
   data?: unknown;
 };
 
@@ -1446,7 +1446,7 @@ async function renderSpaRoute(args: {
       serviceContainer: args.serviceContainer,
     });
     throwIfNavigationAborted(sequence);
-    const head = resolveSpaRouteHead({
+    const metadata = resolveSpaRouteMetadata({
       page,
       pageElement,
       path: routeMatch.route.path,
@@ -1467,7 +1467,7 @@ async function renderSpaRoute(args: {
       principal,
       authorization,
       data,
-      head,
+      metadata,
       locale,
       url: args.url,
       navigationType: args.navigationType,
@@ -1484,7 +1484,7 @@ async function renderSpaRoute(args: {
 
     if (args.navigationType === "initial" && isHtmlElement(existingElement)) {
       applySpaRouteContext(existingElement, routeContext);
-      applyResolvedPageHeadToDocument(head);
+      applyResolvedPageMetadataToDocument(metadata);
       finalizeNavigationReady({
         sequence,
         mount: args.mount,
@@ -1869,7 +1869,7 @@ function applySpaRouteContext(
     ...readSpaElementProps(element),
     route: routeContext,
     data: context.data,
-    head: context.head,
+    metadata: context.metadata,
   };
   attachServiceContainer(element, serviceContainer);
 
@@ -1912,8 +1912,8 @@ function isHtmlElement(value: unknown): value is HTMLElement {
   return false;
 }
 
-function applyResolvedPageHeadToDocument(
-  headDefinition: PageHeadDefinition | undefined,
+function applyResolvedPageMetadataToDocument(
+  metadataDefinition: PageMetadataDefinition | undefined,
 ): void {
   if (typeof document === "undefined") {
     return;
@@ -1924,19 +1924,19 @@ function applyResolvedPageHeadToDocument(
     return;
   }
 
-  head.querySelectorAll(`[${MAINZ_HEAD_MANAGED_ATTR}]`).forEach((node) =>
+  head.querySelectorAll(`[${MAINZ_METADATA_MANAGED_ATTR}]`).forEach((node) =>
     node.remove()
   );
 
-  if (!headDefinition) {
+  if (!metadataDefinition) {
     return;
   }
 
-  if (headDefinition.title) {
-    document.title = headDefinition.title;
+  if (metadataDefinition.title) {
+    document.title = metadataDefinition.title;
   }
 
-  for (const meta of headDefinition.meta ?? []) {
+  for (const meta of metadataDefinition.meta ?? []) {
     const element = document.createElement("meta");
     if (meta.name) {
       element.setAttribute("name", meta.name);
@@ -1945,23 +1945,23 @@ function applyResolvedPageHeadToDocument(
       element.setAttribute("property", meta.property);
     }
     element.setAttribute("content", meta.content);
-    element.setAttribute(MAINZ_HEAD_MANAGED_ATTR, "true");
+    element.setAttribute(MAINZ_METADATA_MANAGED_ATTR, "true");
     head.appendChild(element);
   }
 
-  for (const link of headDefinition.links ?? []) {
+  for (const link of metadataDefinition.links ?? []) {
     const element = document.createElement("link");
     element.setAttribute("rel", link.rel);
     element.setAttribute("href", link.href);
     if (link.hreflang) {
       element.setAttribute("hreflang", link.hreflang);
     }
-    element.setAttribute(MAINZ_HEAD_MANAGED_ATTR, "true");
+    element.setAttribute(MAINZ_METADATA_MANAGED_ATTR, "true");
     head.appendChild(element);
   }
 }
 
-function resolveSpaRouteHead(args: {
+function resolveSpaRouteMetadata(args: {
   page: SpaPageConstructor;
   pageElement: RoutedPageElement;
   path: string;
@@ -1973,7 +1973,7 @@ function resolveSpaRouteHead(args: {
   url: URL;
   basePath: string;
   navigationMode: NavigationMode;
-}): PageHeadDefinition | undefined {
+}): PageMetadataDefinition | undefined {
   const routeContext = createRouteContext({
     path: args.path,
     matchedPath: args.matchedPath,
@@ -1985,7 +1985,7 @@ function resolveSpaRouteHead(args: {
     principal: args.principal,
     profile: createRouteProfileContext(args.basePath),
   });
-  const headContext = createPageLoadContext({
+  const metadataContext = createPageLoadContext({
     path: args.path,
     matchedPath: args.matchedPath,
     params: routeContext.params,
@@ -1996,22 +1996,22 @@ function resolveSpaRouteHead(args: {
     principal: args.principal,
     profile: routeContext.profile,
   });
-  const instanceHead = typeof args.pageElement.head === "function"
-    ? args.pageElement.head.call(args.pageElement, headContext)
+  const instanceMetadata = typeof args.pageElement.metadata === "function"
+    ? args.pageElement.metadata.call(args.pageElement, metadataContext)
     : undefined;
-  const mergedHead = instanceHead;
+  const mergedMetadata = instanceMetadata;
   const routeLocales = resolveSpaRouteLocales(args.page, args.locales);
   const activeLocale = args.locale ?? routeLocales[0] ??
     resolveMainzDefaultLocale();
   if (!activeLocale) {
-    return mergedHead;
+    return mergedMetadata;
   }
 
-  return buildRouteHead({
+  return buildRouteMetadata({
     path: args.matchedPath,
     locale: activeLocale,
     locales: routeLocales,
-    head: mergedHead,
+    metadata: mergedMetadata,
     localePrefix: resolveMainzLocalePrefix(),
     defaultLocale: resolveMainzDefaultLocale() ?? routeLocales[0],
     basePath: resolveMainzBasePath(),
@@ -2065,7 +2065,7 @@ async function resolvePageRouteData(args: {
   applyPageLifecycleProps(args.pageElement, {
     route: routeContext,
     data: args.pageElement.data,
-    head: readResolvedPageHeadFromProps(args.pageElement.props),
+    metadata: readResolvedPageMetadataFromProps(args.pageElement.props),
   });
   attachServiceContainer(args.pageElement, args.serviceContainer);
 
@@ -2109,7 +2109,7 @@ async function resolvePageRouteData(args: {
     applyPageLifecycleProps(args.pageElement, {
       route: routeContext,
       data: result,
-      head: readResolvedPageHeadFromProps(args.pageElement.props),
+      metadata: readResolvedPageMetadataFromProps(args.pageElement.props),
     });
     return result;
   }
@@ -2151,28 +2151,30 @@ function applyPageLifecycleProps(
   args: {
     route: RouteContext;
     data?: unknown;
-    head?: PageHeadDefinition;
+    metadata?: PageMetadataDefinition;
   },
 ): void {
   const nextProps = {
     ...(element.props ?? {}),
     route: args.route,
     data: args.data,
-    head: args.head,
+    metadata: args.metadata,
   };
 
   element.props = nextProps;
 }
 
-function readResolvedPageHeadFromProps(
+function readResolvedPageMetadataFromProps(
   props: unknown,
-): PageHeadDefinition | undefined {
+): PageMetadataDefinition | undefined {
   if (typeof props !== "object" || props === null) {
     return undefined;
   }
 
   const propsRecord = props as Record<string, unknown>;
-  return isPageHeadDefinition(propsRecord.head) ? propsRecord.head : undefined;
+  return isPageMetadataDefinition(propsRecord.metadata)
+    ? propsRecord.metadata
+    : undefined;
 }
 
 function resolveRouteParamsFromPageElement(
@@ -2317,7 +2319,7 @@ function renderForbiddenRoute(mount: HTMLElement): void {
   element.textContent = "403 Forbidden";
   mount.replaceChildren(element);
   ensureDefaultAppPortalLayer(mount);
-  applyResolvedPageHeadToDocument({
+  applyResolvedPageMetadataToDocument({
     title: "403 Forbidden",
   });
 }
@@ -3372,7 +3374,7 @@ async function resolveMountedRouteContext(
         applyPageLifecycleProps(mountedElement as RoutedPageElement, {
           route: snapshotRouteContext,
           data: matchedSnapshot.data,
-          head: matchedSnapshot.head,
+          metadata: matchedSnapshot.metadata,
         });
       }
       const data = matchedSnapshot
@@ -3399,7 +3401,7 @@ async function resolveMountedRouteContext(
         principal,
         authorization,
         data,
-        head: matchedSnapshot?.head ?? resolveSpaRouteHead({
+        metadata: matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
           page: matchedPage,
           pageElement: mountedElement as RoutedPageElement,
           path: context.routeMatch?.route.path ?? context.currentPath,
@@ -3420,7 +3422,7 @@ async function resolveMountedRouteContext(
       attachServiceContainer(routeContext, context.serviceContainer);
 
       applySpaRouteContext(mountedElement, routeContext);
-      applyResolvedPageHeadToDocument(routeContext.head);
+      applyResolvedPageMetadataToDocument(routeContext.metadata);
       return routeContext;
     }
   }
@@ -3498,7 +3500,7 @@ async function resolveMountedRouteContext(
       applyPageLifecycleProps(mountedElement as RoutedPageElement, {
         route: snapshotRouteContext,
         data: matchedSnapshot.data,
-        head: matchedSnapshot.head,
+        metadata: matchedSnapshot.metadata,
       });
     }
     const data = matchedSnapshot
@@ -3525,7 +3527,7 @@ async function resolveMountedRouteContext(
       principal,
       authorization,
       data,
-      head: matchedSnapshot?.head ?? resolveSpaRouteHead({
+      metadata: matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
         page: route.page,
         pageElement: mountedElement as RoutedPageElement,
         path: route.path,
@@ -3546,7 +3548,7 @@ async function resolveMountedRouteContext(
     attachServiceContainer(routeContext, context.serviceContainer);
 
     applySpaRouteContext(mountedElement, routeContext);
-    applyResolvedPageHeadToDocument(routeContext.head);
+    applyResolvedPageMetadataToDocument(routeContext.metadata);
     return routeContext;
   }
 
@@ -3625,8 +3627,8 @@ function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
     isStringRecord(candidate.params) &&
     (typeof candidate.locale === "string" ||
       typeof candidate.locale === "undefined") &&
-    (typeof candidate.head === "undefined" ||
-      isPageHeadDefinition(candidate.head));
+    (typeof candidate.metadata === "undefined" ||
+      isPageMetadataDefinition(candidate.metadata));
 }
 
 function recordsEqual(
@@ -3647,7 +3649,9 @@ function isStringRecord(value: unknown): value is Record<string, string> {
     Object.values(value).every((entry) => typeof entry === "string");
 }
 
-function isPageHeadDefinition(value: unknown): value is PageHeadDefinition {
+function isPageMetadataDefinition(
+  value: unknown,
+): value is PageMetadataDefinition {
   if (!value || typeof value !== "object") {
     return false;
   }

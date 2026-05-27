@@ -1,6 +1,6 @@
 import type {
   PageEntryDefinition,
-  PageHeadDefinition,
+  PageMetadataDefinition,
 } from "../components/page-contract.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 
@@ -31,7 +31,7 @@ export interface DiscoveredPageDefinition {
   mode: RenderMode;
   fallback?: RenderModeFallback;
   notFound?: boolean;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   locales?: readonly string[];
   authorization?: PageAuthorizationMetadata;
 }
@@ -53,7 +53,7 @@ export interface RouteManifestEntry {
   fallback?: RenderModeFallback;
   notFound?: boolean;
   locales: string[];
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   authorization?: PageAuthorizationMetadata;
 }
 

@@ -51,10 +51,10 @@ Deno.test("components/page helpers: load.byParams should resolve a param subset 
   assertEquals(await resolveLoad(context), "pt-br:intro:mpa");
 });
 
-Deno.test("components/page helpers: Locales decorator should keep locale metadata outside head()", () => {
+Deno.test("components/page helpers: Locales decorator should keep locale metadata outside metadata()", () => {
   @Locales("en", "pt-BR")
   class LocalizedPage extends Page {
-    override head() {
+    override metadata() {
       return {
         title: "Localized",
       };
@@ -65,7 +65,7 @@ Deno.test("components/page helpers: Locales decorator should keep locale metadat
     }
   }
 
-  assertEquals(new LocalizedPage().head(), {
+  assertEquals(new LocalizedPage().metadata(), {
     title: "Localized",
   });
   assertEquals(resolvePageLocales(LocalizedPage), ["en", "pt-BR"]);
@@ -154,3 +154,5 @@ Deno.test("components/page helpers: should read page metadata through shared sym
   });
   assertEquals(resolvePageLocales(ForeignCompatiblePage), ["en", "pt-BR"]);
 });
+
+

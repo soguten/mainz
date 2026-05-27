@@ -2,8 +2,8 @@ import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import type { I18nConfig } from "../i18n/index.ts";
 import type {
   PageEntryDefinition,
-  PageHeadDefinition,
-  PageHeadLinkDefinition,
+  PageMetadataDefinition,
+  PageMetadataLinkDefinition,
 } from "../components/page.ts";
 import {
   normalizeLocaleTag,
@@ -33,7 +33,7 @@ interface CandidateRoute {
   fallback?: "404" | "csr";
   notFound?: boolean;
   locales: string[];
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   authorization?: PageAuthorizationMetadata;
 }
 
@@ -49,7 +49,7 @@ interface ExpandedRouteLocale {
   fallback?: "404" | "csr";
   notFound?: boolean;
   locale?: string;
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   authorization?: PageAuthorizationMetadata;
 }
 
@@ -419,17 +419,17 @@ export function resolveLocaleRedirectPath(args: {
   return `/${normalizedSupported[0]}/`;
 }
 
-export function buildRouteHead(args: {
+export function buildRouteMetadata(args: {
   path: string;
   locale: string;
   locales: readonly string[];
-  head?: PageHeadDefinition;
+  metadata?: PageMetadataDefinition;
   localePrefix?: I18nConfig["localePrefix"];
   defaultLocale?: string;
   basePath?: string;
   siteUrl?: string;
-}): PageHeadDefinition | undefined {
-  const generatedLinks = generateRouteHeadLinks({
+}): PageMetadataDefinition | undefined {
+  const generatedLinks = generateRouteMetadataLinks({
     path: args.path,
     locale: args.locale,
     locales: args.locales,
@@ -438,16 +438,16 @@ export function buildRouteHead(args: {
     basePath: args.basePath,
     siteUrl: args.siteUrl,
   });
-  const manualHead = args.head;
+  const manualMetadata = args.metadata;
 
-  if (!manualHead && generatedLinks.length === 0) {
+  if (!manualMetadata && generatedLinks.length === 0) {
     return undefined;
   }
 
   return {
-    title: manualHead?.title,
-    meta: manualHead?.meta ? [...manualHead.meta] : undefined,
-    links: mergeRouteHeadLinks(generatedLinks, manualHead?.links),
+    title: manualMetadata?.title,
+    meta: manualMetadata?.meta ? [...manualMetadata.meta] : undefined,
+    links: mergeRouteMetadataLinks(generatedLinks, manualMetadata?.links),
   };
 }
 
@@ -486,7 +486,7 @@ function buildDiscoveredPageCandidate(
     fallback: page.mode === "ssg" ? page.fallback : undefined,
     notFound: page.notFound === true ? true : undefined,
     locales,
-    head: page.head,
+    metadata: page.metadata,
     authorization: page.authorization
       ? cloneAuthorization(page.authorization)
       : undefined,
@@ -513,7 +513,7 @@ function upsertByLocale(
         mode: candidate.mode,
         fallback: candidate.mode === "ssg" ? candidate.fallback : undefined,
         notFound: candidate.notFound === true ? true : undefined,
-        head: candidate.head,
+        metadata: candidate.metadata,
         authorization: candidate.authorization
           ? cloneAuthorization(candidate.authorization)
           : undefined,
@@ -549,7 +549,7 @@ function upsertByLocale(
         fallback: candidate.mode === "ssg" ? candidate.fallback : undefined,
         notFound: candidate.notFound === true ? true : undefined,
         locale,
-        head: candidate.head,
+        metadata: candidate.metadata,
         authorization: candidate.authorization
           ? cloneAuthorization(candidate.authorization)
           : undefined,
@@ -598,7 +598,7 @@ function aggregateRoutes(
         fallback: route.mode === "ssg" ? route.fallback : undefined,
         notFound: route.notFound === true ? true : undefined,
         locales: route.locale ? [route.locale] : [],
-        head: route.head ? cloneHead(route.head) : undefined,
+        metadata: route.metadata ? cloneMetadata(route.metadata) : undefined,
         authorization: route.authorization
           ? cloneAuthorization(route.authorization)
           : undefined,
@@ -930,17 +930,17 @@ function resolveNotFoundOutputLocale(
   return locales[0];
 }
 
-function mergeRouteHeadLinks(
-  generatedLinks: readonly PageHeadLinkDefinition[],
-  manualLinks: readonly PageHeadLinkDefinition[] | undefined,
-): PageHeadLinkDefinition[] {
-  const merged: PageHeadLinkDefinition[] = [];
+function mergeRouteMetadataLinks(
+  generatedLinks: readonly PageMetadataLinkDefinition[],
+  manualLinks: readonly PageMetadataLinkDefinition[] | undefined,
+): PageMetadataLinkDefinition[] {
+  const merged: PageMetadataLinkDefinition[] = [];
   const seenKeys = new Set<string>();
 
   for (
     const link of [...generatedLinks, ...(manualLinks ? [...manualLinks] : [])]
   ) {
-    const key = createRouteHeadLinkKey(link);
+    const key = createRouteMetadataLinkKey(link);
     if (seenKeys.has(key)) {
       continue;
     }
@@ -952,7 +952,7 @@ function mergeRouteHeadLinks(
   return merged;
 }
 
-function createRouteHeadLinkKey(link: PageHeadLinkDefinition): string {
+function createRouteMetadataLinkKey(link: PageMetadataLinkDefinition): string {
   const rel = link.rel.trim().toLowerCase();
   if (rel === "canonical") {
     return "canonical";
@@ -967,7 +967,7 @@ function createRouteHeadLinkKey(link: PageHeadLinkDefinition): string {
   }`;
 }
 
-function generateRouteHeadLinks(args: {
+function generateRouteMetadataLinks(args: {
   path: string;
   locale: string;
   locales: readonly string[];
@@ -975,12 +975,12 @@ function generateRouteHeadLinks(args: {
   defaultLocale: string | undefined;
   basePath: string | undefined;
   siteUrl: string | undefined;
-}): PageHeadLinkDefinition[] {
+}): PageMetadataLinkDefinition[] {
   if (args.locales.length === 0) {
     return [];
   }
 
-  const links: PageHeadLinkDefinition[] = [];
+  const links: PageMetadataLinkDefinition[] = [];
   links.push({
     rel: "canonical",
     href: buildLocalizedRouteHref({
@@ -1131,17 +1131,17 @@ function describeRouteSource(
   return route.source;
 }
 
-function cloneHead(
-  head: PageHeadDefinition | undefined,
-): PageHeadDefinition | undefined {
-  if (!head) {
-    return head;
+function cloneMetadata(
+  metadata: PageMetadataDefinition | undefined,
+): PageMetadataDefinition | undefined {
+  if (!metadata) {
+    return metadata;
   }
 
   return {
-    title: head.title,
-    meta: head.meta ? [...head.meta] : undefined,
-    links: head.links ? [...head.links] : undefined,
+    title: metadata.title,
+    meta: metadata.meta ? [...metadata.meta] : undefined,
+    links: metadata.links ? [...metadata.links] : undefined,
   };
 }
 
