@@ -26,13 +26,13 @@ mainz dev --target app
 
 Use `mainz app create <name>` to create an app workspace and register a target
 for it. When no template is passed, Mainz creates the default routed app
-scaffold. `mainz app create <name>` and `mainz app create --name <name>` are
-both accepted for naming the app.
+scaffold with `spa` navigation. `mainz app create <name>` and
+`mainz app create --name <name>` are both accepted for naming the app.
 
 ```bash
 mainz app create --name site
 mainz app create site
-mainz app create docs --navigation enhanced-mpa
+mainz app create docs --navigation mpa
 mainz app create portal --type root
 mainz app create admin --root ./apps/admin
 mainz app create docs --out-dir public/docs
@@ -54,8 +54,9 @@ site/
 ```
 
 Routed apps include `defineApp(...)`, `startApp(...)`, a pages directory, a home
-page, and a not-found page. Use `--type root` for the default root-mounted
-scaffold without routing pages.
+page, and a not-found page. Use `--navigation mpa` only when you want that app
+to start from an explicit non-default navigation mode. Use `--type root` for
+the default root-mounted scaffold without routing pages.
 
 Use `--template <name|source>` only when selecting an explicit app template or
 template source. `--template` and `--type` are mutually exclusive because

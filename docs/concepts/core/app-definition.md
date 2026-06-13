@@ -34,7 +34,7 @@ import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
 export const app = defineApp({
   id: "site",
-  navigation: "enhanced-mpa",
+  navigation: "spa",
   pages: [HomePage],
   notFound: NotFoundPage,
 });

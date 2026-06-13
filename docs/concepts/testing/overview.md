@@ -69,7 +69,6 @@ Good for:
 
 - SPA route resolution
 - locale-aware navigation
-- enhanced-MPA transitions
 - basePath handling
 - runtime head updates
 

@@ -10,7 +10,6 @@ Some behavior belongs above one component:
 - route resolution
 - locale handling
 - SPA navigation
-- enhanced-MPA transitions
 - runtime-managed SEO links
 
 For that layer, `mainz/testing` exposes helpers aimed at runtime tests.
@@ -354,7 +353,7 @@ Use it for:
 
 - initial SPA startup
 - client-side push and pop navigation
-- document-first bootstrap in `mpa` and `enhanced-mpa`
+- document-first bootstrap in Mainz `mpa`
 - runtime tests that previously guessed readiness from title, locale, or body
   text
 

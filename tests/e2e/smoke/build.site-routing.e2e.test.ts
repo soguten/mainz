@@ -18,7 +18,7 @@ const siteArtifactRootDir = resolve(repoRoot, "dist/site");
 const siteBrowserOutDir = resolve(siteArtifactRootDir, "browser");
 
 Deno.test("e2e/site routing: mpa build should emit localized routes and hydrate direct document loads", async () => {
-  await buildSiteEnhancedMpa();
+  await buildSiteMpa();
 
   const hydrationManifest = await readHydrationManifest();
   assertEquals(hydrationManifest.navigation, "mpa");
@@ -68,7 +68,7 @@ Deno.test({
   name: "e2e/site preview: mpa build should serve localized routes and custom 404 page",
   sanitizeOps: false,
   fn: async () => {
-  await buildSiteEnhancedMpa();
+  await buildSiteMpa();
 
   const handler = createArtifactPreviewHandler(
     siteArtifactRootDir,
@@ -159,7 +159,7 @@ Deno.test({
   },
 });
 
-async function buildSiteEnhancedMpa(): Promise<void> {
+async function buildSiteMpa(): Promise<void> {
   await buildTargetWithEngine({
     targetName: "site",
   });

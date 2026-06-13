@@ -39,7 +39,7 @@ export interface AssetContext {
   runtime: {
     phase: "build" | "client";
     renderMode: "csr" | "ssr" | "ssg";
-    navigation: "spa" | "mpa" | "enhanced-mpa";
+    navigation: "spa" | "mpa";
   };
   route: {
     path: string;
@@ -158,7 +158,7 @@ export function createAssetContext(args: {
   appId?: string;
   phase: "build" | "client";
   renderMode: PageRenderMode;
-  navigation: "spa" | "mpa" | "enhanced-mpa";
+  navigation: "spa" | "mpa";
   path: string;
   matchedPath?: string;
   locale?: string;

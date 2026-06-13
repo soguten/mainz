@@ -1,22 +1,20 @@
 ---
 title: Navigation Runtime
-summary: Understand what SPA, MPA, and enhanced-MPA do in practice inside the browser.
+summary: Understand what SPA and MPA do in practice inside the browser.
 ---
 
-## Three navigation modes
+## Two navigation modes
 
 Mainz models navigation separately from render.
 
-That gives you **SPA**, **MPA**, and **enhanced-MPA** as distinct runtime
-behaviors.
+That gives you **SPA** and **MPA** as distinct runtime behaviors.
 
-## Enhanced-MPA is still document-first
+## Mainz `mpa` stays document-first
 
-Enhanced-MPA does not turn an app into a SPA.
+In Mainz, `mpa` keeps browser-native document navigation semantics.
 
-It keeps browser-native navigation semantics, then layers in practical upgrades
-like prefetching, scroll restoration, and progressive transitions where
-supported.
+Mainz also applies document-first runtime enhancements under `mpa`, such as
+prefetching, scroll restoration, and progressive transitions where supported.
 
 ## The app bootstrap stays small
 

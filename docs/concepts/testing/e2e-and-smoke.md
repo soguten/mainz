@@ -52,7 +52,7 @@ points:
 
 That means your E2E suite can ask better questions, such as:
 
-- does a page-owned `ssg` route preserve head tags under `enhanced-mpa`?
+- does a page-owned `ssg` route preserve head tags under `mpa`?
 - does a default-`csr` route redirect the root locale correctly under `spa`?
 - does publication with `basePath` emit the right routing behavior?
 - does publication with `siteUrl` emit the right absolute SEO links?

@@ -8,8 +8,12 @@ summary: Separate render from navigation and choose the combination that matches
 Mainz separates render mode from navigation mode. Render answers how HTML
 exists; navigation answers how links move between pages.
 
-That gives you combinations like **SSG + MPA**, **SSG + enhanced-MPA**, and
-**CSR + SPA** without overloading a single flag.
+That gives you combinations like **CSR + SPA**, **SSG + MPA**, and
+**SSR + SPA** without overloading a single flag.
+
+In practice, `spa` and `mpa` are app-owned navigation choices, while `csr`,
+`ssg`, and `ssr` are page-owned render choices. Either navigation mode can be
+combined with any render mode in the Mainz model.
 
 ## Keep the app API small
 
@@ -38,6 +42,7 @@ deno run -A ./src/cli/mainz.ts build --target site --profile gh-pages
 In production builds:
 
 - `@RenderMode(...)` on the page is the source of truth
+- `@RenderMode(...)` may resolve to `csr`, `ssg`, or `ssr`
 - undecorated pages default to `csr`
 - routed app navigation starts from `defineApp({ navigation })`
 - apps that omit navigation use `spa`
