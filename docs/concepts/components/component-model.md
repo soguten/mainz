@@ -108,6 +108,65 @@ That behavior also composes across subtrees:
 - one child hitting a real error fallback does not turn an aborted sibling into
   an error
 
+## Component props are not the same as host attributes
+
+When JSX renders a Mainz class component, two things can happen at once:
+
+- the component instance receives structured `props`
+- the custom element host can receive a small set of explicit host attributes
+
+Those are related, but they are not the same contract.
+
+Mainz keeps arbitrary component props on `this.props`. It does not mirror every
+primitive prop onto the host element.
+
+That means values such as these stay plain component props by default:
+
+- `state`
+- `value`
+- `checked`
+- `count`
+- domain props such as `variant`, `tone`, `slug`, or `itemId`
+
+If a class component needs those values, read them from `this.props`, not from
+`getAttribute(...)`.
+
+## Which host attributes are forwarded
+
+Mainz still forwards a deliberate host-attribute subset for class components so
+host-level semantics stay available.
+
+This includes:
+
+- normalized host props such as `className` and `tabIndex`
+- standard host attributes such as `id`, `title`, `role`, `slot`, `part`,
+  `hidden`, `lang`, `dir`, `style`, and related global host values
+- any `data-*` attribute
+- any `aria-*` attribute
+
+Examples:
+
+```tsx
+<Card
+  className="card"
+  style="border: 1px solid var(--line);"
+  tabIndex={0}
+  role="region"
+  data-state="ready"
+  aria-label="Account card"
+  variant="subtle"
+/>;
+```
+
+In that example:
+
+- `className`, `style`, `tabIndex`, `role`, `data-state`, and `aria-label`
+  forward to the custom element host
+- `variant` remains only `this.props.variant`
+
+This keeps host semantics explicit without turning every primitive component
+prop into public DOM surface area.
+
 ## Components compose pages
 
 Pages usually own route and head metadata, while components own reusable UI

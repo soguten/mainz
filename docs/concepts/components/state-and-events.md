@@ -171,6 +171,44 @@ That split is useful because reusable components often want object-shaped input,
 but plain DOM nodes still need normal attribute updates like `class`, `value`,
 `checked`, and `selected`.
 
+For Mainz class components, the rule is more specific:
+
+- `onClick`, `onInput`, and similar `on*` props only become listeners when they
+  are attached to real DOM elements such as `<button>` or `<input>`
+- `on*` props passed to a class component stay plain component props
+- arbitrary primitive props are not mirrored to the custom element host by
+  default
+- explicit host attributes such as `className`, `style`, `tabIndex`, `title`,
+  `role`, `data-*`, and `aria-*` are still forwarded to the host
+
+Example:
+
+```tsx
+<SearchPanel
+  onInput={this.handleSearch}
+  state="ready"
+  className="panel"
+  style="border: 1px solid var(--line);"
+  tabIndex={0}
+  data-mode="inline"
+/>;
+```
+
+In that example:
+
+- `this.props.onInput` and `this.props.state` stay component props
+- `onInput` does not become a host listener automatically
+- `className`, `style`, `tabIndex`, and `data-mode` are forwarded to the host
+
+Inside `SearchPanel`, attach the real DOM listener where the DOM node is
+created:
+
+```tsx
+override render() {
+  return <input onInput={this.props.onInput} />;
+}
+```
+
 ## This area can grow
 
 This page is the base layer for component state and event behavior.

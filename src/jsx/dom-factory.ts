@@ -32,7 +32,7 @@ export function h(
       const el = ownerDocument.createElement(tagName) as HTMLElement;
 
       if (props) {
-        applyAttributes(el, props);
+        applyComponentHostProps(el, props);
       }
 
       (el as any).props = {
@@ -157,6 +157,87 @@ function applyAttributes(el: Element, props: Record<string, any>) {
         el.setAttribute(key, String(value));
       }
     }
+  }
+}
+
+function applyComponentHostProps(
+  el: Element,
+  props: Record<string, any>,
+): void {
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "ref" && typeof value === "function") {
+      value(el);
+      continue;
+    }
+
+    if (key === "children" || value == null) {
+      continue;
+    }
+
+    if (!shouldMirrorComponentHostProp(key, value)) {
+      continue;
+    }
+
+    el.setAttribute(normalizeComponentHostAttributeName(key), String(value));
+  }
+}
+
+function shouldMirrorComponentHostProp(key: string, value: unknown): boolean {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "boolean"
+  ) {
+    return false;
+  }
+
+  if (isAriaAttribute(key) || isDataAttribute(key)) {
+    return true;
+  }
+
+  return COMPONENT_HOST_ATTRIBUTE_ALLOWLIST.has(key);
+}
+
+function isAriaAttribute(key: string): boolean {
+  return key === "aria" || key.startsWith("aria-");
+}
+
+function isDataAttribute(key: string): boolean {
+  return key.startsWith("data-");
+}
+
+const COMPONENT_HOST_ATTRIBUTE_ALLOWLIST = new Set([
+  "accessKey",
+  "autocapitalize",
+  "className",
+  "contenteditable",
+  "dir",
+  "draggable",
+  "enterKeyHint",
+  "hidden",
+  "id",
+  "inputMode",
+  "lang",
+  "part",
+  "placeholder",
+  "popover",
+  "role",
+  "slot",
+  "spellcheck",
+  "style",
+  "tabIndex",
+  "title",
+  "translate",
+]);
+
+function normalizeComponentHostAttributeName(key: string): string {
+  switch (key) {
+    case "className":
+      return "class";
+    case "tabIndex":
+      return "tabindex";
+    default:
+      return key;
   }
 }
 

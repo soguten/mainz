@@ -120,3 +120,40 @@ Deno.test("jsx/integration: controlled textarea should keep value/property in sy
 
   screen.cleanup();
 });
+
+Deno.test("jsx/integration: event-named callback props on class components should not be invoked twice", () => {
+  const screen = renderMainzComponent(fixtures.JSXEventPropParentComponent);
+  const input = screen.getBySelector<HTMLInputElement>(
+    "input[data-role='child-input']",
+  );
+
+  input.value = "abc";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+
+  assertEquals(
+    screen.getBySelector("[data-role='call-count']").textContent,
+    "1",
+  );
+  assertEquals(
+    screen.getBySelector("[data-role='last-call']").textContent,
+    "abc",
+  );
+  assertEquals(
+    screen.getBySelector("[data-role='child-value']").textContent,
+    "abc",
+  );
+
+  screen.cleanup();
+});
+
+Deno.test("jsx/integration: class component hosts should not mirror arbitrary primitive props", () => {
+  const screen = renderMainzComponent(fixtures.JSXEventPropParentComponent);
+  const host = screen.component.querySelector<HTMLElement>(
+    fixtures.JSXEventPropChildComponent.getTagName(),
+  );
+
+  assertEquals(host?.getAttribute("state"), null);
+  assertEquals(host?.getAttribute("value"), null);
+
+  screen.cleanup();
+});

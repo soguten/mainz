@@ -159,3 +159,61 @@ export class JSXControlledTextareaComponent
     );
   }
 }
+
+export class JSXEventPropChildComponent extends Component<
+  { onInput: (value: string) => void; state?: string; value?: string },
+  { value: string }
+> {
+  protected override initState() {
+    return { value: "" };
+  }
+
+  private onInput = (event: Event) => {
+    const target = event.currentTarget as HTMLInputElement | null;
+    const nextValue = target?.value ?? "";
+    this.setState({ value: nextValue });
+    this.props.onInput(nextValue);
+  };
+
+  override render(): HTMLElement {
+    return (
+      <section>
+        <input
+          data-role="child-input"
+          value={this.state.value}
+          onInput={this.onInput}
+        />
+        <p data-role="child-value">{this.state.value}</p>
+      </section>
+    );
+  }
+}
+
+export class JSXEventPropParentComponent extends Component<
+  {},
+  { calls: string[]; probe: string }
+> {
+  protected override initState() {
+    return { calls: [], probe: "ready" };
+  }
+
+  private handleInput = (value: string) => {
+    this.setState({
+      calls: [...this.state.calls, value],
+    });
+  };
+
+  override render(): HTMLElement {
+    return (
+      <section>
+        <JSXEventPropChildComponent
+          onInput={this.handleInput}
+          state={this.state.probe}
+          value="forwarded"
+        />
+        <p data-role="call-count">{String(this.state.calls.length)}</p>
+        <p data-role="last-call">{this.state.calls.at(-1) ?? "none"}</p>
+      </section>
+    );
+  }
+}

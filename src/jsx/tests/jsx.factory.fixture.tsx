@@ -13,6 +13,28 @@ export class FactoryClassComponent extends Component<
   }
 }
 
+export class FactoryEventPropComponent extends Component<
+  {
+    onInput?: (value: string) => void;
+    state?: string;
+    value?: string;
+    count?: number;
+    checked?: boolean;
+    className?: string;
+    title?: string;
+    role?: string;
+    "data-mode"?: string;
+    "aria-label"?: string;
+    style?: string;
+    tabIndex?: number;
+  },
+  Record<string, never>
+> {
+  override render(): HTMLElement {
+    return <div>probe</div>;
+  }
+}
+
 export function FactoryFunctionComponent(
   props: { prefix: string; children?: unknown },
 ): HTMLElement {

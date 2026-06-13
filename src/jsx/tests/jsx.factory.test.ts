@@ -111,6 +111,58 @@ Deno.test("jsx/factory: should create class components and assign props and chil
   assertStrictEquals(element.props.children, child);
 });
 
+Deno.test("jsx/factory: should keep event-named function props as component props without host listeners", () => {
+  const onInput = (value: string) => value;
+
+  const element = domFactory.h(fixtures.FactoryEventPropComponent, {
+    onInput,
+  }) as HTMLElement & { props: Record<string, unknown> };
+
+  assertStrictEquals(element.props.onInput, onInput);
+  assertEquals(domFactory.getManagedDOMEvents(element).length, 0);
+  assertEquals(element.getAttribute("onInput"), null);
+  assertEquals(element.getAttribute("oninput"), null);
+});
+
+Deno.test("jsx/factory: should not mirror arbitrary primitive component props to host attributes", () => {
+  const element = domFactory.h(fixtures.FactoryEventPropComponent, {
+    state: "ready",
+    value: "abc",
+    count: 2,
+    checked: false,
+  }) as HTMLElement & { props: Record<string, unknown> };
+
+  assertEquals(element.props.state, "ready");
+  assertEquals(element.props.value, "abc");
+  assertEquals(element.props.count, 2);
+  assertEquals(element.props.checked, false);
+
+  assertEquals(element.getAttribute("state"), null);
+  assertEquals(element.getAttribute("value"), null);
+  assertEquals(element.getAttribute("count"), null);
+  assertEquals(element.getAttribute("checked"), null);
+});
+
+Deno.test("jsx/factory: should still mirror explicit host attributes for class components", () => {
+  const element = domFactory.h(fixtures.FactoryEventPropComponent, {
+    className: "chip",
+    style: "color: red;",
+    tabIndex: 3,
+    title: "host title",
+    role: "status",
+    "data-mode": "test",
+    "aria-label": "factory probe",
+  }) as HTMLElement & { props: Record<string, unknown> };
+
+  assertEquals(element.getAttribute("class"), "chip");
+  assertEquals(element.getAttribute("style"), "color: red;");
+  assertEquals(element.getAttribute("tabindex"), "3");
+  assertEquals(element.getAttribute("title"), "host title");
+  assertEquals(element.getAttribute("role"), "status");
+  assertEquals(element.getAttribute("data-mode"), "test");
+  assertEquals(element.getAttribute("aria-label"), "factory probe");
+});
+
 Deno.test("jsx/factory: should invoke function components with normalized children", () => {
   const out = domFactory.h(fixtures.FactoryFunctionComponent, {
     prefix: "hi",

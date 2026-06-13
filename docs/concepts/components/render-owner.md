@@ -36,6 +36,29 @@ When JSX sees an `onClick`, `onInput`, or similar prop on a real DOM element, it
 registers that listener under the current render owner instead of treating the
 listener as anonymous global state.
 
+That rule is intentionally narrow.
+
+For Mainz class components:
+
+- `on*` props stay plain component props
+- they are not auto-registered as listeners on the custom element host
+
+So this:
+
+```tsx
+<SaveButton onSave={this.handleSave} />;
+```
+
+means `SaveButton` receives `props.onSave`.
+
+But this:
+
+```tsx
+<button onClick={props.onSave}>save</button>;
+```
+
+is where Mainz creates the actual managed DOM listener.
+
 That gives Mainz a concrete place to:
 
 - track DOM listeners created during render

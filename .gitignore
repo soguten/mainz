@@ -147,4 +147,5 @@ vite.config.ts.timestamp-*
 # Internal workspace-only docs and agent notes
 /AGENTS.md
 /internal-docs/
+/.specs/
 CLI-SPEC.md
