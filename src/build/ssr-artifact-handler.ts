@@ -9,6 +9,7 @@ import {
   buildResolvedRouteMetadata,
   finalizePrerenderedRouteDocument,
   injectRouteGenerationMetadata,
+  resolveRenderedRouteAssets,
 } from "./render-document.ts";
 import {
   buildDevSsgCacheKey,
@@ -149,11 +150,15 @@ async function renderSsrArtifactResponse(args: {
       siteUrl: args.manifest.siteUrl,
     },
   });
+  const routeAssets = resolveRenderedRouteAssets({
+    renderedSnapshot: renderedApp.routeSnapshot,
+  });
   const html = finalizePrerenderedRouteDocument({
     html: templateHtml,
     renderedApp,
     locale,
     routeMetadata,
+    routeAssets,
     snapshotErrorMessage: (error) =>
       `SSR artifact snapshot for "${args.requestUrl.pathname}" (route "${args.route.path}")${
         locale ? ` (locale "${locale}")` : ""

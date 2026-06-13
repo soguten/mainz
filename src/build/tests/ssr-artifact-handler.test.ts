@@ -2,7 +2,9 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { resolve } from "node:path";
+import { script } from "../../components/index.ts";
 import { tryRenderSsrArtifactRequest } from "../ssr-artifact-handler.ts";
+import { createArtifactFixture } from "../../../tests/helpers/artifact-fixture.ts";
 import { createTestAppTargetConfig } from "../../../tests/helpers/test-app-config.ts";
 import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
@@ -54,6 +56,44 @@ Deno.test("build/ssr-artifact-handler: should return null when no built ssr mani
     assertEquals(response, null);
   } finally {
     await testApp.cleanup();
+  }
+});
+
+Deno.test("build/ssr-artifact-handler: should apply rendered route assets to the SSR response document", async () => {
+  const fixture = await createArtifactFixture({
+    routes: [{ path: "/account", mode: "ssr" }],
+    notFoundMode: "csr",
+    ssrAssets: [
+      script({
+        id: "ssr-sdk",
+        src: "https://cdn.example.com/sdk.js",
+        target: "head",
+      }),
+      script({
+        id: "ssr-bootstrap",
+        inline: "window.__ssrBootstrap = true;",
+        target: "body:end",
+      }),
+    ],
+  });
+
+  try {
+    const response = await tryRenderSsrArtifactRequest({
+      rootDir: fixture.rootDir,
+      browserRootDir: resolve(fixture.rootDir, "browser"),
+      request: new Request("http://127.0.0.1:4173/account", {
+        headers: { accept: "text/html" },
+      }),
+    });
+    const html = await response?.text();
+
+    assertEquals(response?.status, 200);
+    assertStringIncludes(html ?? "", 'data-mainz-asset-id="ssr-sdk"');
+    assertStringIncludes(html ?? "", 'src="https://cdn.example.com/sdk.js"');
+    assertStringIncludes(html ?? "", 'data-mainz-asset-id="ssr-bootstrap"');
+    assertStringIncludes(html ?? "", "window.__ssrBootstrap = true;");
+  } finally {
+    await fixture.cleanup();
   }
 });
 

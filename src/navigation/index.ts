@@ -1,10 +1,15 @@
 import {
+  applyResolvedAssetDefinitionsToDocument,
+  createAssetContext,
   createPageLoadContext,
+  type AssetDefinition,
+  isAssetDefinitionList,
   type PageMetadataContext,
   type PageMetadataDefinition,
   type PageLoadContext,
   type PageRenderMode,
   requirePageRoutePath,
+  resolveAssetDefinitions,
   resolvePageLocales,
   resolvePageRenderMode,
   type RouteContext,
@@ -167,6 +172,7 @@ export interface SpaNavigationRenderContext {
   authorization?: PageAuthorizationMetadata;
   data?: unknown;
   metadata?: PageMetadataDefinition;
+  assets?: readonly AssetDefinition[];
   locale?: string;
   url: URL;
   navigationType: "initial" | "push" | "pop";
@@ -195,6 +201,7 @@ interface SpaNavigationOptions {
 export interface InternalStartNavigationOptions {
   appId?: string;
   commands?: readonly MainzCommand<never>[];
+  assets?: readonly AssetDefinition[];
   mode: NavigationMode;
   basePath?: string;
   mount?: string | Element;
@@ -250,6 +257,8 @@ export interface RoutedAppDefinition {
     readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
   /** Optional catch-all page rendered when no route matches. */
   notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
+  /** App-wide document assets resolved for routed pages. */
+  assets?: readonly AssetDefinition[];
   /** Service registrations attached to the application container. */
   services?: readonly ServiceRegistration[];
 }
@@ -274,6 +283,8 @@ export interface RootAppDefinition {
   commands?: readonly MainzCommand<never>[];
   /** Root component rendered directly into the application mount. */
   root: AppRootComponentConstructor;
+  /** App-wide document assets resolved for the application shell. */
+  assets?: readonly AssetDefinition[];
   /** Service registrations attached to the application container. */
   services?: readonly ServiceRegistration[];
 }
@@ -333,6 +344,7 @@ interface SpaRouteMatch {
 interface ResolvedPageNavigationOptions {
   appId?: string;
   commands?: readonly MainzCommand<never>[];
+  assets?: readonly AssetDefinition[];
   pages:
     readonly (SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition)[];
   notFound?: SpaPageConstructor | SpaPageDefinition | SpaLazyPageDefinition;
@@ -354,6 +366,7 @@ interface InitialRouteSnapshot {
   locale?: string;
   data?: unknown;
   metadata?: PageMetadataDefinition;
+  assets?: readonly AssetDefinition[];
 }
 
 type RoutedPageElement = HTMLElement & {
@@ -361,6 +374,7 @@ type RoutedPageElement = HTMLElement & {
   rerender?: () => void;
   load?(context: PageLoadContext): unknown | Promise<unknown>;
   metadata(context?: PageMetadataContext): PageMetadataDefinition | undefined;
+  assets?(context?: PageMetadataContext): readonly AssetDefinition[] | undefined;
   data?: unknown;
 };
 
@@ -584,6 +598,7 @@ export function startApp(
     basePath: resolveMainzBasePath(),
     appId: appOrRoot.id,
     commands: appOrRoot.commands,
+    assets: appOrRoot.assets,
     mount: options?.mount,
     pages: appOrRoot.pages,
     notFound: appOrRoot.notFound,
@@ -624,7 +639,7 @@ function registerNavigationController(
 }
 
 function startRootApp(
-  app: Pick<RootAppDefinition, "commands" | "id" | "root" | "services">,
+  app: Pick<RootAppDefinition, "assets" | "commands" | "id" | "root" | "services">,
   options?: StartDefinedAppOptions,
 ): NavigationController {
   const mode = resolveMainzNavigationMode();
@@ -650,6 +665,17 @@ function startRootApp(
     commands: app.commands,
     services: serviceContainer,
   });
+  applyResolvedAssetDefinitionsToDocument(resolveAssetDefinitions({
+    appAssets: app.assets,
+    context: createAssetContext({
+      appId: app.id,
+      phase: "client",
+      renderMode: "csr",
+      navigation: mode,
+      path: window.location.pathname || "/",
+      matchedPath: window.location.pathname || "/",
+    }),
+  }));
 
   ensureMainzCustomElementDefined(app.root);
   const rootElement = document.createElement(app.root.getTagName());
@@ -1119,6 +1145,8 @@ function startSpaNavigation(
   const initialSequence = createNavigationSequenceState(nextNavigationSequence);
   activeSequence = initialSequence;
   void renderSpaRoute({
+    appId: pageOptions.appId,
+    assets: pageOptions.assets,
     routes,
     mount,
     url: initialUrl,
@@ -1200,6 +1228,8 @@ function startSpaNavigation(
     activeSequence = sequence;
     let pendingNavigationReady: NavigationLifecycleEmissionArgs | undefined;
     void renderSpaRoute({
+      appId: pageOptions.appId,
+      assets: pageOptions.assets,
       routes,
       mount,
       url: effectiveTargetUrl,
@@ -1272,6 +1302,8 @@ function startSpaNavigation(
       );
     }
     void renderSpaRoute({
+      appId: pageOptions.appId,
+      assets: pageOptions.assets,
       routes,
       mount,
       url: effectiveCurrentUrl,
@@ -1322,6 +1354,8 @@ function startSpaNavigation(
 }
 
 async function renderSpaRoute(args: {
+  appId?: string;
+  assets?: readonly AssetDefinition[];
   routes: readonly NormalizedSpaRoute[];
   mount: HTMLElement;
   url: URL;
@@ -1459,6 +1493,19 @@ async function renderSpaRoute(args: {
       basePath: args.basePath,
       navigationMode: args.mode,
     });
+    const assets = resolveSpaRouteAssets({
+      appId: args.appId,
+      appAssets: args.assets,
+      page,
+      pageElement,
+      path: routeMatch.route.path,
+      matchedPath: currentPath,
+      locale,
+      principal,
+      url: args.url,
+      basePath: args.basePath,
+      navigationMode: args.mode,
+    });
     const routeContext = {
       page,
       path: routeMatch.route.path,
@@ -1468,6 +1515,7 @@ async function renderSpaRoute(args: {
       authorization,
       data,
       metadata,
+      assets,
       locale,
       url: args.url,
       navigationType: args.navigationType,
@@ -1485,6 +1533,7 @@ async function renderSpaRoute(args: {
     if (args.navigationType === "initial" && isHtmlElement(existingElement)) {
       applySpaRouteContext(existingElement, routeContext);
       applyResolvedPageMetadataToDocument(metadata);
+      applyResolvedAssetDefinitionsToDocument(assets);
       finalizeNavigationReady({
         sequence,
         mount: args.mount,
@@ -1503,6 +1552,8 @@ async function renderSpaRoute(args: {
     applySpaRouteContext(nextPageElement, routeContext);
     args.mount.replaceChildren(nextPageElement);
     ensureDefaultAppPortalLayer(args.mount);
+    applyResolvedPageMetadataToDocument(metadata);
+    applyResolvedAssetDefinitionsToDocument(assets);
     finalizeNavigationReady({
       sequence,
       mount: args.mount,
@@ -1870,6 +1921,7 @@ function applySpaRouteContext(
     route: routeContext,
     data: context.data,
     metadata: context.metadata,
+    assets: context.assets,
   };
   attachServiceContainer(element, serviceContainer);
 
@@ -2019,6 +2071,51 @@ function resolveSpaRouteMetadata(args: {
   });
 }
 
+function resolveSpaRouteAssets(args: {
+  appId?: string;
+  appAssets?: readonly AssetDefinition[];
+  page: SpaPageConstructor;
+  pageElement: RoutedPageElement;
+  path: string;
+  matchedPath: string;
+  locale?: string;
+  principal?: Principal;
+  url: URL;
+  basePath: string;
+  navigationMode: NavigationMode;
+}): readonly AssetDefinition[] | undefined {
+  const assetContext = createAssetContext({
+    appId: args.appId,
+    phase: "client",
+    renderMode: resolveSpaPageRenderMode(args.page),
+    navigation: args.navigationMode,
+    path: args.path,
+    matchedPath: args.matchedPath,
+    locale: args.locale,
+  });
+  const pageContext = createPageLoadContext({
+    path: args.path,
+    matchedPath: args.matchedPath,
+    params: resolveRouteParamsFromPageElement(args.pageElement),
+    locale: args.locale,
+    url: args.url,
+    renderMode: resolveSpaPageRenderMode(args.page),
+    navigationMode: args.navigationMode,
+    principal: args.principal,
+    profile: createRouteProfileContext(args.basePath),
+  });
+  const instanceAssets = typeof args.pageElement.assets === "function"
+    ? args.pageElement.assets.call(args.pageElement, pageContext)
+    : undefined;
+  const resolvedAssets = resolveAssetDefinitions({
+    appAssets: args.appAssets,
+    pageAssets: instanceAssets,
+    context: assetContext,
+  });
+
+  return resolvedAssets.length > 0 ? resolvedAssets : undefined;
+}
+
 function resolveSpaRouteLocales(
   page: SpaPageConstructor,
   fallbackLocales?: readonly string[],
@@ -2066,6 +2163,7 @@ async function resolvePageRouteData(args: {
     route: routeContext,
     data: args.pageElement.data,
     metadata: readResolvedPageMetadataFromProps(args.pageElement.props),
+    assets: readResolvedPageAssetsFromProps(args.pageElement.props),
   });
   attachServiceContainer(args.pageElement, args.serviceContainer);
 
@@ -2110,6 +2208,7 @@ async function resolvePageRouteData(args: {
       route: routeContext,
       data: result,
       metadata: readResolvedPageMetadataFromProps(args.pageElement.props),
+      assets: readResolvedPageAssetsFromProps(args.pageElement.props),
     });
     return result;
   }
@@ -2152,6 +2251,7 @@ function applyPageLifecycleProps(
     route: RouteContext;
     data?: unknown;
     metadata?: PageMetadataDefinition;
+    assets?: readonly AssetDefinition[];
   },
 ): void {
   const nextProps = {
@@ -2159,6 +2259,7 @@ function applyPageLifecycleProps(
     route: args.route,
     data: args.data,
     metadata: args.metadata,
+    assets: args.assets,
   };
 
   element.props = nextProps;
@@ -2174,6 +2275,19 @@ function readResolvedPageMetadataFromProps(
   const propsRecord = props as Record<string, unknown>;
   return isPageMetadataDefinition(propsRecord.metadata)
     ? propsRecord.metadata
+    : undefined;
+}
+
+function readResolvedPageAssetsFromProps(
+  props: unknown,
+): readonly AssetDefinition[] | undefined {
+  if (typeof props !== "object" || props === null) {
+    return undefined;
+  }
+
+  const propsRecord = props as Record<string, unknown>;
+  return isAssetDefinitionList(propsRecord.assets)
+    ? propsRecord.assets
     : undefined;
 }
 
@@ -2194,6 +2308,8 @@ function resolveRouteParamsFromPageElement(
 }
 
 async function redirectUnauthorizedRouteToLogin(args: {
+  appId?: string;
+  assets?: readonly AssetDefinition[];
   routes: readonly NormalizedSpaRoute[];
   mount: HTMLElement;
   url: URL;
@@ -2251,6 +2367,8 @@ async function redirectUnauthorizedRouteToLogin(args: {
   updateSpaScrollPosition(redirectUrl);
 
   await renderSpaRoute({
+    appId: args.appId,
+    assets: args.assets,
     routes: args.routes,
     mount: args.mount,
     url: redirectUrl,
@@ -2322,6 +2440,7 @@ function renderForbiddenRoute(mount: HTMLElement): void {
   applyResolvedPageMetadataToDocument({
     title: "403 Forbidden",
   });
+  applyResolvedAssetDefinitionsToDocument(undefined);
 }
 
 function updateSpaScrollPosition(url: URL): void {
@@ -2803,6 +2922,7 @@ function resolvePageNavigationOptions(
   options: InternalStartNavigationOptions,
 ): ResolvedPageNavigationOptions | undefined {
   const legacySpaOptions = options.spa;
+  const assets = options.assets;
   const pages = options.pages ?? legacySpaOptions?.pages;
   const notFound = options.notFound ?? legacySpaOptions?.notFound;
   const mount = options.mount ?? legacySpaOptions?.mount;
@@ -2822,6 +2942,7 @@ function resolvePageNavigationOptions(
   }
 
   return {
+    assets,
     pages: pages ?? [],
     notFound,
     mount,
@@ -3210,6 +3331,8 @@ async function bootstrapDocumentNavigation(
 
   try {
     const existingContext = await resolveMountedRouteContext(mount, routes, {
+      appId: options.appId,
+      assets: options.assets,
       routeMatch,
       url,
       currentPath,
@@ -3258,6 +3381,8 @@ async function bootstrapDocumentNavigation(
     }
 
     await renderSpaRoute({
+      appId: options.appId,
+      assets: options.assets,
       routes,
       mount,
       url,
@@ -3295,6 +3420,8 @@ async function resolveMountedRouteContext(
   mount: HTMLElement,
   routes: readonly NormalizedSpaRoute[],
   context: {
+    appId?: string;
+    assets?: readonly AssetDefinition[];
     routeMatch?: SpaRouteMatch;
     url: URL;
     currentPath: string;
@@ -3375,6 +3502,7 @@ async function resolveMountedRouteContext(
           route: snapshotRouteContext,
           data: matchedSnapshot.data,
           metadata: matchedSnapshot.metadata,
+          assets: matchedSnapshot.assets,
         });
       }
       const data = matchedSnapshot
@@ -3393,6 +3521,32 @@ async function resolveMountedRouteContext(
           navigationMode: context.mode,
           serviceContainer: context.serviceContainer,
         });
+      const metadata = matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
+        page: matchedPage,
+        pageElement: mountedElement as RoutedPageElement,
+        path: context.routeMatch?.route.path ?? context.currentPath,
+        matchedPath: context.currentPath,
+        locale: context.locale,
+        locales: context.locales,
+        data,
+        principal,
+        url: context.url,
+        basePath: context.basePath,
+        navigationMode: context.mode,
+      });
+      const assets = matchedSnapshot?.assets ?? resolveSpaRouteAssets({
+        appId: context.appId,
+        appAssets: context.assets,
+        page: matchedPage,
+        pageElement: mountedElement as RoutedPageElement,
+        path: context.routeMatch?.route.path ?? context.currentPath,
+        matchedPath: context.currentPath,
+        locale: context.locale,
+        principal,
+        url: context.url,
+        basePath: context.basePath,
+        navigationMode: context.mode,
+      });
       const routeContext = {
         page: matchedPage,
         path: context.routeMatch?.route.path ?? context.currentPath,
@@ -3401,19 +3555,8 @@ async function resolveMountedRouteContext(
         principal,
         authorization,
         data,
-        metadata: matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
-          page: matchedPage,
-          pageElement: mountedElement as RoutedPageElement,
-          path: context.routeMatch?.route.path ?? context.currentPath,
-          matchedPath: context.currentPath,
-          locale: context.locale,
-          locales: context.locales,
-          data,
-          principal,
-          url: context.url,
-          basePath: context.basePath,
-          navigationMode: context.mode,
-        }),
+        metadata,
+        assets,
         locale: context.locale,
         url: context.url,
         navigationType: "initial",
@@ -3423,6 +3566,7 @@ async function resolveMountedRouteContext(
 
       applySpaRouteContext(mountedElement, routeContext);
       applyResolvedPageMetadataToDocument(routeContext.metadata);
+      applyResolvedAssetDefinitionsToDocument(routeContext.assets);
       return routeContext;
     }
   }
@@ -3501,6 +3645,7 @@ async function resolveMountedRouteContext(
         route: snapshotRouteContext,
         data: matchedSnapshot.data,
         metadata: matchedSnapshot.metadata,
+        assets: matchedSnapshot.assets,
       });
     }
     const data = matchedSnapshot
@@ -3519,6 +3664,32 @@ async function resolveMountedRouteContext(
         navigationMode: context.mode,
         serviceContainer: context.serviceContainer,
       });
+    const metadata = matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
+      page: route.page,
+      pageElement: mountedElement as RoutedPageElement,
+      path: route.path,
+      matchedPath: context.currentPath,
+      locale: context.locale,
+      locales: context.locales,
+      data,
+      principal,
+      url: context.url,
+      basePath: context.basePath,
+      navigationMode: context.mode,
+    });
+    const assets = matchedSnapshot?.assets ?? resolveSpaRouteAssets({
+      appId: context.appId,
+      appAssets: context.assets,
+      page: route.page,
+      pageElement: mountedElement as RoutedPageElement,
+      path: route.path,
+      matchedPath: context.currentPath,
+      locale: context.locale,
+      principal,
+      url: context.url,
+      basePath: context.basePath,
+      navigationMode: context.mode,
+    });
     const routeContext = {
       page: route.page,
       path: route.path,
@@ -3527,19 +3698,8 @@ async function resolveMountedRouteContext(
       principal,
       authorization,
       data,
-      metadata: matchedSnapshot?.metadata ?? resolveSpaRouteMetadata({
-        page: route.page,
-        pageElement: mountedElement as RoutedPageElement,
-        path: route.path,
-        matchedPath: context.currentPath,
-        locale: context.locale,
-        locales: context.locales,
-        data,
-        principal,
-        url: context.url,
-        basePath: context.basePath,
-        navigationMode: context.mode,
-      }),
+      metadata,
+      assets,
       locale: context.locale,
       url: context.url,
       navigationType: "initial",
@@ -3549,6 +3709,7 @@ async function resolveMountedRouteContext(
 
     applySpaRouteContext(mountedElement, routeContext);
     applyResolvedPageMetadataToDocument(routeContext.metadata);
+    applyResolvedAssetDefinitionsToDocument(routeContext.assets);
     return routeContext;
   }
 
@@ -3627,6 +3788,8 @@ function isInitialRouteSnapshot(value: unknown): value is InitialRouteSnapshot {
     isStringRecord(candidate.params) &&
     (typeof candidate.locale === "string" ||
       typeof candidate.locale === "undefined") &&
+    (typeof candidate.assets === "undefined" ||
+      isAssetDefinitionList(candidate.assets)) &&
     (typeof candidate.metadata === "undefined" ||
       isPageMetadataDefinition(candidate.metadata));
 }

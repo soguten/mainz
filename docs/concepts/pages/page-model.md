@@ -27,11 +27,14 @@ export class HomePage extends Page {
 
 The split is intentional: `@Route(...)` describes where the page lives, while
 `@RenderMode(...)` and `@Locales(...)` declare the route contract up front. The
-page instance then owns `load()`, `metadata()`, and `render()` for that concrete
-route.
+page instance then owns `load()`, `metadata()`, `assets()`, and `render()` for
+that concrete route.
 
 Document metadata should live in `metadata()`. App-level fallback concerns such as
 `notFound` belong in `defineApp({ notFound })`, not in the page class.
+
+Route-scoped document scripts and links should live in `assets()` when they
+really belong to that route rather than the whole app.
 
 When access control belongs to the route itself, keep that on the page too with
 `@Authorize(...)` or `@AllowAnonymous()`. See
@@ -92,6 +95,57 @@ export class IntroPage extends DocsBasePage {
 }
 ```
 
+## Route-scoped assets
+
+Use `assets()` when a route needs document assets beyond structured metadata.
+
+For the full asset model, including app-wide assets, precedence, ordering, and
+conditional rules, see [Assets](../core/assets.md).
+
+```tsx title="Route-scoped assets()"
+import { link, Page, Route, script } from "mainz";
+
+@Route("/docs/:slug")
+export class DocsPage extends Page {
+  override assets() {
+    return [
+      link({
+        id: "docs-fonts",
+        rel: "stylesheet",
+        href:
+          "https://fonts.googleapis.com/css2?family=Literata:wght@400;700&display=swap",
+        target: "head",
+      }),
+      script({
+        id: "docs-search",
+        src: "/assets/docs-search.js",
+        target: "body:end",
+        strategy: "defer",
+        when: ({ route }) => route.path.startsWith("/docs"),
+      }),
+    ];
+  }
+
+  override render() {
+    return <main>Docs</main>;
+  }
+}
+```
+
+`assets()` is for scripts, links, inline styles, noscript fallbacks, and
+broader document assets.
+
+`metadata()` remains the page-owned surface for:
+
+- title
+- description
+- metadata tags
+- links
+- route-focused SEO
+
+When a page must suppress a global app asset, return `disableAsset("asset-id")`
+from `assets()` using the same asset `id`.
+
 ## Keep behavior near the page
 
 That same page can also define `entries()` and `load()` when a dynamic route
@@ -116,4 +170,3 @@ This is specifically about runtime navigation.
 
 `entries()` still belongs to build/prerender route expansion and is not part of
 the `navigationabort` lifecycle.
-

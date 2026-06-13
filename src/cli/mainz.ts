@@ -3512,7 +3512,9 @@ function insertConfigTarget(content: string, target: string): string {
 
   if (existingBody.includes(targetNameNeedle(normalizedTarget))) {
     throw new Error(
-      `Target ${targetNameNeedle(normalizedTarget)} already exists in Mainz config.`,
+      `Target ${
+        targetNameNeedle(normalizedTarget)
+      } already exists in Mainz config.`,
     );
   }
 
@@ -4098,9 +4100,45 @@ async function clearGeneratedViteArtifacts(
   ];
   for (const generatedDir of generatedDirs) {
     if (await pathExists(generatedDir, runtime)) {
-      await runtime.remove(generatedDir, { recursive: true });
+      try {
+        await runtime.remove(generatedDir, { recursive: true });
+      } catch (error) {
+        if (isNotFoundLikeError(error)) {
+          continue;
+        }
+
+        throw error;
+      }
     }
   }
+}
+
+function isNotFoundLikeError(error: unknown): boolean {
+  if (error instanceof Deno.errors.NotFound) {
+    return true;
+  }
+
+  if (error && typeof error === "object") {
+    const code = "code" in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+    const message = "message" in error
+      ? (error as { message?: unknown }).message
+      : undefined;
+
+    if (code === "ENOENT") {
+      return true;
+    }
+
+    if (
+      typeof message === "string" &&
+      /cannot find the file specified/i.test(message)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function resolveCliViteBasePath(
@@ -4319,7 +4357,10 @@ async function directoryContainsTemplateManifest(
     }
 
     if (
-      await directoryContainsTemplateManifest(resolve(root, entry.name), runtime)
+      await directoryContainsTemplateManifest(
+        resolve(root, entry.name),
+        runtime,
+      )
     ) {
       return true;
     }

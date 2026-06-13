@@ -35,37 +35,41 @@
       "slug": "route-metadata",
       "order": 8
     },
+    "assets.md": {
+      "slug": "assets",
+      "order": 9
+    },
     "data-loading.md": {
       "slug": "data-loading",
-      "order": 9
+      "order": 10
     },
     "navigation-runtime.md": {
       "slug": "navigation-runtime",
-      "order": 10
+      "order": 11
     },
     "portal-rendering.md": {
       "slug": "portal-rendering",
-      "order": 11
+      "order": 12
     },
     "authorization.md": {
       "slug": "authorization",
-      "order": 12
+      "order": 13
     },
     "dependency-injection.md": {
       "slug": "dependency-injection",
-      "order": 13
+      "order": 14
     },
     "stores.md": {
       "slug": "stores",
-      "order": 14
+      "order": 15
     },
     "app-scoped-commands.md": {
       "slug": "app-scoped-commands",
-      "order": 15
+      "order": 16
     },
     "templates.md": {
       "slug": "templates",
-      "order": 16
+      "order": 17
     }
   }
 }

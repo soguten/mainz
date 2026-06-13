@@ -1,4 +1,5 @@
 import { dirname, resolve } from "node:path";
+import type { AssetDefinition } from "../../src/components/page-assets.ts";
 import type { RenderMode } from "../../src/routing/types.ts";
 
 export interface ArtifactFixtureRoute {
@@ -16,6 +17,7 @@ export interface ArtifactFixture {
 export async function createArtifactFixture(args: {
   routes: readonly ArtifactFixtureRoute[];
   notFoundMode: RenderMode;
+  ssrAssets?: readonly AssetDefinition[];
 }): Promise<ArtifactFixture> {
   const rootDir = await Deno.makeTempDir({ prefix: "mainz-artifact-fixture-" });
   const browserDir = resolve(rootDir, "browser");
@@ -144,6 +146,7 @@ export async function createArtifactFixture(args: {
       createSsrServerModule({
         ssrRoutes: ssrRoutes.map((route) => normalizeRoutePath(route.path)),
         notFoundMarker: expectedNotFoundMarker,
+        ssrAssets: args.ssrAssets,
       }),
     );
   }
@@ -184,14 +187,17 @@ function createDocument(args: { body: string; scriptSrc: string }): string {
 function createSsrServerModule(args: {
   ssrRoutes: readonly string[];
   notFoundMarker: string;
+  ssrAssets?: readonly AssetDefinition[];
 }): string {
   const routeMap = Object.fromEntries(
     args.ssrRoutes.map((path) => [path, markerForRoute("ssr", path)]),
   );
+  const serializedAssets = JSON.stringify(args.ssrAssets ?? []);
 
   return [
     `const routeMap = ${JSON.stringify(routeMap)};`,
     `const notFoundMarker = ${JSON.stringify(args.notFoundMarker)};`,
+    `const routeAssets = ${serializedAssets};`,
     "const pathname = (() => {",
     "  const raw = window.location.pathname || '/';",
     "  if (raw.length > 1 && raw.endsWith('/')) return raw.slice(0, -1);",
@@ -200,7 +206,13 @@ function createSsrServerModule(args: {
     "const app = document.querySelector('#app');",
     "if (!app) throw new Error('Missing #app container for SSR fixture.');",
     "const marker = routeMap[pathname] ?? notFoundMarker;",
-    "app.innerHTML = `<article>${marker}</article>`;",
+    "const routeElement = document.createElement('section');",
+    "routeElement.textContent = marker;",
+    "routeElement.props = {",
+    "  route: { path: pathname, matchedPath: pathname, params: {} },",
+    "  assets: routeAssets,",
+    "};",
+    "app.replaceChildren(routeElement);",
   ].join("\n");
 }
 

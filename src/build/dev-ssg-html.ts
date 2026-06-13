@@ -7,6 +7,7 @@ import {
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import {
   applyRouteMetadata,
+  applyRouteAssets,
   formatSsgPrerenderError,
   formatSsgPrerenderWarning,
   injectAppHtml,
@@ -85,6 +86,9 @@ export async function renderDevSsgHtml(args: {
       basePath: args.basePath,
       siteUrl: args.siteUrl,
     }),
+  });
+  html = applyRouteAssets(html, {
+    assets: renderedApp.routeSnapshot?.assets,
   });
 
   return html;

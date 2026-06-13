@@ -17,6 +17,7 @@ import type {
 import { inject, singleton } from "../../di/index.ts";
 import { ensureMainzCustomElementDefined } from "../../components/registry.ts";
 import { Locales } from "../../components/page-metadata.ts";
+import { disableAsset, script } from "../../components/index.ts";
 
 let spaFixturesPromise:
   | Promise<typeof import("./navigation.spa.fixture.ts")>
@@ -1184,6 +1185,138 @@ Deno.test("navigation/runtime: startApp should accept defineApp(...) composition
   assertEquals(
     document.querySelector(`#app ${SpaHomePage.getTagName()}`)?.textContent,
     "Home page",
+  );
+
+  controller.cleanup();
+});
+
+Deno.test("navigation/runtime: startApp should resolve app and page assets together", async () => {
+  const { defineApp, startApp } = await prepareNavigationTest();
+
+  class AssetPage extends HTMLElement {
+    static getTagName(): string {
+      return "x-mainz-navigation-asset-page";
+    }
+
+    connectedCallback() {
+      this.textContent = "Asset page";
+    }
+
+    assets() {
+      return [
+        script({
+          id: "page-bootstrap",
+          inline: "window.__pageAsset = true;",
+          target: "head",
+          dependsOn: ["global-sdk"],
+        }),
+      ];
+    }
+  }
+
+  ensureMainzCustomElementDefined(AssetPage as unknown as SpaPageConstructor);
+
+  (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
+  (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/";
+
+  document.body.innerHTML =
+    `<main id="app"><${AssetPage.getTagName()}></${AssetPage.getTagName()}></main>`;
+  window.history.replaceState(null, "", "/");
+
+  const app = defineApp({
+    id: "asset-app",
+    pages: [{
+      page: AssetPage as unknown as SpaPageConstructor,
+      path: "/",
+    }],
+    assets: [
+      script({
+        id: "global-sdk",
+        src: "https://cdn.example.com/sdk.js",
+        target: "head",
+        when: ({ route }) => route.matchedPath === "/",
+      }),
+    ],
+  });
+  const controller = startApp(app);
+
+  await waitForNavigationReady({
+    mode: "mpa",
+    path: "/",
+    matchedPath: "/",
+    navigationType: "initial",
+    message: "Expected asset app startup to emit navigation ready.",
+  });
+
+  assertEquals(
+    document.head.querySelector('script[data-mainz-asset-id="global-sdk"]')
+      ?.getAttribute("src"),
+    "https://cdn.example.com/sdk.js",
+  );
+  assertEquals(
+    document.head.querySelector('script[data-mainz-asset-id="page-bootstrap"]')
+      ?.textContent,
+    "window.__pageAsset = true;",
+  );
+
+  controller.cleanup();
+});
+
+Deno.test("navigation/runtime: page assets should be able to suppress a global app asset", async () => {
+  const { defineApp, startApp } = await prepareNavigationTest();
+
+  class AssetPage extends HTMLElement {
+    static getTagName(): string {
+      return "x-mainz-navigation-asset-suppress-page";
+    }
+
+    connectedCallback() {
+      this.textContent = "Asset suppress page";
+    }
+
+    assets() {
+      return [
+        disableAsset("global-sdk"),
+      ];
+    }
+  }
+
+  ensureMainzCustomElementDefined(AssetPage as unknown as SpaPageConstructor);
+
+  (globalThis as Record<string, unknown>).__MAINZ_NAVIGATION_MODE__ = "mpa";
+  (globalThis as Record<string, unknown>).__MAINZ_BASE_PATH__ = "/";
+
+  document.body.innerHTML =
+    `<main id="app"><${AssetPage.getTagName()}></${AssetPage.getTagName()}></main>`;
+  window.history.replaceState(null, "", "/");
+
+  const app = defineApp({
+    id: "asset-suppress-app",
+    pages: [{
+      page: AssetPage as unknown as SpaPageConstructor,
+      path: "/",
+    }],
+    assets: [
+      script({
+        id: "global-sdk",
+        src: "https://cdn.example.com/sdk.js",
+        target: "head",
+      }),
+    ],
+  });
+  const controller = startApp(app);
+
+  await waitForNavigationReady({
+    mode: "mpa",
+    path: "/",
+    matchedPath: "/",
+    navigationType: "initial",
+    message: "Expected asset suppression app startup to emit navigation ready.",
+  });
+
+  assertEquals(
+    document.head.querySelector('script[data-mainz-asset-id="global-sdk"]'),
+    null,
   );
 
   controller.cleanup();

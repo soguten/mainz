@@ -119,6 +119,7 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
   assertEquals(generated.appType, "mpa");
   assertEquals(generated.base, "/docs/");
   assertEquals(generated.outDir, normalizePath(resolve(cwd, "dist/docs")));
+  assertEquals(generated.publicDir, normalizePath(resolve(cwd, "docs-site/public")));
   assertEquals(
     generated.define.__MAINZ_NAVIGATION_MODE__,
     JSON.stringify("mpa"),
@@ -313,6 +314,7 @@ Deno.test("build/vite-config: should render an SSR server bundle config", () => 
   assertStringIncludes(moduleSource, `entryFileNames: "app.mjs"`);
   assertStringIncludes(moduleSource, `format: "es"`);
 });
+
 
 Deno.test("build/vite-config: should use app-owned navigation for generated defaults", async () => {
   const fixture = await createAppFixture({

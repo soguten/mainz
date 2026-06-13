@@ -1,6 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { PageMetadataDefinition } from "../components/page.ts";
+import type { AssetDefinition, PageMetadataDefinition } from "../components/page.ts";
+import { isAssetDefinitionList } from "../components/page.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
 
 export interface InitialRouteSnapshot {
@@ -11,6 +12,7 @@ export interface InitialRouteSnapshot {
   locale?: string;
   data?: unknown;
   metadata?: PageMetadataDefinition;
+  assets?: readonly AssetDefinition[];
 }
 
 export async function renderRouteAppHtml(args: {
@@ -220,6 +222,7 @@ function extractInitialRouteSnapshot(
   const routeRecord = route as Record<string, unknown>;
   const params = routeRecord.params;
   const propsMetadata = routeElement.props.metadata;
+  const propsAssets = routeElement.props.assets;
 
   return {
     pageTagName: routeElement.tagName.toLowerCase(),
@@ -233,6 +236,7 @@ function extractInitialRouteSnapshot(
     metadata: isPageMetadataDefinition(propsMetadata)
       ? propsMetadata
       : undefined,
+    assets: isAssetDefinitionList(propsAssets) ? propsAssets : undefined,
   };
 }
 

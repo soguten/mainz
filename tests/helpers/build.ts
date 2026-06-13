@@ -9,10 +9,10 @@ import {
   runEngineBuildJobs,
 } from "../../src/build/index.ts";
 import type {
+  TestAppTargetDefinition,
   TestBuildContext,
   TestNavigationMode,
   TestScenarioBuildContext,
-  TestAppTargetDefinition,
 } from "./types.ts";
 import { cliTestsRepoRoot } from "./types.ts";
 import { makeMainzTempDir } from "./temp.ts";
@@ -286,13 +286,15 @@ export async function createTestAppTargetDefinition(args: {
   const target = normalizeMainzConfig({
     targets: [targetDefinition],
   }).targets[0];
+  const normalizedArtifactRootDir = target.outDir;
+  const normalizedOutputDir = resolve(normalizedArtifactRootDir, "browser");
 
   return {
     target,
     targetDefinition,
     testAppRoot,
-    artifactRootDir,
-    outputDir,
+    artifactRootDir: normalizedArtifactRootDir,
+    outputDir: normalizedOutputDir,
     targetName,
     async cleanup() {
       await removeTestAppTempDir(tempRoot);

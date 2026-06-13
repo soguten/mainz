@@ -13,7 +13,12 @@ import {
   type NormalizedMainzConfig,
   type NormalizedMainzTarget,
 } from "../config/index.ts";
-import type { PageMetadataDefinition } from "../components/page.ts";
+import {
+  createAssetContext,
+  resolveAssetDefinitions,
+  type AssetDefinition,
+  type PageMetadataDefinition,
+} from "../components/page.ts";
 import type { PageAuthorizationMetadata } from "../authorization/index.ts";
 import { ResourceAccessError } from "../resources/index.ts";
 import type { RoutedAppDefinition } from "../navigation/index.ts";
@@ -39,6 +44,7 @@ import {
 } from "./render-core.ts";
 import {
   applyRouteMetadata,
+  applyRouteAssets,
   buildResolvedRouteMetadata,
   finalizeEvaluatedRouteDocument,
   finalizePrerenderedRouteDocument,
@@ -46,11 +52,13 @@ import {
   injectRouteGenerationMetadata,
   injectRouteSnapshot,
   resolveRenderedRouteMetadata,
+  resolveRenderedRouteAssets,
   setHtmlLang,
 } from "./render-document.ts";
 
 export {
   applyRouteMetadata,
+  applyRouteAssets,
   injectAppHtml,
   injectRouteGenerationMetadata,
   injectRouteSnapshot,
@@ -153,6 +161,8 @@ export async function emitRouteArtifacts(
         targetI18n,
         job,
         cwd,
+        appAssets: appDefinition?.assets,
+        appId: appDefinition?.id,
       })
       : await renderCsrRouteDocument({
         html,
@@ -163,6 +173,8 @@ export async function emitRouteArtifacts(
         targetI18n,
         job,
         cwd,
+        appAssets: appDefinition?.assets,
+        appId: appDefinition?.id,
       });
     html = routeOutput.html;
 
@@ -369,6 +381,8 @@ async function renderSsgRouteDocument(args: {
   targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
   job: ArtifactBuildJob;
   cwd: string;
+  appAssets?: readonly AssetDefinition[];
+  appId?: string;
 }): Promise<{ html: string }> {
   let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
   try {
@@ -406,11 +420,25 @@ async function renderSsgRouteDocument(args: {
     targetI18n: args.targetI18n,
     profile: args.job.profile,
   });
+  const routeAssets = resolveRenderedRouteAssets({
+    renderedSnapshot: renderedApp.routeSnapshot,
+    fallbackAssets: resolveBuildFallbackAssets({
+      appId: args.appId,
+      appAssets: args.appAssets,
+      routePath: args.route.path,
+      matchedPath: args.entry.renderPath,
+      locale: args.entry.locale,
+      renderMode: args.route.mode,
+      targetName: args.job.target.name,
+      envMode: args.job.profile.name,
+    }),
+  });
   const html = finalizePrerenderedRouteDocument({
     html: args.html,
     renderedApp,
     locale: args.entry.locale,
     routeMetadata,
+    routeAssets,
     snapshotErrorMessage: (error) =>
       `SSG route snapshot for "${args.entry.renderPath}" (route "${args.route.path}", locale "${args.entry.locale}") contains non-public or non-serializable data: ${
         toErrorMessage(error)
@@ -439,6 +467,8 @@ async function renderCsrRouteDocument(args: {
   targetI18n: ReturnType<typeof resolveTargetI18nConfig>;
   job: ArtifactBuildJob;
   cwd: string;
+  appAssets?: readonly AssetDefinition[];
+  appId?: string;
 }): Promise<{ html: string }> {
   let renderedApp: Awaited<ReturnType<typeof renderSsgAppHtml>>;
   try {
@@ -472,10 +502,24 @@ async function renderCsrRouteDocument(args: {
     targetI18n: args.targetI18n,
     profile: args.job.profile,
   });
+  const routeAssets = resolveRenderedRouteAssets({
+    renderedSnapshot: renderedApp.routeSnapshot,
+    fallbackAssets: resolveBuildFallbackAssets({
+      appId: args.appId,
+      appAssets: args.appAssets,
+      routePath: args.route.path,
+      matchedPath: args.entry.renderPath,
+      locale: args.entry.locale,
+      renderMode: args.route.mode,
+      targetName: args.job.target.name,
+      envMode: args.job.profile.name,
+    }),
+  });
   const html = finalizeEvaluatedRouteDocument({
     html: args.html,
     locale: args.entry.locale,
     routeMetadata,
+    routeAssets,
   });
   return {
     html: injectRouteGenerationMetadata(html, {
@@ -524,6 +568,38 @@ export async function renderSsgAppHtml(args: {
   { appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }
 > {
   return await renderRouteAppHtml(args);
+}
+
+function resolveBuildFallbackAssets(args: {
+  appId?: string;
+  appAssets?: readonly AssetDefinition[];
+  routePath: string;
+  matchedPath: string;
+  locale?: string;
+  renderMode: "csr" | "ssg" | "ssr";
+  targetName: string;
+  envMode?: string;
+}): readonly AssetDefinition[] | undefined {
+  if (!args.appAssets?.length) {
+    return undefined;
+  }
+
+  const resolved = resolveAssetDefinitions({
+    appAssets: args.appAssets,
+    context: createAssetContext({
+      appId: args.appId,
+      phase: "build",
+      renderMode: args.renderMode,
+      navigation: "mpa",
+      path: args.routePath,
+      matchedPath: args.matchedPath,
+      locale: args.locale,
+      targetName: args.targetName,
+      envMode: args.envMode,
+    }),
+  });
+
+  return resolved.length > 0 ? resolved : undefined;
 }
 
 export function rewriteAssetPaths(

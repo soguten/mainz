@@ -15,6 +15,8 @@ not need a root `src/` directory; each app can own its own source tree.
 mainz.config.ts
 site/
   index.html
+  public/
+    assets/
   src/
     app.ts
     main.tsx
@@ -23,6 +25,7 @@ site/
     lib/
 docs/
   index.html
+  public/
   src/
     app.ts
     main.tsx
@@ -43,6 +46,9 @@ mainz app create docs
 When you use `defineApp(...)`, give the app a stable unique `id`. Mainz uses
 that `id` for app-aware diagnostics and commands such as
 `mainz diagnose --target <name> --app <id>`.
+
+When a target owns static browser files such as local scripts, fonts, or other
+public assets, keep them in that target's `public/` directory.
 
 ## Avoid hiding routing in helpers
 

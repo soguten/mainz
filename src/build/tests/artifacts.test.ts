@@ -8,6 +8,7 @@ import {
   assertThrows,
 } from "@std/assert";
 import {
+  applyRouteAssets,
   applyRouteMetadata,
   buildSsrRuntimeManifest,
   formatSsgPrerenderError,
@@ -150,6 +151,62 @@ Deno.test("build/artifacts: injects route generation metadata into html head", (
   assertStringIncludes(output, 'id="mainz-route-generation"');
   assertStringIncludes(output, '"routeRenderMode":"csr"');
   assertStringIncludes(output, '"generatedAt":"2026-05-23T20:10:00.000Z"');
+});
+
+Deno.test("build/artifacts: applies route assets to head and body", () => {
+  const input = '<html><head></head><body><main id="app"></main></body></html>';
+  const output = applyRouteAssets(input, {
+    assets: [
+      {
+        id: "fonts-preconnect",
+        kind: "link",
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        target: "head",
+        crossorigin: "anonymous",
+      },
+      {
+        id: "head-script",
+        kind: "script",
+        src: "/assets/head.js",
+        target: "head",
+        strategy: "defer",
+      },
+      {
+        id: "theme-inline",
+        kind: "style",
+        css: ":root { --page-accent: #c60; }",
+        target: "head",
+      },
+      {
+        id: "footer-script",
+        kind: "script",
+        inline: "footer();",
+        target: "body:end",
+      },
+      {
+        id: "tag-manager-fallback",
+        kind: "noscript",
+        html: '<iframe src="https://example.com/fallback"></iframe>',
+        target: "body:start",
+      },
+    ],
+  });
+
+  assertStringIncludes(output, 'data-mainz-asset-id="fonts-preconnect"');
+  assertStringIncludes(output, 'rel="preconnect"');
+  assertStringIncludes(output, 'href="https://fonts.gstatic.com"');
+  assertStringIncludes(output, 'data-mainz-asset-id="head-script"');
+  assertStringIncludes(output, 'src="/assets/head.js"');
+  assertStringIncludes(output, 'data-mainz-asset-id="theme-inline"');
+  assertStringIncludes(output, ":root { --page-accent: #c60; }");
+  assertStringIncludes(output, 'data-mainz-asset-id="tag-manager-fallback"');
+  assertStringIncludes(
+    output,
+    '<iframe src="https://example.com/fallback"></iframe>',
+  );
+  assertStringIncludes(output, 'data-mainz-asset-id="footer-script"');
+  assertStringIncludes(output, "footer();");
 });
 
 Deno.test("build/artifacts: prerender captures nested JSX custom elements before reading route snapshot", async () => {
@@ -724,5 +781,3 @@ async function writePrerenderFixtureApp(
 
   return appDir;
 }
-
-

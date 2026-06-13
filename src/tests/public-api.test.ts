@@ -13,10 +13,13 @@ Deno.test("public-api/root: should expose the ownership-based surface without re
   assertEquals(typeof mainz.AllowAnonymous, "function");
   assertEquals(typeof mainz.defineCommand, "function");
   assertEquals(typeof mainz.defineApp, "function");
+  assertEquals(typeof mainz.link, "function");
   assertEquals(typeof mainz.listCommands, "function");
+  assertEquals(typeof mainz.noscript, "function");
   assertEquals(typeof mainz.Portal, "function");
   assertEquals(typeof mainz.runCommand, "function");
   assertEquals(typeof mainz.startApp, "function");
+  assertEquals(typeof mainz.style, "function");
   assertEquals("startNavigation" in mainz, false);
   assertEquals(typeof mainz.isRouteVisible, "function");
   assertEquals(typeof mainz.filterVisibleRoutes, "function");
@@ -50,6 +53,9 @@ Deno.test("public-api/components: should keep the main components barrel ownersh
   assertEquals(typeof components.Authorize, "function");
   assertEquals(typeof components.AllowAnonymous, "function");
   assertEquals(typeof components.ensureMainzCustomElementDefined, "function");
+  assertEquals(typeof components.link, "function");
+  assertEquals(typeof components.noscript, "function");
+  assertEquals(typeof components.style, "function");
 
   assertEquals("ComponentResource" in components, false);
   assertEquals("ResourceBoundary" in components, false);
@@ -96,7 +102,10 @@ Deno.test("public-api/tooling-build: should expose SSR artifact helpers through 
   const toolingBuild = await import("../public/tooling-build.ts");
 
   assertEquals(typeof toolingBuild.createBuildArtifactHandler, "function");
-  assertEquals(typeof toolingBuild.resolveBuildArtifactBrowserRootDir, "function");
+  assertEquals(
+    typeof toolingBuild.resolveBuildArtifactBrowserRootDir,
+    "function",
+  );
   assertEquals(typeof toolingBuild.tryRenderSsrArtifactRequest, "function");
   assertEquals(typeof toolingBuild.toSsrArtifactRuntimeRouteEntry, "function");
 });

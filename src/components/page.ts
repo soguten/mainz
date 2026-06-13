@@ -13,6 +13,15 @@ import type {
   PageMetadataMetaDefinition,
   PageRouteParams,
 } from "./page-contract.ts";
+import type {
+  AssetContext,
+  AssetDefinition,
+  LinkAssetAttributes,
+  LinkAssetDefinition,
+  NoscriptAssetDefinition,
+  ScriptAssetDefinition,
+  StyleAssetDefinition,
+} from "./page-assets.ts";
 import type { RouteContext, RouteProfileContext } from "./route-context.ts";
 import { isRouteContext } from "./route-context.ts";
 import {
@@ -28,6 +37,20 @@ import {
   resolvePageRoutePath,
   Route,
 } from "./page-metadata.ts";
+export {
+  applyResolvedAssetDefinitionsToDocument,
+  applyResolvedAssetDefinitionsToHtml,
+  createAssetContext,
+  disableAsset,
+  isAssetDefinition,
+  isAssetDefinitionList,
+  link,
+  MAINZ_ASSET_MANAGED_ATTR,
+  noscript,
+  resolveAssetDefinitions,
+  script,
+  style,
+} from "./page-assets.ts";
 
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
 const MAINZ_PAGE_CONSTRUCTOR = Symbol.for("mainz.page.constructor");
@@ -54,6 +77,15 @@ export type {
   PageMetadataMetaDefinition,
   PageRouteParams,
 } from "./page-contract.ts";
+export type {
+  AssetContext,
+  AssetDefinition,
+  LinkAssetAttributes,
+  LinkAssetDefinition,
+  NoscriptAssetDefinition,
+  ScriptAssetDefinition,
+  StyleAssetDefinition,
+} from "./page-assets.ts";
 export type { RouteContext, RouteProfileContext } from "./route-context.ts";
 
 /** Navigation mode visible to page-owned load and metadata helpers. */
@@ -221,6 +253,19 @@ export abstract class Page<P = DefaultProps, S = DefaultState, D = unknown>
    * Use `render()` for visible page content.
    */
   metadata(_context?: PageMetadataContext): PageMetadataDefinition | undefined {
+    return undefined;
+  }
+
+  /**
+   * Returns route-owned document assets for this page.
+   *
+   * Mainz calls `assets()` with the current page context so the page can
+   * contribute route-specific scripts and other document assets without
+   * overloading `metadata()`.
+   */
+  assets(
+    _context?: PageMetadataContext,
+  ): readonly AssetDefinition[] | undefined {
     return undefined;
   }
 

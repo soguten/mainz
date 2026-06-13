@@ -37,6 +37,7 @@ export interface GeneratedViteConfig {
   base: string;
   appType: "spa" | "mpa" | "custom";
   outDir: string;
+  publicDir?: string | false;
   cacheDir?: string;
   aliases: readonly GeneratedViteAlias[];
   define: Record<string, string>;
@@ -66,6 +67,7 @@ export function resolveGeneratedViteConfig(
       ? "spa"
       : "mpa",
     outDir: normalizePathSlashes(resolve(input.cwd, input.outputDir)),
+    publicDir: resolveGeneratedPublicDir(input, buildTarget),
     cacheDir: input.cacheDir
       ? normalizePathSlashes(resolve(input.cwd, input.cacheDir))
       : undefined,
@@ -214,6 +216,8 @@ function renderViteConfigModule(
 
   if (config.buildTarget === "server") {
     configLines.push(`    publicDir: false,`);
+  } else if (typeof config.publicDir === "string") {
+    configLines.push(`    publicDir: ${JSON.stringify(config.publicDir)},`);
   }
 
   configLines.push(
@@ -292,6 +296,19 @@ function resolveFrameworkAliases(cwd: string): GeneratedViteAlias[] {
   return [...publicAliases, ...compatAliases]
     .filter((alias) => existsSync(alias.replacement))
     .sort((a, b) => b.find.length - a.find.length);
+}
+
+function resolveGeneratedPublicDir(
+  input: GeneratedViteConfigInput,
+  buildTarget: "browser" | "server",
+): string | false | undefined {
+  if (buildTarget === "server") {
+    return false;
+  }
+
+  return normalizePathSlashes(
+    resolve(input.cwd, input.target.rootDir, "public"),
+  );
 }
 
 function resolveTargetAliases(

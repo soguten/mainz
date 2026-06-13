@@ -170,3 +170,71 @@ The routed app shape is:
 
 - `defineApp(...)` for the definition
 - `startApp(app, options?)` for runtime startup
+
+## App-wide assets
+
+Use `assets` on `defineApp(...)` when the document concern belongs to the
+whole app instead of one specific route.
+
+For the full asset model, including route-level assets, precedence, ordering,
+and conditional rules, see [Assets](./assets.md).
+
+This is the right place for things such as:
+
+- analytics bootstraps
+- ad network scripts
+- consent managers
+- shared SDK loaders
+- preconnect and stylesheet links for shared fonts
+- inline critical CSS that belongs to the whole app
+
+```tsx title="app.ts"
+import { defineApp, link, script, style } from "mainz";
+
+export const app = defineApp({
+  id: "site",
+  pages: [HomePage],
+  assets: [
+    script({
+      id: "ga-core",
+      src: "https://www.googletagmanager.com/gtag/js?id=G-XXXX",
+      target: "head",
+      strategy: "async",
+      when: ({ env }) => env.prod,
+    }),
+    script({
+      id: "ga-bootstrap",
+      inline: "window.dataLayer = window.dataLayer || [];",
+      target: "head",
+      after: ["ga-core"],
+      when: ({ env }) => env.prod,
+    }),
+    link({
+      id: "brand-fonts-preconnect",
+      rel: "preconnect",
+      href: "https://fonts.gstatic.com",
+      crossorigin: "anonymous",
+    }),
+    link({
+      id: "brand-fonts-stylesheet",
+      rel: "stylesheet",
+      href:
+        "https://fonts.googleapis.com/css2?family=Literata:wght@400;700&display=swap",
+      after: ["brand-fonts-preconnect"],
+    }),
+    style({
+      id: "brand-theme-vars",
+      css: ":root { --brand-accent: #c60; }",
+    }),
+  ],
+});
+```
+
+`assets` are resolved in both build and runtime and share the same conditional
+context shape.
+
+When a page contributes an asset with the same `id`, the page asset wins over
+the app asset.
+
+When a route should explicitly suppress a global asset, let the page return
+`disableAsset("...")` with the same `id`.

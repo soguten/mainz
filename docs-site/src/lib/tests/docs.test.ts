@@ -229,6 +229,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     "resource-model",
     "public-shell-private-island",
     "route-metadata",
+    "assets",
     "data-loading",
     "navigation-runtime",
     "portal-rendering",
@@ -264,7 +265,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
 
 Deno.test("docs helpers compute previous and next article links", () => {
   assertEquals(docs.getPagerBySlug("data-loading"), {
-    previous: { slug: "route-metadata", title: "Route Metadata" },
+    previous: { slug: "assets", title: "Assets" },
     next: { slug: "navigation-runtime", title: "Navigation Runtime" },
   });
 

@@ -1,4 +1,5 @@
 import { defineApp, startApp } from "mainz";
+import { appAssets } from "./appAssets.ts";
 import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
@@ -12,6 +13,7 @@ const app = defineApp({
   },
   pages: [HomePage],
   notFound: NotFoundPage,
+  assets: appAssets,
 });
 
 startApp(app, {

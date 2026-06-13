@@ -1,4 +1,5 @@
-import type { PageMetadataDefinition } from "../components/page.ts";
+import type { AssetDefinition, PageMetadataDefinition } from "../components/page.ts";
+import { applyResolvedAssetDefinitionsToHtml } from "../components/page.ts";
 import { buildRouteMetadata, materializeRoutePath } from "../routing/index.ts";
 import type { RouteManifestEntry, SsgOutputEntry } from "../routing/types.ts";
 import type { ResolvedBuildProfile } from "./profiles.ts";
@@ -49,6 +50,7 @@ export function finalizePrerenderedRouteDocument(args: {
   };
   locale?: string;
   routeMetadata?: PageMetadataDefinition;
+  routeAssets?: readonly AssetDefinition[];
   snapshotErrorMessage?: (error: unknown) => string;
 }): string {
   let html = injectAppHtml(args.html, args.renderedApp.appHtml);
@@ -63,6 +65,7 @@ export function finalizePrerenderedRouteDocument(args: {
   }
   html = setHtmlLang(html, args.locale);
   html = applyRouteMetadata(html, { metadata: args.routeMetadata });
+  html = applyRouteAssets(html, { assets: args.routeAssets });
   return html;
 }
 
@@ -70,9 +73,11 @@ export function finalizeEvaluatedRouteDocument(args: {
   html: string;
   locale?: string;
   routeMetadata?: PageMetadataDefinition;
+  routeAssets?: readonly AssetDefinition[];
 }): string {
   let html = setHtmlLang(args.html, args.locale);
   html = applyRouteMetadata(html, { metadata: args.routeMetadata });
+  html = applyRouteAssets(html, { assets: args.routeAssets });
   return html;
 }
 
@@ -96,6 +101,13 @@ export function resolveRenderedRouteMetadata(args: {
     targetI18n: args.targetI18n,
     profile: args.profile,
   });
+}
+
+export function resolveRenderedRouteAssets(args: {
+  renderedSnapshot?: InitialRouteSnapshot;
+  fallbackAssets?: readonly AssetDefinition[];
+}): readonly AssetDefinition[] | undefined {
+  return args.renderedSnapshot?.assets ?? args.fallbackAssets;
 }
 
 export function injectAppHtml(html: string, appHtml: string): string {
@@ -239,6 +251,13 @@ export function applyRouteMetadata(
   }
 
   return nextHtml;
+}
+
+export function applyRouteAssets(
+  html: string,
+  route: { assets?: readonly AssetDefinition[] },
+): string {
+  return applyResolvedAssetDefinitionsToHtml(html, route.assets);
 }
 
 function serializeRouteSnapshot(snapshot: InitialRouteSnapshot): string {

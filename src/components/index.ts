@@ -15,14 +15,26 @@ export {
   resolvePageAuthorization,
 } from "../authorization/index.ts";
 export {
+  applyResolvedAssetDefinitionsToDocument,
+  applyResolvedAssetDefinitionsToHtml,
+  createAssetContext,
   createPageLoadContext,
+  disableAsset,
+  isAssetDefinition,
+  isAssetDefinitionList,
   isPageConstructor,
+  link,
   load,
   Locales,
+  MAINZ_ASSET_MANAGED_ATTR,
+  noscript,
   Page,
   RenderMode,
+  resolveAssetDefinitions,
   resolvePageRenderConfig,
   Route,
+  script,
+  style,
 } from "./page.ts";
 export { ensureMainzCustomElementDefined } from "./registry.ts";
 export type {
@@ -46,20 +58,27 @@ export type {
 } from "../authorization/index.ts";
 export type { AuthorizationRuntimeOptions } from "../authorization/runtime.ts";
 export type {
+  AssetContext,
+  AssetDefinition,
+  LinkAssetAttributes,
+  LinkAssetDefinition,
+  NoscriptAssetDefinition,
   PageConstructor,
   PageEntriesContext,
   PageEntryDefinition,
+  PageLoadContext,
+  PageLoadContextInit,
+  PageLoadResources,
   PageMetadataContext,
   PageMetadataDefinition,
   PageMetadataLinkDefinition,
   PageMetadataMetaDefinition,
-  PageLoadContext,
-  PageLoadContextInit,
-  PageLoadResources,
   PageRenderConfig,
   PageRenderMode,
   PageRouteParams,
   PageSsgFallback,
   RouteContext,
   RouteProfileContext,
+  ScriptAssetDefinition,
+  StyleAssetDefinition,
 } from "./page.ts";
