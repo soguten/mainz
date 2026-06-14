@@ -1,4 +1,15 @@
-export { createAppDictionaryI18n } from "./app.ts";
+export {
+  buildLocaleHref,
+  buildLocaleRootHref,
+  clearAppI18n,
+  getAppI18n,
+  getLocale,
+  hasAppI18n,
+  installAppI18n,
+  resolveLocale,
+  setLocale,
+  t,
+} from "./app-runtime.ts";
 
 export {
   createDictionaryI18n,
@@ -10,11 +21,12 @@ export {
 } from "./core.ts";
 
 export { validateMessagesForLocales } from "./messages.ts";
-
 export type {
-  DictionaryI18nAppDetectOptions,
-  DictionaryI18nAppOptions,
-} from "./app.ts";
+  AppI18n,
+  AppI18nDefinition,
+  AppI18nMissingPolicy,
+  BuildLocaleHrefOptions,
+} from "./app-runtime.ts";
 
 export type { DictionaryI18n } from "./core.ts";
 export type {

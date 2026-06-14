@@ -1,20 +1,5 @@
-import { defineApp, startApp } from "mainz";
-import { appAssets } from "./appAssets.ts";
-import { HomePage } from "./pages/Home.page.tsx";
-import { NotFoundPage } from "./pages/NotFound.page.tsx";
-
-const app = defineApp({
-  id: "site",
-  navigation: "mpa",
-  i18n: {
-    locales: ["en", "pt"],
-    defaultLocale: "en",
-    localePrefix: "except-default",
-  },
-  pages: [HomePage],
-  notFound: NotFoundPage,
-  assets: appAssets,
-});
+import { startApp } from "mainz";
+import { app } from "./app.ts";
 
 startApp(app, {
   mount: "#app",

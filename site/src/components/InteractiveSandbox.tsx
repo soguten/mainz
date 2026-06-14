@@ -1,5 +1,5 @@
 import { Component, CustomElement } from "mainz";
-import { t } from "../i18n/index.ts";
+import { t } from "mainz/i18n";
 import { highlightTypeScriptCodeBlocks } from "../lib/highlight.ts";
 
 interface WorkshopChallenge {

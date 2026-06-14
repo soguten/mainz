@@ -53,6 +53,13 @@ Locale values should be valid BCP 47 tags such as `en`, `pt-BR`, or
 That keeps the high-signal routing decisions visible before you read the class
 body.
 
+`@Locales(...)` is about route participation, not about where every translated
+text must come from.
+
+Use `defineApp({ i18n.dictionaries })` plus `mainz/i18n` for predictable UI
+copy, and keep using locale-aware `entries()` and `load()` when the page reads
+localized domain content directly from a CMS, database, or content collection.
+
 When the page renders async components, those components use
 `@RenderStrategy(...)` to decide whether they block, defer, or wait for the
 browser. See

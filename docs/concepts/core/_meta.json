@@ -47,29 +47,33 @@
       "slug": "navigation-runtime",
       "order": 11
     },
+    "i18n.md": {
+      "slug": "i18n",
+      "order": 12
+    },
     "portal-rendering.md": {
       "slug": "portal-rendering",
-      "order": 12
+      "order": 13
     },
     "authorization.md": {
       "slug": "authorization",
-      "order": 13
+      "order": 14
     },
     "dependency-injection.md": {
       "slug": "dependency-injection",
-      "order": 14
+      "order": 15
     },
     "stores.md": {
       "slug": "stores",
-      "order": 15
+      "order": 16
     },
     "app-scoped-commands.md": {
       "slug": "app-scoped-commands",
-      "order": 16
+      "order": 17
     },
     "templates.md": {
       "slug": "templates",
-      "order": 17
+      "order": 18
     }
   }
 }

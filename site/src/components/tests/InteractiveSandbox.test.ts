@@ -8,8 +8,9 @@
  */
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { clearAppI18n, installAppI18n, setLocale } from "mainz/i18n";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
-import { setLocale } from "../../i18n/index.ts";
+import { app } from "../../app.ts";
 import { pageStyles } from "../../styles/pageStyles.ts";
 
 await setupMainzDom();
@@ -18,7 +19,13 @@ const fixtures = await import(
   "./InteractiveSandbox.fixture.tsx"
 ) as typeof import("./InteractiveSandbox.fixture.tsx");
 
+function resetSiteI18n(): void {
+  clearAppI18n();
+  installAppI18n(app.i18n!);
+}
+
 Deno.test("site/workshop: should render an editor-like textarea with live preview and line numbers", () => {
+  resetSiteI18n();
   setLocale("pt");
   const hljs = fixtures.installHighlightStub();
   const screen = renderMainzComponent(fixtures.InteractiveSandbox);
@@ -64,6 +71,7 @@ Deno.test("site/workshop: should render an editor-like textarea with live previe
 });
 
 Deno.test("site/workshop: should keep validation flow working after editor upgrade", () => {
+  resetSiteI18n();
   setLocale("pt");
   const hljs = fixtures.installHighlightStub();
   const screen = renderMainzComponent(fixtures.InteractiveSandbox);

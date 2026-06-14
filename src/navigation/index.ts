@@ -46,6 +46,7 @@ import {
   toLocalePathSegment,
 } from "../routing/index.ts";
 import { normalizeLocaleTag } from "../i18n/index.ts";
+import { installAppI18n } from "../i18n/index.ts";
 import type { NavigationMode } from "../routing/types.ts";
 import { attachServiceContainer, readServiceContainer } from "../di/context.ts";
 
@@ -228,6 +229,13 @@ export interface RoutedAppI18nDefinition<Locale extends string = string> {
   defaultLocale: Locale;
   /** Controls whether locale segments are always present in routed URLs. */
   localePrefix?: "always" | "except-default";
+  /** Translation dictionaries keyed by locale for framework-owned app i18n. */
+  dictionaries?: Record<Locale, object>;
+  /** Missing translation behavior for the app-owned runtime. */
+  missing?: {
+    onKey?: "warn" | "error" | "silent";
+    fallback?: "default-locale" | Locale;
+  };
 }
 
 /**
@@ -438,6 +446,9 @@ export function defineApp(
       app,
       "routed",
     ) as InternalDefinedRoutedApp;
+    if (definedApp.i18n?.dictionaries) {
+      installAppI18n(definedApp.i18n);
+    }
     captureDefinedApp(definedApp);
     return definedApp;
   }
@@ -592,6 +603,9 @@ export function startApp(
   }
 
   captureDefinedApp(appOrRoot);
+  if (appOrRoot.i18n?.dictionaries) {
+    installAppI18n(appOrRoot.i18n);
+  }
 
   return registerNavigationController(__internalStartNavigation({
     mode: resolveMainzNavigationMode(),
@@ -855,6 +869,42 @@ function validateRoutedAppI18nDefinition(app: RoutedAppDefinition): void {
     throw new Error(
       `App "${app.id}" i18n.localePrefix must be "always" or "except-default".`,
     );
+  }
+
+  if (i18n.dictionaries !== undefined) {
+    if (typeof i18n.dictionaries !== "object" || i18n.dictionaries === null) {
+      throw new Error(
+        `App "${app.id}" i18n.dictionaries must be an object keyed by locale.`,
+      );
+    }
+
+    for (const locale of i18n.locales) {
+      if (!(locale in i18n.dictionaries)) {
+        throw new Error(
+          `App "${app.id}" i18n.dictionaries is missing locale "${locale}".`,
+        );
+      }
+    }
+
+    for (const locale of Object.keys(i18n.dictionaries)) {
+      if (!i18n.locales.includes(locale as typeof i18n.locales[number])) {
+        throw new Error(
+          `App "${app.id}" i18n.dictionaries declares unsupported locale "${locale}".`,
+        );
+      }
+    }
+  }
+
+  if (
+    i18n.missing?.fallback !== undefined &&
+    i18n.missing.fallback !== "default-locale"
+  ) {
+    const normalizedFallbackLocale = normalizeLocaleTag(i18n.missing.fallback);
+    if (!localeSet.has(normalizedFallbackLocale.toLowerCase())) {
+      throw new Error(
+        `App "${app.id}" i18n.missing.fallback "${i18n.missing.fallback}" must be included in i18n.locales.`,
+      );
+    }
   }
 }
 

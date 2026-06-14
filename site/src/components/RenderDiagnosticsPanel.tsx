@@ -1,5 +1,5 @@
 import { Component, CustomElement } from "mainz";
-import { getLocale, type SiteLocale, t } from "../i18n/index.ts";
+import { getLocale, t } from "mainz/i18n";
 
 export interface RouteGenerationMetadata {
   routeRenderMode: "csr" | "ssg" | "ssr";
@@ -154,15 +154,13 @@ function isRenderMode(value: unknown): value is "csr" | "ssg" | "ssr" {
   return value === "csr" || value === "ssg" || value === "ssr";
 }
 
-function resolvePanelLocale(locale: string | undefined): SiteLocale {
-  return locale === "pt" || locale === "en"
-    ? locale
-    : (getLocale() as SiteLocale);
+function resolvePanelLocale(locale: string | undefined): string {
+  return locale === "pt" || locale === "en" ? locale : getLocale();
 }
 
 function formatGeneratedAt(
   generatedAt: string | undefined,
-  locale: SiteLocale,
+  locale: string,
 ): string {
   if (!generatedAt) {
     return locale === "pt"
@@ -175,11 +173,23 @@ function formatGeneratedAt(
     return generatedAt;
   }
 
-  return new Intl.DateTimeFormat(locale === "pt" ? "pt-BR" : "en-US", {
-    dateStyle: "medium",
-    timeStyle: "medium",
-    timeZoneName: "short",
-  }).format(date);
+  const formatterLocale = locale === "pt" ? "pt-BR" : "en-US";
+
+  try {
+    return new Intl.DateTimeFormat(formatterLocale, {
+      dateStyle: "medium",
+      timeStyle: "medium",
+    }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat(formatterLocale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(date);
+  }
 }
 
 function formatGenerationRuntime(

@@ -232,6 +232,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     "assets",
     "data-loading",
     "navigation-runtime",
+    "i18n",
     "portal-rendering",
     "authorization",
     "dependency-injection",
@@ -280,8 +281,13 @@ Deno.test("docs helpers compute previous and next article links", () => {
   });
 
   assertEquals(docs.getPagerBySlug("portal-rendering"), {
-    previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
+    previous: { slug: "i18n", title: "I18n" },
     next: { slug: "authorization", title: "Authorization" },
+  });
+
+  assertEquals(docs.getPagerBySlug("i18n"), {
+    previous: { slug: "navigation-runtime", title: "Navigation Runtime" },
+    next: { slug: "portal-rendering", title: "Portal Rendering" },
   });
 
   assertEquals(docs.getPagerBySlug("authorization"), {

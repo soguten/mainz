@@ -8,8 +8,9 @@
  */
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { buildLocaleHref, clearAppI18n, installAppI18n, setLocale } from "mainz/i18n";
 import { renderMainzComponent, setupMainzDom } from "mainz/testing";
-import { buildSiteLocaleHref, setLocale } from "../../i18n/index.ts";
+import { app } from "../../app.ts";
 import { pageStyles } from "../../styles/pageStyles.ts";
 
 await setupMainzDom();
@@ -24,7 +25,13 @@ const pageFixtures = await import(
   "../../pages/NotFound.page.tsx"
 ) as typeof import("../../pages/NotFound.page.tsx");
 
+function resetSiteI18n(): void {
+  clearAppI18n();
+  installAppI18n(app.i18n!);
+}
+
 Deno.test("site/layout: should render the top nav without floating behavior classes", () => {
+  resetSiteI18n();
   setLocale("pt");
   window.history.replaceState(null, "", "/pt/");
   const screen = renderMainzComponent(fixtures.MainzTutorialPage);
@@ -39,6 +46,7 @@ Deno.test("site/layout: should render the top nav without floating behavior clas
 });
 
 Deno.test("site/layout: should render a locale switcher that preserves the current section across languages", () => {
+  resetSiteI18n();
   setLocale("pt");
   window.history.replaceState(null, "", "/pt/");
   const screen = renderMainzComponent(fixtures.MainzTutorialPage);
@@ -64,18 +72,25 @@ Deno.test("site/layout: should render a locale switcher that preserves the curre
 });
 
 Deno.test("site/layout: locale helper should preserve the active section when switching languages", () => {
+  resetSiteI18n();
   setLocale("pt");
 
-  const englishHref = buildSiteLocaleHref("en", {
-    pathname: "/pt/",
-    search: "",
-    hash: "#trilha",
+  const englishHref = buildLocaleHref("en", {
+    locationLike: {
+      pathname: "/pt/",
+      search: "",
+      hash: "#trilha",
+    },
+    hashDictionaryPath: "anchors",
   });
 
-  const portugueseHref = buildSiteLocaleHref("pt", {
-    pathname: "/en/",
-    search: "",
-    hash: "#journey",
+  const portugueseHref = buildLocaleHref("pt", {
+    locationLike: {
+      pathname: "/en/",
+      search: "",
+      hash: "#journey",
+    },
+    hashDictionaryPath: "anchors",
   });
 
   assertEquals(englishHref, "/#journey");
@@ -83,6 +98,7 @@ Deno.test("site/layout: locale helper should preserve the active section when sw
 });
 
 Deno.test("site/layout: notFound locale switcher should keep invalid paths while moving the locale prefix", () => {
+  resetSiteI18n();
   setLocale("en");
   window.history.replaceState(null, "", "/pgffhgh");
   const screen = renderMainzComponent(pageFixtures.NotFoundPage);
@@ -98,6 +114,7 @@ Deno.test("site/layout: notFound locale switcher should keep invalid paths while
 });
 
 Deno.test("site/layout: should preserve injected styles when changing the journey stage", () => {
+  resetSiteI18n();
   setLocale("pt");
   const screen = renderMainzComponent(fixtures.MainzTutorialPage);
 
@@ -120,6 +137,7 @@ Deno.test("site/layout: should preserve injected styles when changing the journe
 });
 
 Deno.test("site/layout: checkpoint and workshop should coexist without cross-talk", () => {
+  resetSiteI18n();
   setLocale("pt");
   const hljs = sandboxFixtures.installHighlightStub();
   const screen = renderMainzComponent(fixtures.MainzTutorialPage);

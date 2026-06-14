@@ -95,6 +95,35 @@ The rules are:
   route locale
 - no `i18n`: routes stay unlocalized and Mainz does not invent a route locale
 
+When the app also wants framework-owned UI translation, declare
+`i18n.dictionaries` in that same block:
+
+```tsx title="app.ts"
+import { defineApp } from "mainz";
+import en from "./i18n/locales/en.ts";
+import pt from "./i18n/locales/pt.ts";
+
+export const app = defineApp({
+  id: "site",
+  i18n: {
+    locales: ["en", "pt"],
+    defaultLocale: "en",
+    localePrefix: "except-default",
+    dictionaries: {
+      en,
+      pt,
+    },
+  },
+  pages: [HomePage],
+});
+```
+
+That enables the framework-owned runtime from `mainz/i18n` for predictable UI
+copy such as navigation labels, buttons, diagnostics, and short shared text.
+
+For the full split between dictionaries and locale-aware external content
+loading, see [I18n](./i18n.md).
+
 ## Root-only apps
 
 Root-only apps can also use `defineApp(...)` when they need a formal composition

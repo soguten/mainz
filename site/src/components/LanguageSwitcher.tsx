@@ -1,28 +1,28 @@
 import { Component, CustomElement } from "mainz";
 import {
-  buildSiteLocaleHref,
+  buildLocaleHref,
+  getAppI18n,
   getLocale,
-  type SiteLocale,
-  siteLocales,
   t,
-} from "../i18n/index.ts";
+} from "mainz/i18n";
 
 @CustomElement("x-language-switcher")
 export class LanguageSwitcher extends Component {
   override render(): HTMLElement {
     const currentLocale = getLocale();
+    const locales = getAppI18n().locales;
 
     return (
       <div className="locale-switcher" aria-label={t("nav.languageMenuLabel")}>
         <span className="locale-switcher-label">{t("nav.languageLabel")}</span>
         <div className="locale-switcher-list">
-          {siteLocales.map((locale) => (
+          {locales.map((locale) => (
             <a
               key={locale}
               className={`locale-chip ${
                 locale === currentLocale ? "active" : ""
               }`}
-              href={buildSiteLocaleHref(locale)}
+              href={buildLocaleHref(locale, { hashDictionaryPath: "anchors" })}
               hreflang={locale}
               lang={locale}
               aria-current={locale === currentLocale ? "true" : undefined}
@@ -38,6 +38,6 @@ export class LanguageSwitcher extends Component {
   }
 }
 
-function getLocaleChipLabel(locale: SiteLocale): string {
+function getLocaleChipLabel(locale: string): string {
   return locale.toUpperCase();
 }

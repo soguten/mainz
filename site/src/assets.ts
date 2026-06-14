@@ -1,6 +1,6 @@
 import { type AssetDefinition, link, script } from "mainz";
 
-export const appAssets: readonly AssetDefinition[] = [
+export const assets: readonly AssetDefinition[] = [
   link({
     id: "site-fonts-preconnect",
     rel: "preconnect",

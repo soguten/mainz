@@ -49,18 +49,56 @@ If you want an explicit stable tag instead of the generated class-based one, add
 
 The app entry stays tiny. Define the routed app once, then start it.
 
-```tsx title="main.tsx"
-import { defineApp, startApp } from "mainz";
+```tsx title="app.ts"
+import { defineApp } from "mainz";
 import { HomePage } from "./pages/Home.page.tsx";
 import { NotFoundPage } from "./pages/NotFound.page.tsx";
 
-const app = defineApp({
+export const app = defineApp({
+  id: "site",
+  i18n: {
+    locales: ["en", "pt"],
+    defaultLocale: "en",
+    localePrefix: "except-default",
+    dictionaries: {
+      en: {
+        hero: {
+          title: "Hello Mainz",
+        },
+      },
+      pt: {
+        hero: {
+          title: "Ola Mainz",
+        },
+      },
+    },
+  },
   pages: [HomePage],
   notFound: NotFoundPage,
 });
+```
+
+```tsx title="main.tsx"
+import { startApp } from "mainz";
+import { app } from "./app.ts";
 
 startApp(app);
 ```
+
+For predictable UI copy, consume the framework-owned translation runtime from
+`mainz/i18n`:
+
+```tsx title="Hero.tsx"
+import { t } from "mainz/i18n";
+
+export function Hero() {
+  return <h1>{t("hero.title")}</h1>;
+}
+```
+
+If your content already comes from a CMS, database, or markdown collection,
+keep using `entries()` and `load({ locale })` to fetch it directly in the
+correct locale instead of forcing that content into dictionaries.
 
 For the deeper split between app definition, static consumers such as
 build/diagnostics, and runtime startup, see

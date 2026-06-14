@@ -1,5 +1,5 @@
 import { CustomElement, Locales, Page, RenderMode } from "mainz";
-import { buildSiteLocaleHref, getLocale } from "../i18n/index.ts";
+import { buildLocaleRootHref, getLocale } from "mainz/i18n";
 import { LanguageSwitcher } from "../components/LanguageSwitcher.tsx";
 import { pageStyles } from "../styles/pageStyles.ts";
 
@@ -25,11 +25,7 @@ export class NotFoundPage extends Page {
   override render() {
     const locale = this.resolveLocale();
     const isPortuguese = locale === "pt";
-    const homeHref = buildSiteLocaleHref(locale, {
-      pathname: "/",
-      search: "",
-      hash: "",
-    });
+    const homeHref = buildLocaleRootHref(locale);
 
     return (
       <div className="page-shell">
