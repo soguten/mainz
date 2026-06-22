@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import process from "node:process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { register } from "npm:tsx@4.22.4/esm/api";
 import type {
   MainzToolingRuntime,
   ToolingCommand,
@@ -52,7 +53,6 @@ type TsxScopedImportApi = {
 };
 
 let nodeTsxImportApiPromise: Promise<TsxScopedImportApi> | undefined;
-const tsxEsmApiSpecifier = "tsx/esm/api";
 
 function isTypeScriptModuleSpecifier(specifier: string): boolean {
   try {
@@ -72,10 +72,10 @@ function isDenoHostedNodeRuntime(): boolean {
 }
 
 async function getNodeTsxImportApi(): Promise<TsxScopedImportApi> {
-  nodeTsxImportApiPromise ??= import(tsxEsmApiSpecifier).then(({ register }) =>
+  nodeTsxImportApiPromise ??= Promise.resolve(
     register({
       namespace: "mainz-node-runtime",
-    })
+    }),
   );
   return await nodeTsxImportApiPromise;
 }
