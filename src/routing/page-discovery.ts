@@ -12,6 +12,8 @@ import {
   resolvePageRenderMode,
   resolvePageRoutePath,
 } from "../components/page.ts";
+import { denoToolingRuntime } from "../tooling/runtime/index.ts";
+import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import type { RenderMode, RenderModeFallback } from "./types.ts";
 import { isFilesystemPageFile } from "./filesystem.ts";
 
@@ -35,6 +37,7 @@ interface DiscoverPageOptions {
 
 export async function discoverPagesFromFiles(
   filePaths: readonly string[],
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<DiscoveredPage[]> {
   const pages: DiscoveredPage[] = [];
 
@@ -43,7 +46,7 @@ export async function discoverPagesFromFiles(
       continue;
     }
 
-    const discovered = await discoverPagesFromFile(filePath);
+    const discovered = await discoverPagesFromFile(filePath, runtime);
     pages.push(...discovered);
   }
 
@@ -62,16 +65,18 @@ export async function discoverPagesFromFiles(
 
 export async function discoverPagesFromFile(
   filePath: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<DiscoveredPage[]> {
-  return await discoverPagesFromFileWithOptions(filePath);
+  return await discoverPagesFromFileWithOptions(filePath, runtime);
 }
 
 export async function discoverPageExportFromFile(
   filePath: string,
   exportName: string,
   options: DiscoverPageOptions = {},
+  runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<DiscoveredPage | undefined> {
-  const pages = await discoverPagesFromFileWithOptions(filePath, {
+  const pages = await discoverPagesFromFileWithOptions(filePath, runtime, {
     ...options,
     exportNames: [exportName],
   });
@@ -80,6 +85,7 @@ export async function discoverPageExportFromFile(
 
 async function discoverPagesFromFileWithOptions(
   filePath: string,
+  runtime: MainzToolingRuntime,
   options: DiscoverPageOptions & { exportNames?: readonly string[] } = {},
 ): Promise<DiscoveredPage[]> {
   const normalizedFilePath = normalizePath(resolve(filePath));
@@ -89,7 +95,7 @@ async function discoverPagesFromFileWithOptions(
 
   let moduleExports: Record<string, unknown>;
   try {
-    moduleExports = await import(moduleUrl);
+    moduleExports = await runtime.importModule(moduleUrl);
   } catch (error) {
     throw new Error(
       `Could not load page module "${normalizedFilePath}": ${

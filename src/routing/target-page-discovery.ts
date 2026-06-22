@@ -94,7 +94,7 @@ export async function resolveDiscoveredPagesFromDirectory(
 
   for (const filePath of pageFiles ?? []) {
     try {
-      const entries = await discoverPagesFromFile(filePath);
+      const entries = await discoverPagesFromFile(filePath, runtime);
       discoveredPages.push(...entries.map((entry) => ({
         file: entry.file,
         exportName: entry.exportName,
@@ -292,7 +292,9 @@ async function resolveTargetAppCandidatesFromAppFile(
   }
 
   const appCandidates = await Promise.all(
-    appResolutions.map((appResolution) => resolveAppCandidate(appResolution)),
+    appResolutions.map((appResolution) =>
+      resolveAppCandidate(appResolution, runtime)
+    ),
   );
   applyDuplicateAppIdErrors(appCandidates);
 
@@ -465,6 +467,7 @@ async function collectAppDefinitionExpressions(
 
 async function resolveAppCandidate(
   appResolution: RoutedAppDefinitionResolution,
+  runtime: MainzToolingRuntime,
 ): Promise<AppDiscoveryCandidate> {
   const appId = readAppDefinitionId(appResolution.appDefinition);
   const routed = hasNamedProperty(appResolution.appDefinition, "pages");
@@ -506,6 +509,7 @@ async function resolveAppCandidate(
             fallbackPath: "/404",
           }
           : {},
+        runtime,
       );
 
       if (!discoveredPage) {
