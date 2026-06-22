@@ -37,6 +37,14 @@ function toNodeStdio(
   }
 }
 
+function resolveNodePackageRunnerCommand(): string {
+  return process.platform === "win32" ? "npx.cmd" : "npx";
+}
+
+function shouldUseWindowsShell(command: string): boolean {
+  return process.platform === "win32" && /\.(cmd|bat)$/i.test(command);
+}
+
 /**
  * Mainz tooling host implementation for Node.js.
  */
@@ -104,6 +112,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
         {
           cwd: command.cwd,
           env: command.env ? { ...process.env, ...command.env } : process.env,
+          shell: shouldUseWindowsShell(command.command),
           stdio: [
             toNodeStdio(command.stdin),
             toNodeStdio(command.stdout),
@@ -132,7 +141,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
 
   resolveViteBuildCommand(options: ToolingViteCommandOptions): ToolingCommand {
     return {
-      command: "npx",
+      command: resolveNodePackageRunnerCommand(),
       args: [
         "vite",
         "build",
@@ -161,7 +170,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
     }
 
     return {
-      command: "npx",
+      command: resolveNodePackageRunnerCommand(),
       args,
     };
   }

@@ -38,13 +38,14 @@ Deno.test("build/execution: should forward dev host and port to Vite", () => {
 
 Deno.test("build/execution: node runtime should resolve Vite commands through npx", () => {
   const runtime = new NodeToolingRuntime();
+  const expectedCommand = Deno.build.os === "windows" ? "npx.cmd" : "npx";
 
   assertEquals(
     runtime.resolveViteBuildCommand({
       viteConfigPath: "/tmp/vite.config.mjs",
     }),
     {
-      command: "npx",
+      command: expectedCommand,
       args: [
         "vite",
         "build",
@@ -61,7 +62,7 @@ Deno.test("build/execution: node runtime should resolve Vite commands through np
       port: 4175,
     }),
     {
-      command: "npx",
+      command: expectedCommand,
       args: [
         "vite",
         "--config",

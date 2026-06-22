@@ -159,16 +159,16 @@ Built-in template names are resolved from the packaged catalog:
 
 ```bash
 mainz init my-app --template starter
-mainz app create docs --template default-routed
-mainz app create analytics --template chart
+deno task mainz app create docs --template default-routed
+deno task mainz app create analytics --template chart
 ```
 
 Template sources let a project use a template outside the packaged catalog:
 
 ```bash
 mainz init my-app --template ./templates/project-starter
-mainz app create docs --template C:/templates/mainz/docs-app
-mainz app create docs --template https://example.com/mainz/docs-app.tar.gz
+deno task mainz app create docs --template ./templates/mainz/docs-app
+deno task mainz app create docs --template https://example.com/mainz/docs-app.tar.gz
 ```
 
 A local template source is a directory with the same layout as a built-in

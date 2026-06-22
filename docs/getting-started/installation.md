@@ -10,17 +10,36 @@ Mainz leans on Deno and Vite, so the setup is intentionally small.
 If your repo already uses Deno tasks, Mainz fits in cleanly without an extra
 package manager layer.
 
-```bash title="Install and run"
+Use the global CLI for bootstrap:
+
+```bash title="Bootstrap a Project"
 mainz init
-mainz app create site
-mainz dev --target site
+```
+
+After that, use the generated project-local launcher.
+
+For Deno projects:
+
+```bash title="Deno Project Commands"
+deno task mainz app create site
+deno task mainz dev --target site
 ```
 
 Or start from a runnable example app:
 
-```bash title="Starter project"
+```bash title="Deno Starter Project"
 mainz init my-app --template starter
-mainz dev --target app
+cd my-app
+deno task mainz dev --target app
+```
+
+For Node projects:
+
+```bash title="Node Starter Project"
+mainz init my-node-app --runtime node --template starter
+cd my-node-app
+npm install
+npm run mainz -- dev --target app
 ```
 
 ## Use the generated Vite config

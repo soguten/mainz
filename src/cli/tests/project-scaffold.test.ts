@@ -67,6 +67,7 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
       mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
       denoConfigPath: "deno.json",
       mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",
+      mainzToolingCliSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
       mainzSubpathPrefix: "jsr:/@mainz/mainz@0.1.0-alpha.99/",
     },
   });
@@ -94,6 +95,7 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
       mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
       denoConfigPath: "deno.json",
       mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",
+      mainzToolingCliSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
       mainzSubpathPrefix: "jsr:/@mainz/mainz@0.1.0-alpha.99/",
       projectName: "demo",
       appName: "app",
@@ -152,6 +154,8 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
       mainzSpecifier: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
       denoConfigPath: "deno.json",
       mainzCliSpecifier: "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+      mainzToolingCliSpecifier:
+        "npm:@jsr/mainz__mainz@0.1.0-alpha.99/tooling/cli",
       mainzSubpathPrefix: "npm:@jsr/mainz__mainz@0.1.0-alpha.99/",
       projectName: "demo",
       appName: "app",
@@ -180,12 +184,18 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
       "app/src/pages/NotFound.page.tsx",
       "mainz.config.ts",
       "package.json",
+      "scripts/mainz.mjs",
       "tsconfig.json",
     ],
   );
 
   const packageJson = JSON.parse(files.get("package.json")?.content ?? "{}");
   assertEquals(packageJson.workspaces, ["app"]);
+  assertEquals(packageJson.scripts?.mainz, "node ./scripts/mainz.mjs");
+  assertEquals(packageJson.scripts?.dev, "npm run mainz -- dev");
+
+  const launcher = files.get("scripts/mainz.mjs");
+  assertStringIncludes(launcher?.content ?? "", 'from "mainz/tooling/cli"');
 });
 
 Deno.test("cli/templates/app: default-routed should render shared target metadata", async () => {
@@ -228,6 +238,8 @@ Deno.test("cli/templates/project: materialize should preflight every destination
             mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
             denoConfigPath: "deno.json",
             mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",
+            mainzToolingCliSpecifier:
+              "jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
             mainzSubpathPrefix: "jsr:/@mainz/mainz@0.1.0-alpha.99/",
           },
           async beforeWrite(path) {

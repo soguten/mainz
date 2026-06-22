@@ -13,6 +13,7 @@ import {
   type DiagnosticsTargetModel,
   type MainzDiagnostic,
 } from "./target-model.ts";
+import { getDiagnosticsCwd } from "./runtime.ts";
 import { discoverTargetSourceInputs } from "./source-inputs.ts";
 import { resolveTargetDiagnosticsEvaluationsForTarget } from "../routing/target-evaluation.ts";
 
@@ -24,7 +25,7 @@ export interface BuiltDiagnosticsTargetModel {
 
 export async function buildDiagnosticsTargetModelsForTarget(
   target: NormalizedMainzTarget,
-  cwd = Deno.cwd(),
+  cwd = getDiagnosticsCwd(),
   selectedAppId?: string,
 ): Promise<readonly BuiltDiagnosticsTargetModel[]> {
   const evaluations = await resolveTargetDiagnosticsEvaluationsForTarget(

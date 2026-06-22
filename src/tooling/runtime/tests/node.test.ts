@@ -6,13 +6,14 @@ import { NodeToolingRuntime } from "../index.ts";
 
 Deno.test("tooling/runtime/node: should resolve Vite build and dev commands through npx", () => {
   const runtime = new NodeToolingRuntime();
+  const expectedCommand = Deno.build.os === "windows" ? "npx.cmd" : "npx";
 
   assertEquals(
     runtime.resolveViteBuildCommand({
       viteConfigPath: "/tmp/vite.config.mjs",
     }),
     {
-      command: "npx",
+      command: expectedCommand,
       args: [
         "vite",
         "build",
@@ -29,7 +30,7 @@ Deno.test("tooling/runtime/node: should resolve Vite build and dev commands thro
       port: 4175,
     }),
     {
-      command: "npx",
+      command: expectedCommand,
       args: [
         "vite",
         "--config",

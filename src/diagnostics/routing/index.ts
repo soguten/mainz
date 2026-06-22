@@ -9,6 +9,7 @@ import { collectPageLoadLifecycleDiagnostics } from "./rules/page-load-lifecycle
 import { collectPageMetadataDiagnostics } from "./rules/page-metadata.rule.ts";
 import { collectDiagnosticsFromModel } from "../collect.ts";
 import { createDiagnosticsTargetModel } from "../core/target-model.ts";
+import { readDiagnosticsTextFile } from "../core/runtime.ts";
 
 export type {
   MainzDiagnostic,
@@ -115,7 +116,7 @@ async function collectRouteSourceInputs(
   for (const file of uniqueFiles) {
     sourceInputs.push({
       file,
-      source: await Deno.readTextFile(file),
+      source: await readDiagnosticsTextFile(file),
     });
   }
 

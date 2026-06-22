@@ -1,5 +1,6 @@
 import { ts } from "../../compiler/typescript.ts";
 import { readClassRenderDataContractInfo } from "../core/class-render-data.ts";
+import { readDiagnosticsTextFile } from "../core/runtime.ts";
 import type { RouteDiagnosticsPageInput, RoutePageFacts } from "./facts.ts";
 import { analyzeEntriesMember } from "./entries-evaluator.ts";
 import {
@@ -17,7 +18,7 @@ export async function collectRoutePageFacts(
 
   for (const page of pages) {
     const source = sourceCache.get(page.file) ??
-      await Deno.readTextFile(page.file);
+      await readDiagnosticsTextFile(page.file);
     sourceCache.set(page.file, source);
 
     const filePageFacts = parseRoutePageFacts(source);

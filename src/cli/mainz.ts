@@ -69,6 +69,7 @@ type TemplateMaterializationSource =
   | { templateUrl: string };
 
 type CliHostOption = string | true;
+type CliCommandScope = "all" | "project";
 
 type BuildCommandOptions = SharedCliOptions & {
   command: "build";
@@ -269,20 +270,25 @@ if (import.meta.main && detectHostRuntime() === "deno") {
  */
 export async function main(
   args: string[],
-  options: { hostRuntime?: SupportedCliRuntime } = {},
+  options: {
+    hostRuntime?: SupportedCliRuntime;
+    commandScope?: CliCommandScope;
+  } = {},
 ): Promise<number> {
   return await runCliEntryPoint(
     args,
     options.hostRuntime ?? detectHostRuntime(),
+    options.commandScope ?? "all",
   );
 }
 
 async function runCliEntryPoint(
   args: string[],
   hostRuntime: SupportedCliRuntime,
+  commandScope: CliCommandScope,
 ): Promise<number> {
   try {
-    return await runCli(args, hostRuntime);
+    return await runCli(args, hostRuntime, commandScope);
   } catch (error) {
     if (error instanceof CliExitError) {
       return error.code;
@@ -302,6 +308,7 @@ async function runCliEntryPoint(
 async function runCli(
   args: string[],
   hostRuntime: SupportedCliRuntime,
+  commandScope: CliCommandScope,
 ): Promise<number> {
   const cliSelection = parseLeadingCliSelection(args);
   if (cliSelection.cli && cliSelection.cli !== hostRuntime) {
@@ -324,6 +331,8 @@ async function runCli(
     printHelp();
     return 0;
   }
+
+  assertCommandAllowedInScope(command, commandScope);
 
   if (command.command === "init") {
     try {
@@ -1633,6 +1642,9 @@ async function runInitCommand(
     projectName,
     denoConfigPath,
     mainzCliSpecifier: renderGeneratedMainzCliSpecifier(mainzSpecifier),
+    mainzToolingCliSpecifier: renderGeneratedMainzToolingCliSpecifier(
+      mainzSpecifier,
+    ),
     mainzSubpathPrefix: renderGeneratedMainzSubpathPrefix(mainzSpecifier),
     appName,
     appId: appName,
@@ -1670,9 +1682,17 @@ async function runInitCommand(
     `[mainz] Created ${plan.files.map((file) => file.path).join(", ")}.`,
   );
   if (initTemplate === "starter") {
-    console.log('[mainz] Run "mainz dev --target app" to start the app.');
+    console.log(
+      `[mainz] Run "${
+        renderGeneratedProjectCommand(projectRuntime, "dev --target app")
+      }" to start the app.`,
+    );
   } else {
-    console.log('[mainz] Add an app with "mainz app create <name>".');
+    console.log(
+      `[mainz] Add an app with "${
+        renderGeneratedProjectCommand(projectRuntime, "app create <name>")
+      }".`,
+    );
   }
 }
 
@@ -2320,9 +2340,14 @@ async function runContainerInitCommand(
       navigation: metadata.navigation,
       localizedNotFoundPrefixes: resolveContainerLocalizedNotFoundPrefixes(
         appDefinition,
-        targetI18n,
+        targetI18n
+          ? {
+            defaultLocale: targetI18n.defaultLocale,
+            localePrefix: targetI18n.localePrefix ?? "except-default",
+          }
+          : undefined,
       ),
-      runtimeName: runtime.name,
+      runtimeName: resolveSupportedCliRuntime(runtime.name as MainzRuntime),
       configPath: relativeConfigPath,
       dockerfilePath: normalizedContextHint,
       outDir: relativeOutDir,
@@ -5891,6 +5916,19 @@ function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
   return `${trimmed}/`;
 }
 
+function renderGeneratedMainzToolingCliSpecifier(mainzSpecifier: string): string {
+  return `${mainzSpecifier.trim().replace(/\/+$/, "")}/tooling/cli`;
+}
+
+function renderGeneratedProjectCommand(
+  runtime: SupportedCliRuntime,
+  command: string,
+): string {
+  return runtime === "deno"
+    ? `deno task mainz ${command}`
+    : `npm run mainz -- ${command}`;
+}
+
 function renderGeneratedNodeMainzSpecifier(mainzSpecifier: string): string {
   const trimmed = mainzSpecifier.trim().replace(/\/+$/, "");
   const jsrMainzMatch = trimmed.match(/^jsr:@mainz\/mainz(@.+)?$/);
@@ -6095,4 +6133,43 @@ function resolveSupportedCliRuntime(
   }
 
   throw new Error('Runtime "bun" is not implemented yet.');
+}
+
+function assertCommandAllowedInScope(
+  command: MainzCliCommand,
+  commandScope: CliCommandScope,
+): void {
+  if (commandScope !== "project") {
+    return;
+  }
+
+  if (
+    command.command === "init"
+  ) {
+    throw new CliUsageError(
+      `Command "${renderCommandDisplayName(command)}" is not available from a project-local Mainz launcher. Run the host Mainz CLI directly for bootstrap or global tooling commands.`,
+      "init",
+    );
+  }
+}
+
+function renderCommandDisplayName(command: MainzCliCommand): string {
+  switch (command.command) {
+    case "app":
+      return `app ${command.action}`;
+    case "profile":
+      return `profile ${command.action}`;
+    case "workflow":
+      return `workflow ${command.action} ${command.provider}`;
+    case "vite":
+      return `vite ${command.action}`;
+    case "container-init":
+      return "container init";
+    case "container-image-build":
+      return "container image build";
+    case "container-run":
+      return "container run";
+    default:
+      return command.command;
+  }
 }

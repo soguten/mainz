@@ -3,6 +3,7 @@ import type {
   NormalizedMainzTarget,
 } from "../config/index.ts";
 import { collectDiagnosticsForTarget } from "./collect.ts";
+import { getDiagnosticsCwd } from "./core/runtime.ts";
 import type { MainzDiagnostic } from "./core/target-model.ts";
 
 export interface DiagnoseCommandOptions {
@@ -20,7 +21,7 @@ export type TargetDiagnostic = MainzDiagnostic & {
 export async function collectDiagnosticsForConfig(
   config: NormalizedMainzConfig,
   options: Pick<DiagnoseCommandOptions, "target" | "app">,
-  cwd: string = Deno.cwd(),
+  cwd: string = getDiagnosticsCwd(),
 ): Promise<readonly TargetDiagnostic[]> {
   const diagnostics: TargetDiagnostic[] = [];
 

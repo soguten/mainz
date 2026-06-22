@@ -46,12 +46,16 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
       "jsr:/@mainz/mainz@0.1.0-alpha.99/",
     );
     assertEquals(
-      denoConfig.tasks?.dev,
-      "deno run -A --config deno.json jsr:@mainz/cli-deno@0.1.0-alpha.99 dev",
+      denoConfig.tasks?.mainz,
+      "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
     );
     assertEquals(
       denoConfig.tasks?.build,
-      "deno run -A --config deno.json jsr:@mainz/cli-deno@0.1.0-alpha.99 build",
+      "deno task mainz build",
+    );
+    assertEquals(
+      denoConfig.tasks?.dev,
+      "deno task mainz dev",
     );
   } finally {
     await Deno.remove(cwd, { recursive: true });
@@ -105,7 +109,7 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
       `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
     );
     assertStringIncludes(result.stdout, "Initialized Mainz starter project");
-    assertStringIncludes(result.stdout, 'Run "mainz dev --target app"');
+    assertStringIncludes(result.stdout, 'Run "deno task mainz dev --target app"');
 
     const config = await Deno.readTextFile(
       resolve(cwd, "demo", "mainz.config.ts"),
@@ -149,7 +153,11 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
     assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
     assertEquals(
       denoConfig.tasks?.dev,
-      "deno run -A --config deno.json jsr:@mainz/cli-deno@0.1.0-alpha.99 dev",
+      "deno task mainz dev",
+    );
+    assertEquals(
+      denoConfig.tasks?.mainz,
+      "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
     );
   } finally {
     await Deno.remove(cwd, { recursive: true });
@@ -271,6 +279,7 @@ Deno.test("cli/mainz init: should create a node project when --runtime node is p
       packageJson,
       '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
     );
+    assertStringIncludes(packageJson, '"mainz": "node ./scripts/mainz.mjs"');
     await assertRejectsNotFound(resolve(cwd, "deno.json"));
   } finally {
     await Deno.remove(cwd, { recursive: true });
@@ -308,13 +317,22 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
       await Deno.readTextFile(resolve(cwd, "demo", "package.json")),
     ) as {
       dependencies?: Record<string, unknown>;
+      scripts?: Record<string, unknown>;
       workspaces?: string[];
     };
     assertEquals(
       packageJson.dependencies?.mainz,
       "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
     );
+    assertEquals(packageJson.scripts?.mainz, "node ./scripts/mainz.mjs");
+    assertEquals(packageJson.scripts?.dev, "npm run mainz -- dev");
     assertEquals(packageJson.workspaces, ["app"]);
+    assertStringIncludes(result.stdout, 'Run "npm run mainz -- dev --target app"');
+
+    const launcher = await Deno.readTextFile(
+      resolve(cwd, "demo", "scripts", "mainz.mjs"),
+    );
+    assertStringIncludes(launcher, 'from "mainz/tooling/cli"');
 
     const homePage = await Deno.readTextFile(
       resolve(cwd, "demo", "app", "src", "pages", "Home.page.tsx"),
@@ -324,6 +342,13 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
+});
+
+Deno.test("tooling/project-cli: should reject bootstrap commands from the project-local entrypoint", async () => {
+  const { main } = await import("../../public/tooling-cli.ts");
+  const exitCode = await main(["init"], { hostRuntime: "node" });
+
+  assertEquals(exitCode, 1);
 });
 
 Deno.test("cli/mainz init: should allow matching --cli before the command", async () => {

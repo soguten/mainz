@@ -16,28 +16,35 @@ mainz init my-app
 mainz init --mainz jsr:@mainz/mainz@<version>
 ```
 
+Use the installed CLI for bootstrap commands such as `init`. After the project
+exists, prefer the generated project-local launcher:
+
+- Deno projects: `deno task mainz ...`
+- Node projects: `npm run mainz -- ...`
+
 Use `--template starter` when you want a runnable example project with a routed
 app and a counter component already wired into the home page.
 
 ```bash
 mainz init my-app --template starter
-mainz dev --target app
+cd my-app
+deno task mainz dev --target app
 ```
 
-Use `mainz app create <name>` to create an app workspace and register a target
-for it. When no template is passed, Mainz creates the default routed app
-scaffold with `spa` navigation. `mainz app create <name>` and
-`mainz app create --name <name>` are both accepted for naming the app.
+Use the project-local launcher to create app workspaces and register targets.
+When no template is passed, Mainz creates the default routed app scaffold with
+`spa` navigation. `app create <name>` and `app create --name <name>` are both
+accepted for naming the app.
 
 ```bash
-mainz app create --name site
-mainz app create site
-mainz app create docs --navigation mpa
-mainz app create portal --type root
-mainz app create admin --root ./apps/admin
-mainz app create docs --out-dir public/docs
-mainz app create docs --template default-routed
-mainz app create analytics --template chart
+deno task mainz app create --name site
+deno task mainz app create site
+deno task mainz app create docs --navigation mpa
+deno task mainz app create portal --type root
+deno task mainz app create admin --root ./apps/admin
+deno task mainz app create docs --out-dir public/docs
+deno task mainz app create docs --template default-routed
+deno task mainz app create analytics --template chart
 ```
 
 The default routed scaffold creates one source tree for the app:
@@ -70,7 +77,7 @@ projects get a root `workspace` entry and an app-level `deno.json` with
 dependency imports; Node projects get a root `workspaces` entry and an app-level
 `package.json`.
 
-`mainz app create` also creates or updates `mainz.config.ts`:
+`app create` also creates or updates `mainz.config.ts`:
 
 ```ts title="mainz.config.ts"
 import { defineMainzConfig } from "mainz/config";
@@ -88,13 +95,13 @@ export default defineMainzConfig({
 });
 ```
 
-Use `mainz app remove --target <target>` to remove the matching target from
-`mainz.config.ts`. `mainz app remove <target>` is also accepted as a short form.
+Use the project-local launcher to remove targets. `app remove <target>` is also
+accepted as a short form.
 
 ```bash
-mainz app remove --target site
-mainz app remove site
-mainz app remove site --delete-files
+deno task mainz app remove --target site
+deno task mainz app remove site
+deno task mainz app remove site --delete-files
 ```
 
 `remove` does not delete app files. It only removes the Mainz target wiring, so
@@ -131,20 +138,20 @@ Use `--target <name>` when you want one target. Use `--target all` on commands
 that support running across every target.
 
 ```bash
-mainz build --target site --profile production
-mainz dev --target site
-mainz preview --target site --profile production
-mainz test --target site
-mainz publish-info --target site --profile production
-mainz diagnose --target site --format human
+deno task mainz build --target site --profile production
+deno task mainz dev --target site
+deno task mainz preview --target site --profile production
+deno task mainz test --target site
+deno task mainz publish-info --target site --profile production
+deno task mainz diagnose --target site --format human
 ```
 
 ## Build
 
-`mainz build` creates artifacts from the selected target.
+`build` creates artifacts from the selected target.
 
 ```bash
-mainz build --target site --profile production
+deno task mainz build --target site --profile production
 ```
 
 When `--target` is omitted, Mainz builds the production jobs it can derive from
@@ -157,23 +164,23 @@ advanced cases that need full Vite control.
 
 ## Dev
 
-`mainz dev` starts a Vite dev server for one target.
+`dev` starts a Vite dev server for one target.
 
 ```bash
-mainz dev --target site
-mainz dev --target site --host
-mainz dev --target site --host 0.0.0.0 --port 5175
+deno task mainz dev --target site
+deno task mainz dev --target site --host
+deno task mainz dev --target site --host 0.0.0.0 --port 5175
 ```
 
 Dev uses the same target model and generated Vite defaults as build.
 
 ## Preview
 
-`mainz preview` builds one target and serves the resolved publication artifact.
+`preview` builds one target and serves the resolved publication artifact.
 
 ```bash
-mainz preview --target site --profile production
-mainz preview --target site --profile production --host 127.0.0.1 --port 4173
+deno task mainz preview --target site --profile production
+deno task mainz preview --target site --profile production --host 127.0.0.1 --port 4173
 ```
 
 The command reads publication metadata from the target profile, so scripts do
@@ -181,12 +188,12 @@ not need to know the exact `dist/<target>/...` artifact path.
 
 ## Test
 
-`mainz test` is intentionally project-shaped.
+`test` is intentionally project-shaped.
 
 ```bash
-mainz test
-mainz test --target site
-mainz test --target all
+deno task mainz test
+deno task mainz test --target site
+deno task mainz test --target all
 ```
 
 Without `--target`, it runs the project's normal Deno test suite. With
@@ -198,11 +205,10 @@ project using Mainz owns a different test strategy.
 
 ## Publish Info
 
-`mainz publish-info` prints the resolved publication artifact metadata for one
-target.
+`publish-info` prints the resolved publication artifact metadata for one target.
 
 ```bash
-mainz publish-info --target site --profile production
+deno task mainz publish-info --target site --profile production
 ```
 
 Use this in deployment scripts when the host needs the final output directory or
@@ -212,13 +218,13 @@ public base path.
 
 `mainz container` prepares and runs target-scoped Docker workflows.
 
-Use `mainz container init` when you want Mainz to scaffold the container files
+Use `container init` when you want Mainz to scaffold the container files
 for one target. The command resolves `production` first, then `development`,
 and initializes both profiles with minimal defaults when neither exists yet.
 
 ```bash
-mainz container init --target site
-mainz container init --target site --profile production
+deno task mainz container init --target site
+deno task mainz container init --target site --profile production
 ```
 
 `init` writes a target-local `Dockerfile`, updates the repository-root
@@ -229,25 +235,25 @@ files, and selects the correct image shape automatically:
 - server-capable targets produce a runtime image backed by Mainz publication
   artifacts
 
-Use `mainz container image build` when you want Mainz to call Docker with the
+Use `container image build` when you want Mainz to call Docker with the
 correct repository-root build context and tag the image for you.
 
 ```bash
-mainz container image build --target site
-mainz container image build --target site --tag my-site:dev
-mainz container build --target site
+deno task mainz container image build --target site
+deno task mainz container image build --target site --tag my-site:dev
+deno task mainz container build --target site
 ```
 
 `mainz container build` is a short alias for `mainz container image build`.
 When `--tag` is omitted, Mainz uses `<target>:local`.
 
-Use `mainz container run` when you want Mainz to run the local image with the
+Use `container run` when you want Mainz to run the local image with the
 standard Mainz container port.
 
 ```bash
-mainz container run --target site
-mainz container run --target site --tag my-site:dev
-mainz container run --target site --port 3100
+deno task mainz container run --target site
+deno task mainz container run --target site --tag my-site:dev
+deno task mainz container run --target site --port 3100
 ```
 
 Mainz containers publish port `3000` internally for both browser-only and
@@ -259,12 +265,12 @@ Docker.
 
 ## Diagnose
 
-`mainz diagnose` runs framework diagnostics.
+`diagnose` runs framework diagnostics.
 
 ```bash
-mainz diagnose
-mainz diagnose --target site --format human
-mainz diagnose --target site --app site --fail-on error
+deno task mainz diagnose
+deno task mainz diagnose --target site --format human
+deno task mainz diagnose --target site --app site --fail-on error
 ```
 
 Diagnostics can run across all targets or focus on one target and one app id.

@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { ts } from "../../compiler/typescript.ts";
+import { readDiagnosticsTextFile } from "../core/runtime.ts";
 
 export async function readStaticAppAuthorizationPolicyNames(args: {
   appFile: string;
@@ -12,7 +13,7 @@ export async function readStaticAppAuthorizationPolicyNames(args: {
   const appFile = resolve(args.appFile);
   let source: string;
   try {
-    source = await Deno.readTextFile(appFile);
+    source = await readDiagnosticsTextFile(appFile);
   } catch {
     return undefined;
   }

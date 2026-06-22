@@ -39,8 +39,8 @@ simple root-only apps, that extra `app.ts` layer is optional.
 Use the CLI to create the first structure:
 
 ```bash
-mainz app create site
-mainz app create docs
+deno task mainz app create site
+deno task mainz app create docs
 ```
 
 When you use `defineApp(...)`, give the app a stable unique `id`. Mainz uses

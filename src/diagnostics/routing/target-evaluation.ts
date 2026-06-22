@@ -6,6 +6,7 @@ import {
   compareAppDiscoveryCandidates,
   resolveTargetAppDiscoveryForTarget,
 } from "../../routing/target-page-discovery.ts";
+import { getDiagnosticsCwd } from "../core/runtime.ts";
 import { readStaticAppAuthorizationPolicyNames } from "./app-authorization-facts.ts";
 
 export interface TargetDiagnosticsEvaluation {
@@ -17,7 +18,7 @@ export interface TargetDiagnosticsEvaluation {
 
 export async function resolveTargetDiagnosticsEvaluationsForTarget(
   target: NormalizedMainzTarget,
-  cwd = Deno.cwd(),
+  cwd = getDiagnosticsCwd(),
   selectedAppId?: string,
 ): Promise<readonly TargetDiagnosticsEvaluation[]> {
   const appDiscovery = await resolveTargetAppDiscoveryForTarget(target, cwd);

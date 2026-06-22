@@ -1,6 +1,10 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import type { NormalizedMainzTarget } from "../../config/index.ts";
+import {
+  readDiagnosticsDir,
+  readDiagnosticsTextFile,
+} from "./runtime.ts";
 import type { DiagnosticsSourceInput } from "./target-model.ts";
 
 export async function discoverTargetSourceInputs(
@@ -13,7 +17,7 @@ export async function discoverTargetSourceInputs(
   for (const file of files) {
     sources.push({
       file,
-      source: await Deno.readTextFile(file),
+      source: await readDiagnosticsTextFile(file),
     });
   }
 
@@ -42,7 +46,7 @@ async function collectTargetSourceFiles(
 async function collectFilesystemFiles(directory: string): Promise<string[]> {
   const filePaths: string[] = [];
 
-  for await (const entry of Deno.readDir(directory)) {
+  for await (const entry of readDiagnosticsDir(directory)) {
     const absolutePath = resolve(directory, entry.name);
 
     if (entry.isDirectory) {

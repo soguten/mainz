@@ -6,6 +6,7 @@ import {
   type DiagnosticsTargetModel,
   type MainzDiagnostic,
 } from "./core/target-model.ts";
+import { getDiagnosticsCwd } from "./core/runtime.ts";
 import { buildDiagnosticsTargetModelsForTarget } from "./core/target-model-builder.ts";
 import { applyDiagnosticSuppressions } from "./core/suppressions.ts";
 
@@ -34,7 +35,7 @@ export async function collectDiagnosticsFromModel(
 
 export async function collectDiagnosticsForTarget(
   target: NormalizedMainzTarget,
-  cwd: string = Deno.cwd(),
+  cwd: string = getDiagnosticsCwd(),
   selectedAppId?: string,
 ): Promise<
   readonly {

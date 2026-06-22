@@ -73,11 +73,18 @@ export async function withHappyDom<T>(
   });
 
   const previousValues = new Map<GlobalDomKey, unknown>();
+  const previousDescriptors = new Map<GlobalDomKey, PropertyDescriptor | undefined>();
 
   for (const key of GLOBAL_DOM_KEYS) {
     previousValues.set(key, (globalThis as Record<string, unknown>)[key]);
-    (globalThis as Record<string, unknown>)[key] =
-      (window as unknown as Record<string, unknown>)[key];
+    previousDescriptors.set(
+      key,
+      Object.getOwnPropertyDescriptor(globalThis, key),
+    );
+    setGlobalDomValue(
+      key,
+      (window as unknown as Record<string, unknown>)[key],
+    );
   }
 
   const extendedWindow = window as unknown as Window & {
@@ -148,6 +155,12 @@ export async function withHappyDom<T>(
     pendingIntervals.clear();
 
     for (const key of GLOBAL_DOM_KEYS) {
+      const previousDescriptor = previousDescriptors.get(key);
+      if (previousDescriptor) {
+        Object.defineProperty(globalThis, key, previousDescriptor);
+        continue;
+      }
+
       const previous = previousValues.get(key);
       if (previous === undefined) {
         delete (globalThis as Record<string, unknown>)[key];
@@ -170,6 +183,32 @@ async function acquireHappyDomLock(): Promise<() => void> {
   });
   await previousLock;
   return releaseLock;
+}
+
+function setGlobalDomValue(key: GlobalDomKey, value: unknown): void {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+
+  if (!descriptor) {
+    (globalThis as Record<string, unknown>)[key] = value;
+    return;
+  }
+
+  if (descriptor.writable || typeof descriptor.set === "function") {
+    (globalThis as Record<string, unknown>)[key] = value;
+    return;
+  }
+
+  if (descriptor.configurable) {
+    Object.defineProperty(globalThis, key, {
+      configurable: true,
+      enumerable: descriptor.enumerable ?? true,
+      value,
+      writable: true,
+    });
+    return;
+  }
+
+  (globalThis as Record<string, unknown>)[key] = value;
 }
 
 function installSafeDocumentWrite(window: Window): void {

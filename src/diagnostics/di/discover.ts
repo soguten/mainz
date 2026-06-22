@@ -1,4 +1,5 @@
 import { ts } from "../../compiler/typescript.ts";
+import { diagnosticsPathExistsSync } from "../core/runtime.ts";
 import type {
   DiDiagnosticsFacts,
   DiInjectionFact,
@@ -1102,11 +1103,8 @@ function resolveImportPath(
   ];
 
   for (const candidate of candidates) {
-    try {
-      Deno.statSync(candidate);
+    if (diagnosticsPathExistsSync(candidate)) {
       return candidate.replaceAll("\\", "/");
-    } catch {
-      continue;
     }
   }
 
