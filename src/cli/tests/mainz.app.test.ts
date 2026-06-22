@@ -280,6 +280,8 @@ Deno.test("cli/mainz init: should create a node project when --runtime node is p
       '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
     );
     assertStringIncludes(packageJson, '"mainz": "node ./scripts/mainz.mjs"');
+    const npmrc = await Deno.readTextFile(resolve(cwd, ".npmrc"));
+    assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
     await assertRejectsNotFound(resolve(cwd, "deno.json"));
   } finally {
     await Deno.remove(cwd, { recursive: true });
@@ -328,6 +330,8 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
     assertEquals(packageJson.scripts?.dev, "npm run mainz -- dev");
     assertEquals(packageJson.workspaces, ["app"]);
     assertStringIncludes(result.stdout, 'Run "npm run mainz -- dev --target app"');
+    const npmrc = await Deno.readTextFile(resolve(cwd, "demo", ".npmrc"));
+    assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
 
     const launcher = await Deno.readTextFile(
       resolve(cwd, "demo", "scripts", "mainz.mjs"),
