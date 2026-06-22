@@ -1619,7 +1619,7 @@ async function runInitCommand(
     options.runtime ?? hostRuntime,
   );
   const initTemplate = options.template ?? "empty";
-  const runtime = denoToolingRuntime;
+  const runtime = resolveToolingRuntime(hostRuntime);
   const outputDir = options.name
     ? resolve(runtime.cwd(), normalizeInitProjectPath(options.name))
     : runtime.cwd();
