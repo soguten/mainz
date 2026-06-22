@@ -351,6 +351,33 @@ Deno.test("tooling/project-cli: should reject bootstrap commands from the projec
   assertEquals(exitCode, 1);
 });
 
+Deno.test("tooling/bootstrap-cli: should allow bootstrap commands from the published bootstrap entrypoint", async () => {
+  const cwd = await Deno.makeTempDir({ prefix: "mainz-bootstrap-entrypoint-" });
+
+  try {
+    const { main } = await import("../../public/tooling-bootstrap-cli.ts");
+    const previousCwd = Deno.cwd();
+    Deno.chdir(cwd);
+
+    try {
+      const exitCode = await main([
+        "init",
+        "--mainz",
+        "jsr:@mainz/mainz@0.1.0-alpha.99",
+      ], { hostRuntime: "node" });
+
+      assertEquals(exitCode, 0);
+    } finally {
+      Deno.chdir(previousCwd);
+    }
+
+    const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+    assertStringIncludes(config, 'runtime: "node"');
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("cli/mainz init: should allow matching --cli before the command", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-init-cli-deno-node-" });
 
