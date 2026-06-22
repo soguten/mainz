@@ -12,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type {
   MainzToolingRuntime,
   ToolingCommand,
@@ -43,6 +44,40 @@ function resolveNodePackageRunnerCommand(): string {
 
 function shouldUseWindowsShell(command: string): boolean {
   return process.platform === "win32" && /\.(cmd|bat)$/i.test(command);
+}
+
+type TsxScopedImportApi = {
+  import<T = unknown>(specifier: string, parentURL: string | URL): Promise<T>;
+  unregister(): void;
+};
+
+let nodeTsxImportApiPromise: Promise<TsxScopedImportApi> | undefined;
+const tsxEsmApiSpecifier = "tsx/esm/api";
+
+function isTypeScriptModuleSpecifier(specifier: string): boolean {
+  try {
+    const url = new URL(specifier);
+    if (url.protocol !== "file:") {
+      return false;
+    }
+
+    return /\.(?:ts|tsx|mts|cts)$/i.test(url.pathname);
+  } catch {
+    return /\.(?:ts|tsx|mts|cts)(?:\?.*)?$/i.test(specifier);
+  }
+}
+
+function isDenoHostedNodeRuntime(): boolean {
+  return typeof Deno !== "undefined";
+}
+
+async function getNodeTsxImportApi(): Promise<TsxScopedImportApi> {
+  nodeTsxImportApiPromise ??= import(tsxEsmApiSpecifier).then(({ register }) =>
+    register({
+      namespace: "mainz-node-runtime",
+    })
+  );
+  return await nodeTsxImportApiPromise;
 }
 
 /**
@@ -176,6 +211,15 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
   }
 
   async importModule<T = unknown>(specifier: string): Promise<T> {
+    if (isTypeScriptModuleSpecifier(specifier)) {
+      if (isDenoHostedNodeRuntime()) {
+        return await import(specifier) as T;
+      }
+
+      const api = await getNodeTsxImportApi();
+      return await api.import<T>(specifier, pathToFileURL(this.cwd()).href);
+    }
+
     return await import(specifier) as T;
   }
 }

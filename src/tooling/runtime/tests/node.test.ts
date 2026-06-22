@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { assertEquals } from "@std/assert";
 import { NodeToolingRuntime } from "../index.ts";
 
@@ -65,6 +66,45 @@ Deno.test("tooling/runtime/node: should support basic filesystem operations", as
     assertEquals(content, "hello from runtime");
     assertEquals(stat.isFile, true);
     assertEquals(stat.isDirectory, false);
+  } finally {
+    await runtime.remove(tempDir, { recursive: true });
+  }
+});
+
+Deno.test("tooling/runtime/node: should import TypeScript modules with TSX dependencies", async () => {
+  const runtime = new NodeToolingRuntime();
+  const tempDir = await runtime.makeTempDir({ prefix: "mainz-cli-node-import-" });
+  const helperPath = join(tempDir, "helper.tsx");
+  const entryPath = join(tempDir, "entry.ts");
+
+  try {
+    await runtime.writeTextFile(
+      join(tempDir, "package.json"),
+      JSON.stringify({ type: "module" }),
+    );
+    await runtime.writeTextFile(
+      helperPath,
+      [
+        'export function renderMessage(name: string): string {',
+        '  return `hello ${name}`;',
+        "}",
+        "",
+      ].join("\n"),
+    );
+    await runtime.writeTextFile(
+      entryPath,
+      [
+        'import { renderMessage } from "./helper.tsx";',
+        "",
+        'export const message = renderMessage("mainz");',
+        "",
+      ].join("\n"),
+    );
+
+    const loaded = await runtime.importModule<{ message: string }>(
+      pathToFileURL(entryPath).href,
+    );
+    assertEquals(loaded.message, "hello mainz");
   } finally {
     await runtime.remove(tempDir, { recursive: true });
   }
