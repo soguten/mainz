@@ -378,6 +378,41 @@ Deno.test("tooling/bootstrap-cli: should allow bootstrap commands from the publi
   }
 });
 
+Deno.test("tooling/bootstrap-cli: should materialize the node starter template from the published bootstrap entrypoint", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-bootstrap-entrypoint-starter-",
+  });
+
+  try {
+    const { main } = await import("../../public/tooling-bootstrap-cli.ts");
+    const previousCwd = Deno.cwd();
+    Deno.chdir(cwd);
+
+    try {
+      const exitCode = await main([
+        "init",
+        "demo",
+        "--runtime",
+        "node",
+        "--template",
+        "starter",
+        "--mainz",
+        "jsr:@mainz/mainz@0.1.0-alpha.99",
+      ], { hostRuntime: "node" });
+
+      assertEquals(exitCode, 0);
+    } finally {
+      Deno.chdir(previousCwd);
+    }
+
+    const config = await Deno.readTextFile(resolve(cwd, "demo", "mainz.config.ts"));
+    assertStringIncludes(config, 'runtime: "node"');
+    await Deno.stat(resolve(cwd, "demo", "app", "src", "pages", "Home.page.tsx"));
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("cli/mainz init: should allow matching --cli before the command", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-init-cli-deno-node-" });
 

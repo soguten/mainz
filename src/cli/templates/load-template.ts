@@ -1,3 +1,4 @@
+import { readdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
@@ -44,8 +45,8 @@ export function joinTemplateRoot(root: string, child: string): string {
 export function builtInTemplateExists(templateRoot: string): boolean {
   try {
     const manifestPath = resolve(templateRoot, "template.json");
-    const stat = Deno.statSync(manifestPath);
-    return stat.isFile;
+    const stat = statSync(manifestPath);
+    return stat.isFile();
   } catch {
     return false;
   }
@@ -54,9 +55,9 @@ export function builtInTemplateExists(templateRoot: string): boolean {
 export function listBuiltInTemplateNames(templateRoot: string): string[] {
   try {
     const names: string[] = [];
-    for (const entry of Deno.readDirSync(templateRoot)) {
+    for (const entry of readdirSync(templateRoot, { withFileTypes: true })) {
       if (
-        entry.isDirectory &&
+        entry.isDirectory() &&
         directoryContainsTemplateManifest(resolve(templateRoot, entry.name))
       ) {
         names.push(entry.name);
@@ -75,8 +76,8 @@ function directoryContainsTemplateManifest(root: string): boolean {
   }
 
   try {
-    for (const entry of Deno.readDirSync(root)) {
-      if (!entry.isDirectory) {
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
         continue;
       }
 
