@@ -43,8 +43,25 @@ function resolveNodePackageRunnerCommand(): string {
   return process.platform === "win32" ? "npx.cmd" : "npx";
 }
 
-function shouldUseWindowsShell(command: string): boolean {
+function shouldUseWindowsCmdProxy(command: string): boolean {
   return process.platform === "win32" && /\.(cmd|bat)$/i.test(command);
+}
+
+function resolveSpawnInvocation(
+  command: string,
+  args: readonly string[] = [],
+): { command: string; args: string[] } {
+  if (!shouldUseWindowsCmdProxy(command)) {
+    return {
+      command,
+      args: [...args],
+    };
+  }
+
+  return {
+    command: process.env.ComSpec ?? "cmd.exe",
+    args: ["/d", "/c", "call", command, ...args],
+  };
 }
 
 type TsxScopedImportApi = {
@@ -69,6 +86,21 @@ function isTypeScriptModuleSpecifier(specifier: string): boolean {
 
 function isDenoHostedNodeRuntime(): boolean {
   return typeof Deno !== "undefined";
+}
+
+function normalizeTypeScriptImportSpecifier(specifier: string): string {
+  try {
+    const url = new URL(specifier);
+    if (url.protocol !== "file:") {
+      return specifier;
+    }
+
+    url.search = "";
+    url.hash = "";
+    return url.href;
+  } catch {
+    return specifier.replace(/[?#].*$/, "");
+  }
 }
 
 async function getNodeTsxImportApi(): Promise<TsxScopedImportApi> {
@@ -141,13 +173,16 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
 
   async run(command: ToolingCommand): Promise<ToolingCommandResult> {
     return await new Promise<ToolingCommandResult>((resolve, reject) => {
-      const child = spawn(
+      const invocation = resolveSpawnInvocation(
         command.command,
         command.args ? [...command.args] : [],
+      );
+      const child = spawn(
+        invocation.command,
+        invocation.args,
         {
           cwd: command.cwd,
           env: command.env ? { ...process.env, ...command.env } : process.env,
-          shell: shouldUseWindowsShell(command.command),
           stdio: [
             toNodeStdio(command.stdin),
             toNodeStdio(command.stdout),
@@ -217,7 +252,10 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
       }
 
       const api = await getNodeTsxImportApi();
-      return await api.import<T>(specifier, pathToFileURL(this.cwd()).href);
+      return await api.import<T>(
+        normalizeTypeScriptImportSpecifier(specifier),
+        pathToFileURL(this.cwd()).href,
+      );
     }
 
     return await import(specifier) as T;
