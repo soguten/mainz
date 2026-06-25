@@ -376,9 +376,15 @@ function loadDevPluginRuntime(): Promise<DevPluginRuntime> {
         new URL("./dev-route-request.ts", import.meta.url).href;
       const htmlSpecifier = new URL("./dev-ssg-html.ts", import.meta.url).href;
       const [prerenderContext, routeRequest, devSsgHtml] = await Promise.all([
-        import(/* @vite-ignore */ prerenderSpecifier),
-        import(/* @vite-ignore */ routeRequestSpecifier),
-        import(/* @vite-ignore */ htmlSpecifier),
+        importDevPluginModule<typeof import("./prerender-context.ts")>(
+          prerenderSpecifier,
+        ),
+        importDevPluginModule<typeof import("./dev-route-request.ts")>(
+          routeRequestSpecifier,
+        ),
+        importDevPluginModule<typeof import("./dev-ssg-html.ts")>(
+          htmlSpecifier,
+        ),
       ]);
 
       return {
@@ -393,4 +399,8 @@ function loadDevPluginRuntime(): Promise<DevPluginRuntime> {
   }
 
   return devPluginRuntimePromise;
+}
+
+async function importDevPluginModule<T>(specifier: string): Promise<T> {
+  return await nodeToolingRuntime.importModule<T>(specifier);
 }

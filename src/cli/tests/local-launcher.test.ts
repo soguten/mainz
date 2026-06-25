@@ -7,6 +7,9 @@ import { cliTestsRepoRoot } from "../../../tests/helpers/types.ts";
 
 const decoder = new TextDecoder();
 const pinnedMainzSpecifier = await resolvePublishedMainzSpecifier();
+const nodeShimSpecifierRewrites = [
+  ['"npm:tsx@4.22.4/esm/api"', '"tsx/esm/api"'],
+] as const;
 
 Deno.test("cli/local-launcher: deno project should create and inspect an app through the local launcher", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-local-deno-app-" });
@@ -580,6 +583,7 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
     resolve(packageRoot, "src", "compiler", "typescript.ts"),
     'export { default as ts } from "typescript";\n',
   );
+  await rewriteNodeShimSpecifiers(packageRoot);
 
   await Deno.writeTextFile(
     resolve(packageRoot, "package.json"),
@@ -600,6 +604,25 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
       2,
     )}\n`,
   );
+}
+
+async function rewriteNodeShimSpecifiers(packageRoot: string): Promise<void> {
+  // The local shim copies Mainz source directly into node_modules for Node-only
+  // integration tests, so Deno-only npm: specifiers must be rewritten.
+  const fileRewrites = [
+    {
+      path: resolve(packageRoot, "src", "tooling", "runtime", "node.ts"),
+      replacements: nodeShimSpecifierRewrites,
+    },
+  ] as const;
+
+  for (const fileRewrite of fileRewrites) {
+    let source = await Deno.readTextFile(fileRewrite.path);
+    for (const [from, to] of fileRewrite.replacements) {
+      source = source.replaceAll(from, to);
+    }
+    await Deno.writeTextFile(fileRewrite.path, source);
+  }
 }
 
 async function copyTree(sourceDir: string, destinationDir: string): Promise<void> {
