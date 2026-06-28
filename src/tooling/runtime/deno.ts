@@ -6,6 +6,7 @@ import type {
   ToolingFileStat,
   ToolingViteCommandOptions,
 } from "./types.ts";
+import { dynamicImport } from "../dynamic-import.ts";
 
 /**
  * Mainz tooling host implementation for Deno.
@@ -121,7 +122,7 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
   }
 
   async importModule<T = unknown>(specifier: string): Promise<T> {
-    return await import(specifier) as T;
+    return await dynamicImport(specifier);
   }
 }
 

@@ -173,8 +173,11 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     moduleSource,
     `import { createMainzGeneratedVitePlugins } from `,
   );
-  assertStringIncludes(moduleSource, `import ts from "file:///`);
-  assertStringIncludes(moduleSource, `import deno from "file:///`);
+  assertStringIncludes(moduleSource, `import ts from "npm:typescript@5.9.3";`);
+  assertStringIncludes(
+    moduleSource,
+    `import deno from "npm:@deno/vite-plugin@2.0.2";`,
+  );
   assertStringIncludes(moduleSource, `// @mainz-generated-vite-config`);
   assertStringIncludes(
     moduleSource,

@@ -20,6 +20,7 @@ import {
   denoToolingRuntime,
   type MainzToolingRuntime,
 } from "../tooling/runtime/index.ts";
+import { dynamicImport } from "../tooling/dynamic-import.ts";
 import type {
   RouteManifestEntry,
   TargetRouteManifest,
@@ -215,7 +216,7 @@ function createArtifactServerEntryLoader(
       const specifier = `${
         pathToFileURL(serverEntryPath).href
       }?artifact-ssr=${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      loadedModule = import(specifier);
+      loadedModule = dynamicImport(specifier);
     }
 
     return await loadedModule;

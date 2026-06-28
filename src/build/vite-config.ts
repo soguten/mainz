@@ -392,7 +392,7 @@ function resolveGeneratedViteImportSpecifier(
   mode: "generated" | "materialized" = "generated",
 ): string {
   if (runtime === "deno" && mode === "generated" && specifier !== "vite") {
-    return import.meta.resolve(specifier);
+    return resolvePublishedGeneratedDenoImportSpecifier(specifier);
   }
 
   return specifier;
@@ -414,11 +414,26 @@ function resolveGeneratedModuleImportSpecifier(
 }
 
 function isAbsoluteImportUrl(value: string): boolean {
+  if (/^[A-Za-z]:[\\/]/.test(value)) {
+    return false;
+  }
+
   try {
     const url = new URL(value);
     return url.protocol.length > 0;
   } catch {
     return false;
+  }
+}
+
+function resolvePublishedGeneratedDenoImportSpecifier(
+  specifier: "@deno/vite-plugin" | "npm:typescript@5.9.3",
+): string {
+  switch (specifier) {
+    case "@deno/vite-plugin":
+      return "npm:@deno/vite-plugin@2.0.2";
+    case "npm:typescript@5.9.3":
+      return "npm:typescript@5.9.3";
   }
 }
 

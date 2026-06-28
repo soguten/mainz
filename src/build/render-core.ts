@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import type { AssetDefinition, PageMetadataDefinition } from "../components/page.ts";
 import { isAssetDefinitionList } from "../components/page.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
+import { dynamicImport } from "../tooling/dynamic-import.ts";
 
 export interface InitialRouteSnapshot {
   pageTagName: string;
@@ -160,7 +161,7 @@ export async function renderRouteAppHtml(args: {
           continue;
         }
 
-        await import(moduleScriptUrl);
+        await dynamicImport(moduleScriptUrl);
       }
       await Promise.resolve();
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));

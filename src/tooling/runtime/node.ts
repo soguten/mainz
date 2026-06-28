@@ -14,6 +14,7 @@ import process from "node:process";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { register } from "npm:tsx@4.22.4/esm/api";
+import { dynamicImport } from "../dynamic-import.ts";
 import type {
   MainzToolingRuntime,
   ToolingCommand,
@@ -248,7 +249,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
   async importModule<T = unknown>(specifier: string): Promise<T> {
     if (isTypeScriptModuleSpecifier(specifier)) {
       if (isDenoHostedNodeRuntime()) {
-        return await import(specifier) as T;
+        return await dynamicImport(specifier);
       }
 
       const api = await getNodeTsxImportApi();
@@ -258,7 +259,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
       );
     }
 
-    return await import(specifier) as T;
+    return await dynamicImport(specifier);
   }
 }
 
