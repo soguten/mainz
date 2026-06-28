@@ -355,6 +355,43 @@ Deno.test("tooling/project-cli: should reject bootstrap commands from the projec
   assertEquals(exitCode, 1);
 });
 
+Deno.test("tooling/project-cli: js wrapper should execute project commands when used as the published entrypoint", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-project-cli-js-wrapper-",
+  });
+
+  try {
+    const init = await runMainz(cwd, [
+      "init",
+      "--mainz",
+      "jsr:@mainz/mainz@0.1.0-alpha.99",
+    ]);
+    assertEquals(
+      init.code,
+      0,
+      `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`,
+    );
+
+    const create = await runMainz(cwd, ["app", "create", "docs"], {
+      denoRunConfigPath: resolve(cliTestsRepoRoot, "jsr.json"),
+      cliEntryPath: resolve(cliTestsRepoRoot, "src", "public", "tooling-cli.js"),
+    });
+
+    assertEquals(
+      create.code,
+      0,
+      `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`,
+    );
+    assertStringIncludes(create.stdout, 'Created app "docs"');
+
+    const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
+    assertStringIncludes(config, 'name: "docs"');
+    await Deno.stat(resolve(cwd, "docs", "src", "app.ts"));
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("tooling/bootstrap-cli: should allow bootstrap commands from the published bootstrap entrypoint", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-bootstrap-entrypoint-" });
 
@@ -1777,6 +1814,7 @@ async function runMainz(
   cwd: string,
   args: string[],
   options: {
+    cliEntryPath?: string;
     denoRunConfigPath?: string;
     env?: Record<string, string>;
     noConfig?: boolean;
@@ -1794,7 +1832,7 @@ async function runMainz(
       ? ["--config", options.denoRunConfigPath]
       : []),
     "-A",
-    mainzCliPath,
+    options.cliEntryPath ?? mainzCliPath,
     ...args,
   ];
   const command = new Deno.Command("deno", {
