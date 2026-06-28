@@ -151,6 +151,24 @@ Deno.test("cli/local-launcher: deno starter project should inspect and diagnose 
       () => runDenoProjectTask(projectDir, "preview", ["--target", "missing-target"]),
       "missing-target",
     );
+
+    const devSession = await runDenoProjectTaskSession(
+      projectDir,
+      "dev",
+      ["--target", "app"],
+      12000,
+    );
+    assertStringIncludes(devSession.stdout, "VITE");
+    assertEquals(
+      devSession.stderr.includes("Failed to run dependency scan"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+    assertEquals(
+      devSession.stderr.includes("react/jsx-dev-runtime"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -529,6 +547,36 @@ async function runNodeProjectScript(
   );
 }
 
+async function runDenoProjectTaskSession(
+  cwd: string,
+  task: string,
+  args: readonly string[],
+  durationMs: number,
+  options: { env?: Record<string, string> } = {},
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const child = new Deno.Command("deno", {
+    args: ["task", task, ...args],
+    cwd,
+    env: options.env,
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+  try {
+    child.kill("SIGTERM");
+  } catch {
+    // The dev server may already have exited by the time we stop the session.
+  }
+
+  const result = await child.output();
+  return {
+    code: result.code,
+    stdout: decoder.decode(result.stdout),
+    stderr: decoder.decode(result.stderr),
+  };
+}
+
 async function runCommand(
   command: string,
   args: readonly string[],
@@ -709,6 +757,10 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
     resolve(cliTestsRepoRoot, "mod.ts"),
     resolve(packageRoot, "mod.ts"),
   );
+  await Deno.copyFile(
+    resolve(cliTestsRepoRoot, "mod.js"),
+    resolve(packageRoot, "mod.js"),
+  );
   await Deno.writeTextFile(
     resolve(packageRoot, "src", "compiler", "typescript.ts"),
     'export { default as ts } from "typescript";\n',
@@ -723,11 +775,11 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
         private: true,
         type: "module",
         exports: {
-          ".": "./mod.ts",
-          "./config": "./src/public/config.ts",
-          "./jsx-runtime": "./src/jsx-runtime.ts",
-          "./jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
-          "./tooling/cli": "./src/public/tooling-cli.ts",
+          ".": "./mod.js",
+          "./config": "./src/public/config.js",
+          "./jsx-runtime": "./src/jsx-runtime.js",
+          "./jsx-dev-runtime": "./src/jsx-dev-runtime.js",
+          "./tooling/cli": "./src/public/tooling-cli.js",
         },
       },
       null,

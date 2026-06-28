@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
@@ -73,7 +73,7 @@ export function resolveGeneratedViteConfig(
       ? normalizePathSlashes(resolve(input.cwd, input.cacheDir))
       : undefined,
     aliases: [
-      ...resolveFrameworkAliases(input.cwd),
+      ...resolveFrameworkAliases(input.mainzModuleUrl ?? import.meta.url),
       ...resolveTargetAliases(input.cwd, input.target),
     ],
     define: {
@@ -275,31 +275,105 @@ function renderViteConfigModule(
   ].join("\n");
 }
 
-function resolveFrameworkAliases(cwd: string): GeneratedViteAlias[] {
+function resolveFrameworkAliases(mainzModuleUrl: string): GeneratedViteAlias[] {
   const publicAliases = MAINZ_PUBLIC_ENTRYPOINTS
-    .map((entrypoint) => ({
-      find: entrypoint.specifier,
-      replacement: normalizePathSlashes(resolve(cwd, entrypoint.sourcePath)),
-      framework: true,
-    }));
+    .map((entrypoint) => {
+      const replacement = resolveFrameworkEntrypointReplacement(
+        entrypoint.specifier,
+        entrypoint.sourcePath,
+        mainzModuleUrl,
+      );
+      return replacement
+        ? {
+          find: entrypoint.specifier,
+          replacement,
+          framework: true,
+        }
+        : undefined;
+    })
+    .filter((alias): alias is GeneratedViteAlias => alias !== undefined);
   // Vite's dev dependency scan may look for React's automatic JSX runtime names
   // even though Mainz provides the actual implementation.
-  const compatAliases: GeneratedViteAlias[] = [
+  const compatAliases = [
     {
       find: "react/jsx-runtime",
-      replacement: normalizePathSlashes(resolve(cwd, "src/jsx-runtime.ts")),
-      framework: true,
+      replacement: resolveFrameworkEntrypointReplacement(
+        "mainz/jsx-runtime",
+        "src/jsx-runtime.ts",
+        mainzModuleUrl,
+      ),
     },
     {
       find: "react/jsx-dev-runtime",
-      replacement: normalizePathSlashes(resolve(cwd, "src/jsx-dev-runtime.ts")),
-      framework: true,
+      replacement: resolveFrameworkEntrypointReplacement(
+        "mainz/jsx-dev-runtime",
+        "src/jsx-dev-runtime.ts",
+        mainzModuleUrl,
+      ),
     },
-  ];
+  ]
+    .filter((alias): alias is { find: string; replacement: string } =>
+      typeof alias.replacement === "string"
+    )
+    .map((alias) => ({
+      ...alias,
+      framework: true,
+    }));
 
   return [...publicAliases, ...compatAliases]
-    .filter((alias) => existsSync(alias.replacement))
     .sort((a, b) => b.find.length - a.find.length);
+}
+
+function resolveFrameworkEntrypointReplacement(
+  specifier: string,
+  sourcePath: string,
+  mainzModuleUrl: string,
+): string | undefined {
+  const publishedSpecifier = resolvePublishedMainzPackageSpecifier(
+    mainzModuleUrl,
+  );
+  if (publishedSpecifier) {
+    return specifier === "mainz"
+      ? publishedSpecifier
+      : `${publishedSpecifier}/${specifier.slice("mainz/".length)}`;
+  }
+
+  let moduleUrl: URL;
+  try {
+    moduleUrl = new URL(mainzModuleUrl);
+  } catch {
+    return undefined;
+  }
+
+  if (moduleUrl.protocol !== "file:") {
+    return undefined;
+  }
+
+  const packageRoot = resolve(dirname(fileURLToPath(moduleUrl)), "..", "..");
+  const replacement = normalizePathSlashes(resolve(packageRoot, sourcePath));
+  return existsSync(replacement) ? replacement : undefined;
+}
+
+function resolvePublishedMainzPackageSpecifier(
+  moduleUrl: string,
+): string | undefined {
+  let url: URL;
+  try {
+    url = new URL(moduleUrl);
+  } catch {
+    return undefined;
+  }
+
+  if (url.protocol !== "https:" || url.hostname !== "jsr.io") {
+    return undefined;
+  }
+
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments[0] !== "@mainz" || !segments[1]?.startsWith("mainz")) {
+    return undefined;
+  }
+
+  return segments[2] ? `jsr:@mainz/mainz@${segments[2]}` : undefined;
 }
 
 function resolveGeneratedPublicDir(
@@ -391,7 +465,7 @@ function resolveGeneratedViteImportSpecifier(
   runtime: ToolingRuntimeName,
   mode: "generated" | "materialized" = "generated",
 ): string {
-  if (runtime === "deno" && mode === "generated" && specifier !== "vite") {
+  if (runtime === "deno" && mode === "generated") {
     return resolvePublishedGeneratedDenoImportSpecifier(specifier);
   }
 
@@ -427,9 +501,11 @@ function isAbsoluteImportUrl(value: string): boolean {
 }
 
 function resolvePublishedGeneratedDenoImportSpecifier(
-  specifier: "@deno/vite-plugin" | "npm:typescript@5.9.3",
+  specifier: "vite" | "@deno/vite-plugin" | "npm:typescript@5.9.3",
 ): string {
   switch (specifier) {
+    case "vite":
+      return "npm:vite@8.0.10";
     case "@deno/vite-plugin":
       return "npm:@deno/vite-plugin@2.0.2";
     case "npm:typescript@5.9.3":

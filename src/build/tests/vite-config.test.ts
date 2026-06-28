@@ -48,7 +48,7 @@ Deno.test("build/vite-config: should generate framework aliases from public Main
   assertEquals(frameworkAliases.at(-1)?.find, "mainz");
 });
 
-Deno.test("build/vite-config: should not alias Mainz to missing consumer project source files", async () => {
+Deno.test("build/vite-config: should alias Mainz to package sources instead of consumer project paths", async () => {
   const cwd = await Deno.makeTempDir({
     prefix: "mainz-consumer-vite-aliases-",
   });
@@ -73,12 +73,18 @@ Deno.test("build/vite-config: should not alias Mainz to missing consumer project
       localePrefix: "except-default",
     });
 
+    const frameworkAliases = generated.aliases.filter((alias) => alias.framework);
     assertEquals(
-      generated.aliases.filter((alias) => alias.framework).map((alias) =>
-        alias.find
-      ),
-      [],
+      [...frameworkAliases].map((alias) => alias.find).sort(),
+      [
+        ...MAINZ_PUBLIC_ENTRYPOINTS.map((entrypoint) => entrypoint.specifier),
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ].sort(),
     );
+    for (const alias of frameworkAliases) {
+      assertEquals(alias.replacement.startsWith(normalizePath(cwd)), false);
+    }
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -181,7 +187,7 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
   assertStringIncludes(moduleSource, `// @mainz-generated-vite-config`);
   assertStringIncludes(
     moduleSource,
-    `import { defineConfig } from "vite";`,
+    `import { defineConfig } from "npm:vite@8.0.10";`,
   );
   assertStringIncludes(
     moduleSource,
@@ -257,6 +263,15 @@ Deno.test("build/vite-config: should render remote Mainz build imports for JSR-h
   assertEquals(
     generated.devMiddleware.modulePath,
     "https://jsr.io/@mainz/mainz/0.1.0-alpha.59/src/build/dev-vite-plugin.ts",
+  );
+  assertEquals(
+    generated.aliases.find((alias) => alias.find === "mainz")?.replacement,
+    "jsr:@mainz/mainz@0.1.0-alpha.59",
+  );
+  assertEquals(
+    generated.aliases.find((alias) => alias.find === "react/jsx-dev-runtime")
+      ?.replacement,
+    "jsr:@mainz/mainz@0.1.0-alpha.59/jsx-dev-runtime",
   );
   assertStringIncludes(
     moduleSource,
