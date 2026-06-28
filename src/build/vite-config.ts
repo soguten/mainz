@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
@@ -138,7 +138,11 @@ export function renderMaterializedViteConfigModule(
   config: GeneratedViteConfig,
   runtime: ToolingRuntimeName = "deno",
 ): string {
-  return renderViteConfigModule(config, runtime, "materialized");
+  return renderViteConfigModule(
+    relativizeMaterializedViteConfig(config),
+    runtime,
+    "materialized",
+  );
 }
 
 function renderViteConfigModule(
@@ -422,6 +426,83 @@ function normalizeAliasReplacement(cwd: string, replacement: string): string {
   }
 
   return replacement;
+}
+
+function relativizeMaterializedViteConfig(
+  config: GeneratedViteConfig,
+): GeneratedViteConfig {
+  const configDir = config.root;
+
+  return {
+    ...config,
+    root: ".",
+    outDir: relativizeMaterializedFileSystemPath(config.outDir, configDir),
+    publicDir: typeof config.publicDir === "string"
+      ? relativizeMaterializedFileSystemPath(config.publicDir, configDir)
+      : config.publicDir,
+    cacheDir: config.cacheDir
+      ? relativizeMaterializedFileSystemPath(config.cacheDir, configDir)
+      : undefined,
+    aliases: config.aliases.map((alias) =>
+      alias.framework || !isAbsoluteFileSystemPath(alias.replacement)
+        ? alias
+        : {
+          ...alias,
+          replacement: relativizeMaterializedFileSystemPath(
+            alias.replacement,
+            configDir,
+          ),
+        }
+    ),
+    serverBundle: config.serverBundle
+      ? {
+        ...config.serverBundle,
+        entryPath: relativizeMaterializedFileSystemPath(
+          config.serverBundle.entryPath,
+          configDir,
+        ),
+      }
+      : undefined,
+    devMiddleware: {
+      ...config.devMiddleware,
+      options: relativizeMaterializedDevMiddlewareOptions(
+        config.devMiddleware.options,
+        configDir,
+      ),
+    },
+  };
+}
+
+function relativizeMaterializedDevMiddlewareOptions(
+  options: Record<string, unknown>,
+  configDir: string,
+): Record<string, unknown> {
+  const cwd = options.cwd;
+  if (typeof cwd !== "string" || !isAbsoluteFileSystemPath(cwd)) {
+    return options;
+  }
+
+  return {
+    ...options,
+    cwd: relativizeMaterializedFileSystemPath(cwd, configDir),
+  };
+}
+
+function relativizeMaterializedFileSystemPath(
+  path: string,
+  configDir: string,
+): string {
+  const relativePath = normalizePathSlashes(relative(configDir, path));
+  if (!relativePath || relativePath === ".") {
+    return ".";
+  }
+
+  return relativePath.startsWith(".") ? relativePath : `./${relativePath}`;
+}
+
+function isAbsoluteFileSystemPath(value: string): boolean {
+  return !isAbsoluteImportUrl(value) &&
+    (isAbsolute(value) || value.startsWith("/") || value.startsWith("\\"));
 }
 
 function renderObjectLiteral(

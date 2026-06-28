@@ -10,6 +10,7 @@ import {
   resolveTargetBuildProfile,
 } from "../profiles.ts";
 import {
+  renderMaterializedViteConfigModule,
   renderGeneratedViteConfigModule,
   resolveMainzBuildModulePath,
   resolveGeneratedViteConfig,
@@ -330,6 +331,57 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
       moduleSource,
       `"__MAINZ_NAVIGATION_MODE__": "\\"spa\\""`,
     );
+  } finally {
+    Deno.removeSync(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/vite-config: should render a materialized Vite config with relative workspace paths", () => {
+  const cwd = Deno.makeTempDirSync({
+    prefix: "mainz-materialized-vite-config-",
+  });
+
+  try {
+    const config = normalizeMainzConfig({
+      runtime: "deno",
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+          vite: {
+            alias: {
+              "@content": "./site/src/content",
+            },
+          },
+        },
+      ],
+    });
+
+    const generated = resolveGeneratedViteConfig({
+      cwd,
+      runtimeName: "deno",
+      target: config.targets[0],
+      outputDir: "dist/site/browser",
+      navigationMode: "spa",
+      basePath: "/",
+      appLocales: [],
+      localePrefix: "except-default",
+      cacheDir: ".mainz_temp/vite-cache/site",
+    });
+    const moduleSource = renderMaterializedViteConfigModule(generated);
+
+    assertStringIncludes(moduleSource, 'import ts from "npm:typescript@5.9.3";');
+    assertStringIncludes(moduleSource, 'import { defineConfig } from "vite";');
+    assertStringIncludes(moduleSource, `root: "."`);
+    assertStringIncludes(moduleSource, `publicDir: "./public"`);
+    assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
+    assertStringIncludes(moduleSource, `outDir: "../dist/site/browser"`);
+    assertStringIncludes(moduleSource, `"cwd": ".."`);
+    assertStringIncludes(
+      moduleSource,
+      '{ find: "@content", replacement: "./src/content" }',
+    );
+    assertEquals(moduleSource.includes(normalizePath(cwd)), false);
   } finally {
     Deno.removeSync(cwd, { recursive: true });
   }

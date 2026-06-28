@@ -1,35 +1,12 @@
 import { fileURLToPath } from "node:url";
+import type * as ts from "npm:typescript@5.9.3";
 import type { Plugin } from "vite";
 import { createMainzDevRouteMiddlewarePlugin } from "./dev-vite-plugin.ts";
 
-interface GeneratedViteTypescriptApi {
-  transpileModule(
-    code: string,
-    options: {
-      fileName: string;
-      compilerOptions: {
-        target: unknown;
-        module: unknown;
-        jsx?: unknown;
-        experimentalDecorators: boolean;
-        useDefineForClassFields: boolean;
-        sourceMap: boolean;
-      };
-    },
-  ): {
-    outputText: string;
-    sourceMapText?: string;
-  };
-  ScriptTarget: {
-    ES2022: unknown;
-  };
-  ModuleKind: {
-    ESNext: unknown;
-  };
-  JsxEmit: {
-    Preserve: unknown;
-  };
-}
+type GeneratedViteTypescriptApi = Pick<
+  typeof ts,
+  "transpileModule" | "ScriptTarget" | "ModuleKind" | "JsxEmit"
+>;
 
 export interface MainzGeneratedVitePluginsOptions {
   runtimeName: "deno" | "node" | "bun";
