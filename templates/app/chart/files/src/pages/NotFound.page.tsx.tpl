@@ -1,7 +1,7 @@
 import { Page } from "mainz";
 
 export class NotFoundPage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "404 | chart",
     };

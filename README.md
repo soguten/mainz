@@ -89,14 +89,14 @@ export class ProductPanel
 ## A page is just a route-owning component
 
 `Page` keeps the same class model, but adds route metadata and page concerns
-like `head()`.
+like `metadata()`.
 
 ```tsx
 import { Page, Route } from "mainz";
 
 @Route("/")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "Hello Mainz",
     };
@@ -154,7 +154,7 @@ export class DocsPage extends Page<{}, {}, { title: string }> {
     return await fetchDoc(this.route.params.slug);
   }
 
-  override head() {
+  override metadata() {
     return {
       title: this.data.title,
     };

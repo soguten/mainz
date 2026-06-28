@@ -2,7 +2,7 @@ import { Page, Route } from "mainz";
 
 @Route("/")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "{{appTitle}}",
     };

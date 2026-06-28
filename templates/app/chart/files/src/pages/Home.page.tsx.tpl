@@ -4,7 +4,7 @@ import { categoriesPieChartConfig } from "../charts/categoriesPieChartConfig.ts"
 
 @Route("/")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "chart",
     };

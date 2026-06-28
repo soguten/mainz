@@ -3,7 +3,7 @@ import { Counter } from "../components/Counter.tsx";
 
 @Route("/")
 export class HomePage extends Page {
-  override head() {
+  override metadata() {
     return {
       title: "{{appTitle}}",
     };
