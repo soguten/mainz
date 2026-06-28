@@ -112,6 +112,7 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
     runtime: denoToolingRuntime,
     templateRoot: resolveBuiltInTemplateRoot("project", "deno/empty"),
     params: {
+      projectName: "demo",
       mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
       denoConfigPath: "deno.json",
       mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",
@@ -122,7 +123,7 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
 
   assertEquals(
     plan.files.map((file) => file.path).sort(),
-    ["deno.json", "mainz.config.ts"],
+    ["README.md", "deno.json", "mainz.config.ts"],
   );
 
   const config = plan.files.find((file) => file.path === "mainz.config.ts");
@@ -133,6 +134,10 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
     denoConfig?.content ?? "",
     '"mainz": "jsr:@mainz/mainz@0.1.0-alpha.99"',
   );
+  const readme = plan.files.find((file) => file.path === "README.md");
+  assertStringIncludes(readme?.content ?? "", "deno install");
+  assertStringIncludes(readme?.content ?? "", "deno task mainz app create my-app");
+  assertStringIncludes(readme?.content ?? "", "deno task dev --target my-app");
 });
 
 Deno.test("cli/templates/project: starter deno should materialize a routed app with a counter", async () => {
@@ -162,6 +167,7 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
   assertEquals(
     [...files.keys()].sort(),
     [
+      "README.md",
       "app/deno.json",
       "app/index.html",
       "app/src/app.ts",
@@ -192,6 +198,10 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
     counter?.content ?? "",
     "this.setState({ count: this.state.count + 1 })",
   );
+  const readme = files.get("README.md");
+  assertStringIncludes(readme?.content ?? "", "deno install");
+  assertStringIncludes(readme?.content ?? "", "deno task dev --target app");
+  assertStringIncludes(readme?.content ?? "", "deno task mainz app create my-app");
 });
 
 Deno.test("cli/templates/project: starter node should use node-compatible workspace paths", async () => {
@@ -223,6 +233,7 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
     [...files.keys()].sort(),
     [
       ".npmrc",
+      "README.md",
       "app/index.html",
       "app/package.json",
       "app/src/app.ts",
@@ -244,6 +255,10 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
 
   const launcher = files.get("scripts/mainz.mjs");
   assertStringIncludes(launcher?.content ?? "", 'from "mainz/tooling/cli"');
+  const readme = files.get("README.md");
+  assertStringIncludes(readme?.content ?? "", "npm install");
+  assertStringIncludes(readme?.content ?? "", "npm run dev -- --target app");
+  assertStringIncludes(readme?.content ?? "", "npm run mainz -- app create my-app");
 });
 
 Deno.test("cli/templates: should load built-in templates from a remote URL tree", async () => {
@@ -346,6 +361,7 @@ Deno.test("cli/templates/project: materialize should preflight every destination
           templateRoot: resolveBuiltInTemplateRoot("project", "deno/empty"),
           outputDir,
           params: {
+            projectName: "demo",
             mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
             denoConfigPath: "deno.json",
             mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",

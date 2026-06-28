@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
@@ -30,6 +30,7 @@ export interface GeneratedViteConfigInput {
     entryPath: string;
     outputFileName?: string;
   };
+  mainzModuleUrl?: string;
 }
 
 export interface GeneratedViteConfig {
@@ -95,7 +96,10 @@ export function resolveGeneratedViteConfig(
       }
       : undefined,
     devMiddleware: {
-      modulePath: resolveMainzBuildModulePath("./dev-vite-plugin.ts"),
+      modulePath: resolveMainzBuildModulePath(
+        "./dev-vite-plugin.ts",
+        input.mainzModuleUrl,
+      ),
       options: {
         cwd: normalizePathSlashes(input.cwd),
         runtimeName,
@@ -370,9 +374,16 @@ function normalizePathSlashes(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function resolveMainzBuildModulePath(relativePath: string): string {
-  const currentDir = dirname(fileURLToPath(import.meta.url));
-  return normalizePathSlashes(resolve(currentDir, relativePath));
+export function resolveMainzBuildModulePath(
+  relativePath: string,
+  moduleUrl: string = import.meta.url,
+): string {
+  const resolvedUrl = new URL(relativePath, moduleUrl);
+  if (resolvedUrl.protocol === "file:") {
+    return normalizePathSlashes(fileURLToPath(resolvedUrl));
+  }
+
+  return resolvedUrl.href;
 }
 
 function resolveGeneratedViteImportSpecifier(
@@ -392,10 +403,23 @@ function resolveGeneratedModuleImportSpecifier(
   runtime: ToolingRuntimeName,
 ): string {
   if (runtime === "deno") {
+    if (isAbsoluteImportUrl(path)) {
+      return path;
+    }
+
     return pathToFileURL(path).href;
   }
 
   return path;
+}
+
+function isAbsoluteImportUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 function resolveVitePluginImportSpecifier(

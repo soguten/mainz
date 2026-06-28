@@ -11,6 +11,7 @@ import {
 } from "../profiles.ts";
 import {
   renderGeneratedViteConfigModule,
+  resolveMainzBuildModulePath,
   resolveGeneratedViteConfig,
 } from "../vite-config.ts";
 
@@ -214,6 +215,50 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
     }`,
   );
   assertEquals(moduleSource.includes(`mainz-typescript-decorators`), false);
+});
+
+Deno.test("build/vite-config: should resolve Mainz build modules from local file module URLs", () => {
+  const resolved = resolveMainzBuildModulePath(
+    "./dev-vite-plugin.ts",
+    pathToFileURL(join(Deno.cwd(), "src", "build", "vite-config.ts")).href,
+  );
+
+  assertStringIncludes(resolved, "/src/build/dev-vite-plugin.ts");
+});
+
+Deno.test("build/vite-config: should render remote Mainz build imports for JSR-hosted Deno execution", () => {
+  const cwd = Deno.cwd();
+  const config = normalizeMainzConfig({
+    targets: [
+      {
+        name: "site",
+        rootDir: "./site",
+      },
+    ],
+  });
+
+  const generated = resolveGeneratedViteConfig({
+    cwd,
+    runtimeName: "deno",
+    mainzModuleUrl:
+      "https://jsr.io/@mainz/mainz/0.1.0-alpha.59/src/build/vite-config.ts",
+    target: config.targets[0],
+    outputDir: "dist/site",
+    navigationMode: "spa",
+    basePath: "/",
+    appLocales: [],
+    localePrefix: "except-default",
+  });
+  const moduleSource = renderGeneratedViteConfigModule(generated);
+
+  assertEquals(
+    generated.devMiddleware.modulePath,
+    "https://jsr.io/@mainz/mainz/0.1.0-alpha.59/src/build/dev-vite-plugin.ts",
+  );
+  assertStringIncludes(
+    moduleSource,
+    'import { createMainzGeneratedVitePlugins } from "https://jsr.io/@mainz/mainz/0.1.0-alpha.59/src/build/vite-plugin-factory.ts";',
+  );
 });
 
 Deno.test("build/vite-config: should render a Node Vite config module without the Deno plugin", () => {
