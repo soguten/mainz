@@ -88,10 +88,6 @@ type PreviewCommandOptions = SharedCliOptions & {
   port?: number;
 };
 
-type TestCommandOptions = SharedCliOptions & {
-  command: "test";
-};
-
 type PublishInfoCommandOptions = SharedCliOptions & {
   command: "publish-info";
 };
@@ -173,7 +169,6 @@ type MainzCliCommand =
   | BuildCommandOptions
   | DevCommandOptions
   | PreviewCommandOptions
-  | TestCommandOptions
   | PublishInfoCommandOptions
   | ContainerInitCommandOptions
   | ContainerImageBuildCommandOptions
@@ -250,7 +245,6 @@ type HelpTopic =
   | "build"
   | "dev"
   | "preview"
-  | "test"
   | "publish-info"
   | "container"
   | "container-init"
@@ -451,12 +445,6 @@ async function runCli(
         throw toCliUsageError(error, "preview");
       }
       return 0;
-    case "test":
-      try {
-        return await runTestCommand(command, normalizedConfig, runtime);
-      } catch (error) {
-        throw toCliUsageError(error, "test");
-      }
     case "build":
       try {
         await runBuildCommand(command, loadedConfig, normalizedConfig, runtime);
@@ -608,7 +596,6 @@ async function rerunWithProjectBootstrapIfNeeded(
     | BuildCommandOptions
     | DevCommandOptions
     | PreviewCommandOptions
-    | TestCommandOptions
     | PublishInfoCommandOptions
     | ContainerInitCommandOptions
     | ContainerImageBuildCommandOptions
@@ -788,7 +775,6 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
 
   if (
     command !== "build" && command !== "dev" && command !== "preview" &&
-    command !== "test" &&
     command !== "publish-info" &&
     command !== "container" &&
     command !== "diagnose" &&
@@ -799,7 +785,7 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
     command !== "vite"
   ) {
     throw new CliUsageError(
-      `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "test", "publish-info", "container", or "diagnose".`,
+      `Unknown command "${command}". Use "init", "app", "profile", "workflow", "vite", "build", "dev", "preview", "publish-info", "container", or "diagnose".`,
       "main",
     );
   }
@@ -843,10 +829,6 @@ function parseCliCommand(args: string[]): MainzCliCommand | undefined {
   }
 
   if (command === "preview") {
-    return { command, ...options };
-  }
-
-  if (command === "test") {
     return { command, ...options };
   }
 
@@ -1496,7 +1478,6 @@ function parseCommandOptions(
     | "build"
     | "dev"
     | "preview"
-    | "test"
     | "publish-info"
     | "container-init"
     | "diagnose",
@@ -2747,42 +2728,6 @@ async function runDiagnoseCommand(
   return 0;
 }
 
-async function runTestCommand(
-  options: TestCommandOptions,
-  normalizedConfig: NormalizedMainzConfig,
-  runtime: MainzToolingRuntime,
-): Promise<number> {
-  if (runtime.name !== "deno") {
-    throw new Error(
-      'Command "test" is not implemented yet for runtime "node".',
-    );
-  }
-
-  const cwd = runtime.cwd();
-  const testPaths = resolveTestPathsForTarget(
-    normalizedConfig,
-    options.target,
-    cwd,
-  );
-  const status = await runtime.run({
-    command: "deno",
-    cwd,
-    args: [
-      "test",
-      "-A",
-      ...testPaths,
-    ],
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  if (!status.success) {
-    return status.code;
-  }
-
-  return 0;
-}
-
 function resolveRequiredTarget(
   config: NormalizedMainzConfig,
   targetName: string | undefined,
@@ -3000,15 +2945,6 @@ function getHelpText(topic: HelpTopic): string[] {
     ];
   }
 
-  if (topic === "test") {
-    return [
-      "Mainz CLI - test",
-      "",
-      "Usage:",
-      "  mainz test [--target <name|all>] [--config <path>]",
-    ];
-  }
-
   if (topic === "publish-info") {
     return [
       "Mainz CLI - publish-info",
@@ -3094,7 +3030,6 @@ function getHelpText(topic: HelpTopic): string[] {
     "  mainz [--cli <deno|node|bun>] build [--target <name|all>] [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] dev --target <name> [--profile <name>] [--host [host]] [--port <port>] [--debug-ssg] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] preview --target <name> [--profile <name>] [--host [host]] [--port <port>] [--config <path>] [--runtime <deno|node|bun>]",
-    "  mainz [--cli <deno|node|bun>] test [--target <name|all>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] publish-info --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] container init --target <name> [--profile <name>] [--config <path>] [--runtime <deno|node|bun>]",
     "  mainz [--cli <deno|node|bun>] container image build --target <name> [--profile <name>] [--config <path>] [--tag <name:tag>] [--runtime <deno|node|bun>]",
@@ -3137,7 +3072,6 @@ function getHelpText(topic: HelpTopic): string[] {
     "  mainz dev --target playground",
     "  mainz dev --target site --host",
     "  mainz preview --target site --profile production",
-    "  mainz test --target site",
     "  mainz publish-info --target site --profile gh-pages",
     "  mainz container init --target site",
     "  mainz container image build --target site",
@@ -3229,9 +3163,6 @@ function resolveHelpTopic(args: readonly string[]): HelpTopic | undefined {
   if (command === "preview") {
     return "preview";
   }
-  if (command === "test") {
-    return "test";
-  }
   if (command === "publish-info") {
     return "publish-info";
   }
@@ -3314,40 +3245,6 @@ function renderHelpCommand(helpTopic: HelpTopic): string {
     return "vite dematerialize --help";
   }
   return `${helpTopic} --help`;
-}
-
-function resolveTestPathsForTarget(
-  config: NormalizedMainzConfig,
-  targetName: string | undefined,
-  cwd: string,
-): string[] {
-  const normalizedTargetName = targetName?.trim();
-  if (!normalizedTargetName) {
-    return [];
-  }
-
-  if (normalizedTargetName === "all") {
-    return Array.from(
-      new Set(
-        config.targets.map((target) =>
-          normalizePathSlashes(resolve(cwd, target.rootDir))
-        ),
-      ),
-    );
-  }
-
-  const target = config.targets.find((entry) =>
-    entry.name === normalizedTargetName
-  );
-  if (!target) {
-    throw new Error(
-      `No targets matched "${normalizedTargetName}". Available targets: ${
-        config.targets.map((entry) => entry.name).join(", ")
-      }`,
-    );
-  }
-
-  return [normalizePathSlashes(resolve(cwd, target.rootDir))];
 }
 
 function normalizePathSlashes(path: string): string {
@@ -6073,7 +5970,6 @@ async function resolveCommandToolingRuntime(
     | BuildCommandOptions
     | DevCommandOptions
     | PreviewCommandOptions
-    | TestCommandOptions
     | PublishInfoCommandOptions
     | ContainerInitCommandOptions
     | ContainerImageBuildCommandOptions

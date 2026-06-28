@@ -120,6 +120,37 @@ Deno.test("cli/local-launcher: deno starter project should inspect and diagnose 
       `stdout:\n${diagnose.stdout}\nstderr:\n${diagnose.stderr}`,
     );
     assertEquals(JSON.parse(diagnose.stdout), []);
+
+    const taskBuild = await runDenoProjectTask(projectDir, "build", [
+      "--target",
+      "app",
+    ]);
+    assertEquals(
+      taskBuild.code,
+      0,
+      `stdout:\n${taskBuild.stdout}\nstderr:\n${taskBuild.stderr}`,
+    );
+    assertStringIncludes(taskBuild.stdout, "[mainz] Building");
+
+    const taskDiagnose = await runDenoProjectTask(projectDir, "diagnose", [
+      "--target",
+      "app",
+    ]);
+    assertEquals(
+      taskDiagnose.code,
+      0,
+      `stdout:\n${taskDiagnose.stdout}\nstderr:\n${taskDiagnose.stderr}`,
+    );
+    assertEquals(JSON.parse(taskDiagnose.stdout), []);
+
+    await assertLauncherRejectsMissingTarget(
+      () => runDenoProjectTask(projectDir, "dev", ["--target", "missing-target"]),
+      "missing-target",
+    );
+    await assertLauncherRejectsMissingTarget(
+      () => runDenoProjectTask(projectDir, "preview", ["--target", "missing-target"]),
+      "missing-target",
+    );
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -182,6 +213,37 @@ Deno.test("cli/local-launcher: node starter project should inspect and diagnose 
       `stdout:\n${build.stdout}\nstderr:\n${build.stderr}`,
     );
     assertStringIncludes(build.stdout, "[mainz] Building");
+
+    const scriptBuild = await runNodeProjectScript(projectDir, "build", [
+      "--target",
+      "app",
+    ]);
+    assertEquals(
+      scriptBuild.code,
+      0,
+      `stdout:\n${scriptBuild.stdout}\nstderr:\n${scriptBuild.stderr}`,
+    );
+    assertStringIncludes(scriptBuild.stdout, "[mainz] Building");
+
+    const scriptDiagnose = await runNodeProjectScript(projectDir, "diagnose", [
+      "--target",
+      "app",
+    ]);
+    assertEquals(
+      scriptDiagnose.code,
+      0,
+      `stdout:\n${scriptDiagnose.stdout}\nstderr:\n${scriptDiagnose.stderr}`,
+    );
+    assertEquals(JSON.parse(scriptDiagnose.stdout), []);
+
+    await assertLauncherRejectsMissingTarget(
+      () => runNodeProjectScript(projectDir, "dev", ["--target", "missing-target"]),
+      "missing-target",
+    );
+    await assertLauncherRejectsMissingTarget(
+      () => runNodeProjectScript(projectDir, "preview", ["--target", "missing-target"]),
+      "missing-target",
+    );
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -328,6 +390,23 @@ Deno.test("cli/local-launcher: deno project should run container commands throug
     );
     assertStringIncludes(containerBuild.stdout, 'Built Docker image "app:local"');
 
+    const containerImageBuild = await runDenoProjectMainz(projectDir, [
+      "container",
+      "image",
+      "build",
+      "--target",
+      "app",
+    ], { env });
+    assertEquals(
+      containerImageBuild.code,
+      0,
+      `stdout:\n${containerImageBuild.stdout}\nstderr:\n${containerImageBuild.stderr}`,
+    );
+    assertStringIncludes(
+      containerImageBuild.stdout,
+      'Built Docker image "app:local"',
+    );
+
     const containerRun = await runDenoProjectMainz(projectDir, [
       "container",
       "run",
@@ -417,6 +496,34 @@ async function runNodeProjectMainz(
   return await runCommand(
     "npm",
     ["run", "--silent", "mainz", "--", ...args],
+    cwd,
+    options,
+  );
+}
+
+async function runDenoProjectTask(
+  cwd: string,
+  task: string,
+  args: readonly string[],
+  options: { env?: Record<string, string> } = {},
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  return await runCommand(
+    "deno",
+    ["task", task, ...args],
+    cwd,
+    options,
+  );
+}
+
+async function runNodeProjectScript(
+  cwd: string,
+  script: string,
+  args: readonly string[],
+  options: { env?: Record<string, string> } = {},
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  return await runCommand(
+    "npm",
+    ["run", "--silent", script, "--", ...args],
     cwd,
     options,
   );
@@ -569,6 +676,29 @@ async function writeDockerSpy(directory: string, dockerArgsPath: string): Promis
 
 function normalizeDockerArgs(content: string): string {
   return content.replaceAll('"', "");
+}
+
+async function assertLauncherRejectsMissingTarget(
+  run: () => Promise<{ code: number; stdout: string; stderr: string }>,
+  target: string,
+): Promise<void> {
+  await assertLauncherRejectsWithMessage(
+    run,
+    `No targets matched "${target}".`,
+  );
+}
+
+async function assertLauncherRejectsWithMessage(
+  run: () => Promise<{ code: number; stdout: string; stderr: string }>,
+  message: string,
+): Promise<void> {
+  const result = await run();
+  assertEquals(
+    result.code,
+    1,
+    `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+  );
+  assertStringIncludes(result.stderr, message);
 }
 
 async function installNodeMainzShim(projectDir: string): Promise<void> {

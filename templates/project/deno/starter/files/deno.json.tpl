@@ -16,7 +16,6 @@
     "dev": "deno task mainz dev",
     "build": "deno task mainz build",
     "preview": "deno task mainz preview",
-    "test": "deno task mainz test",
     "diagnose": "deno task mainz diagnose"
   },
   "workspace": [

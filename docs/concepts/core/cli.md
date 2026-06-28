@@ -1,6 +1,6 @@
 ---
 title: CLI
-summary: Run Mainz targets through build, dev, preview, test, container, publish-info, and diagnose commands.
+summary: Run Mainz targets through build, dev, preview, container, publish-info, and diagnose commands.
 ---
 
 ## App scaffolding
@@ -116,7 +116,7 @@ Use `--out-dir <path>` when the app should build somewhere other than
 Mainz CLI commands work from `mainz.config.ts`.
 
 A target names one app workspace and the files Mainz needs to build, serve,
-test, and diagnose it.
+and diagnose it.
 
 ```ts title="mainz.config.ts"
 import { defineMainzConfig } from "mainz/config";
@@ -141,7 +141,6 @@ that support running across every target.
 deno task mainz build --target site --profile production
 deno task mainz dev --target site
 deno task mainz preview --target site --profile production
-deno task mainz test --target site
 deno task mainz publish-info --target site --profile production
 deno task mainz diagnose --target site --format human
 ```
@@ -185,23 +184,6 @@ deno task mainz preview --target site --profile production --host 127.0.0.1 --po
 
 The command reads publication metadata from the target profile, so scripts do
 not need to know the exact `dist/<target>/...` artifact path.
-
-## Test
-
-`test` is intentionally project-shaped.
-
-```bash
-deno task mainz test
-deno task mainz test --target site
-deno task mainz test --target all
-```
-
-Without `--target`, it runs the project's normal Deno test suite. With
-`--target <name>`, it runs tests discovered under that target's `rootDir`.
-
-Framework-specific test buckets such as `fast`, `e2e`, or `smoke` belong in the
-project's own `deno.json` tasks. They are not Mainz CLI options because every
-project using Mainz owns a different test strategy.
 
 ## Publish Info
 
