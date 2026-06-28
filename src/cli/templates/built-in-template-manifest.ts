@@ -1,0 +1,77 @@
+export const builtInTemplateManifest = {
+  "app/chart": [
+    "index.html.tpl",
+    "src/app.ts.tpl",
+    "src/charts/categoriesPieChartConfig.ts.tpl",
+    "src/components/ChartWidget.tsx.tpl",
+    "src/main.tsx.tpl",
+    "src/pages/Home.page.tsx.tpl",
+    "src/pages/NotFound.page.tsx.tpl",
+  ],
+  "app/default-root": [
+    "index.html.tpl",
+    "src/AppRoot.tsx.tpl",
+    "src/app.ts.tpl",
+    "src/main.tsx.tpl",
+  ],
+  "app/default-routed": [
+    "index.html.tpl",
+    "src/app.ts.tpl",
+    "src/main.tsx.tpl",
+    "src/pages/Home.page.tsx.tpl",
+    "src/pages/NotFound.page.tsx.tpl",
+  ],
+  "container/deno/browser": [
+    "Dockerfile.tpl",
+  ],
+  "container/deno/server": [
+    "Dockerfile.tpl",
+  ],
+  "container/dockerignore": [
+    ".dockerignore.tpl",
+  ],
+  "container/node/browser": [
+    "Dockerfile.tpl",
+  ],
+  "project/deno/empty": [
+    "deno.json.tpl",
+    "mainz.config.ts.tpl",
+  ],
+  "project/deno/starter": [
+    "app/deno.json.tpl",
+    "app/index.html.tpl",
+    "app/src/app.ts.tpl",
+    "app/src/components/Counter.tsx.tpl",
+    "app/src/main.tsx.tpl",
+    "app/src/pages/Home.page.tsx.tpl",
+    "app/src/pages/NotFound.page.tsx.tpl",
+    "deno.json.tpl",
+    "mainz.config.ts.tpl",
+  ],
+  "project/node/empty": [
+    ".npmrc.tpl",
+    "mainz.config.ts.tpl",
+    "package.json.tpl",
+    "scripts/mainz.mjs.tpl",
+    "tsconfig.json.tpl",
+  ],
+  "project/node/starter": [
+    ".npmrc.tpl",
+    "app/index.html.tpl",
+    "app/package.json.tpl",
+    "app/src/app.ts.tpl",
+    "app/src/components/Counter.tsx.tpl",
+    "app/src/main.tsx.tpl",
+    "app/src/pages/Home.page.tsx.tpl",
+    "app/src/pages/NotFound.page.tsx.tpl",
+    "mainz.config.ts.tpl",
+    "package.json.tpl",
+    "scripts/mainz.mjs.tpl",
+    "tsconfig.json.tpl",
+  ],
+  "workflow/gh-pages": [
+    ".github/workflows/deploy-github-pages.yml.tpl",
+  ],
+} as const;
+
+export type BuiltInTemplateKey = keyof typeof builtInTemplateManifest;

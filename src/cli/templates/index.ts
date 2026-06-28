@@ -4,6 +4,7 @@ export {
   listBuiltInTemplateNames,
   loadTemplate,
   resolveBuiltInTemplateRoot,
+  resolveBuiltInTemplatesRootFromModuleUrl,
 } from "./load-template.ts";
 export {
   instantiateTemplate,

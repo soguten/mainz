@@ -2,6 +2,7 @@ import { dirname, relative, resolve } from "node:path";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
 import {
+  joinTemplateRoot,
   type LoadedRemoteTemplateFile,
   loadRemoteTemplate,
   loadTemplate,
@@ -36,6 +37,8 @@ export async function instantiateTemplate(
     "files" in template ? template.files : undefined;
   const relativePaths: string[] = remoteFiles
     ? remoteFiles.map((file) => file.path)
+    : template.filePaths
+    ? [...template.filePaths]
     : await collectTemplateFiles(runtime, template.filesRoot);
   const params = options.params ?? {};
 
@@ -45,17 +48,19 @@ export async function instantiateTemplate(
     ),
     files: await Promise.all(
       relativePaths.map(async (relativePath) => {
-        const sourcePath = resolve(template.filesRoot, relativePath);
         const remoteFile = remoteFiles?.find((file) =>
           file.path === relativePath
         );
+        const sourcePath = remoteFile
+          ? undefined
+          : joinTemplateRoot(template.filesRoot, relativePath);
         const renderedPath = stripTemplateSuffix(
           replaceTemplateTokens(relativePath, params),
         );
         const renderedContent = replaceTemplateTokens(
           remoteFile
             ? remoteFile.content
-            : await runtime.readTextFile(sourcePath),
+            : await runtime.readTextFile(sourcePath!),
           params,
         );
 

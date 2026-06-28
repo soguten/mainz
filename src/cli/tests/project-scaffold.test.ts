@@ -3,13 +3,16 @@
 import { resolve } from "node:path";
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
+import { builtInTemplateManifest } from "../templates/built-in-template-manifest.ts";
 import {
   builtInTemplateExists,
   instantiateTemplate,
   joinTemplateRoot,
   listBuiltInTemplateNames,
+  loadTemplate,
   materializeTemplate,
   resolveBuiltInTemplateRoot,
+  resolveBuiltInTemplatesRootFromModuleUrl,
 } from "../templates/index.ts";
 
 Deno.test("cli/templates: should read built-in templates from the filesystem tree", async () => {
@@ -39,6 +42,24 @@ Deno.test("cli/templates: should read built-in templates from the filesystem tre
   }
 });
 
+Deno.test("cli/templates: built-in template manifest should match the filesystem tree", async () => {
+  const entries = Object.entries(builtInTemplateManifest).sort(([left], [right]) =>
+    left.localeCompare(right)
+  );
+
+  const expected = await Promise.all(entries.map(async ([templateKey]) => {
+    const [kind, ...nameParts] = templateKey.split("/");
+    const templateDir = resolve("templates", kind, ...nameParts);
+    const template = await loadTemplateFromTree(templateDir);
+    return [templateKey, template.files.map((file) => file.path).sort()] as const;
+  }));
+
+  assertEquals(
+    entries.map(([templateKey, files]) => [templateKey, [...files].sort()] as const),
+    expected,
+  );
+});
+
 Deno.test("cli/templates: built-in helper functions should resolve and enumerate names", () => {
   const projectRoot = resolveBuiltInTemplateRoot("project", ".");
   const appRoot = resolveBuiltInTemplateRoot("app", ".");
@@ -56,6 +77,33 @@ Deno.test("cli/templates: built-in helper functions should resolve and enumerate
   assertEquals(
     builtInTemplateExists(joinTemplateRoot(denoProjectRoot, "missing")),
     false,
+  );
+});
+
+Deno.test("cli/templates: should resolve built-in template roots from remote module URLs", () => {
+  const remoteTemplatesRoot = resolveBuiltInTemplatesRootFromModuleUrl(
+    "https://jsr.io/@mainz/mainz/0.1.0-alpha.58/src/cli/templates/load-template.ts",
+  );
+
+  assertEquals(
+    remoteTemplatesRoot,
+    "https://jsr.io/@mainz/mainz/0.1.0-alpha.58/templates/",
+  );
+  assertEquals(
+    joinTemplateRoot(remoteTemplatesRoot, "project/deno/starter"),
+    "https://jsr.io/@mainz/mainz/0.1.0-alpha.58/templates/project/deno/starter",
+  );
+  assertEquals(
+    builtInTemplateExists(
+      "https://jsr.io/@mainz/mainz/0.1.0-alpha.58/templates/project/deno/starter",
+    ),
+    true,
+  );
+  assertEquals(
+    listBuiltInTemplateNames(
+      "https://jsr.io/@mainz/mainz/0.1.0-alpha.58/templates/project",
+    ),
+    ["deno", "node"],
   );
 });
 
@@ -196,6 +244,69 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
 
   const launcher = files.get("scripts/mainz.mjs");
   assertStringIncludes(launcher?.content ?? "", 'from "mainz/tooling/cli"');
+});
+
+Deno.test("cli/templates: should load built-in templates from a remote URL tree", async () => {
+  const portListener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  const port = (portListener.addr as Deno.NetAddr).port;
+  portListener.close();
+  const abortController = new AbortController();
+  const server = Deno.serve({
+    hostname: "127.0.0.1",
+    port,
+    signal: abortController.signal,
+  }, async (request) => {
+    const url = new URL(request.url);
+    const relativePath = url.pathname.replace(/^\/+/, "");
+    const absolutePath = resolve(relativePath);
+
+    try {
+      const content = await Deno.readTextFile(absolutePath);
+      return new Response(content, { status: 200 });
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      throw error;
+    }
+  });
+
+  try {
+    const remoteTemplateRoot =
+      `http://127.0.0.1:${port}/templates/project/deno/starter`;
+    const template = await loadTemplate(remoteTemplateRoot, denoToolingRuntime);
+    assertEquals(template.filePaths, builtInTemplateManifest["project/deno/starter"]);
+
+    const plan = await instantiateTemplate({
+      runtime: denoToolingRuntime,
+      templateRoot: remoteTemplateRoot,
+      params: {
+        mainzSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99",
+        denoConfigPath: "deno.json",
+        mainzCliSpecifier: "jsr:@mainz/cli-deno@0.1.0-alpha.99",
+        mainzToolingCliSpecifier: "jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
+        mainzSubpathPrefix: "jsr:/@mainz/mainz@0.1.0-alpha.99/",
+        projectName: "demo",
+        appName: "app",
+        appId: "app",
+        appNavigation: "spa",
+        appTitle: "demo",
+        customElementPrefix: "x-mainz-demo",
+        rootDir: "./app",
+        outDir: "dist/app",
+      },
+    });
+    const files = new Map(
+      plan.files.map((file) => [file.path.replaceAll("\\", "/"), file.content]),
+    );
+
+    assertStringIncludes(files.get("mainz.config.ts") ?? "", 'runtime: "deno"');
+    assertStringIncludes(files.get("app/src/pages/Home.page.tsx") ?? "", "override metadata()");
+  } finally {
+    abortController.abort();
+    await server.finished;
+  }
 });
 
 Deno.test("cli/templates/app: default-routed should render shared target metadata", async () => {

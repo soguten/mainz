@@ -1,14 +1,19 @@
 import { readdirSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { denoToolingRuntime } from "../../tooling/runtime/deno.ts";
 import type { MainzToolingRuntime } from "../../tooling/runtime/types.ts";
+import {
+  builtInTemplateManifest,
+  type BuiltInTemplateKey,
+} from "./built-in-template-manifest.ts";
 
 export interface LoadedTemplate {
   manifest: Record<string, unknown>;
   manifestSource: string;
   root: string;
   filesRoot: string;
+  filePaths?: readonly string[];
   files?: LoadedRemoteTemplateFile[];
 }
 
@@ -22,27 +27,31 @@ export interface LoadedRemoteTemplate {
   manifestSource: string;
   root: string;
   filesRoot: string;
+  filePaths?: readonly string[];
   files: LoadedRemoteTemplateFile[];
 }
 
 const tarBlockSize = 512;
-const templatesRootDir = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "..",
-  "templates",
-);
+const templatesRootDir = resolveBuiltInTemplatesRootFromModuleUrl(import.meta.url);
 
 export function resolveBuiltInTemplateRoot(kind: string, name: string): string {
-  return resolve(templatesRootDir, kind, name).replaceAll("\\", "/");
+  return joinTemplateRoot(joinTemplateRoot(templatesRootDir, kind), name);
 }
 
 export function joinTemplateRoot(root: string, child: string): string {
+  if (isRemoteTemplateRoot(root)) {
+    return new URL(resolveUrlPathSegment(child), ensureTrailingSlash(root)).href;
+  }
+
   return resolve(root, child);
 }
 
 export function builtInTemplateExists(templateRoot: string): boolean {
+  const builtInKey = resolveBuiltInTemplateKey(templateRoot);
+  if (builtInKey) {
+    return builtInKey in builtInTemplateManifest;
+  }
+
   try {
     const manifestPath = resolve(templateRoot, "template.json");
     const stat = statSync(manifestPath);
@@ -53,6 +62,11 @@ export function builtInTemplateExists(templateRoot: string): boolean {
 }
 
 export function listBuiltInTemplateNames(templateRoot: string): string[] {
+  const builtInPrefix = resolveBuiltInTemplateKey(templateRoot);
+  if (builtInPrefix !== undefined) {
+    return listBuiltInTemplateManifestNames(builtInPrefix);
+  }
+
   try {
     const names: string[] = [];
     for (const entry of readdirSync(templateRoot, { withFileTypes: true })) {
@@ -96,19 +110,46 @@ export async function loadTemplate(
   templateRoot: string,
   runtime: MainzToolingRuntime = denoToolingRuntime,
 ): Promise<LoadedTemplate> {
-  const manifestPath = resolve(templateRoot, "template.json");
-  const manifestSource = await runtime.readTextFile(manifestPath);
+  const manifestPath = joinTemplateRoot(templateRoot, "template.json");
+  const manifestSource = await readTemplateTextFile(manifestPath, runtime);
   const manifest = JSON.parse(manifestSource) as Record<string, unknown>;
 
   if (!manifest.kind || !manifest.name) {
     throw new Error(`Invalid template manifest at "${manifestPath}".`);
   }
 
+  const builtInKey = resolveBuiltInTemplateKey(templateRoot);
+  const builtInFiles = builtInKey
+    ? builtInTemplateManifest[builtInKey]
+    : undefined;
+
+  if (builtInFiles && isRemoteTemplateRoot(templateRoot)) {
+    const files = await Promise.all(
+      builtInFiles.map(async (path) => ({
+        path,
+        content: await readTemplateTextFile(
+          joinTemplateRoot(joinTemplateRoot(templateRoot, "files"), path),
+          runtime,
+        ),
+      })),
+    );
+
+    return {
+      manifest,
+      manifestSource,
+      root: templateRoot,
+      filesRoot: joinTemplateRoot(templateRoot, "files"),
+      filePaths: builtInFiles,
+      files,
+    };
+  }
+
   return {
     manifest,
     manifestSource,
     root: templateRoot,
-    filesRoot: resolve(templateRoot, "files"),
+    filesRoot: joinTemplateRoot(templateRoot, "files"),
+    filePaths: builtInFiles,
   };
 }
 
@@ -150,6 +191,7 @@ export async function loadRemoteTemplate(
     manifestSource,
     root: archiveUrl.href,
     filesRoot,
+    filePaths: files.map((file) => file.path),
     files,
   };
 }
@@ -299,4 +341,133 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength,
   ) as ArrayBuffer;
+}
+
+export function resolveBuiltInTemplatesRootFromModuleUrl(
+  moduleUrl: string,
+): string {
+  const url = new URL(moduleUrl);
+  if (url.protocol === "file:") {
+    return resolve(
+      dirname(fileURLToPath(url)),
+      "..",
+      "..",
+      "..",
+      "templates",
+    );
+  }
+
+  return new URL("../../../templates/", url).href;
+}
+
+function resolveBuiltInTemplateKey(
+  templateRoot: string,
+): BuiltInTemplateKey | "" | undefined {
+  const normalizedSegments = getTemplateSegments(templateRoot);
+  const templatesIndex = normalizedSegments.lastIndexOf("templates");
+  if (templatesIndex < 0) {
+    return undefined;
+  }
+
+  const relativeSegments = normalizedSegments.slice(templatesIndex + 1);
+  const relativeKey = relativeSegments.join("/");
+  if (!relativeKey) {
+    return "";
+  }
+
+  return relativeKey as BuiltInTemplateKey;
+}
+
+function listBuiltInTemplateManifestNames(prefix: string): string[] {
+  const nextNames = new Set<string>();
+  const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
+  const prefixWithSlash = normalizedPrefix ? `${normalizedPrefix}/` : "";
+
+  for (const key of Object.keys(builtInTemplateManifest)) {
+    if (!key.startsWith(prefixWithSlash)) {
+      continue;
+    }
+
+    const remainder = key.slice(prefixWithSlash.length);
+    if (!remainder) {
+      continue;
+    }
+
+    const nextName = remainder.split("/", 1)[0];
+    if (nextName) {
+      nextNames.add(nextName);
+    }
+  }
+
+  return [...nextNames].sort();
+}
+
+function getTemplateSegments(templateRoot: string): string[] {
+  if (isRemoteTemplateRoot(templateRoot)) {
+    return new URL(templateRoot).pathname.split("/").filter(Boolean);
+  }
+
+  if (isRemoteTemplateRoot(templatesRootDir)) {
+    return [];
+  }
+
+  const relativeToTemplates = relative(templatesRootDir, templateRoot)
+    .replaceAll("\\", "/")
+    .replace(/^\.\/?/, "")
+    .replace(/^\/+|\/+$/g, "");
+
+  if (!relativeToTemplates || relativeToTemplates === ".") {
+    return ["templates"];
+  }
+
+  return ["templates", ...relativeToTemplates.split("/").filter(Boolean)];
+}
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
+function isRemoteTemplateRoot(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function resolveUrlPathSegment(value: string): string {
+  const normalized = value.replaceAll("\\", "/");
+  if (!normalized || normalized === ".") {
+    return "./";
+  }
+
+  return normalized.replace(/^\/+/, "");
+}
+
+async function readTemplateTextFile(
+  pathOrUrl: string,
+  runtime: MainzToolingRuntime,
+): Promise<string> {
+  if (isRemoteTemplateRoot(pathOrUrl)) {
+    const response = await fetch(pathOrUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Could not fetch built-in template file "${pathOrUrl}": ${response.status} ${response.statusText}.`,
+      );
+    }
+
+    return await response.text();
+  }
+
+  try {
+    const url = new URL(pathOrUrl);
+    if (url.protocol === "file:") {
+      return await runtime.readTextFile(fileURLToPath(url));
+    }
+  } catch {
+    // Not a URL, treat as a normal filesystem path.
+  }
+
+  return await runtime.readTextFile(pathOrUrl);
 }
