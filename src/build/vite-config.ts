@@ -432,10 +432,13 @@ function relativizeMaterializedViteConfig(
   config: GeneratedViteConfig,
 ): GeneratedViteConfig {
   const configDir = config.root;
+  const projectCwd = resolveMaterializedProjectCwd(config);
 
   return {
     ...config,
-    root: ".",
+    root: projectCwd
+      ? relativizeMaterializedFileSystemPath(config.root, projectCwd)
+      : ".",
     outDir: relativizeMaterializedFileSystemPath(config.outDir, configDir),
     publicDir: typeof config.publicDir === "string"
       ? relativizeMaterializedFileSystemPath(config.publicDir, configDir)
@@ -486,6 +489,15 @@ function relativizeMaterializedDevMiddlewareOptions(
     ...options,
     cwd: relativizeMaterializedFileSystemPath(cwd, configDir),
   };
+}
+
+function resolveMaterializedProjectCwd(
+  config: GeneratedViteConfig,
+): string | undefined {
+  const cwd = config.devMiddleware.options.cwd;
+  return typeof cwd === "string" && isAbsoluteFileSystemPath(cwd)
+    ? cwd
+    : undefined;
 }
 
 function relativizeMaterializedFileSystemPath(

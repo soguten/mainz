@@ -1,8 +1,10 @@
 /// <reference lib="deno.ns" />
 
 import { join, resolve } from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { loadConfigFromFile, resolveConfig } from "vite";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../../config/public-entrypoints.ts";
 import {
@@ -372,7 +374,7 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
 
     assertStringIncludes(moduleSource, 'import ts from "npm:typescript@5.9.3";');
     assertStringIncludes(moduleSource, 'import { defineConfig } from "vite";');
-    assertStringIncludes(moduleSource, `root: "."`);
+    assertStringIncludes(moduleSource, `root: "./site"`);
     assertStringIncludes(moduleSource, `publicDir: "./public"`);
     assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
     assertStringIncludes(moduleSource, `outDir: "../dist/site/browser"`);
@@ -384,6 +386,78 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
     assertEquals(moduleSource.includes(normalizePath(cwd)), false);
   } finally {
     Deno.removeSync(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/vite-config: materialized Vite config should resolve app root from the project cwd in Vite", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-materialized-vite-resolve-",
+  });
+  const previousCwd = process.cwd();
+
+  try {
+    const config = normalizeMainzConfig({
+      runtime: "deno",
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+        },
+      ],
+    });
+
+    const generated = resolveGeneratedViteConfig({
+      cwd,
+      runtimeName: "deno",
+      target: config.targets[0],
+      outputDir: "dist/site/browser",
+      navigationMode: "spa",
+      basePath: "/",
+      appLocales: [],
+      localePrefix: "except-default",
+      cacheDir: ".mainz_temp/vite-cache/site",
+    });
+    const siteDir = join(cwd, "site");
+    const configPath = join(siteDir, "vite.config.ts");
+    const moduleSource = renderMaterializedViteConfigModule(generated)
+      .replaceAll('import ts from "npm:typescript@5.9.3";\n', "")
+      .replaceAll('import deno from "@deno/vite-plugin";\n', "")
+      .replaceAll(
+        'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";\n',
+        "",
+      )
+      .replace(
+        /    plugins: createMainzGeneratedVitePlugins\(\{[\s\S]*?    \}\),\n/,
+        "    plugins: [],\n",
+      );
+    await Deno.mkdir(siteDir, { recursive: true });
+    await Deno.writeTextFile(
+      configPath,
+      moduleSource,
+    );
+
+    process.chdir(cwd);
+    const loaded = await loadConfigFromFile(
+      {
+        command: "serve",
+        mode: "development",
+      },
+      configPath,
+      cwd,
+    );
+    const resolved = await resolveConfig(
+      {
+        ...(loaded?.config ?? {}),
+      },
+      "serve",
+      "development",
+    );
+
+    assertEquals(resolved.root, normalizePath(resolve(cwd, "site")));
+    assertEquals(resolved.publicDir, normalizePath(resolve(cwd, "site/public")));
+  } finally {
+    process.chdir(previousCwd);
+    await Deno.remove(cwd, { recursive: true });
   }
 });
 
