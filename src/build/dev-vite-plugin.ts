@@ -1,5 +1,5 @@
 import type { IncomingMessage } from "node:http";
-import { extname } from "node:path";
+import { extname, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
 import {
   denoToolingRuntime,
@@ -43,6 +43,7 @@ export function createMainzDevRouteMiddlewarePlugin(
     | undefined;
   const cachedHtmlByRequestKey = new Map<string, string>();
   let lastInvalidateAt = 0;
+  let resolvedProjectCwd = options.cwd;
   const normalizedConfig = normalizeMainzConfig({
     runtime: options.runtimeName,
     targets: [options.target],
@@ -63,6 +64,9 @@ export function createMainzDevRouteMiddlewarePlugin(
   return {
     name: "mainz-dev-route-middleware",
     apply: "serve",
+    configResolved(resolvedConfig) {
+      resolvedProjectCwd = resolve(resolvedConfig.root, options.cwd);
+    },
     handleHotUpdate() {
       invalidate();
     },
@@ -207,7 +211,7 @@ export function createMainzDevRouteMiddlewarePlugin(
           target,
           profile: options.profile,
         },
-        options.cwd,
+        resolvedProjectCwd,
         runtime,
       ).then((context) => {
         cachedContext = context;
@@ -252,7 +256,7 @@ export function createMainzDevRouteMiddlewarePlugin(
         ? nodeToolingRuntime
         : denoToolingRuntime;
       html = await helpers.renderDevSsgHtml({
-        cwd: options.cwd,
+        cwd: resolvedProjectCwd,
         targetRootDir: target.rootDir,
         basePath: options.profile.basePath,
         requestUrl: args.requestUrl,

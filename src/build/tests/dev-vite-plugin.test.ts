@@ -246,6 +246,123 @@ Deno.test("build/dev-vite-plugin: should answer HEAD ssg document requests witho
   }
 });
 
+Deno.test("build/dev-vite-plugin: should resolve a relative project cwd from the materialized Vite root", async () => {
+  const projectCwd = await Deno.makeTempDir({
+    prefix: "mainz-dev-vite-plugin-materialized-cwd-",
+  });
+
+  try {
+    const appRoot = join(projectCwd, "app").replaceAll("\\", "/");
+    await Deno.mkdir(`${appRoot}/src`, { recursive: true });
+    await writeTestAppDefinition(appRoot);
+    await Deno.writeTextFile(
+      `${appRoot}/index.html`,
+      [
+        "<!doctype html>",
+        "<html>",
+        "  <head>",
+        "  </head>",
+        "  <body>",
+        '    <main id="app"></main>',
+        '    <script type="module" src="/src/main.js"></script>',
+        "  </body>",
+        "</html>",
+      ].join("\n"),
+    );
+    await Deno.writeTextFile(
+      `${appRoot}/src/main.js`,
+      [
+        'const app = document.querySelector("#app");',
+        'app.innerHTML = "<section data-page=\\"docs\\">Docs</section>";',
+        'app.firstElementChild.props = { route: { path: "/docs", matchedPath: "/docs", params: {}, locale: "en" } };',
+      ].join("\n"),
+    );
+
+    const plugin = createMainzDevRouteMiddlewarePlugin({
+      cwd: "..",
+      runtimeName: "deno",
+      target: {
+        name: "app",
+        rootDir: "./app",
+        appFile: "./app/src/app.tsx",
+        appId: "app",
+        outDir: "dist/app",
+      },
+      profile: {
+        name: "development",
+        basePath: "/",
+      },
+      defaultLocale: "en",
+      localePrefix: "except-default",
+    });
+
+    const middlewareHandlers: Array<
+      (
+        req: { method?: string; headers: Record<string, string>; url?: string },
+        res: ReturnType<typeof createMockResponse>,
+        next: (error?: Error) => void,
+      ) => Promise<void> | void
+    > = [];
+
+    invokeConfigResolved(plugin, {
+      root: appRoot,
+    });
+    invokeConfigureServer(plugin, {
+      config: {
+        root: appRoot,
+        server: {
+          https: false,
+        },
+      },
+      watcher: {
+        on() {
+          return this;
+        },
+      },
+      middlewares: {
+        use(handler: unknown) {
+          middlewareHandlers.push(handler as typeof middlewareHandlers[number]);
+          return this;
+        },
+      },
+      async transformIndexHtml(_url: string, html: string) {
+        return html;
+      },
+    } as never);
+
+    const middleware = middlewareHandlers[0];
+    if (!middleware) {
+      throw new Error("Expected Mainz dev middleware to be registered.");
+    }
+
+    const res = createMockResponse();
+    let nextCalled = false;
+    await middleware(
+      {
+        method: "GET",
+        headers: {
+          accept: "text/html",
+          host: "localhost:5173",
+        },
+        url: "/docs",
+      },
+      res,
+      (error?: Error) => {
+        if (error) {
+          throw error;
+        }
+        nextCalled = true;
+      },
+    );
+
+    assertEquals(nextCalled, false);
+    assertEquals(res.statusCode, 200);
+    assertStringIncludes(res.body, 'data-page="docs"');
+  } finally {
+    await Deno.remove(projectCwd, { recursive: true });
+  }
+});
+
 Deno.test("build/dev-vite-plugin: should render ssr routes instead of falling through to the csr shell", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-dev-vite-plugin-ssr-" });
 
@@ -1785,6 +1902,35 @@ function invokeConfigureServer(
   }
 
   hook.handler.call(pluginContext as never, server);
+}
+
+function invokeConfigResolved(
+  plugin: ReturnType<typeof createMainzDevRouteMiddlewarePlugin>,
+  resolvedConfig: {
+    root: string;
+  },
+): void {
+  const hook = plugin.configResolved;
+  if (!hook) {
+    throw new Error("Expected configResolved hook.");
+  }
+
+  const pluginContext = {
+    debug() {},
+    error(message: string | Error) {
+      throw typeof message === "string" ? new Error(message) : message;
+    },
+    info() {},
+    meta: {},
+    warn() {},
+  };
+
+  if (typeof hook === "function") {
+    hook.call(pluginContext as never, resolvedConfig as never);
+    return;
+  }
+
+  hook.handler.call(pluginContext as never, resolvedConfig as never);
 }
 
 function invokeHandleHotUpdate(
