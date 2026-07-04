@@ -156,20 +156,24 @@ function renderViteConfigModule(
     } }`;
   });
 
-  const imports = [
-    `import { createMainzGeneratedVitePlugins } from ${
-      JSON.stringify(
-        resolveVitePluginImportSpecifier(
-          config.devMiddleware.modulePath,
-          runtime,
-          mode,
-        ),
-      )
-    };`,
-    `import { defineConfig } from ${
-      JSON.stringify(resolveGeneratedViteImportSpecifier("vite", runtime, mode))
-    };`,
-  ];
+  const imports = runtime === "deno" && mode === "materialized"
+    ? [
+      `import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";`,
+    ]
+    : [
+      `import { createMainzGeneratedVitePlugins } from ${
+        JSON.stringify(
+          resolveVitePluginImportSpecifier(
+            config.devMiddleware.modulePath,
+            runtime,
+            mode,
+          ),
+        )
+      };`,
+      `import { defineConfig } from ${
+        JSON.stringify(resolveGeneratedViteImportSpecifier("vite", runtime, mode))
+      };`,
+    ];
   const configLines = [
     `export default defineConfig({`,
     `    appType: ${JSON.stringify(config.appType)},`,
@@ -195,7 +199,7 @@ function renderViteConfigModule(
       `import ts from ${
         JSON.stringify(
           resolveGeneratedViteImportSpecifier(
-            "npm:typescript@5.9.3",
+            "typescript",
             runtime,
             mode,
           ),
@@ -554,7 +558,7 @@ export function resolveMainzBuildModulePath(
 }
 
 function resolveGeneratedViteImportSpecifier(
-  specifier: "vite" | "@deno/vite-plugin" | "npm:typescript@5.9.3",
+  specifier: "vite" | "@deno/vite-plugin" | "typescript",
   runtime: ToolingRuntimeName,
   mode: "generated" | "materialized" = "generated",
 ): string {
@@ -594,14 +598,14 @@ function isAbsoluteImportUrl(value: string): boolean {
 }
 
 function resolvePublishedGeneratedDenoImportSpecifier(
-  specifier: "vite" | "@deno/vite-plugin" | "npm:typescript@5.9.3",
+  specifier: "vite" | "@deno/vite-plugin" | "typescript",
 ): string {
   switch (specifier) {
     case "vite":
       return "npm:vite@8.0.10";
     case "@deno/vite-plugin":
       return "npm:@deno/vite-plugin@2.0.2";
-    case "npm:typescript@5.9.3":
+    case "typescript":
       return "npm:typescript@5.9.3";
   }
 }
@@ -619,4 +623,16 @@ function resolveVitePluginImportSpecifier(
     path.replace("dev-vite-plugin.ts", "vite-plugin-factory.ts"),
     runtime,
   );
+}
+
+export function renderMaterializedDenoViteRuntimeModule(): string {
+  return [
+    'import deno from "@deno/vite-plugin";',
+    'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";',
+    'import ts from "typescript";',
+    'import { defineConfig } from "vite";',
+    "",
+    "export { createMainzGeneratedVitePlugins, defineConfig, deno, ts };",
+    "",
+  ].join("\n");
 }

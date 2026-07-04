@@ -35,6 +35,7 @@
         "mainz/jsx-runtime": "./src/jsx-runtime.ts",
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
         "vite": "npm:vite@8.0.10",
+        "typescript": "npm:typescript@5.9.3",
         "happy-dom": "npm:happy-dom@20.9.0",
         "@std/assert": "jsr:@std/assert",
         "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",

@@ -41,6 +41,7 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
     };
     assertEquals(denoConfig.compilerOptions?.jsxImportSource, "mainz");
     assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
+    assertEquals(denoConfig.imports?.typescript, "npm:typescript@5.9.3");
     assertEquals(
       denoConfig.imports?.["mainz/"],
       "jsr:/@mainz/mainz@0.1.0-alpha.99/",
@@ -151,6 +152,7 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
       tasks?: Record<string, unknown>;
     };
     assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
+    assertEquals(denoConfig.imports?.typescript, "npm:typescript@5.9.3");
     assertEquals(
       denoConfig.tasks?.dev,
       "deno task mainz dev",
@@ -662,6 +664,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
       "mainz/jsx-runtime": toFileSpecifier(
         resolve(cliTestsRepoRoot, "src", "jsx-runtime.ts"),
       ),
+      typescript: "npm:typescript@5.9.3",
       vite: "npm:vite@8.0.10",
     };
     await Deno.writeTextFile(
@@ -1580,9 +1583,21 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
     );
     assertStringIncludes(materialized, "@mainz-materialized-vite-config");
     assertStringIncludes(materialized, "@mainz-materialized-vite-metadata");
-    assertStringIncludes(materialized, 'import { defineConfig } from "vite";');
+    assertStringIncludes(
+      materialized,
+      'import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";',
+    );
     assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
     assertStringIncludes(materialized, '"@content"');
+
+    const runtimeHelper = await Deno.readTextFile(
+      resolve(cwd, "site", ".mainz", "vite-runtime.ts"),
+    );
+    assertStringIncludes(runtimeHelper, 'import ts from "typescript";');
+    assertStringIncludes(
+      runtimeHelper,
+      'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";',
+    );
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -1670,6 +1685,7 @@ Deno.test("cli/mainz vite: dematerialize should remove the managed Vite config a
     assertStringIncludes(config, '"__SITE_FLAG__": "true"');
 
     await assertRejectsNotFound(resolve(cwd, "site", "vite.config.ts"));
+    await assertRejectsNotFound(resolve(cwd, "site", ".mainz", "vite-runtime.ts"));
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }

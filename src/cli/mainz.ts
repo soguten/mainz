@@ -21,26 +21,6 @@ import {
   normalizeMainzConfig,
   normalizeTargetBuildConfig,
 } from "../config/index.ts";
-import {
-  loadTargetBuildRoutedAppDefinition,
-  renderMaterializedViteConfigModule,
-  resolveEffectiveNavigationMode,
-  resolveEngineBuildJobs,
-  resolveEngineBuildProfile,
-  resolveEnginePublicationMetadata,
-  resolveGeneratedViteConfig,
-  resolvePublicationBrowserOutDir,
-  resolveTargetBuildProfile,
-  resolveTargetI18nConfig,
-  runEngineBuildJobs,
-  runEngineDevServer,
-} from "../build/index.ts";
-import {
-  collectDiagnosticsForConfig,
-  formatDiagnosticsHuman,
-  formatDiagnosticsJson,
-  shouldFailDiagnostics,
-} from "../diagnostics/index.ts";
 import { serveArtifactPreview } from "../preview/artifact-server.ts";
 import {
   denoToolingRuntime,
@@ -56,6 +36,8 @@ import {
   materializeTemplatePlan,
   resolveBuiltInTemplateRoot,
 } from "./templates/index.ts";
+
+type BuildApi = typeof import("../build/index.ts");
 
 type SharedCliOptions = {
   runtime?: MainzRuntime;
@@ -214,6 +196,11 @@ const materializedViteMetadataPrefix = "// @mainz-materialized-vite-metadata ";
 
 const projectConfigBootstrapEnv = "MAINZ_CLI_PROJECT_CONFIG_BOOTSTRAPPED";
 const defaultDenoContainerImage = "denoland/deno:2.7.14";
+
+async function loadBuildApi(): Promise<BuildApi> {
+  return await import("../build/index.ts");
+}
+
 class CliExitError extends Error {
   constructor(readonly code: number) {
     super(`CLI exited with code ${code}.`);
@@ -726,6 +713,7 @@ async function createNodeProjectBootstrapConfig(
         imports: {
           ...mainzImports,
           vite: "npm:vite@8.0.10",
+          typescript: "npm:typescript@5.9.3",
           "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
           "happy-dom": "npm:happy-dom@20.9.0",
         },
@@ -2042,30 +2030,31 @@ async function runViteMaterializeCommand(
     );
   }
 
-  const profile = await resolveTargetBuildProfile(
+  const build = await loadBuildApi();
+  const profile = await build.resolveTargetBuildProfile(
     target,
     undefined,
     runtime.cwd(),
     runtime,
   );
-  const navigationMode = await resolveEffectiveNavigationMode(
+  const navigationMode = await build.resolveEffectiveNavigationMode(
     target,
     profile,
     runtime.cwd(),
     runtime,
   );
-  const appDefinition = await loadTargetBuildRoutedAppDefinition(
+  const appDefinition = await build.loadTargetBuildRoutedAppDefinition(
     target,
     runtime.cwd(),
     runtime,
   );
-  const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const targetI18n = build.resolveTargetI18nConfig(appDefinition);
   const appLocales = appDefinition?.i18n?.locales ?? [];
-  const generatedConfig = resolveGeneratedViteConfig({
+  const generatedConfig = build.resolveGeneratedViteConfig({
     cwd: runtime.cwd(),
     runtimeName: runtime.name,
     target,
-    outputDir: resolvePublicationBrowserOutDir(target.outDir),
+    outputDir: build.resolvePublicationBrowserOutDir(target.outDir),
     navigationMode,
     basePath: resolveCliViteBasePath(profile.basePath, navigationMode),
     appLocales,
@@ -2093,7 +2082,7 @@ async function runViteMaterializeCommand(
     }`,
     `// target: ${target.name}`,
     "",
-    renderMaterializedViteConfigModule(generatedConfig, runtime.name),
+    build.renderMaterializedViteConfigModule(generatedConfig, runtime.name),
   ].join("\n");
 
   const existingMaterializedSource =
@@ -2116,6 +2105,15 @@ async function runViteMaterializeCommand(
     materialized.absoluteConfigPath,
     materializedModule,
   );
+  if (runtime.name === "deno") {
+    await runtime.mkdir(dirname(materialized.absoluteRuntimeHelperPath), {
+      recursive: true,
+    });
+    await runtime.writeTextFile(
+      materialized.absoluteRuntimeHelperPath,
+      build.renderMaterializedDenoViteRuntimeModule(),
+    );
+  }
 
   const configContent = await runtime.readTextFile(loadedConfig.path);
   const updatedConfig = updateConfigTarget(
@@ -2192,7 +2190,15 @@ async function runViteDematerializeCommand(
   await runtime.writeTextFile(loadedConfig.path, updatedConfig);
 
   if (await pathExists(materialized.absoluteConfigPath, runtime)) {
-    await runtime.remove(materialized.absoluteConfigPath);
+  await runtime.remove(materialized.absoluteConfigPath);
+  if (runtime.name === "deno" &&
+    await pathExists(materialized.absoluteRuntimeHelperPath, runtime)) {
+    await runtime.remove(materialized.absoluteRuntimeHelperPath);
+    const runtimeHelperDir = dirname(materialized.absoluteRuntimeHelperPath);
+    if (await isDirectoryEmpty(runtimeHelperDir, runtime)) {
+      await runtime.remove(runtimeHelperDir, { recursive: true });
+    }
+  }
   }
 
   await clearGeneratedViteArtifacts(runtime, runtime.cwd());
@@ -2209,18 +2215,19 @@ async function runBuildCommand(
   runtime: MainzToolingRuntime,
 ): Promise<void> {
   const cwd = runtime.cwd();
-  const jobs = await resolveEngineBuildJobs(normalizedConfig, options, cwd);
+  const build = await loadBuildApi();
+  const jobs = await build.resolveEngineBuildJobs(normalizedConfig, options, cwd);
   const selectedTargets = new Map(
     jobs.map((job) => [job.target.name, job.target]),
   );
   const resolvedProfileByTarget = new Map<
     string,
-    Awaited<ReturnType<typeof resolveEngineBuildProfile>>
+    Awaited<ReturnType<BuildApi["resolveEngineBuildProfile"]>>
   >();
   for (const target of selectedTargets.values()) {
     resolvedProfileByTarget.set(
       target.name,
-      await resolveEngineBuildProfile(target, options.profile, cwd),
+      await build.resolveEngineBuildProfile(target, options.profile, cwd),
     );
   }
 
@@ -2233,7 +2240,7 @@ async function runBuildCommand(
     `[mainz] Building ${resolvedJobs.length} job(s) using config ${loadedConfig.path}`,
   );
 
-  await runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd, runtime);
+  await build.runEngineBuildJobs(normalizedConfig, resolvedJobs, cwd, runtime);
 
   console.log("[mainz] Build completed successfully.");
 }
@@ -2244,12 +2251,13 @@ async function runPublishInfoCommand(
   runtime: MainzToolingRuntime,
 ): Promise<void> {
   const cwd = runtime.cwd();
+  const build = await loadBuildApi();
   const target = resolveRequiredTarget(
     normalizedConfig,
     options.target,
     "publish-info",
   );
-  const metadata = await resolveEnginePublicationMetadata(
+  const metadata = await build.resolveEnginePublicationMetadata(
     target,
     options.profile,
     cwd,
@@ -2263,6 +2271,7 @@ async function runContainerInitCommand(
   runtime: MainzToolingRuntime,
 ): Promise<void> {
   const cwd = runtime.cwd();
+  const build = await loadBuildApi();
   const target = resolveRequiredTarget(
     normalizedConfig,
     options.target,
@@ -2277,18 +2286,18 @@ async function runContainerInitCommand(
     buildConfigPath,
     runtime,
   });
-  const metadata = await resolveEnginePublicationMetadata(
+  const metadata = await build.resolveEnginePublicationMetadata(
     target,
     ensuredProfiles.profile,
     cwd,
     runtime,
   );
-  const appDefinition = await loadTargetBuildRoutedAppDefinition(
+  const appDefinition = await build.loadTargetBuildRoutedAppDefinition(
     target,
     cwd,
     runtime,
   );
-  const targetI18n = resolveTargetI18nConfig(appDefinition);
+  const targetI18n = build.resolveTargetI18nConfig(appDefinition);
   const envContract = buildConfig.profiles[ensuredProfiles.profile]?.env ?? [];
   const envResolution = await resolveContainerProfileEnvironment({
     target,
@@ -2642,13 +2651,18 @@ async function runDevCommand(
 ): Promise<void> {
   const cwd = runtime.cwd();
   const target = resolveRequiredTarget(normalizedConfig, options.target, "dev");
-  const profile = await resolveEngineBuildProfile(target, options.profile, cwd);
+  const build = await loadBuildApi();
+  const profile = await build.resolveEngineBuildProfile(
+    target,
+    options.profile,
+    cwd,
+  );
 
   console.log(
     `[mainz] Starting dev server for target "${target.name}" using config ${loadedConfig.path}`,
   );
 
-  await runEngineDevServer(
+  await build.runEngineDevServer(
     normalizedConfig,
     target,
     profile,
@@ -2669,6 +2683,7 @@ async function runPreviewCommand(
   runtime: MainzToolingRuntime,
 ): Promise<void> {
   const cwd = runtime.cwd();
+  const build = await loadBuildApi();
   const target = resolveRequiredTarget(
     normalizedConfig,
     options.target,
@@ -2687,7 +2702,7 @@ async function runPreviewCommand(
     runtime,
   );
 
-  const metadata = await resolveEnginePublicationMetadata(
+  const metadata = await build.resolveEnginePublicationMetadata(
     target,
     options.profile,
     cwd,
@@ -2707,6 +2722,12 @@ async function runDiagnoseCommand(
   normalizedConfig: NormalizedMainzConfig,
   runtime: MainzToolingRuntime,
 ): Promise<number> {
+  const {
+    collectDiagnosticsForConfig,
+    formatDiagnosticsHuman,
+    formatDiagnosticsJson,
+    shouldFailDiagnostics,
+  } = await import("../diagnostics/index.ts");
   const cwd = runtime.cwd();
   const diagnostics = await collectDiagnosticsForConfig(
     normalizedConfig,
@@ -3339,6 +3360,7 @@ function resolveMaterializedVitePaths(
 ): {
   absoluteConfigPath: string;
   relativeConfigPath: string;
+  absoluteRuntimeHelperPath: string;
 } {
   const absoluteConfigPath = resolve(configPath);
   const configDir = dirname(absoluteConfigPath);
@@ -3354,6 +3376,11 @@ function resolveMaterializedVitePaths(
   return {
     absoluteConfigPath: resolve(absoluteWorkspaceDir, fileName),
     relativeConfigPath,
+    absoluteRuntimeHelperPath: resolve(
+      absoluteWorkspaceDir,
+      ".mainz",
+      "vite-runtime.ts",
+    ),
   };
 }
 
@@ -4914,12 +4941,11 @@ function renderBrowserOnlyNginxConfig(
 
 function resolveContainerLocalizedNotFoundPrefixes(
   appDefinition:
-    | Pick<
-      NonNullable<
-        Awaited<ReturnType<typeof loadTargetBuildRoutedAppDefinition>>
-      >,
-      "i18n"
-    >
+    | {
+      i18n?: {
+        locales?: readonly string[];
+      };
+    }
     | undefined,
   args: {
     defaultLocale?: string;
@@ -4945,15 +4971,18 @@ async function resolveGithubPagesWorkflowTargets(
   Array<{ name: string; basePath: string; outDir: string; stagingPath: string }>
 > {
   const cwd = runtime.cwd();
+  const build = await loadBuildApi();
   const targets: Array<
     { name: string; basePath: string; outDir: string; stagingPath: string }
   > = [];
   const stagingPaths = new Map<string, string>();
 
   for (const target of normalizedConfig.targets) {
-    let metadata: Awaited<ReturnType<typeof resolveEnginePublicationMetadata>>;
+    let metadata: Awaited<
+      ReturnType<BuildApi["resolveEnginePublicationMetadata"]>
+    >;
     try {
-      metadata = await resolveEnginePublicationMetadata(
+      metadata = await build.resolveEnginePublicationMetadata(
         target,
         "gh-pages",
         cwd,
@@ -5864,6 +5893,25 @@ async function pathExists(
 
     throw error;
   }
+}
+
+async function isDirectoryEmpty(
+  path: string,
+  runtime: MainzToolingRuntime = denoToolingRuntime,
+): Promise<boolean> {
+  try {
+    for await (const _entry of runtime.readDir(path)) {
+      return false;
+    }
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return true;
+    }
+
+    throw error;
+  }
+
+  return true;
 }
 
 function isNotFoundError(error: unknown): boolean {

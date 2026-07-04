@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import type * as ts from "npm:typescript@5.9.3";
+import type * as ts from "typescript";
 import type { Plugin } from "vite";
 import { createMainzDevRouteMiddlewarePlugin } from "./dev-vite-plugin.ts";
 
