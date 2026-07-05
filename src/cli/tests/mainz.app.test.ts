@@ -665,7 +665,7 @@ Deno.test("cli/mainz: global commands should bootstrap the project deno config",
         resolve(cliTestsRepoRoot, "src", "jsx-runtime.ts"),
       ),
       typescript: "npm:typescript@5.9.3",
-      vite: "npm:vite@8.0.10",
+      vite: "npm:vite@8.0.16",
     };
     await Deno.writeTextFile(
       denoConfigPath,

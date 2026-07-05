@@ -13,7 +13,7 @@
     "mainz": "{{mainzSpecifier}}"
   },
   "devDependencies": {
-    "vite": "^8.0.10"
+    "vite": "^8.0.16"
   },
   "workspaces": [
     "app"

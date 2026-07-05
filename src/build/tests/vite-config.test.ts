@@ -191,7 +191,7 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
   assertStringIncludes(moduleSource, `// @mainz-generated-vite-config`);
   assertStringIncludes(
     moduleSource,
-    `import { defineConfig } from "npm:vite@8.0.10";`,
+    `import { defineConfig } from "npm:vite@8.0.16";`,
   );
   assertStringIncludes(
     moduleSource,

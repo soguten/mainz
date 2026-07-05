@@ -1,6 +1,6 @@
 # mainz
 
-A class-based TSX runtime built on Web Components.
+A class-based frontend framework for Web Components with TSX ergonomics. 
 
 Mainz is for page-first apps where routing, page metadata, async loading, and
 hydration should stay close to the class that owns them.
@@ -11,6 +11,37 @@ The model is intentionally small:
 - `Page` extends that model with route concerns
 - `load()` owns async data
 - `render()` stays synchronous
+
+## Create a project
+
+For a Deno-first bootstrap flow, use the Deno CLI package:
+
+```bash
+deno run -A jsr:@mainz/cli-deno init my-app --template starter
+cd my-app
+deno task mainz dev --target app
+```
+
+For a Node project, use the published Mainz bootstrap entrypoint and select the
+runtime explicitly:
+
+```bash
+deno run -A jsr:@mainz/mainz/tooling/bootstrap-cli init my-app --runtime node --template starter
+cd my-app
+npm install
+npm run mainz -- dev --target app
+```
+
+The `create-mainz` package on npm is a separate wrapper and can lag behind the
+current Mainz templates and bootstrap behavior.
+
+Without `--template starter`, Mainz creates the project scaffold and config, but
+not a runnable `app` target yet. In that case, create an app first:
+
+```bash
+npm run mainz -- app create site
+npm run mainz -- dev --target site
+```
 
 ## Start with a component
 

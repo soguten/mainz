@@ -602,7 +602,7 @@ function resolvePublishedGeneratedDenoImportSpecifier(
 ): string {
   switch (specifier) {
     case "vite":
-      return "npm:vite@8.0.10";
+      return "npm:vite@8.0.16";
     case "@deno/vite-plugin":
       return "npm:@deno/vite-plugin@2.0.2";
     case "typescript":

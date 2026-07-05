@@ -712,7 +712,7 @@ async function createNodeProjectBootstrapConfig(
         },
         imports: {
           ...mainzImports,
-          vite: "npm:vite@8.0.10",
+          vite: "npm:vite@8.0.16",
           typescript: "npm:typescript@5.9.3",
           "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
           "happy-dom": "npm:happy-dom@20.9.0",

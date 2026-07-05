@@ -18,7 +18,7 @@
         "jsxImportSource": "mainz",
         "strict": true,
         "types": [
-            "npm:vite@8.0.10/client",
+            "npm:vite@8.0.16/client",
             "./src/types/jsx.d.ts",
             "./src/types/mainz-env.d.ts"
         ]
@@ -34,7 +34,7 @@
         "mainz/config": "./src/config/index.ts",
         "mainz/jsx-runtime": "./src/jsx-runtime.ts",
         "mainz/jsx-dev-runtime": "./src/jsx-dev-runtime.ts",
-        "vite": "npm:vite@8.0.10",
+        "vite": "npm:vite@8.0.16",
         "typescript": "npm:typescript@5.9.3",
         "happy-dom": "npm:happy-dom@20.9.0",
         "@std/assert": "jsr:@std/assert",

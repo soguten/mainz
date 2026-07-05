@@ -25,7 +25,7 @@ Deno.test("build/execution: should forward dev host and port to Vite", () => {
       args: [
         "run",
         "-A",
-        "npm:vite@8.0.10",
+        "npm:vite@8.0.16",
         "--config",
         "/tmp/vite.config.mjs",
         "--host",

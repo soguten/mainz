@@ -10,7 +10,7 @@
     "mainz": "{{mainzSpecifier}}",
     "mainz/": "{{mainzSubpathPrefix}}",
     "typescript": "npm:typescript@5.9.3",
-    "vite": "npm:vite@8.0.10"
+    "vite": "npm:vite@8.0.16"
   },
   "tasks": {
     "mainz": "deno run -A --config {{denoConfigPath}} {{mainzToolingCliSpecifier}}",
