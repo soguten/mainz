@@ -2111,15 +2111,6 @@ async function runViteMaterializeCommand(
     materialized.absoluteConfigPath,
     materializedModule,
   );
-  await runtime.mkdir(dirname(materialized.absoluteRuntimeHelperPath), {
-    recursive: true,
-  });
-  await runtime.writeTextFile(
-    materialized.absoluteRuntimeHelperPath,
-    runtime.name === "deno"
-      ? build.renderMaterializedDenoViteRuntimeModule()
-      : build.renderMaterializedNodeViteRuntimeModule(),
-  );
 
   const configContent = await runtime.readTextFile(loadedConfig.path);
   const updatedConfig = updateConfigTarget(
@@ -2196,14 +2187,7 @@ async function runViteDematerializeCommand(
   await runtime.writeTextFile(loadedConfig.path, updatedConfig);
 
   if (await pathExists(materialized.absoluteConfigPath, runtime)) {
-  await runtime.remove(materialized.absoluteConfigPath);
-  if (await pathExists(materialized.absoluteRuntimeHelperPath, runtime)) {
-    await runtime.remove(materialized.absoluteRuntimeHelperPath);
-    const runtimeHelperDir = dirname(materialized.absoluteRuntimeHelperPath);
-    if (await isDirectoryEmpty(runtimeHelperDir, runtime)) {
-      await runtime.remove(runtimeHelperDir, { recursive: true });
-    }
-  }
+    await runtime.remove(materialized.absoluteConfigPath);
   }
 
   await clearGeneratedViteArtifacts(runtime, runtime.cwd());
@@ -3365,7 +3349,6 @@ function resolveMaterializedVitePaths(
 ): {
   absoluteConfigPath: string;
   relativeConfigPath: string;
-  absoluteRuntimeHelperPath: string;
 } {
   const absoluteConfigPath = resolve(configPath);
   const configDir = dirname(absoluteConfigPath);
@@ -3381,11 +3364,6 @@ function resolveMaterializedVitePaths(
   return {
     absoluteConfigPath: resolve(absoluteWorkspaceDir, fileName),
     relativeConfigPath,
-    absoluteRuntimeHelperPath: resolve(
-      absoluteWorkspaceDir,
-      ".mainz",
-      "vite-runtime.ts",
-    ),
   };
 }
 
@@ -5898,25 +5876,6 @@ async function pathExists(
 
     throw error;
   }
-}
-
-async function isDirectoryEmpty(
-  path: string,
-  runtime: MainzToolingRuntime = denoToolingRuntime,
-): Promise<boolean> {
-  try {
-    for await (const _entry of runtime.readDir(path)) {
-      return false;
-    }
-  } catch (error) {
-    if (isNotFoundError(error)) {
-      return true;
-    }
-
-    throw error;
-  }
-
-  return true;
 }
 
 function isNotFoundError(error: unknown): boolean {

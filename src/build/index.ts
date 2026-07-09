@@ -26,8 +26,6 @@ export {
 export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 export {
   renderGeneratedViteConfigModule,
-  renderMaterializedDenoViteRuntimeModule,
-  renderMaterializedNodeViteRuntimeModule,
   renderMaterializedViteConfigModule,
   resolveGeneratedViteConfig,
 } from "./vite-config.ts";

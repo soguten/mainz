@@ -1585,25 +1585,20 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
     assertStringIncludes(materialized, "@mainz-materialized-vite-metadata");
     assertStringIncludes(
       materialized,
-      'import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";',
-    );
-    assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
-    assertStringIncludes(materialized, '"@content"');
-
-    const runtimeHelper = await Deno.readTextFile(
-      resolve(cwd, "site", ".mainz", "vite-runtime.ts"),
-    );
-    assertStringIncludes(runtimeHelper, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
-    assertStringIncludes(
-      runtimeHelper,
       "import { createMainzGeneratedVitePlugins } from ",
     );
-    assertStringIncludes(runtimeHelper, "vite-plugin-factory.ts");
+    assertStringIncludes(materialized, "src/public/tooling-vite-build.ts");
     assertStringIncludes(
-      runtimeHelper,
+      materialized,
       'import { defineConfig } from "npm:vite@8.0.16";',
     );
-    assertStringIncludes(runtimeHelper, 'import ts from "npm:typescript@5.9.3";');
+    assertStringIncludes(
+      materialized,
+      'import deno from "npm:@deno/vite-plugin@2.0.2";',
+    );
+    assertStringIncludes(materialized, 'import ts from "npm:typescript@5.9.3";');
+    assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
+    assertStringIncludes(materialized, '"@content"');
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -1691,7 +1686,6 @@ Deno.test("cli/mainz vite: dematerialize should remove the managed Vite config a
     assertStringIncludes(config, '"__SITE_FLAG__": "true"');
 
     await assertRejectsNotFound(resolve(cwd, "site", "vite.config.ts"));
-    await assertRejectsNotFound(resolve(cwd, "site", ".mainz", "vite-runtime.ts"));
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }

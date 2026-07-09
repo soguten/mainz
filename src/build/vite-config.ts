@@ -163,9 +163,17 @@ function renderViteConfigModule(
 
   const imports = mode === "materialized"
     ? [
-      `import { createMainzGeneratedVitePlugins, defineConfig${
-        runtime === "deno" ? ", deno, ts" : ""
-      } } from "./.mainz/vite-runtime.ts";`,
+      `import { createMainzGeneratedVitePlugins } from ${
+        JSON.stringify(
+          resolveMaterializedVitePluginImportSpecifier(
+            config.devMiddleware.modulePath,
+            runtime,
+          ),
+        )
+      };`,
+      `import { defineConfig } from ${
+        JSON.stringify(resolveGeneratedViteImportSpecifier("vite", runtime, mode))
+      };`,
     ]
     : [
       `import { createMainzGeneratedVitePlugins } from ${
@@ -190,7 +198,7 @@ function renderViteConfigModule(
     configLines.push(`    cacheDir: ${JSON.stringify(config.cacheDir)},`);
   }
 
-  if (runtime === "deno" && mode === "generated") {
+  if (runtime === "deno") {
     imports.unshift(
       `import deno from ${
         JSON.stringify(
@@ -569,12 +577,12 @@ function resolveGeneratedViteImportSpecifier(
   runtime: ToolingRuntimeName,
   mode: "generated" | "materialized" = "generated",
 ): string {
-  if (runtime === "node" && specifier === "vite") {
-    return "mainz/tooling/vite";
+  if (runtime === "deno") {
+    return resolvePublishedGeneratedDenoImportSpecifier(specifier);
   }
 
-  if (runtime === "deno" && mode === "generated") {
-    return resolvePublishedGeneratedDenoImportSpecifier(specifier);
+  if (runtime === "node" && specifier === "vite") {
+    return "mainz/tooling/vite";
   }
 
   return specifier;
@@ -636,52 +644,53 @@ function resolveVitePluginImportSpecifier(
   );
 }
 
-export function renderMaterializedDenoViteRuntimeModule(): string {
-  return renderMaterializedViteRuntimeModule("deno");
+function resolveMaterializedVitePluginImportSpecifier(
+  modulePath: string,
+  runtime: ToolingRuntimeName,
+): string {
+  if (runtime === "node") {
+    const publishedSpecifier = resolvePublishedMainzPackageSpecifier(modulePath);
+    if (publishedSpecifier) {
+      return "mainz/tooling/vite-build";
+    }
+  }
+
+  return resolveGeneratedModuleImportSpecifier(
+    resolveMainzPublicEntrypointSourcePath(
+      modulePath,
+      "src/public/tooling-vite-build.ts",
+    ),
+    runtime,
+  );
 }
 
-export function renderMaterializedNodeViteRuntimeModule(
-  mainzModuleUrl: string = import.meta.url,
+function resolveMainzPublicEntrypointSourcePath(
+  modulePath: string,
+  sourcePath: string,
 ): string {
-  return renderMaterializedViteRuntimeModule("node", mainzModuleUrl);
-}
+  const publishedSpecifier = resolvePublishedMainzPackageSpecifier(modulePath);
+  if (publishedSpecifier) {
+    return `https://jsr.io/@mainz/mainz/${
+      publishedSpecifier.slice("jsr:@mainz/mainz@".length)
+    }/${sourcePath}`;
+  }
 
-function renderMaterializedViteRuntimeModule(
-  runtime: "deno" | "node",
-  mainzModuleUrl: string = import.meta.url,
-): string {
-  const imports = runtime === "node"
-    ? [
-      `import { createMainzGeneratedVitePlugins } from ${
-        JSON.stringify(
-          resolveGeneratedModuleImportSpecifier(
-            resolveMainzBuildModulePath("./vite-plugin-factory.ts", mainzModuleUrl),
-            runtime,
-          ),
-        )
-      };`,
-      'import { defineConfig } from "mainz/tooling/vite";',
-    ]
-    : [
-      `import deno from ${JSON.stringify(MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER)};`,
-      `import { createMainzGeneratedVitePlugins } from ${
-        JSON.stringify(
-          resolveGeneratedModuleImportSpecifier(
-            resolveMainzBuildModulePath("./vite-plugin-factory.ts", mainzModuleUrl),
-            runtime,
-          ),
-        )
-      };`,
-      `import { defineConfig } from ${JSON.stringify(MAINZ_VITE_NPM_SPECIFIER)};`,
-      `import ts from ${JSON.stringify(MAINZ_TYPESCRIPT_NPM_SPECIFIER)};`,
-    ];
+  let url: URL | undefined;
+  try {
+    url = new URL(modulePath);
+  } catch {
+    url = undefined;
+  }
 
-  return [
-    ...imports,
-    "",
-    `export { createMainzGeneratedVitePlugins, defineConfig${
-      runtime === "deno" ? ", deno, ts" : ""
-    } };`,
-    "",
-  ].join("\n");
+  if (url?.protocol === "file:") {
+    const packageRoot = resolve(dirname(fileURLToPath(url)), "..", "..");
+    return normalizePathSlashes(resolve(packageRoot, sourcePath));
+  }
+
+  if (isAbsolute(modulePath)) {
+    const packageRoot = resolve(dirname(modulePath), "..", "..");
+    return normalizePathSlashes(resolve(packageRoot, sourcePath));
+  }
+
+  return sourcePath;
 }

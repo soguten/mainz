@@ -12,8 +12,6 @@ import {
   resolveTargetBuildProfile,
 } from "../profiles.ts";
 import {
-  renderMaterializedDenoViteRuntimeModule,
-  renderMaterializedNodeViteRuntimeModule,
   renderMaterializedViteConfigModule,
   renderGeneratedViteConfigModule,
   resolveMainzBuildModulePath,
@@ -379,8 +377,12 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
 
     assertStringIncludes(
       moduleSource,
-      'import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";',
+      'import { createMainzGeneratedVitePlugins } from "file:///',
     );
+    assertStringIncludes(moduleSource, "src/public/tooling-vite-build.ts");
+    assertStringIncludes(moduleSource, 'import { defineConfig } from "npm:vite@8.0.16";');
+    assertStringIncludes(moduleSource, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
+    assertStringIncludes(moduleSource, 'import ts from "npm:typescript@5.9.3";');
     assertStringIncludes(moduleSource, `root: "./site"`);
     assertStringIncludes(moduleSource, `publicDir: "./public"`);
     assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
@@ -428,7 +430,7 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
     const configPath = join(siteDir, "vite.config.ts");
     const moduleSource = renderMaterializedViteConfigModule(generated)
       .replaceAll(
-        'import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";\n',
+        'import { defineConfig } from "npm:vite@8.0.16";\n',
         "const defineConfig = (config) => config;\n",
       )
       .replace(
@@ -464,47 +466,6 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
     process.chdir(previousCwd);
     await Deno.remove(cwd, { recursive: true });
   }
-});
-
-Deno.test("build/vite-config: should render a managed Deno runtime helper for materialized configs", () => {
-  const helperSource = renderMaterializedDenoViteRuntimeModule();
-
-  assertStringIncludes(helperSource, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
-  assertStringIncludes(
-    helperSource,
-    "import { createMainzGeneratedVitePlugins } from ",
-  );
-  assertStringIncludes(helperSource, "vite-plugin-factory.ts");
-  assertStringIncludes(helperSource, 'import ts from "npm:typescript@5.9.3";');
-  assertStringIncludes(
-    helperSource,
-    'import { defineConfig } from "npm:vite@8.0.16";',
-  );
-  assertStringIncludes(
-    helperSource,
-    "export { createMainzGeneratedVitePlugins, defineConfig, deno, ts };",
-  );
-});
-
-Deno.test("build/vite-config: should render a managed Node runtime helper for materialized configs", () => {
-  const helperSource = renderMaterializedNodeViteRuntimeModule();
-
-  assertStringIncludes(
-    helperSource,
-    "import { createMainzGeneratedVitePlugins } from ",
-  );
-  assertStringIncludes(helperSource, "vite-plugin-factory.ts");
-  assertStringIncludes(
-    helperSource,
-    'import { defineConfig } from "mainz/tooling/vite";',
-  );
-  assertEquals(helperSource.includes('from "mainz/tooling/build"'), false);
-  assertEquals(helperSource.includes("@deno/vite-plugin"), false);
-  assertEquals(helperSource.includes('import ts from "typescript";'), false);
-  assertStringIncludes(
-    helperSource,
-    "export { createMainzGeneratedVitePlugins, defineConfig };",
-  );
 });
 
 Deno.test("build/vite-config: should render an SSR server bundle config", () => {

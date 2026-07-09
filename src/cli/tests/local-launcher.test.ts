@@ -342,16 +342,15 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
       resolve(cwd, "site", "vite.config.ts"),
     );
     assertStringIncludes(materializedConfig, "@mainz-materialized-vite-config");
-
-    const runtimeHelper = await Deno.readTextFile(
-      resolve(cwd, "site", ".mainz", "vite-runtime.ts"),
-    );
-    assertStringIncludes(runtimeHelper, 'import { defineConfig } from "mainz/tooling/vite";');
     assertStringIncludes(
-      runtimeHelper,
+      materializedConfig,
+      'import { defineConfig } from "mainz/tooling/vite";',
+    );
+    assertStringIncludes(
+      materializedConfig,
       "import { createMainzGeneratedVitePlugins } from ",
     );
-    assertStringIncludes(runtimeHelper, "vite-plugin-factory.ts");
+    assertStringIncludes(materializedConfig, "src/public/tooling-vite-build.ts");
 
     const build = await runNodeProjectMainz(cwd, [
       "build",
@@ -382,7 +381,6 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
     );
 
     await assertPathMissing(resolve(cwd, "site", "vite.config.ts"));
-    await assertPathMissing(resolve(cwd, "site", ".mainz", "vite-runtime.ts"));
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -914,6 +912,7 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
           "./jsx-dev-runtime": "./src/jsx-dev-runtime.js",
           "./tooling/build": "./src/public/tooling-build.ts",
           "./tooling/cli": "./src/public/tooling-cli.js",
+          "./tooling/vite-build": "./src/public/tooling-vite-build.ts",
           "./tooling/vite": "./src/public/tooling-vite.js",
         },
         dependencies: {
