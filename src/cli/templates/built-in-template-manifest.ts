@@ -34,11 +34,13 @@ export const builtInTemplateManifest = {
     "Dockerfile.tpl",
   ],
   "project/deno/empty": [
+    ".gitignore.tpl",
     "README.md.tpl",
     "deno.json.tpl",
     "mainz.config.ts.tpl",
   ],
   "project/deno/starter": [
+    ".gitignore.tpl",
     "README.md.tpl",
     "app/deno.json.tpl",
     "app/index.html.tpl",
@@ -51,6 +53,7 @@ export const builtInTemplateManifest = {
     "mainz.config.ts.tpl",
   ],
   "project/node/empty": [
+    ".gitignore.tpl",
     ".npmrc.tpl",
     "README.md.tpl",
     "mainz.config.ts.tpl",
@@ -59,6 +62,7 @@ export const builtInTemplateManifest = {
     "tsconfig.json.tpl",
   ],
   "project/node/starter": [
+    ".gitignore.tpl",
     ".npmrc.tpl",
     "README.md.tpl",
     "app/index.html.tpl",

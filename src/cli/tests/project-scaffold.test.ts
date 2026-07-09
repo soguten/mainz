@@ -43,19 +43,25 @@ Deno.test("cli/templates: should read built-in templates from the filesystem tre
 });
 
 Deno.test("cli/templates: built-in template manifest should match the filesystem tree", async () => {
-  const entries = Object.entries(builtInTemplateManifest).sort(([left], [right]) =>
-    left.localeCompare(right)
-  );
+  const entries = Object.entries(builtInTemplateManifest).sort((
+    [left],
+    [right],
+  ) => left.localeCompare(right));
 
   const expected = await Promise.all(entries.map(async ([templateKey]) => {
     const [kind, ...nameParts] = templateKey.split("/");
     const templateDir = resolve("templates", kind, ...nameParts);
     const template = await loadTemplateFromTree(templateDir);
-    return [templateKey, template.files.map((file) => file.path).sort()] as const;
+    return [
+      templateKey,
+      template.files.map((file) => file.path).sort(),
+    ] as const;
   }));
 
   assertEquals(
-    entries.map(([templateKey, files]) => [templateKey, [...files].sort()] as const),
+    entries.map(([templateKey, files]) =>
+      [templateKey, [...files].sort()] as const
+    ),
     expected,
   );
 });
@@ -123,11 +129,14 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
 
   assertEquals(
     plan.files.map((file) => file.path).sort(),
-    ["README.md", "deno.json", "mainz.config.ts"],
+    [".gitignore", "README.md", "deno.json", "mainz.config.ts"],
   );
 
   const config = plan.files.find((file) => file.path === "mainz.config.ts");
   assertStringIncludes(config?.content ?? "", 'runtime: "deno"');
+  const gitignore = plan.files.find((file) => file.path === ".gitignore");
+  assertStringIncludes(gitignore?.content ?? "", ".mainz_temp/");
+  assertStringIncludes(gitignore?.content ?? "", "node_modules/");
 
   const denoConfig = plan.files.find((file) => file.path === "deno.json");
   assertStringIncludes(
@@ -136,7 +145,10 @@ Deno.test("cli/templates/project: empty deno should materialize the shared proje
   );
   const readme = plan.files.find((file) => file.path === "README.md");
   assertStringIncludes(readme?.content ?? "", "deno install");
-  assertStringIncludes(readme?.content ?? "", "deno task mainz app create my-app");
+  assertStringIncludes(
+    readme?.content ?? "",
+    "deno task mainz app create my-app",
+  );
   assertStringIncludes(readme?.content ?? "", "deno task dev --target my-app");
 });
 
@@ -167,6 +179,7 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
   assertEquals(
     [...files.keys()].sort(),
     [
+      ".gitignore",
       "README.md",
       "app/deno.json",
       "app/index.html",
@@ -184,6 +197,9 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
   assertStringIncludes(config?.content ?? "", 'runtime: "deno"');
   assertStringIncludes(config?.content ?? "", 'name: "app"');
   assertStringIncludes(config?.content ?? "", 'appFile: "./app/src/app.ts"');
+  const gitignore = files.get(".gitignore");
+  assertStringIncludes(gitignore?.content ?? "", ".mainz_temp/");
+  assertStringIncludes(gitignore?.content ?? "", "node_modules/");
 
   const homePage = files.get("app/src/pages/Home.page.tsx");
   assertStringIncludes(
@@ -196,12 +212,23 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
   assertEquals(counter?.content.includes("@CustomElement"), false);
   assertStringIncludes(
     counter?.content ?? "",
+    'import { Component, type NoProps } from "mainz";',
+  );
+  assertStringIncludes(
+    counter?.content ?? "",
+    "extends Component<NoProps, CounterState>",
+  );
+  assertStringIncludes(
+    counter?.content ?? "",
     "this.setState({ count: this.state.count + 1 })",
   );
   const readme = files.get("README.md");
   assertStringIncludes(readme?.content ?? "", "deno install");
   assertStringIncludes(readme?.content ?? "", "deno task dev --target app");
-  assertStringIncludes(readme?.content ?? "", "deno task mainz app create my-app");
+  assertStringIncludes(
+    readme?.content ?? "",
+    "deno task mainz app create my-app",
+  );
 });
 
 Deno.test("cli/templates/project: starter node should use node-compatible workspace paths", async () => {
@@ -232,6 +259,7 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
   assertEquals(
     [...files.keys()].sort(),
     [
+      ".gitignore",
       ".npmrc",
       "README.md",
       "app/index.html",
@@ -252,13 +280,19 @@ Deno.test("cli/templates/project: starter node should use node-compatible worksp
   assertEquals(packageJson.workspaces, ["app"]);
   assertEquals(packageJson.scripts?.mainz, "node ./scripts/mainz.mjs");
   assertEquals(packageJson.scripts?.dev, "npm run mainz -- dev");
+  const gitignore = files.get(".gitignore");
+  assertStringIncludes(gitignore?.content ?? "", ".mainz_temp/");
+  assertStringIncludes(gitignore?.content ?? "", "node_modules/");
 
   const launcher = files.get("scripts/mainz.mjs");
   assertStringIncludes(launcher?.content ?? "", 'from "mainz/tooling/cli"');
   const readme = files.get("README.md");
   assertStringIncludes(readme?.content ?? "", "npm install");
   assertStringIncludes(readme?.content ?? "", "npm run dev -- --target app");
-  assertStringIncludes(readme?.content ?? "", "npm run mainz -- app create my-app");
+  assertStringIncludes(
+    readme?.content ?? "",
+    "npm run mainz -- app create my-app",
+  );
 });
 
 Deno.test("cli/templates: should load built-in templates from a remote URL tree", async () => {
@@ -291,7 +325,10 @@ Deno.test("cli/templates: should load built-in templates from a remote URL tree"
     const remoteTemplateRoot =
       `http://127.0.0.1:${port}/templates/project/deno/starter`;
     const template = await loadTemplate(remoteTemplateRoot, denoToolingRuntime);
-    assertEquals(template.filePaths, builtInTemplateManifest["project/deno/starter"]);
+    assertEquals(
+      template.filePaths,
+      builtInTemplateManifest["project/deno/starter"],
+    );
 
     const plan = await instantiateTemplate({
       runtime: denoToolingRuntime,
@@ -317,7 +354,73 @@ Deno.test("cli/templates: should load built-in templates from a remote URL tree"
     );
 
     assertStringIncludes(files.get("mainz.config.ts") ?? "", 'runtime: "deno"');
-    assertStringIncludes(files.get("app/src/pages/Home.page.tsx") ?? "", "override metadata()");
+    assertStringIncludes(
+      files.get("app/src/pages/Home.page.tsx") ?? "",
+      "override metadata()",
+    );
+  } finally {
+    abortController.abort();
+    await server.finished;
+  }
+});
+
+Deno.test("cli/templates: should load remote built-in templates with dotfiles", async () => {
+  const portListener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  const port = (portListener.addr as Deno.NetAddr).port;
+  portListener.close();
+  const abortController = new AbortController();
+  const server = Deno.serve({
+    hostname: "127.0.0.1",
+    port,
+    signal: abortController.signal,
+  }, async (request) => {
+    const url = new URL(request.url);
+    const relativePath = url.pathname.replace(/^\/+/, "");
+    const absolutePath = resolve(relativePath);
+
+    try {
+      const content = await Deno.readTextFile(absolutePath);
+      return new Response(content, { status: 200 });
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      throw error;
+    }
+  });
+
+  try {
+    const containerTemplate = await loadTemplate(
+      `http://127.0.0.1:${port}/templates/container/dockerignore`,
+      denoToolingRuntime,
+    );
+    assertEquals(
+      containerTemplate.filePaths,
+      builtInTemplateManifest["container/dockerignore"],
+    );
+    assertEquals(containerTemplate.files?.map((file) => file.path), [
+      ".dockerignore.tpl",
+    ]);
+    assertStringIncludes(
+      containerTemplate.files?.[0]?.content ?? "",
+      "node_modules/",
+    );
+    assertStringIncludes(containerTemplate.files?.[0]?.content ?? "", ".git/");
+
+    const projectTemplate = await loadTemplate(
+      `http://127.0.0.1:${port}/templates/project/deno/empty`,
+      denoToolingRuntime,
+    );
+    assertEquals(
+      projectTemplate.filePaths,
+      builtInTemplateManifest["project/deno/empty"],
+    );
+    assertEquals(
+      projectTemplate.files?.find((file) => file.path === ".gitignore.tpl")
+        ?.content,
+      ".mainz_temp/\nnode_modules/\ndist/\n",
+    );
   } finally {
     abortController.abort();
     await server.finished;

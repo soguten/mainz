@@ -2205,7 +2205,11 @@ async function runBuildCommand(
 ): Promise<void> {
   const cwd = runtime.cwd();
   const build = await loadBuildApi();
-  const jobs = await build.resolveEngineBuildJobs(normalizedConfig, options, cwd);
+  const jobs = await build.resolveEngineBuildJobs(
+    normalizedConfig,
+    options,
+    cwd,
+  );
   const selectedTargets = new Map(
     jobs.map((job) => [job.target.name, job.target]),
   );
@@ -3594,8 +3598,9 @@ function findTopLevelObjectRanges(
       continue;
     }
 
+    const lineStart = content.lastIndexOf("\n", index) + 1;
     const end = findMatchingBracket(content, index, "{", "}") + 1;
-    ranges.push({ start: index, end });
+    ranges.push({ start: lineStart, end });
     index = end;
   }
 
@@ -3719,10 +3724,14 @@ function upsertObjectProperty(
     throw new Error("Expected target object source.");
   }
 
+  const openIndex = objectSource.indexOf("{");
+  const closeIndent = openIndex >= 0
+    ? inferLineIndent(objectSource, openIndex)
+    : inferLineIndent(objectSource, closeIndex);
   const beforeClose = objectSource.slice(0, closeIndex).replace(/\s*$/, "");
   const afterClose = objectSource.slice(closeIndex);
   const separator = beforeClose.trimEnd().endsWith("{") ? "\n" : "\n";
-  return `${beforeClose}${separator}${propertySource}\n${afterClose}`;
+  return `${beforeClose}${separator}${propertySource}\n${closeIndent}${afterClose}`;
 }
 
 function findTopLevelPropertyRange(
@@ -5825,7 +5834,9 @@ function renderGeneratedMainzSubpathPrefix(mainzSpecifier: string): string {
   return `${trimmed}/`;
 }
 
-function renderGeneratedMainzToolingCliSpecifier(mainzSpecifier: string): string {
+function renderGeneratedMainzToolingCliSpecifier(
+  mainzSpecifier: string,
+): string {
   return `${mainzSpecifier.trim().replace(/\/+$/, "")}/tooling/cli`;
 }
 
@@ -6055,7 +6066,9 @@ function assertCommandAllowedInScope(
     command.command === "init"
   ) {
     throw new CliUsageError(
-      `Command "${renderCommandDisplayName(command)}" is not available from a project-local Mainz launcher. Run the host Mainz CLI directly for bootstrap or global tooling commands.`,
+      `Command "${
+        renderCommandDisplayName(command)
+      }" is not available from a project-local Mainz launcher. Run the host Mainz CLI directly for bootstrap or global tooling commands.`,
       "init",
     );
   }

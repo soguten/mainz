@@ -48,7 +48,12 @@
       "mod.ts",
       "src/**",
       "templates/**",
+      "templates/container/dockerignore/files/.dockerignore.tpl",
+      "templates/project/deno/empty/files/.gitignore.tpl",
+      "templates/project/deno/starter/files/.gitignore.tpl",
       "templates/project/node/empty/files/.npmrc.tpl",
+      "templates/project/node/empty/files/.gitignore.tpl",
+      "templates/project/node/starter/files/.gitignore.tpl",
       "templates/project/node/starter/files/.npmrc.tpl"
     ],
     "exclude": [

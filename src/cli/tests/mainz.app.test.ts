@@ -58,6 +58,10 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
       denoConfig.tasks?.dev,
       "deno task mainz dev",
     );
+
+    const gitignore = await Deno.readTextFile(resolve(cwd, ".gitignore"));
+    assertStringIncludes(gitignore, ".mainz_temp/");
+    assertStringIncludes(gitignore, "node_modules/");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -110,7 +114,10 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
       `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
     );
     assertStringIncludes(result.stdout, "Initialized Mainz starter project");
-    assertStringIncludes(result.stdout, 'Run "deno task mainz dev --target app"');
+    assertStringIncludes(
+      result.stdout,
+      'Run "deno task mainz dev --target app"',
+    );
 
     const config = await Deno.readTextFile(
       resolve(cwd, "demo", "mainz.config.ts"),
@@ -138,7 +145,11 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
     const counter = await Deno.readTextFile(
       resolve(cwd, "demo", "app", "src", "components", "Counter.tsx"),
     );
-    assertStringIncludes(counter, 'import { Component } from "mainz";');
+    assertStringIncludes(
+      counter,
+      'import { Component, type NoProps } from "mainz";',
+    );
+    assertStringIncludes(counter, "extends Component<NoProps, CounterState>");
     assertEquals(counter.includes("@CustomElement"), false);
     assertStringIncludes(
       counter,
@@ -161,6 +172,12 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
       denoConfig.tasks?.mainz,
       "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
     );
+
+    const gitignore = await Deno.readTextFile(
+      resolve(cwd, "demo", ".gitignore"),
+    );
+    assertStringIncludes(gitignore, ".mainz_temp/");
+    assertStringIncludes(gitignore, "node_modules/");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -282,6 +299,9 @@ Deno.test("cli/mainz init: should create a node project when --runtime node is p
       '"mainz": "npm:@jsr/mainz__mainz@0.1.0-alpha.99"',
     );
     assertStringIncludes(packageJson, '"mainz": "node ./scripts/mainz.mjs"');
+    const gitignore = await Deno.readTextFile(resolve(cwd, ".gitignore"));
+    assertStringIncludes(gitignore, ".mainz_temp/");
+    assertStringIncludes(gitignore, "node_modules/");
     const npmrc = await Deno.readTextFile(resolve(cwd, ".npmrc"));
     assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
     await assertRejectsNotFound(resolve(cwd, "deno.json"));
@@ -331,7 +351,15 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
     assertEquals(packageJson.scripts?.mainz, "node ./scripts/mainz.mjs");
     assertEquals(packageJson.scripts?.dev, "npm run mainz -- dev");
     assertEquals(packageJson.workspaces, ["app"]);
-    assertStringIncludes(result.stdout, 'Run "npm run mainz -- dev --target app"');
+    assertStringIncludes(
+      result.stdout,
+      'Run "npm run mainz -- dev --target app"',
+    );
+    const gitignore = await Deno.readTextFile(
+      resolve(cwd, "demo", ".gitignore"),
+    );
+    assertStringIncludes(gitignore, ".mainz_temp/");
+    assertStringIncludes(gitignore, "node_modules/");
     const npmrc = await Deno.readTextFile(resolve(cwd, "demo", ".npmrc"));
     assertStringIncludes(npmrc, "@jsr:registry=https://npm.jsr.io");
 
@@ -376,7 +404,12 @@ Deno.test("tooling/project-cli: js wrapper should execute project commands when 
 
     const create = await runMainz(cwd, ["app", "create", "docs"], {
       denoRunConfigPath: resolve(cliTestsRepoRoot, "jsr.json"),
-      cliEntryPath: resolve(cliTestsRepoRoot, "src", "public", "tooling-cli.js"),
+      cliEntryPath: resolve(
+        cliTestsRepoRoot,
+        "src",
+        "public",
+        "tooling-cli.js",
+      ),
     });
 
     assertEquals(
@@ -448,9 +481,13 @@ Deno.test("tooling/bootstrap-cli: should materialize the node starter template f
       Deno.chdir(previousCwd);
     }
 
-    const config = await Deno.readTextFile(resolve(cwd, "demo", "mainz.config.ts"));
+    const config = await Deno.readTextFile(
+      resolve(cwd, "demo", "mainz.config.ts"),
+    );
     assertStringIncludes(config, 'runtime: "node"');
-    await Deno.stat(resolve(cwd, "demo", "app", "src", "pages", "Home.page.tsx"));
+    await Deno.stat(
+      resolve(cwd, "demo", "app", "src", "pages", "Home.page.tsx"),
+    );
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
@@ -1576,6 +1613,13 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
 
     const config = await Deno.readTextFile(resolve(cwd, "mainz.config.ts"));
     assertStringIncludes(config, 'viteConfig: "./site/vite.config.ts"');
+    assertStringIncludes(
+      config,
+      [
+        '      viteConfig: "./site/vite.config.ts",',
+        "    },",
+      ].join("\n"),
+    );
     assertEquals(config.includes("vite: {"), false);
 
     const materialized = await Deno.readTextFile(
@@ -1596,7 +1640,10 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
       materialized,
       'import deno from "npm:@deno/vite-plugin@2.0.2";',
     );
-    assertStringIncludes(materialized, 'import ts from "npm:typescript@5.9.3";');
+    assertStringIncludes(
+      materialized,
+      'import ts from "npm:typescript@5.9.3";',
+    );
     assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
     assertStringIncludes(materialized, '"@content"');
   } finally {
