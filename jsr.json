@@ -32,6 +32,7 @@
     "./tooling/cli": "./src/public/tooling-cli.js",
     "./tooling/build": "./src/public/tooling-build.ts",
     "./tooling/vite-build": "./src/public/tooling-vite-build.ts",
+    "./tooling/vite-build-node": "./src/public/tooling-vite-build-node.ts",
     "./tooling/config": "./src/public/tooling-config.ts",
     "./tooling/diagnostics": "./src/diagnostics/index.ts",
     "./tooling/runtime": "./src/public/tooling-runtime.ts",

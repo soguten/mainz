@@ -1634,20 +1634,7 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
     assertStringIncludes(materialized, "@mainz-materialized-vite-metadata");
     assertStringIncludes(
       materialized,
-      "import { createMainzGeneratedVitePlugins } from ",
-    );
-    assertStringIncludes(materialized, "src/public/tooling-vite-build.ts");
-    assertStringIncludes(
-      materialized,
-      'import { defineConfig } from "npm:vite@8.0.16";',
-    );
-    assertStringIncludes(
-      materialized,
-      'import deno from "npm:@deno/vite-plugin@2.0.2";',
-    );
-    assertStringIncludes(
-      materialized,
-      'import ts from "npm:typescript@5.9.3";',
+      'import { createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts } from "mainz/tooling/vite-build";',
     );
     assertStringIncludes(materialized, '"__SITE_FLAG__": "true"');
     assertStringIncludes(materialized, '"@content"');

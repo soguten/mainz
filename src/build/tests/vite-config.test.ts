@@ -375,17 +375,13 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
     });
     const moduleSource = renderMaterializedViteConfigModule(generated);
 
-    assertStringIncludes(
-      moduleSource,
-      'import { createMainzGeneratedVitePlugins } from "file:///',
-    );
-    assertStringIncludes(moduleSource, "src/public/tooling-vite-build.ts");
-    assertStringIncludes(moduleSource, 'import { defineConfig } from "npm:vite@8.0.16";');
-    assertStringIncludes(moduleSource, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
-    assertStringIncludes(moduleSource, 'import ts from "npm:typescript@5.9.3";');
-    assertStringIncludes(moduleSource, `root: "./site"`);
-    assertStringIncludes(moduleSource, `publicDir: "./public"`);
-    assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
+  assertStringIncludes(
+    moduleSource,
+    'import { createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts } from "mainz/tooling/vite-build";',
+  );
+  assertStringIncludes(moduleSource, `root: "./site"`);
+  assertStringIncludes(moduleSource, `publicDir: "./public"`);
+  assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
     assertStringIncludes(moduleSource, `outDir: "../dist/site/browser"`);
     assertStringIncludes(moduleSource, `"cwd": ".."`);
     assertStringIncludes(
@@ -429,9 +425,9 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
     const siteDir = join(cwd, "site");
     const configPath = join(siteDir, "vite.config.ts");
     const moduleSource = renderMaterializedViteConfigModule(generated)
-      .replaceAll(
-        'import { defineConfig } from "npm:vite@8.0.16";\n',
-        "const defineConfig = (config) => config;\n",
+      .replace(
+        /^import \{ .* \} from "mainz\/tooling\/vite-build";\n/m,
+        "const defineConfig = (config) => config;\nconst createMainzGeneratedVitePlugins = () => [];\n",
       )
       .replace(
         /    plugins: createMainzGeneratedVitePlugins\(\{[\s\S]*?    \}\),\n/,

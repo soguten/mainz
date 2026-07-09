@@ -161,7 +161,20 @@ function renderViteConfigModule(
     } }`;
   });
 
-  const imports = mode === "materialized"
+  const imports = mode === "materialized" && runtime === "deno"
+    ? [
+      `import { ${
+        "createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts"
+      } from ${
+        JSON.stringify(
+          resolveMaterializedVitePluginImportSpecifier(
+            config.devMiddleware.modulePath,
+            runtime,
+          ),
+        )
+      };`,
+    ]
+    : mode === "materialized"
     ? [
       `import { createMainzGeneratedVitePlugins } from ${
         JSON.stringify(
@@ -198,7 +211,7 @@ function renderViteConfigModule(
     configLines.push(`    cacheDir: ${JSON.stringify(config.cacheDir)},`);
   }
 
-  if (runtime === "deno") {
+  if (runtime === "deno" && mode !== "materialized") {
     imports.unshift(
       `import deno from ${
         JSON.stringify(
@@ -648,17 +661,19 @@ function resolveMaterializedVitePluginImportSpecifier(
   modulePath: string,
   runtime: ToolingRuntimeName,
 ): string {
-  if (runtime === "node") {
-    const publishedSpecifier = resolvePublishedMainzPackageSpecifier(modulePath);
-    if (publishedSpecifier) {
-      return "mainz/tooling/vite-build";
-    }
+  if (runtime === "deno") {
+    return "mainz/tooling/vite-build";
+  }
+
+  const publishedSpecifier = resolvePublishedMainzPackageSpecifier(modulePath);
+  if (publishedSpecifier) {
+    return "mainz/tooling/vite-build-node";
   }
 
   return resolveGeneratedModuleImportSpecifier(
     resolveMainzPublicEntrypointSourcePath(
       modulePath,
-      "src/public/tooling-vite-build.ts",
+      "src/public/tooling-vite-build-node.ts",
     ),
     runtime,
   );

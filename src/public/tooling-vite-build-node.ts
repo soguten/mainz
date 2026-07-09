@@ -5,5 +5,3 @@ export type {
   MainzGeneratedVitePluginsOptions,
 } from "../build/vite-plugin-factory.ts";
 export { defineConfig } from "vite";
-export { default as typescript } from "typescript";
-export { default as denoVitePlugin } from "@deno/vite-plugin";

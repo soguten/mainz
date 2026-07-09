@@ -350,7 +350,10 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
       materializedConfig,
       "import { createMainzGeneratedVitePlugins } from ",
     );
-    assertStringIncludes(materializedConfig, "src/public/tooling-vite-build.ts");
+    assertStringIncludes(
+      materializedConfig,
+      "src/public/tooling-vite-build-node.ts",
+    );
 
     const build = await runNodeProjectMainz(cwd, [
       "build",
@@ -750,6 +753,7 @@ async function rewireDenoProjectToLocalTooling(projectDir: string): Promise<void
   denoConfig.imports = {
     ...(denoConfig.imports ?? {}),
     "@deno/loader": "npm:@jsr/deno__loader@^0.5.0",
+    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
     "@std/jsonc": "npm:@jsr/std__jsonc@^1",
     "happy-dom": "npm:happy-dom@20.9.0",
     mainz: toFileSpecifier(resolve(cliTestsRepoRoot, "mod.ts")),
@@ -762,6 +766,11 @@ async function rewireDenoProjectToLocalTooling(projectDir: string): Promise<void
     "mainz/jsx-dev-runtime": toFileSpecifier(
       resolve(cliTestsRepoRoot, "src", "jsx-dev-runtime.ts"),
     ),
+    "mainz/tooling/vite-build": toFileSpecifier(
+      resolve(cliTestsRepoRoot, "src", "public", "tooling-vite-build.ts"),
+    ),
+    typescript: "npm:typescript@5.9.3",
+    vite: "npm:vite@8.0.16",
   };
   denoConfig.tasks = {
     ...(denoConfig.tasks ?? {}),
@@ -913,6 +922,7 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
           "./tooling/build": "./src/public/tooling-build.ts",
           "./tooling/cli": "./src/public/tooling-cli.js",
           "./tooling/vite-build": "./src/public/tooling-vite-build.ts",
+          "./tooling/vite-build-node": "./src/public/tooling-vite-build-node.ts",
           "./tooling/vite": "./src/public/tooling-vite.js",
         },
         dependencies: {
