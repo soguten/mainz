@@ -4,7 +4,7 @@ A class-based frontend framework for Web Components with TSX ergonomics.
 
 ## Create a project
 
-This README uses `npm` in the examples. The default runtime is Node. Use
+This README uses `npm` in the CLI examples. The default runtime is Node. Use
 `--runtime deno` if you want a Deno project.
 
 ```bash
