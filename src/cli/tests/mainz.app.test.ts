@@ -41,11 +41,13 @@ Deno.test("cli/mainz init: should initialize an empty project", async () => {
     };
     assertEquals(denoConfig.compilerOptions?.jsxImportSource, "mainz");
     assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
-    assertEquals(denoConfig.imports?.typescript, "npm:typescript@5.9.3");
     assertEquals(
       denoConfig.imports?.["mainz/"],
       "jsr:/@mainz/mainz@0.1.0-alpha.99/",
     );
+    assertEquals(denoConfig.imports?.typescript, undefined);
+    assertEquals(denoConfig.imports?.vite, undefined);
+    assertEquals(denoConfig.imports?.["@deno/vite-plugin"], undefined);
     assertEquals(
       denoConfig.tasks?.mainz,
       "deno run -A --config deno.json jsr:@mainz/mainz@0.1.0-alpha.99/tooling/cli",
@@ -163,7 +165,10 @@ Deno.test("cli/mainz init: should initialize a deno starter project", async () =
       tasks?: Record<string, unknown>;
     };
     assertEquals(denoConfig.imports?.mainz, "jsr:@mainz/mainz@0.1.0-alpha.99");
-    assertEquals(denoConfig.imports?.typescript, "npm:typescript@5.9.3");
+    assertEquals(denoConfig.imports?.["mainz/"], "jsr:/@mainz/mainz@0.1.0-alpha.99/");
+    assertEquals(denoConfig.imports?.typescript, undefined);
+    assertEquals(denoConfig.imports?.vite, undefined);
+    assertEquals(denoConfig.imports?.["@deno/vite-plugin"], undefined);
     assertEquals(
       denoConfig.tasks?.dev,
       "deno task mainz dev",

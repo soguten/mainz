@@ -6,11 +6,8 @@
     "strict": true
   },
   "imports": {
-    "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
     "mainz": "{{mainzSpecifier}}",
-    "mainz/": "{{mainzSubpathPrefix}}",
-    "typescript": "npm:typescript@5.9.3",
-    "vite": "npm:vite@8.0.16"
+    "mainz/": "{{mainzSubpathPrefix}}"
   },
   "tasks": {
     "mainz": "deno run -A --config {{denoConfigPath}} {{mainzToolingCliSpecifier}}",
