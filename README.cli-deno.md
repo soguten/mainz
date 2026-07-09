@@ -3,7 +3,7 @@
 Deno-hosted command-line tooling for Mainz.
 
 ```powershell
-deno install -A -g -f -n mainz jsr:@mainz/cli-deno@0.1.0-alpha.72
+deno install -A -g -f -n mainz jsr:@mainz/cli-deno@0.1.0-alpha.73
 ```
 
 `mainz` is the ergonomic command. Other Mainz CLIs can still delegate to the
