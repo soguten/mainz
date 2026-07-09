@@ -1,10 +1,10 @@
-import { Component } from "mainz";
+import { Component, type NoProps } from "mainz";
 
 type CounterState = {
   count: number;
 };
 
-export class Counter extends Component<{}, CounterState> {
+export class Counter extends Component<NoProps, CounterState> {
   protected override initState(): CounterState {
     return { count: 0 };
   }

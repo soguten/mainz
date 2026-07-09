@@ -1616,8 +1616,8 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
     assertStringIncludes(
       config,
       [
-        '      viteConfig: "./site/vite.config.ts",',
-        "    },",
+        '            viteConfig: "./site/vite.config.ts",',
+        "        },",
       ].join("\n"),
     );
     assertEquals(config.includes("vite: {"), false);

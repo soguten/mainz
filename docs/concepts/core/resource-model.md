@@ -70,9 +70,11 @@ export class DocsPage extends Page {
 Or from a component owner:
 
 ```tsx title="DocsArticleContent.tsx"
+import { Component, type NoProps, type NoState } from "mainz";
+
 @RenderStrategy("blocking")
 export class DocsArticleContent
-  extends Component<{}, NoState, DocsArticleModel> {
+  extends Component<NoProps, NoState, DocsArticleModel> {
   override async load() {
     return await docsArticleData.load(this.route.params.slug);
   }
@@ -123,4 +125,3 @@ Mainz now keeps the async model simple:
 - `@RenderMode(...)` and `@RenderStrategy(...)` describe rendering behavior
 
 For the ownership-first loading flow, see [Data Loading](./data-loading.md).
-

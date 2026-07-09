@@ -17,9 +17,9 @@ Use it for overlays that should not be trapped by local layout containers:
 - floating menus that need to escape `overflow`, `transform`, or local `z-index`
 
 ```tsx title="SearchDialog.tsx"
-import { Component, Portal } from "mainz";
+import { Component, type NoProps, Portal } from "mainz";
 
-export class SearchDialog extends Component<{}, { open: boolean }> {
+export class SearchDialog extends Component<NoProps, { open: boolean }> {
   protected override initState() {
     return { open: false };
   }

@@ -51,8 +51,10 @@ It answers questions like:
 - can it show `placeholder()` first?
 
 ```tsx title="DocsArticleContent.tsx"
+import { Component, type NoProps, type NoState } from "mainz";
+
 export class DocsArticleContent
-  extends Component<{}, NoState, DocsArticleModel> {
+  extends Component<NoProps, NoState, DocsArticleModel> {
   override async load(context) {
     return await buildDocsArticleModel(this.route.params.slug, {
       signal: context.signal,
@@ -164,9 +166,11 @@ first-render-critical.
 Use this for public content that belongs in the first HTML response.
 
 ```tsx title="DocsArticleContent.tsx"
+import { Component, type NoProps, type NoState } from "mainz";
+
 @RenderStrategy("blocking")
 export class DocsArticleContent
-  extends Component<{}, NoState, DocsArticleModel> {
+  extends Component<NoProps, NoState, DocsArticleModel> {
   override async load(context) {
     return await buildDocsArticleModel(this.route.params.slug, {
       signal: context.signal,
@@ -189,8 +193,14 @@ Use this for secondary UI like `On this page`, related content, or non-critical
 side panels.
 
 ```tsx title="OnThisPage.tsx"
+import { Component, type NoProps, type NoState } from "mainz";
+
 @RenderStrategy("defer")
-export class OnThisPage extends Component<{}, NoState, readonly Heading[]> {
+export class OnThisPage extends Component<
+  NoProps,
+  NoState,
+  readonly Heading[]
+> {
   override async load(context) {
     return await collectArticleHeadings({
       signal: context.signal,
@@ -219,10 +229,12 @@ Use this for browser-local or user-specific state like recent pages, local
 preferences, or authenticated UI.
 
 ```tsx title="RecentlyViewedDocs.tsx"
+import { Component, type NoProps, type NoState } from "mainz";
+
 @RenderStrategy("blocking")
 @RenderPolicy("placeholder-in-ssg")
 export class RecentlyViewedDocs extends Component<
-  {},
+  NoProps,
   NoState,
   readonly RecentlyViewedDoc[]
 > {

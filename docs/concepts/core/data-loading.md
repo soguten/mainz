@@ -144,7 +144,10 @@ export class DocsPage extends Page {
 ```
 
 ```tsx title="DocsArticleContent.tsx"
-export class DocsArticleContent extends Component<{}, NoState, DocsPageModel> {
+import { Component, type NoProps, type NoState } from "mainz";
+
+export class DocsArticleContent
+  extends Component<NoProps, NoState, DocsPageModel> {
   override async load(context) {
     return await buildDocsArticlePageModel(this.route.params.slug, {
       signal: context.signal,
@@ -361,4 +364,3 @@ The short version is:
 - `@RenderPolicy(...)` belongs to the component and defines what SSG should do
   with that component
 - `Component.load()` is the normal component-owned async path
-
