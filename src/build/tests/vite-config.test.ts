@@ -13,6 +13,7 @@ import {
 } from "../profiles.ts";
 import {
   renderMaterializedDenoViteRuntimeModule,
+  renderMaterializedNodeViteRuntimeModule,
   renderMaterializedViteConfigModule,
   renderGeneratedViteConfigModule,
   resolveMainzBuildModulePath,
@@ -310,7 +311,10 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
     });
     const moduleSource = renderGeneratedViteConfigModule(generated, "node");
 
-    assertStringIncludes(moduleSource, `import { defineConfig } from "vite";`);
+    assertStringIncludes(
+      moduleSource,
+      `import { defineConfig } from "mainz/tooling/vite";`,
+    );
     assertStringIncludes(
       moduleSource,
       `import { createMainzGeneratedVitePlugins } from `,
@@ -425,7 +429,7 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
     const moduleSource = renderMaterializedViteConfigModule(generated)
       .replaceAll(
         'import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";\n',
-        'import { defineConfig } from "vite";\n',
+        "const defineConfig = (config) => config;\n",
       )
       .replace(
         /    plugins: createMainzGeneratedVitePlugins\(\{[\s\S]*?    \}\),\n/,
@@ -465,16 +469,41 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
 Deno.test("build/vite-config: should render a managed Deno runtime helper for materialized configs", () => {
   const helperSource = renderMaterializedDenoViteRuntimeModule();
 
-  assertStringIncludes(helperSource, 'import deno from "@deno/vite-plugin";');
+  assertStringIncludes(helperSource, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
   assertStringIncludes(
     helperSource,
-    'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";',
+    "import { createMainzGeneratedVitePlugins } from ",
   );
-  assertStringIncludes(helperSource, 'import ts from "typescript";');
-  assertStringIncludes(helperSource, 'import { defineConfig } from "vite";');
+  assertStringIncludes(helperSource, "vite-plugin-factory.ts");
+  assertStringIncludes(helperSource, 'import ts from "npm:typescript@5.9.3";');
+  assertStringIncludes(
+    helperSource,
+    'import { defineConfig } from "npm:vite@8.0.16";',
+  );
   assertStringIncludes(
     helperSource,
     "export { createMainzGeneratedVitePlugins, defineConfig, deno, ts };",
+  );
+});
+
+Deno.test("build/vite-config: should render a managed Node runtime helper for materialized configs", () => {
+  const helperSource = renderMaterializedNodeViteRuntimeModule();
+
+  assertStringIncludes(
+    helperSource,
+    "import { createMainzGeneratedVitePlugins } from ",
+  );
+  assertStringIncludes(helperSource, "vite-plugin-factory.ts");
+  assertStringIncludes(
+    helperSource,
+    'import { defineConfig } from "mainz/tooling/vite";',
+  );
+  assertEquals(helperSource.includes('from "mainz/tooling/build"'), false);
+  assertEquals(helperSource.includes("@deno/vite-plugin"), false);
+  assertEquals(helperSource.includes('import ts from "typescript";'), false);
+  assertStringIncludes(
+    helperSource,
+    "export { createMainzGeneratedVitePlugins, defineConfig };",
   );
 });
 

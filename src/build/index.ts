@@ -27,11 +27,13 @@ export { resolveRouteManifestBuildInput } from "./route-manifest-input.ts";
 export {
   renderGeneratedViteConfigModule,
   renderMaterializedDenoViteRuntimeModule,
+  renderMaterializedNodeViteRuntimeModule,
   renderMaterializedViteConfigModule,
   resolveGeneratedViteConfig,
 } from "./vite-config.ts";
 export {
   renderGeneratedViteConfigVariant,
+  resolveSupportedTargetViteConfigPath,
   resolveViteConfigArtifact,
 } from "./vite-resolution.ts";
 export { materializeGeneratedViteConfigFile } from "./vite-workspace.ts";

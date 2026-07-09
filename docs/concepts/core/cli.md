@@ -158,8 +158,9 @@ all configured targets. Use `--target all` when a script should state that
 intent explicitly.
 
 Targets do not need a `vite.config.ts` file. Mainz generates the Vite config
-from the target, build profile, and selected app. Keep `viteConfig` only for
-advanced cases that need full Vite control.
+from the target, build profile, and selected app. For advanced cases, prefer
+`target.vite` for additive extensions or `mainz vite materialize` for a
+managed project-local `vite.config.ts`.
 
 ## Dev
 

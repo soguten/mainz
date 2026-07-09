@@ -1,47 +1,47 @@
 /// <reference lib="deno.ns" />
 
 import { join } from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assertEquals } from "@std/assert";
 import { NodeToolingRuntime } from "../index.ts";
 
-Deno.test("tooling/runtime/node: should resolve Vite build and dev commands through npx", () => {
+Deno.test("tooling/runtime/node: should resolve Vite build and dev commands through the Mainz-owned Node launcher", () => {
   const runtime = new NodeToolingRuntime();
-  const expectedCommand = Deno.build.os === "windows" ? "npx.cmd" : "npx";
+  const expectedCommand = process.execPath;
+  const expectedLauncherSuffix = "src/tooling/runtime/node-vite-cli.mjs";
 
+  const build = runtime.resolveViteBuildCommand({
+    viteConfigPath: "/tmp/vite.config.mjs",
+  });
+  assertEquals(build.command, expectedCommand);
+  assertEquals(build.args?.slice(1), [
+    "build",
+    "--config",
+    "/tmp/vite.config.mjs",
+  ]);
   assertEquals(
-    runtime.resolveViteBuildCommand({
-      viteConfigPath: "/tmp/vite.config.mjs",
-    }),
-    {
-      command: expectedCommand,
-      args: [
-        "vite",
-        "build",
-        "--config",
-        "/tmp/vite.config.mjs",
-      ],
-    },
+    build.args?.[0].replaceAll("\\", "/").endsWith(expectedLauncherSuffix),
+    true,
   );
 
+  const dev = runtime.resolveViteDevCommand({
+    viteConfigPath: "/tmp/vite.config.mjs",
+    host: "127.0.0.1",
+    port: 4175,
+  });
+  assertEquals(dev.command, expectedCommand);
+  assertEquals(dev.args?.slice(1), [
+    "--config",
+    "/tmp/vite.config.mjs",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "4175",
+  ]);
   assertEquals(
-    runtime.resolveViteDevCommand({
-      viteConfigPath: "/tmp/vite.config.mjs",
-      host: "127.0.0.1",
-      port: 4175,
-    }),
-    {
-      command: expectedCommand,
-      args: [
-        "vite",
-        "--config",
-        "/tmp/vite.config.mjs",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "4175",
-      ],
-    },
+    dev.args?.[0].replaceAll("\\", "/").endsWith(expectedLauncherSuffix),
+    true,
   );
 });
 

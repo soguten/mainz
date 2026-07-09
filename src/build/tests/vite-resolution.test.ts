@@ -13,6 +13,15 @@ Deno.test("build/vite-resolution: should pass through explicit viteConfig paths"
 
   try {
     const runtime = new DenoToolingRuntime();
+    await Deno.mkdir(resolve(cwd, "site"), { recursive: true });
+    await Deno.writeTextFile(
+      resolve(cwd, "site", "vite.config.ts"),
+      [
+        "// @mainz-materialized-vite-config",
+        "export default {};",
+        "",
+      ].join("\n"),
+    );
     const config = normalizeMainzConfig({
       targets: [
         {
@@ -91,6 +100,51 @@ Deno.test("build/vite-resolution: should resolve generated Vite configs into .ma
       ),
     );
     await assertRejectsNotFound(resolve(cwd, "site", "vite.config.ts"));
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/vite-resolution: should reject unmanaged explicit viteConfig paths", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-vite-resolution-unmanaged-",
+  });
+
+  try {
+    const runtime = new DenoToolingRuntime();
+    await Deno.mkdir(resolve(cwd, "site"), { recursive: true });
+    await Deno.writeTextFile(
+      resolve(cwd, "site", "vite.config.ts"),
+      'import { defineConfig } from "vite";\nexport default defineConfig({});\n',
+    );
+    const config = normalizeMainzConfig({
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+          viteConfig: "./site/vite.config.ts",
+        },
+      ],
+    });
+
+    try {
+      await resolveViteConfigArtifact({
+        runtime,
+        cwd,
+        target: config.targets[0]!,
+        outputDir: "dist/site",
+        navigationMode: "spa",
+        basePath: "/",
+        appLocales: [],
+        localePrefix: "except-default",
+      });
+    } catch (error) {
+      assert(error instanceof Error);
+      assertStringIncludes(error.message, "is not a Mainz-managed Vite config");
+      return;
+    }
+
+    throw new Error("Expected unmanaged explicit viteConfig to be rejected.");
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }

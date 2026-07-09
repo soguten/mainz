@@ -93,7 +93,7 @@ function normalizeTarget(target: MainzTargetDefinition): NormalizedMainzTarget {
   const viteConfig = target.viteConfig?.trim() || undefined;
   if (viteConfig && target.vite) {
     throw new Error(
-      `Target "${target.name}" must not define both viteConfig and vite. Use viteConfig for full Vite control or vite for generated-config extensions.`,
+      `Target "${target.name}" must not define both viteConfig and vite. Use vite for generated-config extensions or materialize the managed Vite config for that target.`,
     );
   }
 
@@ -189,9 +189,9 @@ function assertAppAliasCanUseFind(targetName: string, find: string): void {
   }
 
   if (find === "mainz" || find.startsWith("mainz/")) {
-    throw new Error(
-      `Target "${targetName}" vite.alias "${find}" cannot override Mainz framework aliases. Use viteConfig for full Vite control.`,
-    );
+      throw new Error(
+      `Target "${targetName}" vite.alias "${find}" cannot override Mainz framework aliases. Materialize the managed Vite config if the target needs to inspect or edit the full config.`,
+      );
   }
 }
 
@@ -213,8 +213,8 @@ function normalizeTargetViteDefine(
 
     if (normalizedKey.startsWith("__MAINZ_")) {
       throw new Error(
-        `Target "${targetName}" vite.define "${normalizedKey}" cannot override Mainz framework defines. Use viteConfig for full Vite control.`,
-      );
+        `Target "${targetName}" vite.define "${normalizedKey}" cannot override Mainz framework defines. Materialize the managed Vite config if the target needs to inspect or edit the full config.`,
+        );
     }
 
     if (typeof value !== "string") {

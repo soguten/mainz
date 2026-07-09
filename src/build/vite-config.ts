@@ -4,6 +4,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { NormalizedMainzTarget } from "../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../config/public-entrypoints.ts";
 import type { NavigationMode } from "../routing/index.ts";
+import {
+  MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER,
+  MAINZ_TYPESCRIPT_NPM_SPECIFIER,
+  MAINZ_VITE_NPM_SPECIFIER,
+} from "../tooling/dependency-versions.ts";
 import type { ToolingRuntimeName } from "../tooling/runtime/index.ts";
 
 export interface GeneratedViteAlias {
@@ -156,9 +161,11 @@ function renderViteConfigModule(
     } }`;
   });
 
-  const imports = runtime === "deno" && mode === "materialized"
+  const imports = mode === "materialized"
     ? [
-      `import { createMainzGeneratedVitePlugins, defineConfig, deno, ts } from "./.mainz/vite-runtime.ts";`,
+      `import { createMainzGeneratedVitePlugins, defineConfig${
+        runtime === "deno" ? ", deno, ts" : ""
+      } } from "./.mainz/vite-runtime.ts";`,
     ]
     : [
       `import { createMainzGeneratedVitePlugins } from ${
@@ -183,7 +190,7 @@ function renderViteConfigModule(
     configLines.push(`    cacheDir: ${JSON.stringify(config.cacheDir)},`);
   }
 
-  if (runtime === "deno") {
+  if (runtime === "deno" && mode === "generated") {
     imports.unshift(
       `import deno from ${
         JSON.stringify(
@@ -562,6 +569,10 @@ function resolveGeneratedViteImportSpecifier(
   runtime: ToolingRuntimeName,
   mode: "generated" | "materialized" = "generated",
 ): string {
+  if (runtime === "node" && specifier === "vite") {
+    return "mainz/tooling/vite";
+  }
+
   if (runtime === "deno" && mode === "generated") {
     return resolvePublishedGeneratedDenoImportSpecifier(specifier);
   }
@@ -602,11 +613,11 @@ function resolvePublishedGeneratedDenoImportSpecifier(
 ): string {
   switch (specifier) {
     case "vite":
-      return "npm:vite@8.0.16";
+      return MAINZ_VITE_NPM_SPECIFIER;
     case "@deno/vite-plugin":
-      return "npm:@deno/vite-plugin@2.0.2";
+      return MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER;
     case "typescript":
-      return "npm:typescript@5.9.3";
+      return MAINZ_TYPESCRIPT_NPM_SPECIFIER;
   }
 }
 
@@ -626,13 +637,51 @@ function resolveVitePluginImportSpecifier(
 }
 
 export function renderMaterializedDenoViteRuntimeModule(): string {
+  return renderMaterializedViteRuntimeModule("deno");
+}
+
+export function renderMaterializedNodeViteRuntimeModule(
+  mainzModuleUrl: string = import.meta.url,
+): string {
+  return renderMaterializedViteRuntimeModule("node", mainzModuleUrl);
+}
+
+function renderMaterializedViteRuntimeModule(
+  runtime: "deno" | "node",
+  mainzModuleUrl: string = import.meta.url,
+): string {
+  const imports = runtime === "node"
+    ? [
+      `import { createMainzGeneratedVitePlugins } from ${
+        JSON.stringify(
+          resolveGeneratedModuleImportSpecifier(
+            resolveMainzBuildModulePath("./vite-plugin-factory.ts", mainzModuleUrl),
+            runtime,
+          ),
+        )
+      };`,
+      'import { defineConfig } from "mainz/tooling/vite";',
+    ]
+    : [
+      `import deno from ${JSON.stringify(MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER)};`,
+      `import { createMainzGeneratedVitePlugins } from ${
+        JSON.stringify(
+          resolveGeneratedModuleImportSpecifier(
+            resolveMainzBuildModulePath("./vite-plugin-factory.ts", mainzModuleUrl),
+            runtime,
+          ),
+        )
+      };`,
+      `import { defineConfig } from ${JSON.stringify(MAINZ_VITE_NPM_SPECIFIER)};`,
+      `import ts from ${JSON.stringify(MAINZ_TYPESCRIPT_NPM_SPECIFIER)};`,
+    ];
+
   return [
-    'import deno from "@deno/vite-plugin";',
-    'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";',
-    'import ts from "typescript";',
-    'import { defineConfig } from "vite";',
+    ...imports,
     "",
-    "export { createMainzGeneratedVitePlugins, defineConfig, deno, ts };",
+    `export { createMainzGeneratedVitePlugins, defineConfig${
+      runtime === "deno" ? ", deno, ts" : ""
+    } };`,
     "",
   ].join("\n");
 }

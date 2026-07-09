@@ -17,6 +17,11 @@ export interface ResolvedViteConfigArtifact {
   cleanup?: () => Promise<void>;
 }
 
+const MANAGED_VITE_CONFIG_BANNERS = [
+  "// @mainz-materialized-vite-config",
+  "// @mainz-generated-vite-config",
+] as const;
+
 export interface ResolveGeneratedViteConfigArtifactArgs {
   runtime: MainzToolingRuntime;
   cwd: string;
@@ -42,7 +47,12 @@ export async function resolveViteConfigArtifact(
 ): Promise<ResolvedViteConfigArtifact> {
   if (args.preferTargetViteConfig !== false && args.target.viteConfig) {
     return {
-      path: normalizePathSlashes(resolve(args.cwd, args.target.viteConfig)),
+      path: await resolveSupportedTargetViteConfigPath({
+        runtime: args.runtime,
+        cwd: args.cwd,
+        targetName: args.target.name,
+        viteConfigPath: args.target.viteConfig,
+      }),
     };
   }
 
@@ -80,6 +90,27 @@ export async function resolveViteConfigArtifact(
   return {
     path: normalizePathSlashes(artifact.path),
   };
+}
+
+export async function resolveSupportedTargetViteConfigPath(args: {
+  runtime: MainzToolingRuntime;
+  cwd: string;
+  targetName: string;
+  viteConfigPath: string;
+}): Promise<string> {
+  const absolutePath = normalizePathSlashes(
+    resolve(args.cwd, args.viteConfigPath),
+  );
+  const source = await args.runtime.readTextFile(absolutePath);
+
+  if (MANAGED_VITE_CONFIG_BANNERS.some((banner) => source.startsWith(banner))) {
+    return absolutePath;
+  }
+
+  throw new Error(
+    `Target "${args.targetName}" viteConfig "${args.viteConfigPath}" is not a Mainz-managed Vite config. ` +
+      `Use target.vite for generated extensions or "mainz vite materialize --target ${args.targetName}".`,
+  );
 }
 
 export function renderGeneratedViteConfigVariant(args: {

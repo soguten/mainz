@@ -79,11 +79,11 @@ export default defineMainzConfig({
 `mainz/i18n`, and `target.vite.define` cannot replace Mainz runtime values such
 as `__MAINZ_NAVIGATION_MODE__` and `__MAINZ_BASE_PATH__`.
 
-## Use a custom Vite config
+## Materialize a managed Vite config
 
-For advanced cases, keep a hand-written Vite config and point the target at it
-with `viteConfig`. When `viteConfig` is present, Mainz uses that file instead of
-the generated config.
+For advanced cases, materialize Mainz's managed Vite config instead of keeping
+an arbitrary hand-written Vite file. This preserves the Mainz-owned Vite
+runtime while still giving the project an inspectable config file.
 
 ```ts title="mainz.config.ts"
 import { defineMainzConfig } from "mainz/config";
@@ -96,45 +96,23 @@ export default defineMainzConfig({
       appFile: "./site/src/main.tsx",
       appId: "site",
       outDir: "dist/site",
-      viteConfig: "./site/vite.config.ts",
     },
   ],
 });
 ```
 
-Keep Mainz-owned values wired through the environment variables passed during
-`mainz build`.
+Generate the managed config with:
 
-```ts title="site/vite.config.ts"
-import { defineConfig } from "vite";
-
-const navigationMode = process.env.MAINZ_NAVIGATION_MODE ?? "spa";
-
-export default defineConfig({
-  appType: navigationMode === "spa" ? "spa" : "mpa",
-  base: process.env.MAINZ_BASE_PATH ?? "./",
-  define: {
-    __MAINZ_NAVIGATION_MODE__: JSON.stringify(navigationMode),
-    __MAINZ_TARGET_NAME__: JSON.stringify(
-      process.env.MAINZ_TARGET_NAME ?? "site",
-    ),
-    __MAINZ_BASE_PATH__: JSON.stringify(process.env.MAINZ_BASE_PATH ?? "./"),
-    __MAINZ_APP_LOCALES__: process.env.MAINZ_APP_LOCALES ?? "[]",
-    __MAINZ_DEFAULT_LOCALE__: JSON.stringify(
-      process.env.MAINZ_DEFAULT_LOCALE || undefined,
-    ),
-    __MAINZ_LOCALE_PREFIX__: JSON.stringify(
-      process.env.MAINZ_LOCALE_PREFIX ?? "except-default",
-    ),
-    __MAINZ_SITE_URL__: JSON.stringify(process.env.MAINZ_SITE_URL || undefined),
-  },
-  esbuild: {
-    keepNames: true,
-    jsx: "automatic",
-    jsxImportSource: "mainz",
-  },
-});
+```bash
+deno task mainz vite materialize --target site
 ```
+
+That writes `./site/vite.config.ts` and `./site/.mainz/vite-runtime.ts`.
+The generated config imports from the Mainz-managed helper surface instead of
+depending on a project-owned `vite` install.
+
+Use `target.vite` for common aliases and defines. Use materialization when the
+target needs to inspect or edit the managed Vite config directly.
 
 ## Add a target
 

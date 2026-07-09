@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { register } from "npm:tsx@4.22.4/esm/api";
 import { dynamicImport } from "../dynamic-import.ts";
 import type {
@@ -38,10 +38,6 @@ function toNodeStdio(
     default:
       return "inherit";
   }
-}
-
-function resolveNodePackageRunnerCommand(): string {
-  return process.platform === "win32" ? "npx.cmd" : "npx";
 }
 
 function shouldUseWindowsCmdProxy(command: string): boolean {
@@ -111,6 +107,10 @@ async function getNodeTsxImportApi(): Promise<TsxScopedImportApi> {
     }),
   );
   return await nodeTsxImportApiPromise;
+}
+
+function resolveNodeOwnedViteCliPath(): string {
+  return fileURLToPath(new URL("./node-vite-cli.mjs", import.meta.url));
 }
 
 /**
@@ -212,9 +212,9 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
 
   resolveViteBuildCommand(options: ToolingViteCommandOptions): ToolingCommand {
     return {
-      command: resolveNodePackageRunnerCommand(),
+      command: process.execPath,
       args: [
-        "vite",
+        resolveNodeOwnedViteCliPath(),
         "build",
         "--config",
         options.viteConfigPath,
@@ -224,7 +224,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
 
   resolveViteDevCommand(options: ToolingViteCommandOptions): ToolingCommand {
     const args = [
-      "vite",
+      resolveNodeOwnedViteCliPath(),
       "--config",
       options.viteConfigPath,
     ];
@@ -241,7 +241,7 @@ export class NodeToolingRuntime implements MainzToolingRuntime {
     }
 
     return {
-      command: resolveNodePackageRunnerCommand(),
+      command: process.execPath,
       args,
     };
   }

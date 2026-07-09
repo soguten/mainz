@@ -1593,11 +1593,17 @@ Deno.test("cli/mainz vite: materialize should write a managed Vite config and sw
     const runtimeHelper = await Deno.readTextFile(
       resolve(cwd, "site", ".mainz", "vite-runtime.ts"),
     );
-    assertStringIncludes(runtimeHelper, 'import ts from "typescript";');
+    assertStringIncludes(runtimeHelper, 'import deno from "npm:@deno/vite-plugin@2.0.2";');
     assertStringIncludes(
       runtimeHelper,
-      'import { createMainzGeneratedVitePlugins } from "mainz/tooling/build";',
+      "import { createMainzGeneratedVitePlugins } from ",
     );
+    assertStringIncludes(runtimeHelper, "vite-plugin-factory.ts");
+    assertStringIncludes(
+      runtimeHelper,
+      'import { defineConfig } from "npm:vite@8.0.16";',
+    );
+    assertStringIncludes(runtimeHelper, 'import ts from "npm:typescript@5.9.3";');
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }

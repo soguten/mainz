@@ -267,6 +267,127 @@ Deno.test("cli/local-launcher: node starter project should inspect and diagnose 
   }
 });
 
+Deno.test("cli/local-launcher: node project should materialize and dematerialize vite through the local launcher shim", async () => {
+  const cwd = await Deno.makeTempDir({ prefix: "mainz-local-node-vite-" });
+
+  try {
+    const init = await runGlobalMainz(cwd, [
+      "init",
+      "--runtime",
+      "node",
+      "--mainz",
+      pinnedMainzSpecifier,
+    ]);
+    assertEquals(init.code, 0, `stdout:\n${init.stdout}\nstderr:\n${init.stderr}`);
+    await rewireNodeProjectToLocalTooling(cwd);
+
+    const create = await runGlobalMainz(cwd, ["app", "create", "site"]);
+    assertEquals(
+      create.code,
+      0,
+      `stdout:\n${create.stdout}\nstderr:\n${create.stderr}`,
+    );
+
+    await Deno.writeTextFile(
+      resolve(cwd, "mainz.config.ts"),
+      [
+        'import { defineMainzConfig } from "mainz/config";',
+        "",
+        "export default defineMainzConfig({",
+        '    runtime: "node",',
+        "    targets: [",
+        "        {",
+        '            name: "site",',
+        '            rootDir: "./site",',
+        '            appFile: "./site/src/app.ts",',
+        '            appId: "site",',
+        '            outDir: "dist/site",',
+        "            vite: {",
+        "                alias: [",
+        '                    { find: "@content", replacement: "./site/src/content" },',
+        "                ],",
+        "                define: {",
+        '                    "__SITE_FLAG__": "true",',
+        "                },",
+        "            },",
+        "        },",
+        "    ],",
+        "});",
+        "",
+      ].join("\n"),
+    );
+
+    const install = await runCommand("npm", ["install"], cwd);
+    assertEquals(
+      install.code,
+      0,
+      `stdout:\n${install.stdout}\nstderr:\n${install.stderr}`,
+    );
+    await installNodeMainzShim(cwd);
+
+    const materialize = await runNodeProjectMainz(cwd, [
+      "vite",
+      "materialize",
+      "--target",
+      "site",
+    ]);
+    assertEquals(
+      materialize.code,
+      0,
+      `stdout:\n${materialize.stdout}\nstderr:\n${materialize.stderr}`,
+    );
+    assertStringIncludes(materialize.stdout, 'Materialized Vite config for target "site"');
+
+    const materializedConfig = await Deno.readTextFile(
+      resolve(cwd, "site", "vite.config.ts"),
+    );
+    assertStringIncludes(materializedConfig, "@mainz-materialized-vite-config");
+
+    const runtimeHelper = await Deno.readTextFile(
+      resolve(cwd, "site", ".mainz", "vite-runtime.ts"),
+    );
+    assertStringIncludes(runtimeHelper, 'import { defineConfig } from "mainz/tooling/vite";');
+    assertStringIncludes(
+      runtimeHelper,
+      "import { createMainzGeneratedVitePlugins } from ",
+    );
+    assertStringIncludes(runtimeHelper, "vite-plugin-factory.ts");
+
+    const build = await runNodeProjectMainz(cwd, [
+      "build",
+      "--target",
+      "site",
+    ]);
+    assertEquals(
+      build.code,
+      0,
+      `stdout:\n${build.stdout}\nstderr:\n${build.stderr}`,
+    );
+    assertStringIncludes(build.stdout, "[mainz] Building");
+
+    const dematerialize = await runNodeProjectMainz(cwd, [
+      "vite",
+      "dematerialize",
+      "--target",
+      "site",
+    ]);
+    assertEquals(
+      dematerialize.code,
+      0,
+      `stdout:\n${dematerialize.stdout}\nstderr:\n${dematerialize.stderr}`,
+    );
+    assertStringIncludes(
+      dematerialize.stdout,
+      'Removed materialized Vite config for target "site"',
+    );
+
+    await assertPathMissing(resolve(cwd, "site", "vite.config.ts"));
+    await assertPathMissing(resolve(cwd, "site", ".mainz", "vite-runtime.ts"));
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("cli/local-launcher: deno project should materialize and dematerialize vite through the local launcher", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-local-vite-" });
 
@@ -332,6 +453,18 @@ Deno.test("cli/local-launcher: deno project should materialize and dematerialize
       resolve(cwd, "site", "vite.config.ts"),
     );
     assertStringIncludes(materializedConfig, "@mainz-materialized-vite-config");
+
+    const build = await runDenoProjectMainz(cwd, [
+      "build",
+      "--target",
+      "site",
+    ]);
+    assertEquals(
+      build.code,
+      0,
+      `stdout:\n${build.stdout}\nstderr:\n${build.stderr}`,
+    );
+    assertStringIncludes(build.stdout, "[mainz] Building");
 
     const dematerialize = await runDenoProjectMainz(cwd, [
       "vite",
@@ -779,12 +912,29 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
           "./config": "./src/public/config.js",
           "./jsx-runtime": "./src/jsx-runtime.js",
           "./jsx-dev-runtime": "./src/jsx-dev-runtime.js",
+          "./tooling/build": "./src/public/tooling-build.ts",
           "./tooling/cli": "./src/public/tooling-cli.js",
+          "./tooling/vite": "./src/public/tooling-vite.js",
+        },
+        dependencies: {
+          typescript: "5.9.3",
+          tsx: "4.22.4",
+          vite: "8.0.16",
         },
       },
       null,
       2,
     )}\n`,
+  );
+  const install = await runCommand(
+    "npm",
+    ["install", "--no-package-lock"],
+    packageRoot,
+  );
+  assertEquals(
+    install.code,
+    0,
+    `stdout:\n${install.stdout}\nstderr:\n${install.stderr}`,
   );
 }
 

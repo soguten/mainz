@@ -26,6 +26,12 @@ import {
   denoToolingRuntime,
   nodeToolingRuntime,
 } from "../tooling/runtime/index.ts";
+import {
+  MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER,
+  MAINZ_HAPPY_DOM_NPM_SPECIFIER,
+  MAINZ_TYPESCRIPT_NPM_SPECIFIER,
+  MAINZ_VITE_NPM_SPECIFIER,
+} from "../tooling/dependency-versions.ts";
 import type { MainzToolingRuntime } from "../tooling/runtime/index.ts";
 import { resolveMainzTempPath } from "../tooling/temp-paths.ts";
 import { resolvePublishedMainzSpecifier } from "./package-version.ts";
@@ -712,10 +718,10 @@ async function createNodeProjectBootstrapConfig(
         },
         imports: {
           ...mainzImports,
-          vite: "npm:vite@8.0.16",
-          typescript: "npm:typescript@5.9.3",
-          "@deno/vite-plugin": "npm:@deno/vite-plugin@2.0.2",
-          "happy-dom": "npm:happy-dom@20.9.0",
+          vite: MAINZ_VITE_NPM_SPECIFIER,
+          typescript: MAINZ_TYPESCRIPT_NPM_SPECIFIER,
+          "@deno/vite-plugin": MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER,
+          "happy-dom": MAINZ_HAPPY_DOM_NPM_SPECIFIER,
         },
       },
       null,
@@ -2105,15 +2111,15 @@ async function runViteMaterializeCommand(
     materialized.absoluteConfigPath,
     materializedModule,
   );
-  if (runtime.name === "deno") {
-    await runtime.mkdir(dirname(materialized.absoluteRuntimeHelperPath), {
-      recursive: true,
-    });
-    await runtime.writeTextFile(
-      materialized.absoluteRuntimeHelperPath,
-      build.renderMaterializedDenoViteRuntimeModule(),
-    );
-  }
+  await runtime.mkdir(dirname(materialized.absoluteRuntimeHelperPath), {
+    recursive: true,
+  });
+  await runtime.writeTextFile(
+    materialized.absoluteRuntimeHelperPath,
+    runtime.name === "deno"
+      ? build.renderMaterializedDenoViteRuntimeModule()
+      : build.renderMaterializedNodeViteRuntimeModule(),
+  );
 
   const configContent = await runtime.readTextFile(loadedConfig.path);
   const updatedConfig = updateConfigTarget(
@@ -2191,8 +2197,7 @@ async function runViteDematerializeCommand(
 
   if (await pathExists(materialized.absoluteConfigPath, runtime)) {
   await runtime.remove(materialized.absoluteConfigPath);
-  if (runtime.name === "deno" &&
-    await pathExists(materialized.absoluteRuntimeHelperPath, runtime)) {
+  if (await pathExists(materialized.absoluteRuntimeHelperPath, runtime)) {
     await runtime.remove(materialized.absoluteRuntimeHelperPath);
     const runtimeHelperDir = dirname(materialized.absoluteRuntimeHelperPath);
     if (await isDirectoryEmpty(runtimeHelperDir, runtime)) {

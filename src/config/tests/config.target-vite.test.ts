@@ -31,7 +31,7 @@ Deno.test("config/target-vite: should normalize project-level runtime", () => {
   assertEquals(config.runtime, "node");
 });
 
-Deno.test("config/target-vite: should keep explicit viteConfig as the advanced path", () => {
+Deno.test("config/target-vite: should keep explicit viteConfig as the managed materialized path", () => {
   const config = normalizeMainzConfig({
     targets: [
       {

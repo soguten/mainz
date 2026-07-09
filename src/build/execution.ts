@@ -15,7 +15,10 @@ import {
   resolvePublicationBrowserOutDir,
   resolvePublicationServerOutDir,
 } from "./profiles.ts";
-import { resolveViteConfigArtifact } from "./vite-resolution.ts";
+import {
+  resolveSupportedTargetViteConfigPath,
+  resolveViteConfigArtifact,
+} from "./vite-resolution.ts";
 import { resolveRoutePrerenderContext } from "./prerender-context.ts";
 import { resolveTargetAppFile } from "../routing/target-page-discovery.ts";
 
@@ -198,7 +201,12 @@ async function resolveViteConfigPathForBuild(args: {
 }): Promise<{ path: string; cleanup?: () => Promise<void> }> {
   if (args.job.target.viteConfig) {
     return {
-      path: normalizePathSlashes(resolve(args.cwd, args.job.target.viteConfig)),
+      path: await resolveSupportedTargetViteConfigPath({
+        runtime: args.runtime,
+        cwd: args.cwd,
+        targetName: args.job.target.name,
+        viteConfigPath: args.job.target.viteConfig,
+      }),
     };
   }
 

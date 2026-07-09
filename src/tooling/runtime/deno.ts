@@ -6,6 +6,7 @@ import type {
   ToolingFileStat,
   ToolingViteCommandOptions,
 } from "./types.ts";
+import { MAINZ_VITE_NPM_SPECIFIER } from "../dependency-versions.ts";
 import { dynamicImport } from "../dynamic-import.ts";
 
 /**
@@ -87,7 +88,7 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
       args: [
         "run",
         "-A",
-        "npm:vite@8.0.16",
+        MAINZ_VITE_NPM_SPECIFIER,
         "build",
         "--config",
         options.viteConfigPath,
@@ -99,7 +100,7 @@ export class DenoToolingRuntime implements MainzToolingRuntime {
     const args = [
       "run",
       "-A",
-      "npm:vite@8.0.16",
+      MAINZ_VITE_NPM_SPECIFIER,
       "--config",
       options.viteConfigPath,
     ];

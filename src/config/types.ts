@@ -17,7 +17,7 @@ export interface MainzTargetDefinition {
   appId?: string;
   /** Output directory for build artifacts. */
   outDir?: string;
-  /** Advanced Vite config override for targets that need full control. */
+  /** Mainz-managed materialized Vite config path for this target. */
   viteConfig?: string;
   /** Generated Vite config extensions for aliases and defines. */
   vite?: MainzTargetViteOptions;

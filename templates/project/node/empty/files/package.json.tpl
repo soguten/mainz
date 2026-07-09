@@ -11,8 +11,5 @@
   },
   "dependencies": {
     "mainz": "{{mainzSpecifier}}"
-  },
-  "devDependencies": {
-    "vite": "^8.0.16"
   }
 }
