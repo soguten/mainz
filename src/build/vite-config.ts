@@ -165,7 +165,7 @@ function renderViteConfigModule(
     ? [
       `import { ${
         "createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts"
-      } from ${
+      } } from ${
         JSON.stringify(
           resolveMaterializedVitePluginImportSpecifier(
             config.devMiddleware.modulePath,

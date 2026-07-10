@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   mkdir,
   mkdtemp,
@@ -11,7 +12,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import process from "node:process";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { register } from "npm:tsx@4.22.4/esm/api";
 import { dynamicImport } from "../dynamic-import.ts";
@@ -67,6 +68,7 @@ type TsxScopedImportApi = {
 };
 
 let nodeTsxImportApiPromise: Promise<TsxScopedImportApi> | undefined;
+const nodeRequire = createRequire(import.meta.url);
 
 function isTypeScriptModuleSpecifier(specifier: string): boolean {
   try {
@@ -110,7 +112,8 @@ async function getNodeTsxImportApi(): Promise<TsxScopedImportApi> {
 }
 
 function resolveNodeOwnedViteCliPath(): string {
-  return fileURLToPath(new URL("./node-vite-cli.mjs", import.meta.url));
+  const vitePackageJsonPath = nodeRequire.resolve("vite/package.json");
+  return join(dirname(vitePackageJsonPath), "bin", "vite.js");
 }
 
 /**

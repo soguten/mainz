@@ -40,7 +40,6 @@ Deno.test("build/execution: should forward dev host and port to Vite", () => {
 Deno.test("build/execution: node runtime should resolve Vite commands through the Mainz-owned Node launcher", () => {
   const runtime = new NodeToolingRuntime();
   const expectedCommand = process.execPath;
-  const expectedLauncherSuffix = "src/tooling/runtime/node-vite-cli.mjs";
 
   const build = runtime.resolveViteBuildCommand({
     viteConfigPath: "/tmp/vite.config.mjs",
@@ -51,10 +50,8 @@ Deno.test("build/execution: node runtime should resolve Vite commands through th
     "--config",
     "/tmp/vite.config.mjs",
   ]);
-  assertEquals(
-    build.args?.[0].replaceAll("\\", "/").endsWith(expectedLauncherSuffix),
-    true,
-  );
+  assertStringIncludes(build.args?.[0].replaceAll("\\", "/") ?? "", "vite");
+  assertEquals(build.args?.[0].replaceAll("\\", "/").endsWith("/vite.js"), true);
 
   const dev = runtime.resolveViteDevCommand({
     viteConfigPath: "/tmp/vite.config.mjs",
@@ -70,10 +67,8 @@ Deno.test("build/execution: node runtime should resolve Vite commands through th
     "--port",
     "4175",
   ]);
-  assertEquals(
-    dev.args?.[0].replaceAll("\\", "/").endsWith(expectedLauncherSuffix),
-    true,
-  );
+  assertStringIncludes(dev.args?.[0].replaceAll("\\", "/") ?? "", "vite");
+  assertEquals(dev.args?.[0].replaceAll("\\", "/").endsWith("/vite.js"), true);
 });
 
 Deno.test("build/execution: node runtime should keep generated Vite configs inside .mainz_temp", async () => {
