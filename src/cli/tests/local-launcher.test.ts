@@ -367,6 +367,29 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
     );
     assertStringIncludes(build.stdout, "[mainz] Building");
 
+    const devSession = await runNodeProjectScriptSession(
+      cwd,
+      "dev",
+      ["--target", "site"],
+      12000,
+    );
+    assertStringIncludes(devSession.stdout, "[mainz] Starting dev server");
+    assertEquals(
+      devSession.stderr.includes("[UNRESOLVED_IMPORT]"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+    assertEquals(
+      devSession.stderr.includes("Could not resolve"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+    assertEquals(
+      devSession.stderr.includes("Failed to run dependency scan"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+
     const dematerialize = await runNodeProjectMainz(cwd, [
       "vite",
       "dematerialize",
@@ -454,6 +477,10 @@ Deno.test("cli/local-launcher: deno project should materialize and dematerialize
       resolve(cwd, "site", "vite.config.ts"),
     );
     assertStringIncludes(materializedConfig, "@mainz-materialized-vite-config");
+    assertStringIncludes(
+      materializedConfig,
+      'import { createMainzGeneratedVitePlugins, defineConfig, loadDenoVitePluginFactory, typescript as ts } from "file://',
+    );
 
     const build = await runDenoProjectMainz(cwd, [
       "build",
@@ -466,6 +493,28 @@ Deno.test("cli/local-launcher: deno project should materialize and dematerialize
       `stdout:\n${build.stdout}\nstderr:\n${build.stderr}`,
     );
     assertStringIncludes(build.stdout, "[mainz] Building");
+
+    const devSession = await runDenoProjectTaskSession(
+      cwd,
+      "dev",
+      ["--target", "site"],
+      12000,
+    );
+    assertEquals(
+      devSession.stderr.includes("[UNRESOLVED_IMPORT]"),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+    assertEquals(
+      devSession.stderr.includes('Could not resolve "mainz/tooling/vite-build"'),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
+    assertEquals(
+      devSession.stderr.includes('Import "@deno/vite-plugin" not a dependency'),
+      false,
+      `stdout:\n${devSession.stdout}\nstderr:\n${devSession.stderr}`,
+    );
 
     const dematerialize = await runDenoProjectMainz(cwd, [
       "vite",
@@ -681,6 +730,32 @@ async function runNodeProjectScript(
   );
 }
 
+async function runNodeProjectScriptSession(
+  cwd: string,
+  script: string,
+  args: readonly string[],
+  durationMs: number,
+  options: { env?: Record<string, string> } = {},
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const child = new Deno.Command("npm", {
+    args: ["run", "--silent", script, "--", ...args],
+    cwd,
+    env: options.env,
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+
+  await new Promise((resolve) => setTimeout(resolve, durationMs));
+  await terminateSessionProcess(child);
+
+  const result = await child.output();
+  return {
+    code: result.code,
+    stdout: decoder.decode(result.stdout),
+    stderr: decoder.decode(result.stderr),
+  };
+}
+
 async function runDenoProjectTaskSession(
   cwd: string,
   task: string,
@@ -697,11 +772,7 @@ async function runDenoProjectTaskSession(
   }).spawn();
 
   await new Promise((resolve) => setTimeout(resolve, durationMs));
-  try {
-    child.kill("SIGTERM");
-  } catch {
-    // The dev server may already have exited by the time we stop the session.
-  }
+  await terminateSessionProcess(child);
 
   const result = await child.output();
   return {
@@ -709,6 +780,28 @@ async function runDenoProjectTaskSession(
     stdout: decoder.decode(result.stdout),
     stderr: decoder.decode(result.stderr),
   };
+}
+
+async function terminateSessionProcess(
+  child: {
+    kill(signo?: Deno.Signal): void;
+    pid: number;
+  },
+): Promise<void> {
+  try {
+    if (Deno.build.os === "windows") {
+      await new Deno.Command("taskkill", {
+        args: ["/PID", String(child.pid), "/T", "/F"],
+        stdout: "null",
+        stderr: "null",
+      }).output();
+      return;
+    }
+
+    child.kill("SIGTERM");
+  } catch {
+    // The dev server may already have exited by the time we stop the session.
+  }
 }
 
 async function runCommand(

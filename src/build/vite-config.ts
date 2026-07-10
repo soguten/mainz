@@ -666,7 +666,13 @@ function resolveMaterializedVitePluginImportSpecifier(
   runtime: ToolingRuntimeName,
 ): string {
   if (runtime === "deno") {
-    return "mainz/tooling/vite-build";
+    return resolveGeneratedModuleImportSpecifier(
+      resolveMainzPublicEntrypointSourcePath(
+        modulePath,
+        "src/public/tooling-vite-build.ts",
+      ),
+      runtime,
+    );
   }
 
   const publishedSpecifier = resolvePublishedMainzPackageSpecifier(modulePath);
