@@ -6,4 +6,9 @@ export type {
 } from "../build/vite-plugin-factory.ts";
 export { defineConfig } from "vite";
 export { default as typescript } from "typescript";
-export { default as denoVitePlugin } from "@deno/vite-plugin";
+
+export async function loadDenoVitePluginFactory() {
+  const specifier = "@deno/" + "vite-plugin";
+  const module = await import(specifier);
+  return module.default;
+}

@@ -377,7 +377,11 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
 
   assertStringIncludes(
     moduleSource,
-    'import { createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts } from "mainz/tooling/vite-build";',
+    'import { createMainzGeneratedVitePlugins, defineConfig, loadDenoVitePluginFactory, typescript as ts } from "mainz/tooling/vite-build";',
+  );
+  assertStringIncludes(
+    moduleSource,
+    `denoPluginFactory: await loadDenoVitePluginFactory()`,
   );
   assertStringIncludes(moduleSource, `root: "./site"`);
   assertStringIncludes(moduleSource, `publicDir: "./public"`);

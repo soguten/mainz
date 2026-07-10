@@ -164,7 +164,7 @@ function renderViteConfigModule(
   const imports = mode === "materialized" && runtime === "deno"
     ? [
       `import { ${
-        "createMainzGeneratedVitePlugins, defineConfig, denoVitePlugin as deno, typescript as ts"
+        "createMainzGeneratedVitePlugins, defineConfig, loadDenoVitePluginFactory, typescript as ts"
       } } from ${
         JSON.stringify(
           resolveMaterializedVitePluginImportSpecifier(
@@ -241,7 +241,11 @@ function renderViteConfigModule(
     `        runtimeName: ${JSON.stringify(runtime)},`,
     ...(runtime === "deno"
       ? [
-        `        denoPluginFactory: deno,`,
+        `        denoPluginFactory: ${
+          mode === "materialized"
+            ? "await loadDenoVitePluginFactory()"
+            : "deno"
+        },`,
         `        typescript: ts,`,
       ]
       : []),
