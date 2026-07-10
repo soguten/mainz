@@ -68,7 +68,20 @@ type TsxScopedImportApi = {
 };
 
 let nodeTsxImportApiPromise: Promise<TsxScopedImportApi> | undefined;
-const nodeRequire = createRequire(import.meta.url);
+
+export function resolveNodeRequireBaseSpecifier(
+  moduleUrl: string = import.meta.url,
+): string {
+  if (moduleUrl.startsWith("file:")) {
+    return moduleUrl;
+  }
+
+  // JSR-hosted Deno execution exposes https: module URLs here. Use a synthetic
+  // file URL rooted at the project cwd so Node-style resolution still works.
+  return pathToFileURL(join(process.cwd(), "__mainz_node_runtime__.mjs")).href;
+}
+
+const nodeRequire = createRequire(resolveNodeRequireBaseSpecifier());
 
 function isTypeScriptModuleSpecifier(specifier: string): boolean {
   try {

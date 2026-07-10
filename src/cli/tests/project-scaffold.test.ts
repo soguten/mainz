@@ -197,6 +197,8 @@ Deno.test("cli/templates/project: starter deno should materialize a routed app w
   assertStringIncludes(config?.content ?? "", 'runtime: "deno"');
   assertStringIncludes(config?.content ?? "", 'name: "app"');
   assertStringIncludes(config?.content ?? "", 'appFile: "./app/src/app.ts"');
+  const appDenoConfig = files.get("app/deno.json");
+  assertStringIncludes(appDenoConfig?.content ?? "", '"extends": "../deno.json"');
   const gitignore = files.get(".gitignore");
   assertStringIncludes(gitignore?.content ?? "", ".mainz_temp/");
   assertStringIncludes(gitignore?.content ?? "", "node_modules/");

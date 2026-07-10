@@ -5,6 +5,16 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { NodeToolingRuntime } from "../index.ts";
+import { resolveNodeRequireBaseSpecifier } from "../node.ts";
+
+Deno.test("tooling/runtime/node: should derive a local require base when loaded from a remote module URL", () => {
+  const resolved = resolveNodeRequireBaseSpecifier(
+    "https://jsr.io/@mainz/mainz/0.1.0-alpha.75/src/tooling/runtime/node.ts",
+  );
+
+  assertEquals(resolved.startsWith("file:///"), true);
+  assertStringIncludes(resolved, "__mainz_node_runtime__.mjs");
+});
 
 Deno.test("tooling/runtime/node: should resolve Vite build and dev commands through the Mainz-owned Node launcher", () => {
   const runtime = new NodeToolingRuntime();
