@@ -996,7 +996,12 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
   );
   await Deno.writeTextFile(
     resolve(packageRoot, "src", "compiler", "typescript.ts"),
-    'export { default as ts } from "typescript";\n',
+    [
+      'import * as ts from "typescript";',
+      "",
+      "export { ts };",
+      "",
+    ].join("\n"),
   );
   await rewriteNodeShimSpecifiers(packageRoot);
 

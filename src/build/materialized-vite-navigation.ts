@@ -1,6 +1,8 @@
 import { isAbsolute, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MainzTargetDefinition } from "../config/index.ts";
+import type { MainzDevRouteMiddlewarePluginOptions } from "./dev-vite-plugin.ts";
+import { resolveTargetI18nConfig } from "./prerender-context.ts";
 import {
   captureDefinedAppDuring,
   resolveDefinedAppDefinitionsFromModuleExports,
@@ -30,53 +32,84 @@ export interface ResolveMaterializedViteNavigationArgs {
 export interface MaterializedViteNavigationContext {
   navigationMode: NavigationMode;
   basePath: string;
+  appLocales: readonly string[];
+  defaultLocale?: string;
+  localePrefix: "except-default" | "always";
 }
+
+export type MaterializedViteDefine = Record<string, string | undefined>;
 
 export async function resolveMaterializedViteNavigationContext(
   args: ResolveMaterializedViteNavigationArgs,
 ): Promise<MaterializedViteNavigationContext> {
   const requestedBasePath = args.profile.requestedBasePath ??
     args.profile.basePath;
-  const navigationMode = await loadMaterializedNavigationMode(args);
+  const selectedApp = await loadMaterializedDefinedApp(args);
+  const navigationMode = selectedApp && "navigation" in selectedApp &&
+      selectedApp.navigation
+    ? selectedApp.navigation
+    : "spa";
+  const targetI18n = resolveTargetI18nConfig(
+    selectedApp && "i18n" in selectedApp ? selectedApp : undefined,
+  );
 
   return {
     navigationMode,
     basePath: resolveViteBasePath(requestedBasePath, navigationMode),
+    appLocales: selectedApp && "i18n" in selectedApp && selectedApp.i18n
+      ? selectedApp.i18n.locales
+      : [],
+    defaultLocale: targetI18n?.defaultLocale,
+    localePrefix: targetI18n?.localePrefix ?? "except-default",
   };
 }
 
 export function applyMaterializedViteNavigationToDefine(
-  define: Record<string, string>,
+  define: MaterializedViteDefine,
   context: MaterializedViteNavigationContext,
-): Record<string, string> {
+): MaterializedViteDefine {
   return {
     ...define,
+    __MAINZ_APP_LOCALES__: JSON.stringify(context.appLocales),
     __MAINZ_NAVIGATION_MODE__: JSON.stringify(context.navigationMode),
     __MAINZ_BASE_PATH__: JSON.stringify(context.basePath),
+    __MAINZ_DEFAULT_LOCALE__: JSON.stringify(context.defaultLocale),
+    __MAINZ_LOCALE_PREFIX__: JSON.stringify(context.localePrefix),
   };
 }
 
 export function applyMaterializedViteNavigationToDevMiddlewareOptions(
-  options: Record<string, unknown>,
+  options: MainzDevRouteMiddlewarePluginOptions,
   context: MaterializedViteNavigationContext,
-): Record<string, unknown> {
-  const profile = isRecord(options.profile) ? options.profile : {};
-
+): MainzDevRouteMiddlewarePluginOptions {
   return {
     ...options,
+    defaultLocale: context.defaultLocale,
+    localePrefix: context.localePrefix,
     profile: {
-      ...profile,
+      ...options.profile,
       basePath: context.basePath,
     },
   };
 }
 
-async function loadMaterializedNavigationMode(
+async function loadMaterializedDefinedApp(
   args: ResolveMaterializedViteNavigationArgs,
-): Promise<NavigationMode> {
+): Promise<
+  | {
+    id: string;
+    navigation?: NavigationMode;
+    i18n?: {
+      locales: readonly string[];
+      defaultLocale: string;
+      localePrefix?: "except-default" | "always";
+    };
+  }
+  | undefined
+> {
   const appFile = args.target.appFile?.trim();
   if (!appFile) {
-    return "spa";
+    return undefined;
   }
 
   const runtime = args.runtimeName === "deno"
@@ -99,9 +132,17 @@ async function loadMaterializedNavigationMode(
   }
 
   const selectedApp = selectAppDefinition(candidates, args.target);
-  return selectedApp && "navigation" in selectedApp && selectedApp.navigation
-    ? selectedApp.navigation
-    : "spa";
+  return selectedApp as
+    | {
+      id: string;
+      navigation?: NavigationMode;
+      i18n?: {
+        locales: readonly string[];
+        defaultLocale: string;
+        localePrefix?: "except-default" | "always";
+      };
+    }
+    | undefined;
 }
 
 function selectAppDefinition(
@@ -158,8 +199,4 @@ function resolveMaterializedProjectCwd(
   }
 
   return resolve(args.cwd);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }

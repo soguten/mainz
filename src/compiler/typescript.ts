@@ -1,1 +1,3 @@
-export { default as ts } from "typescript";
+import * as ts from "typescript";
+
+export { ts };

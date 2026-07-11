@@ -19,9 +19,10 @@ export { defineConfig };
 
 export async function loadDenoVitePluginFactory() {
   const module = await import(MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER);
-  return module.default;
+  return ("default" in module ? module.default : module) as typeof module.default;
 }
 
 export async function loadDenoTypescript() {
-  return await import(MAINZ_TYPESCRIPT_NPM_SPECIFIER);
+  const module = await import(MAINZ_TYPESCRIPT_NPM_SPECIFIER);
+  return ("default" in module ? module.default : module) as typeof import("typescript");
 }

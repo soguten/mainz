@@ -47,7 +47,7 @@ export interface GeneratedViteConfig {
   publicDir?: string | false;
   cacheDir?: string;
   aliases: readonly GeneratedViteAlias[];
-  define: Record<string, string>;
+  define: Record<string, string | undefined>;
   buildTarget: "browser" | "server";
   serverBundle?: {
     entryPath: string;

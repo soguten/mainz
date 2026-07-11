@@ -17,6 +17,10 @@ import {
   resolveMainzBuildModulePath,
   resolveGeneratedViteConfig,
 } from "../vite-config.ts";
+import {
+  applyMaterializedViteNavigationToDevMiddlewareOptions,
+  applyMaterializedViteNavigationToDefine,
+} from "../materialized-vite-navigation.ts";
 
 Deno.test("build/vite-config: should generate framework aliases from public Mainz entrypoints", () => {
   const cwd = Deno.cwd();
@@ -544,6 +548,11 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
 Deno.test("build/vite-config: materialized Vite config should derive navigation dynamically from the app definition", async () => {
   const fixture = await createAppFixture({
     navigation: "spa",
+    i18n: {
+      locales: ["en"],
+      defaultLocale: "en",
+      localePrefix: "except-default",
+    },
   });
   const previousCwd = process.cwd();
 
@@ -587,6 +596,7 @@ Deno.test("build/vite-config: materialized Vite config should derive navigation 
         "export const app = defineApp({",
         '  id: "site",',
         '  navigation: "mpa",',
+        '  i18n: { locales: ["pt-BR", "en"], defaultLocale: "pt-BR", localePrefix: "always" },',
         "  pages: [],",
         "});",
         "",
@@ -613,10 +623,67 @@ Deno.test("build/vite-config: materialized Vite config should derive navigation 
       loaded?.config.define?.__MAINZ_BASE_PATH__,
       JSON.stringify("./"),
     );
+    assertEquals(
+      loaded?.config.define?.__MAINZ_APP_LOCALES__,
+      JSON.stringify(["pt-BR", "en"]),
+    );
+    assertEquals(
+      loaded?.config.define?.__MAINZ_DEFAULT_LOCALE__,
+      JSON.stringify("pt-BR"),
+    );
+    assertEquals(
+      loaded?.config.define?.__MAINZ_LOCALE_PREFIX__,
+      JSON.stringify("always"),
+    );
   } finally {
     process.chdir(previousCwd);
     await Deno.remove(fixture.cwd, { recursive: true });
   }
+});
+
+Deno.test("build/vite-config: materialized Vite helpers should project app-owned i18n into define and dev middleware options", () => {
+  const context = {
+    navigationMode: "mpa" as const,
+    basePath: "./",
+    appLocales: ["pt-BR", "en"],
+    defaultLocale: "pt-BR",
+    localePrefix: "always" as const,
+  };
+
+  const define = applyMaterializedViteNavigationToDefine({
+    __MAINZ_NAVIGATION_MODE__: JSON.stringify("spa"),
+    __MAINZ_BASE_PATH__: JSON.stringify("/"),
+    __MAINZ_APP_LOCALES__: JSON.stringify(["en"]),
+    __MAINZ_DEFAULT_LOCALE__: JSON.stringify("en"),
+    __MAINZ_LOCALE_PREFIX__: JSON.stringify("except-default"),
+    __MAINZ_SITE_URL__: undefined,
+  }, context);
+  const devMiddlewareOptions = applyMaterializedViteNavigationToDevMiddlewareOptions({
+    cwd: "..",
+    runtimeName: "node",
+    target: {
+      name: "site",
+      rootDir: "./site",
+      appFile: "./site/src/main.tsx",
+      appId: "site",
+      outDir: "dist/site",
+    },
+    profile: {
+      name: "development",
+      basePath: "/",
+    },
+    defaultLocale: "en",
+    localePrefix: "except-default",
+  }, context);
+
+  assertEquals(define.__MAINZ_NAVIGATION_MODE__, JSON.stringify("mpa"));
+  assertEquals(define.__MAINZ_BASE_PATH__, JSON.stringify("./"));
+  assertEquals(define.__MAINZ_APP_LOCALES__, JSON.stringify(["pt-BR", "en"]));
+  assertEquals(define.__MAINZ_DEFAULT_LOCALE__, JSON.stringify("pt-BR"));
+  assertEquals(define.__MAINZ_LOCALE_PREFIX__, JSON.stringify("always"));
+  assertEquals(devMiddlewareOptions.profile.basePath, "./");
+  assertEquals(devMiddlewareOptions.defaultLocale, "pt-BR");
+  assertEquals(devMiddlewareOptions.localePrefix, "always");
 });
 
 Deno.test("build/vite-config: should render an SSR server bundle config", () => {
@@ -762,6 +829,11 @@ function normalizePath(path: string): string {
 
 async function createAppFixture(args: {
   navigation?: "spa" | "mpa";
+  i18n?: {
+    locales: readonly string[];
+    defaultLocale: string;
+    localePrefix?: "except-default" | "always";
+  };
 }): Promise<{ cwd: string }> {
   const cwd = await Deno.makeTempDir({
     prefix: "mainz-generated-vite-navigation-",
@@ -779,6 +851,17 @@ async function createAppFixture(args: {
       '  id: "site",',
       ...(args.navigation
         ? [`  navigation: ${JSON.stringify(args.navigation)},`]
+        : []),
+      ...(args.i18n
+        ? [
+          `  i18n: { locales: ${JSON.stringify(args.i18n.locales)}, defaultLocale: ${
+            JSON.stringify(args.i18n.defaultLocale)
+          }${
+            args.i18n.localePrefix
+              ? `, localePrefix: ${JSON.stringify(args.i18n.localePrefix)}`
+              : ""
+          } },`,
+        ]
         : []),
       "  pages: [],",
       "});",
