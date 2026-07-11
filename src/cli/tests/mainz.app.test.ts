@@ -383,6 +383,84 @@ Deno.test("cli/mainz init: should initialize a node starter project", async () =
   }
 });
 
+Deno.test("cli/mainz init: node starter wrapper should run against a local npm-style Mainz package", async () => {
+  const cwd = await Deno.makeTempDir({
+    prefix: "mainz-init-node-wrapper-local-package-",
+  });
+
+  try {
+    const localMainzPackageDir = resolve(cwd, "mainz-package");
+    await createLocalNodeMainzPackage(localMainzPackageDir);
+    const pack = await runProcess("npm", ["pack"], localMainzPackageDir);
+    assertEquals(
+      pack.code,
+      0,
+      `stdout:\n${pack.stdout}\nstderr:\n${pack.stderr}`,
+    );
+    const packedFileName = pack.stdout.trim().split(/\r?\n/).at(-1)?.trim();
+    assert(packedFileName);
+
+    const result = await runMainz(cwd, [
+      "init",
+      "demo",
+      "--template",
+      "starter",
+      "--runtime",
+      "node",
+      "--mainz",
+      "npm:@jsr/mainz__mainz@0.1.0-alpha.99",
+    ]);
+
+    assertEquals(
+      result.code,
+      0,
+      `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
+
+    const projectDir = resolve(cwd, "demo");
+    const packageJsonPath = resolve(projectDir, "package.json");
+    const packageJson = JSON.parse(
+      await Deno.readTextFile(packageJsonPath),
+    ) as {
+      dependencies?: Record<string, string>;
+    };
+    packageJson.dependencies = {
+      ...(packageJson.dependencies ?? {}),
+      mainz: `file:../mainz-package/${packedFileName}`,
+    };
+    await Deno.writeTextFile(
+      packageJsonPath,
+      `${JSON.stringify(packageJson, null, 2)}\n`,
+    );
+
+    const install = await runProcess("npm", ["install"], projectDir);
+    assertEquals(
+      install.code,
+      0,
+      `stdout:\n${install.stdout}\nstderr:\n${install.stderr}`,
+    );
+
+    const appInfo = await runProcess(
+      "npm",
+      ["run", "--silent", "mainz", "--", "app", "info", "app"],
+      projectDir,
+    );
+    assertEquals(
+      appInfo.code,
+      0,
+      `stdout:\n${appInfo.stdout}\nstderr:\n${appInfo.stderr}`,
+    );
+    const parsedAppInfo = JSON.parse(appInfo.stdout) as {
+      target: string;
+      appId: string;
+    };
+    assertEquals(parsedAppInfo.target, "app");
+    assertEquals(parsedAppInfo.appId, "app");
+  } finally {
+    await Deno.remove(cwd, { recursive: true });
+  }
+});
+
 Deno.test("tooling/project-cli: should reject bootstrap commands from the project-local entrypoint", async () => {
   const { main } = await import("../../public/tooling-cli.ts");
   const exitCode = await main(["init"], { hostRuntime: "node" });
@@ -2098,4 +2176,130 @@ async function assertRejectsNotFound(path: string): Promise<void> {
   }
 
   throw new Error(`Expected path to be removed: ${path}`);
+}
+
+async function runProcess(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const result = await new Deno.Command(command, {
+    args: [...args],
+    cwd,
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  return {
+    code: result.code,
+    stdout: new TextDecoder().decode(result.stdout),
+    stderr: new TextDecoder().decode(result.stderr),
+  };
+}
+
+async function createLocalNodeMainzPackage(packageRoot: string): Promise<void> {
+  await copyTree(resolve(cliTestsRepoRoot, "src"), resolve(packageRoot, "src"));
+  await Deno.copyFile(
+    resolve(cliTestsRepoRoot, "mod.ts"),
+    resolve(packageRoot, "mod.ts"),
+  );
+  await Deno.copyFile(
+    resolve(cliTestsRepoRoot, "mod.js"),
+    resolve(packageRoot, "mod.js"),
+  );
+  await Deno.writeTextFile(
+    resolve(packageRoot, "src", "compiler", "typescript.ts"),
+    [
+      'import * as ts from "typescript";',
+      "",
+      "export { ts };",
+      "",
+    ].join("\n"),
+  );
+  await Deno.writeTextFile(
+    resolve(packageRoot, "src", "public", "tooling-cli.js"),
+    [
+      'import { register } from "tsx/esm/api";',
+      "",
+      "register();",
+      "",
+      'const { main: runCli } = await import("../cli/mainz.ts");',
+      "",
+      "export async function main(args, options = {}) {",
+      "  return await runCli(args, {",
+      "    hostRuntime: options.hostRuntime,",
+      '    commandScope: "project",',
+      "  });",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  await rewriteNodeRuntimeSpecifier(packageRoot);
+  await Deno.writeTextFile(
+    resolve(packageRoot, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "mainz",
+        private: true,
+        version: "0.0.0-test",
+        type: "module",
+        exports: {
+          ".": "./mod.js",
+          "./config": "./src/public/config.js",
+          "./jsx-runtime": "./src/jsx-runtime.js",
+          "./jsx-dev-runtime": "./src/jsx-dev-runtime.js",
+          "./tooling/build": "./src/public/tooling-build.ts",
+          "./tooling/bootstrap-cli": "./src/public/tooling-bootstrap-cli.ts",
+          "./tooling/cli": "./src/public/tooling-cli.js",
+          "./tooling/vite-build": "./src/public/tooling-vite-build.ts",
+          "./tooling/vite-build-node": "./src/public/tooling-vite-build-node.ts",
+          "./tooling/vite": "./src/public/tooling-vite.js",
+        },
+        dependencies: {
+          "happy-dom": "20.9.0",
+          "tsx": "4.22.4",
+          "typescript": "5.9.3",
+          "vite": "8.0.16",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+async function rewriteNodeRuntimeSpecifier(packageRoot: string): Promise<void> {
+  const nodeRuntimePath = resolve(
+    packageRoot,
+    "src",
+    "tooling",
+    "runtime",
+    "node.ts",
+  );
+  const nodeRuntime = (await Deno.readTextFile(nodeRuntimePath)).replaceAll(
+    '"npm:tsx@4.22.4/esm/api"',
+    '"tsx/esm/api"',
+  );
+  await Deno.writeTextFile(nodeRuntimePath, nodeRuntime);
+}
+
+async function copyTree(
+  sourceDir: string,
+  destinationDir: string,
+): Promise<void> {
+  await Deno.mkdir(destinationDir, { recursive: true });
+
+  for await (const entry of Deno.readDir(sourceDir)) {
+    const sourcePath = resolve(sourceDir, entry.name);
+    const destinationPath = resolve(destinationDir, entry.name);
+
+    if (entry.isDirectory) {
+      await copyTree(sourcePath, destinationPath);
+      continue;
+    }
+
+    if (entry.isFile) {
+      await Deno.copyFile(sourcePath, destinationPath);
+    }
+  }
 }

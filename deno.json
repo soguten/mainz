@@ -66,6 +66,7 @@
         "diagnose": "deno run -A ./src/cli/mainz.ts diagnose",
         "check:materialized-vite": "deno test -A src/build/tests/vite-config.test.ts",
         "check:jsr-publish": "deno run -A ./src/cli/check-jsr-publish.ts",
+        "check:jsr-publish:strict": "deno run -A ./src/cli/check-jsr-publish.ts --strict",
         "test": "deno test -A",
         "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests src/cli/tests && deno task check:materialized-vite && deno task check:jsr-publish",
         "test:e2e": "deno test -A --filter \"^e2e/\" tests/e2e",

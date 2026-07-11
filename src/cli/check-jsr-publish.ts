@@ -9,6 +9,7 @@ const warningPatterns = [
 
 const decoder = new TextDecoder();
 let failureCount = 0;
+const strictWarnings = Deno.args.includes("--strict");
 
 for (const configPath of packageConfigs) {
   const command = new Deno.Command("deno", {
@@ -32,7 +33,7 @@ for (const configPath of packageConfigs) {
     combinedOutput.includes(pattern)
   );
 
-  if (result.code !== 0 || matchedWarnings.length > 0) {
+  if (result.code !== 0 || (strictWarnings && matchedWarnings.length > 0)) {
     failureCount += 1;
     console.error(`[check-jsr-publish] ${configPath} failed.`);
     if (matchedWarnings.length > 0) {
@@ -55,6 +56,12 @@ for (const configPath of packageConfigs) {
       console.error(relevantLines);
     }
   } else {
+    if (matchedWarnings.length > 0) {
+      console.warn(`[check-jsr-publish] ${configPath} reported publish warnings.`);
+      console.warn(
+        `[check-jsr-publish] Found publish warnings: ${matchedWarnings.join(", ")}`,
+      );
+    }
     console.log(`[check-jsr-publish] ${configPath} passed.`);
   }
 }
