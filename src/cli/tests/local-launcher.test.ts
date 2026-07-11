@@ -348,7 +348,7 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
     );
     assertStringIncludes(
       materializedConfig,
-      "import { createMainzGeneratedVitePlugins } from ",
+      'import { applyMaterializedViteNavigationToDefine, applyMaterializedViteNavigationToDevMiddlewareOptions, createMainzGeneratedVitePlugins, resolveMaterializedViteNavigationContext } from ',
     );
     assertStringIncludes(
       materializedConfig,
@@ -479,7 +479,7 @@ Deno.test("cli/local-launcher: deno project should materialize and dematerialize
     assertStringIncludes(materializedConfig, "@mainz-materialized-vite-config");
     assertStringIncludes(
       materializedConfig,
-      'import { createMainzGeneratedVitePlugins, defineConfig, loadDenoVitePluginFactory, typescript as ts } from "file://',
+      'import { applyMaterializedViteNavigationToDefine, applyMaterializedViteNavigationToDevMiddlewareOptions, createMainzGeneratedVitePlugins, defineConfig, loadDenoTypescript, loadDenoVitePluginFactory, resolveMaterializedViteNavigationContext } from ',
     );
 
     const build = await runDenoProjectMainz(cwd, [

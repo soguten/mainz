@@ -4,15 +4,24 @@ export {
 export type {
   MainzGeneratedVitePluginsOptions,
 } from "../build/vite-plugin-factory.ts";
+export {
+  applyMaterializedViteNavigationToDefine,
+  applyMaterializedViteNavigationToDevMiddlewareOptions,
+  resolveMaterializedViteNavigationContext,
+} from "../build/materialized-vite-navigation.ts";
 import {
   MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER,
+  MAINZ_TYPESCRIPT_NPM_SPECIFIER,
 } from "../tooling/dependency-versions.ts";
 import { defineConfig } from "npm:vite@8.0.16";
-import typescript from "npm:typescript@5.9.3";
 
-export { defineConfig, typescript };
+export { defineConfig };
 
 export async function loadDenoVitePluginFactory() {
   const module = await import(MAINZ_DENO_VITE_PLUGIN_NPM_SPECIFIER);
   return module.default;
+}
+
+export async function loadDenoTypescript() {
+  return await import(MAINZ_TYPESCRIPT_NPM_SPECIFIER);
 }

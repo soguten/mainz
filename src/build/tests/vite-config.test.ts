@@ -130,6 +130,8 @@ Deno.test("build/vite-config: should generate Mainz defaults and app extensions"
   assertEquals(generated.base, "/docs/");
   assertEquals(generated.outDir, normalizePath(resolve(cwd, "dist/docs")));
   assertEquals(generated.publicDir, normalizePath(resolve(cwd, "docs-site/public")));
+  const moduleSource = renderGeneratedViteConfigModule(generated);
+  assertStringIncludes(moduleSource, `appType: "mpa"`);
   assertEquals(
     generated.define.__MAINZ_NAVIGATION_MODE__,
     JSON.stringify("mpa"),
@@ -198,7 +200,7 @@ Deno.test("build/vite-config: should render a Vite config module", () => {
   );
   assertStringIncludes(moduleSource, `"runtimeName": "deno"`);
   assertStringIncludes(moduleSource, `"debugSsg": false`);
-  assertStringIncludes(moduleSource, `appType: "spa"`);
+  assertEquals(moduleSource.includes(`appType: "spa"`), false);
   assertStringIncludes(moduleSource, `{ find: "mainz", replacement:`);
   assertStringIncludes(
     moduleSource,
@@ -323,7 +325,7 @@ Deno.test("build/vite-config: should render a Node Vite config module without th
     );
     assertStringIncludes(moduleSource, `"runtimeName": "node"`);
     assertStringIncludes(moduleSource, `"debugSsg": false`);
-    assertStringIncludes(moduleSource, `appType: "spa"`);
+    assertEquals(moduleSource.includes(`appType: "spa"`), false);
     assertStringIncludes(
       moduleSource,
       `cacheDir: ${
@@ -377,7 +379,7 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
 
   assertStringIncludes(
     moduleSource,
-    'import { createMainzGeneratedVitePlugins, defineConfig, loadDenoVitePluginFactory, typescript as ts } from "file://',
+    'import { applyMaterializedViteNavigationToDefine, applyMaterializedViteNavigationToDevMiddlewareOptions, createMainzGeneratedVitePlugins, defineConfig, loadDenoTypescript, loadDenoVitePluginFactory, resolveMaterializedViteNavigationContext } from ',
   );
   assertStringIncludes(
     moduleSource,
@@ -393,6 +395,70 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
       '{ find: "@content", replacement: "./src/content" }',
     );
     assertEquals(moduleSource.includes(normalizePath(cwd)), false);
+    assertEquals(moduleSource.includes('from "file://'), false);
+  } finally {
+    Deno.removeSync(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/vite-config: should render a Node materialized Vite config with relative workspace paths", () => {
+  const cwd = Deno.makeTempDirSync({
+    prefix: "mainz-node-materialized-vite-config-",
+  });
+
+  try {
+    const config = normalizeMainzConfig({
+      runtime: "node",
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+          vite: {
+            alias: {
+              "@content": "./site/src/content",
+            },
+          },
+        },
+      ],
+    });
+
+    const generated = resolveGeneratedViteConfig({
+      cwd,
+      runtimeName: "node",
+      target: config.targets[0],
+      outputDir: "dist/site/browser",
+      navigationMode: "spa",
+      basePath: "/",
+      appLocales: [],
+      localePrefix: "except-default",
+      cacheDir: ".mainz_temp/vite-cache/site",
+    });
+    const moduleSource = renderMaterializedViteConfigModule(generated, "node");
+
+    assertStringIncludes(
+      moduleSource,
+      'import { applyMaterializedViteNavigationToDefine, applyMaterializedViteNavigationToDevMiddlewareOptions, createMainzGeneratedVitePlugins, resolveMaterializedViteNavigationContext } from ',
+    );
+    assertStringIncludes(
+      moduleSource,
+      'import { defineConfig } from "mainz/tooling/vite";',
+    );
+    assertStringIncludes(moduleSource, `root: "./site"`);
+    assertStringIncludes(moduleSource, `publicDir: "./public"`);
+    assertStringIncludes(moduleSource, `cacheDir: "../.mainz_temp/vite-cache/site"`);
+    assertStringIncludes(moduleSource, `outDir: "../dist/site/browser"`);
+    assertStringIncludes(moduleSource, `"cwd": ".."`);
+    assertStringIncludes(
+      moduleSource,
+      '{ find: "@content", replacement: "./src/content" }',
+    );
+    assertStringIncludes(
+      moduleSource,
+      '{ find: "mainz", replacement: "mainz" }',
+    );
+    assertEquals(moduleSource.includes(normalizePath(cwd)), false);
+    assertEquals(moduleSource.includes('C:/'), false);
+    assertEquals(moduleSource.includes('from "file://'), false);
   } finally {
     Deno.removeSync(cwd, { recursive: true });
   }
@@ -431,7 +497,14 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
     const moduleSource = renderMaterializedViteConfigModule(generated)
       .replace(
         /^import \{ .* \} from .+;\n/m,
-        "const defineConfig = (config) => config;\nconst createMainzGeneratedVitePlugins = () => [];\n",
+        [
+          "const defineConfig = (config) => config;",
+          "const createMainzGeneratedVitePlugins = () => [];",
+          "const resolveMaterializedViteNavigationContext = async () => ({ navigationMode: 'spa', basePath: '/' });",
+          "const applyMaterializedViteNavigationToDevMiddlewareOptions = (options) => options;",
+          "const applyMaterializedViteNavigationToDefine = (define) => define;",
+          "",
+        ].join("\n"),
       )
       .replace(
         /    plugins: createMainzGeneratedVitePlugins\(\{[\s\S]*?    \}\),\n/,
@@ -465,6 +538,84 @@ Deno.test("build/vite-config: materialized Vite config should resolve app root f
   } finally {
     process.chdir(previousCwd);
     await Deno.remove(cwd, { recursive: true });
+  }
+});
+
+Deno.test("build/vite-config: materialized Vite config should derive navigation dynamically from the app definition", async () => {
+  const fixture = await createAppFixture({
+    navigation: "spa",
+  });
+  const previousCwd = process.cwd();
+
+  try {
+    const config = normalizeMainzConfig({
+      runtime: "node",
+      targets: [
+        {
+          name: "site",
+          rootDir: "./site",
+          appFile: "./site/src/main.tsx",
+          appId: "site",
+        },
+      ],
+    });
+
+    const generated = resolveGeneratedViteConfig({
+      cwd: fixture.cwd,
+      runtimeName: "deno",
+      target: config.targets[0],
+      outputDir: "dist/site/browser",
+      navigationMode: "spa",
+      basePath: "/",
+      appLocales: [],
+      localePrefix: "except-default",
+      cacheDir: ".mainz_temp/vite-cache/site",
+    });
+    const configPath = join(fixture.cwd, "site", "vite.config.ts");
+    await Deno.writeTextFile(
+      configPath,
+      renderMaterializedViteConfigModule(generated, "deno"),
+    );
+
+    await Deno.writeTextFile(
+      join(fixture.cwd, "site", "src", "main.tsx"),
+      [
+        `import { defineApp } from ${
+          JSON.stringify(pathToFileURL(join(Deno.cwd(), "src", "index.ts")).href)
+        };`,
+        "",
+        "export const app = defineApp({",
+        '  id: "site",',
+        '  navigation: "mpa",',
+        "  pages: [],",
+        "});",
+        "",
+      ].join("\n"),
+    );
+
+    process.chdir(fixture.cwd);
+    const loaded = await loadConfigFromFile(
+      {
+        command: "serve",
+        mode: "development",
+      },
+      configPath,
+      fixture.cwd,
+    );
+
+    assertEquals(loaded?.config.appType, "mpa");
+    assertEquals(loaded?.config.base, "./");
+    assertEquals(
+      loaded?.config.define?.__MAINZ_NAVIGATION_MODE__,
+      JSON.stringify("mpa"),
+    );
+    assertEquals(
+      loaded?.config.define?.__MAINZ_BASE_PATH__,
+      JSON.stringify("./"),
+    );
+  } finally {
+    process.chdir(previousCwd);
+    await Deno.remove(fixture.cwd, { recursive: true });
   }
 });
 
@@ -503,6 +654,7 @@ Deno.test("build/vite-config: should render an SSR server bundle config", () => 
     normalizePath(resolve(cwd, "site/src/main.tsx")),
   );
   assertStringIncludes(moduleSource, `publicDir: false`);
+  assertStringIncludes(moduleSource, `appType: "custom"`);
   assertStringIncludes(
     moduleSource,
     `ssr: ${JSON.stringify(normalizePath(resolve(cwd, "site/src/main.tsx")))}`,

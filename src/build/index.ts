@@ -20,6 +20,11 @@ export { createMainzGeneratedVitePlugins } from "./vite-plugin-factory.ts";
 export type { MainzGeneratedVitePluginsOptions } from "./vite-plugin-factory.ts";
 export { loadTargetBuildRoutedAppDefinition } from "./app-definition.ts";
 export {
+  applyMaterializedViteNavigationToDefine,
+  applyMaterializedViteNavigationToDevMiddlewareOptions,
+  resolveMaterializedViteNavigationContext,
+} from "./materialized-vite-navigation.ts";
+export {
   resolveRoutePrerenderContext,
   resolveTargetI18nConfig,
 } from "./prerender-context.ts";
