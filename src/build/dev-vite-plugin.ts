@@ -22,6 +22,7 @@ export interface MainzDevRouteMiddlewarePluginOptions {
   profile: {
     name: string;
     basePath: string;
+    requestedBasePath?: string;
     siteUrl?: string;
   };
   debugSsg?: boolean;

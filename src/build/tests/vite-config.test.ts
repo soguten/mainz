@@ -7,6 +7,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { loadConfigFromFile, resolveConfig } from "vite";
 import { normalizeMainzConfig } from "../../config/index.ts";
 import { MAINZ_PUBLIC_ENTRYPOINTS } from "../../config/public-entrypoints.ts";
+import type { MainzDevRouteMiddlewarePluginOptions } from "../dev-vite-plugin.ts";
 import {
   resolveEffectiveNavigationMode,
   resolveTargetBuildProfile,
@@ -403,6 +404,30 @@ Deno.test("build/vite-config: should render a materialized Vite config with rela
   } finally {
     Deno.removeSync(cwd, { recursive: true });
   }
+});
+
+Deno.test("build/vite-config: public dev middleware options type should accept requestedBasePath in profile", () => {
+  const options: MainzDevRouteMiddlewarePluginOptions = {
+    cwd: "..",
+    runtimeName: "node",
+    target: {
+      name: "site",
+      rootDir: "./site",
+      appFile: "./site/src/main.tsx",
+      appId: "site",
+      outDir: "dist/site",
+    },
+    profile: {
+      name: "development",
+      basePath: "/",
+      requestedBasePath: "/docs/",
+      siteUrl: "https://mainz.dev",
+    },
+    defaultLocale: "en",
+    localePrefix: "except-default",
+  };
+
+  assertEquals(options.profile.requestedBasePath, "/docs/");
 });
 
 Deno.test("build/vite-config: should render a Node materialized Vite config with relative workspace paths", () => {
