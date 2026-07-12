@@ -126,6 +126,16 @@ function applyAttributes(el: Element, props: Record<string, any>) {
       } else if (value != null) {
         el.setAttribute(key, String(value));
       }
+    } else if (key === "disabled") {
+      if ("disabled" in el) {
+        applyBooleanPropertyAttribute(
+          el as Element & { disabled: boolean },
+          key,
+          value,
+        );
+      } else if (value != null) {
+        el.setAttribute(key, String(value));
+      }
     } else if (key === "selected") {
       if (optionCtor && el instanceof optionCtor) {
         (el as HTMLOptionElement).selected = Boolean(value);
@@ -157,6 +167,21 @@ function applyAttributes(el: Element, props: Record<string, any>) {
         el.setAttribute(key, String(value));
       }
     }
+  }
+}
+
+function applyBooleanPropertyAttribute(
+  el: Element,
+  key: string,
+  value: unknown,
+): void {
+  const enabled = Boolean(value);
+  (el as unknown as Record<string, unknown>)[key] = enabled;
+
+  if (enabled) {
+    el.setAttribute(key, "");
+  } else {
+    el.removeAttribute(key);
   }
 }
 

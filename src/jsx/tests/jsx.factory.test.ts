@@ -22,15 +22,29 @@ const fixtures = await import(
 Deno.test("jsx/factory: should create HTML elements with primitive attributes", () => {
   const button = domFactory.h("button", {
     className: "btn primary",
-    disabled: true,
     "data-id": 10,
   }, "go") as HTMLButtonElement;
 
   assertEquals(button.tagName, "BUTTON");
   assertEquals(button.getAttribute("class"), "btn primary");
-  assertEquals(button.getAttribute("disabled"), "true");
   assertEquals(button.getAttribute("data-id"), "10");
   assertEquals(button.textContent, "go");
+});
+
+Deno.test("jsx/factory: should map disabled as a boolean property", () => {
+  const enabledButton = domFactory.h("button", {
+    disabled: false,
+  }, "enabled") as HTMLButtonElement;
+  const disabledButton = domFactory.h("button", {
+    disabled: true,
+  }, "disabled") as HTMLButtonElement;
+
+  assertEquals(enabledButton.disabled, false);
+  assertEquals(enabledButton.hasAttribute("disabled"), false);
+
+  assertEquals(disabledButton.disabled, true);
+  assertEquals(disabledButton.hasAttribute("disabled"), true);
+  assertEquals(disabledButton.getAttribute("disabled"), "");
 });
 
 Deno.test("jsx/factory: should flatten children and ignore nullish/boolean values", () => {
