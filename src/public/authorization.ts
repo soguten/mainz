@@ -8,6 +8,7 @@ export {
   resolveComponentAuthorization,
   resolvePageAuthorization,
 } from "../authorization/index.ts";
+export { createAnonymousPrincipal } from "../authorization/runtime.ts";
 export type {
   AuthorizationOptions,
   AuthorizationPolicy,
