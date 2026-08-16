@@ -84,7 +84,7 @@ export class HttpClient {
     this.defaultHeaders = new Headers(options.headers);
     this.defaultRetry = normalizeRetryOptions(options.retry);
     this.defaultTimeoutMs = normalizeTimeoutMs(options.timeoutMs);
-    this.fetchImpl = options.fetch ?? fetch;
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
   /** Creates a GET request handle. */
@@ -281,7 +281,11 @@ function resolveRequestUrl(path: string, baseUrl?: string): string {
     return path;
   }
 
-  return new URL(path, baseUrl).toString();
+  return new URL(path, ensureDirectoryLikeBaseUrl(baseUrl)).toString();
+}
+
+function ensureDirectoryLikeBaseUrl(baseUrl: string): string {
+  return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
 }
 
 function shouldRetryResponse(method: HttpMethod, status: number): boolean {

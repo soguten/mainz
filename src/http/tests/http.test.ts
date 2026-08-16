@@ -14,9 +14,10 @@ Deno.test("http/client: should resolve json responses with baseUrl and merged he
       "x-default": "base",
     },
     fetch: async (input, init) => {
+      const request = init as globalThis.RequestInit | undefined;
       seenUrl = String(input);
-      seenMethod = String(init?.method ?? "GET");
-      seenHeaders = new Headers(init?.headers);
+      seenMethod = String(request?.method ?? "GET");
+      seenHeaders = new Headers(request?.headers);
 
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
@@ -73,6 +74,28 @@ Deno.test("http/client: should retry retryable GET responses and eventually succ
   assertEquals(attempts, 2);
 });
 
+Deno.test("http/client: should preserve baseUrl path segments when the baseUrl has no trailing slash", async () => {
+  let seenUrl = "";
+
+  const client = new HttpClient({
+    baseUrl: "https://example.com/api",
+    fetch: async (input) => {
+      seenUrl = String(input);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      });
+    },
+  });
+
+  const result = await client.get("platform/projects").json<{ ok: boolean }>();
+
+  assertEquals(result.ok, true);
+  assertEquals(seenUrl, "https://example.com/api/platform/projects");
+});
+
 Deno.test("http/client: should throw HttpResponseError for non-success responses", async () => {
   const client = new HttpClient({
     fetch: async () =>
@@ -92,8 +115,9 @@ Deno.test("http/client: should abort timed out requests", async () => {
   const client = new HttpClient({
     timeoutMs: 10,
     fetch: async (_input, init) => {
+      const request = init as globalThis.RequestInit | undefined;
       return await new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => {
+        request?.signal?.addEventListener("abort", () => {
           reject(new DOMException("Aborted", "AbortError"));
         }, { once: true });
       });
@@ -107,4 +131,41 @@ Deno.test("http/client: should abort timed out requests", async () => {
     Error,
     "timed out after 10ms",
   );
+});
+
+Deno.test("http/client: should preserve window fetch semantics when no custom implementation is provided", async () => {
+  let callCount = 0;
+
+  const originalGlobalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async function (this: typeof globalThis, ...args: Parameters<typeof fetch>): Promise<Response> {
+    if (this !== globalThis) {
+      throw new TypeError(
+        "'fetch' called on an object that does not implement interface Window.",
+      );
+    }
+
+    const [input] = args;
+    callCount += 1;
+    return new Response(JSON.stringify({ ok: true, url: String(input) }), {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+      },
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new HttpClient();
+    const result = await client.get("https://example.com/projects").json<{
+      ok: boolean;
+      url: string;
+    }>();
+
+    assertEquals(result.ok, true);
+    assertEquals(result.url, "https://example.com/projects");
+    assertEquals(callCount, 1);
+  } finally {
+    globalThis.fetch = originalGlobalFetch;
+  }
 });
