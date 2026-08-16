@@ -156,9 +156,12 @@ Deno.test("cli/local-launcher: deno starter project should inspect and diagnose 
       projectDir,
       "dev",
       ["--target", "app"],
-      12000,
+      30000,
     );
-    assertStringIncludes(devSession.stdout, "VITE");
+    assertStringIncludes(
+      `${devSession.stdout}\n${devSession.stderr}`,
+      "VITE",
+    );
     assertEquals(
       devSession.stderr.includes("Failed to run dependency scan"),
       false,
@@ -371,7 +374,11 @@ Deno.test("cli/local-launcher: node project should materialize and dematerialize
       cwd,
       "dev",
       ["--target", "site"],
-      12000,
+      30000,
+    );
+    assertStringIncludes(
+      `${devSession.stdout}\n${devSession.stderr}`,
+      "VITE",
     );
     assertStringIncludes(devSession.stdout, "[mainz] Starting dev server");
     assertEquals(
@@ -498,7 +505,11 @@ Deno.test("cli/local-launcher: deno project should materialize and dematerialize
       cwd,
       "dev",
       ["--target", "site"],
-      12000,
+      30000,
+    );
+    assertStringIncludes(
+      `${devSession.stdout}\n${devSession.stderr}`,
+      "VITE",
     );
     assertEquals(
       devSession.stderr.includes("[UNRESOLVED_IMPORT]"),
@@ -734,52 +745,125 @@ async function runNodeProjectScriptSession(
   cwd: string,
   script: string,
   args: readonly string[],
-  durationMs: number,
+  readinessTimeoutMs: number,
   options: { env?: Record<string, string> } = {},
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  const child = new Deno.Command("npm", {
-    args: ["run", "--silent", script, "--", ...args],
+  return await runProjectSession(
+    "npm",
+    ["run", "--silent", script, "--", ...args],
     cwd,
-    env: options.env,
-    stdout: "piped",
-    stderr: "piped",
-  }).spawn();
-
-  await new Promise((resolve) => setTimeout(resolve, durationMs));
-  await terminateSessionProcess(child);
-
-  const result = await child.output();
-  return {
-    code: result.code,
-    stdout: decoder.decode(result.stdout),
-    stderr: decoder.decode(result.stderr),
-  };
+    readinessTimeoutMs,
+    options,
+  );
 }
 
 async function runDenoProjectTaskSession(
   cwd: string,
   task: string,
   args: readonly string[],
-  durationMs: number,
+  readinessTimeoutMs: number,
   options: { env?: Record<string, string> } = {},
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  const child = new Deno.Command("deno", {
-    args: ["task", task, ...args],
+  return await runProjectSession(
+    "deno",
+    ["task", task, ...args],
+    cwd,
+    readinessTimeoutMs,
+    options,
+  );
+}
+
+async function runProjectSession(
+  command: string,
+  args: readonly string[],
+  cwd: string,
+  readinessTimeoutMs: number,
+  options: { env?: Record<string, string> } = {},
+): Promise<{ code: number; stdout: string; stderr: string }> {
+  const child = new Deno.Command(command, {
+    args: [...args],
     cwd,
     env: options.env,
     stdout: "piped",
     stderr: "piped",
   }).spawn();
-
-  await new Promise((resolve) => setTimeout(resolve, durationMs));
-  await terminateSessionProcess(child);
-
-  const result = await child.output();
-  return {
-    code: result.code,
-    stdout: decoder.decode(result.stdout),
-    stderr: decoder.decode(result.stderr),
+  let sessionOutput = "";
+  let markReady: (() => void) | undefined;
+  const ready = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+  const capture = (chunk: string) => {
+    sessionOutput += chunk;
+    if (sessionOutput.includes("VITE")) {
+      markReady?.();
+    }
   };
+  const stdoutPromise = readSessionStream(child.stdout, capture);
+  const stderrPromise = readSessionStream(child.stderr, capture);
+  const statusPromise = child.status;
+  const completion = Promise.all([
+    statusPromise,
+    stdoutPromise,
+    stderrPromise,
+  ]);
+
+  try {
+    await waitForSessionReadiness(ready, completion, readinessTimeoutMs);
+    await settlesWithin(completion, 2000);
+  } finally {
+    await terminateSessionProcess(child, completion);
+  }
+
+  const [status, stdout, stderr] = await completion;
+  return {
+    code: status.code,
+    stdout,
+    stderr,
+  };
+}
+
+async function readSessionStream(
+  stream: ReadableStream<Uint8Array>,
+  capture: (chunk: string) => void,
+): Promise<string> {
+  const reader = stream.getReader();
+  const streamDecoder = new TextDecoder();
+  let output = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        const trailing = streamDecoder.decode();
+        output += trailing;
+        capture(trailing);
+        return output;
+      }
+
+      const chunk = streamDecoder.decode(value, { stream: true });
+      output += chunk;
+      capture(chunk);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function waitForSessionReadiness(
+  ready: Promise<void>,
+  completion: Promise<unknown>,
+  timeoutMs: number,
+): Promise<void> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timeoutId = setTimeout(resolve, timeoutMs);
+  });
+
+  try {
+    await Promise.race([ready, completion.then(() => undefined), timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function terminateSessionProcess(
@@ -787,20 +871,122 @@ async function terminateSessionProcess(
     kill(signo?: Deno.Signal): void;
     pid: number;
   },
+  completion: Promise<unknown>,
 ): Promise<void> {
-  try {
-    if (Deno.build.os === "windows") {
+  let processIds = [child.pid];
+  if (Deno.build.os === "windows") {
+    try {
       await new Deno.Command("taskkill", {
         args: ["/PID", String(child.pid), "/T", "/F"],
         stdout: "null",
         stderr: "null",
       }).output();
-      return;
+    } catch {
+      // The dev server may already have exited by the time we stop the session.
+    }
+  } else {
+    const descendants = await resolveDescendantProcessIds(child.pid);
+    processIds = [...descendants.reverse(), child.pid];
+    signalProcesses(processIds, "SIGTERM");
+  }
+
+  if (await settlesWithin(completion, 2000)) {
+    return;
+  }
+
+  if (Deno.build.os !== "windows") {
+    const descendants = await resolveDescendantProcessIds(child.pid);
+    processIds = [...new Set([
+      ...processIds,
+      ...descendants.reverse(),
+      child.pid,
+    ])];
+    signalProcesses(processIds, "SIGKILL");
+  } else {
+    try {
+      child.kill("SIGKILL");
+    } catch {
+      // taskkill may already have stopped the process tree.
+    }
+  }
+
+  if (!(await settlesWithin(completion, 3000))) {
+    throw new Error(
+      `Timed out while stopping dev session process ${child.pid}.`,
+    );
+  }
+}
+
+async function resolveDescendantProcessIds(rootPid: number): Promise<number[]> {
+  try {
+    const result = await new Deno.Command("ps", {
+      args: ["-A", "-o", "pid=,ppid="],
+      stdout: "piped",
+      stderr: "null",
+    }).output();
+    if (!result.success) {
+      return [];
     }
 
-    child.kill("SIGTERM");
+    const childrenByParent = new Map<number, number[]>();
+    for (const line of decoder.decode(result.stdout).split("\n")) {
+      const [pidText, parentPidText] = line.trim().split(/\s+/);
+      const pid = Number(pidText);
+      const parentPid = Number(parentPidText);
+      if (!Number.isInteger(pid) || !Number.isInteger(parentPid)) {
+        continue;
+      }
+
+      const children = childrenByParent.get(parentPid) ?? [];
+      children.push(pid);
+      childrenByParent.set(parentPid, children);
+    }
+
+    const descendants: number[] = [];
+    const pending = [...(childrenByParent.get(rootPid) ?? [])];
+    while (pending.length > 0) {
+      const pid = pending.shift();
+      if (pid === undefined) {
+        continue;
+      }
+      descendants.push(pid);
+      pending.push(...(childrenByParent.get(pid) ?? []));
+    }
+    return descendants;
   } catch {
-    // The dev server may already have exited by the time we stop the session.
+    return [];
+  }
+}
+
+function signalProcesses(pids: readonly number[], signal: Deno.Signal): void {
+  for (const pid of pids) {
+    try {
+      Deno.kill(pid, signal);
+    } catch {
+      // Processes can exit between discovery and signaling.
+    }
+  }
+}
+
+async function settlesWithin(
+  promise: Promise<unknown>,
+  timeoutMs: number,
+): Promise<boolean> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<false>((resolve) => {
+    timeoutId = setTimeout(() => resolve(false), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      promise.then(
+        () => true,
+        () => true,
+      ),
+      timeout,
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -900,7 +1086,7 @@ async function rewireNodeProjectToLocalTooling(projectDir: string): Promise<void
   };
   packageJson.scripts = {
     ...(packageJson.scripts ?? {}),
-    mainz: "tsx ./scripts/mainz.mjs",
+    mainz: "node ./scripts/mainz.mjs",
   };
 
   await Deno.writeTextFile(
@@ -1004,6 +1190,24 @@ async function installNodeMainzShim(projectDir: string): Promise<void> {
     ].join("\n"),
   );
   await rewriteNodeShimSpecifiers(packageRoot);
+  await Deno.writeTextFile(
+    resolve(packageRoot, "src", "public", "tooling-cli.js"),
+    [
+      'import { register } from "tsx/esm/api";',
+      "",
+      "register();",
+      "",
+      'const { main: runCli } = await import("../cli/mainz.ts");',
+      "",
+      "export async function main(args, options = {}) {",
+      "  return await runCli(args, {",
+      "    hostRuntime: options.hostRuntime,",
+      '    commandScope: "project",',
+      "  });",
+      "}",
+      "",
+    ].join("\n"),
+  );
 
   await Deno.writeTextFile(
     resolve(packageRoot, "package.json"),

@@ -7,7 +7,14 @@
  * @module
  */
 
+import { register as registerTsxLoader } from "npm:tsx@4.22.4/esm/api";
 import { main as runCli } from "../cli/mainz.ts";
+
+if (typeof globalThis.Deno === "undefined") {
+  // Builds evaluate app definitions more than once. Keep TSX support active for
+  // the whole Node CLI process so later imports still resolve routed pages.
+  registerTsxLoader();
+}
 
 export type { MainzToolingRuntime } from "../tooling/runtime/types.ts";
 
