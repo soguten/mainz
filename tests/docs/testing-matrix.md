@@ -47,7 +47,8 @@ scenario-based:
 
 - case-owned intent through `scenarioTest(...)`
 - recipe grouping through the scenario harness
-- test-app family naming through `RoutedApp` and `RootApp`
+- test-app identifiers that describe their role, such as `LocalizedApp` and
+  `RootApp`
 - route-first authoring through `app.route(...)` and `app.document(...)`
 - route-level render coverage through real CSR and SSG pages inside the test
   app
@@ -76,7 +77,7 @@ test-app builds derived from page discovery.
 
 The core matrix is for contracts that share the same build shape:
 
-- test-app family: `RoutedApp` or `RootApp`
+- test-app family: `LocalizedApp` or `RootApp`
 - navigation: one of `spa` or `mpa`
 - route-level render coverage provided by actual page declarations inside the
   test app
@@ -320,7 +321,7 @@ Current fixture responsibilities:
 The new matrix layer maps these buildable test apps into RFC-style test-app
 families:
 
-- `RoutedApp`
+- `LocalizedApp`
   - routing
   - notFound
   - i18n
@@ -351,7 +352,7 @@ families:
 
 Those test-app families now have their own dedicated backing test apps:
 
-- `tests/test-apps/routed-app`
+- `tests/test-apps/localized-app`
 - `tests/test-apps/root-app`
 - `tests/test-apps/routed-di-app`
 - `tests/test-apps/routed-authorization-app`
@@ -638,7 +639,7 @@ Recommended shape:
 ```ts
 export const exampleScenarioCase = scenarioTest({
   name: "metadata keeps localized head state in sync",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     const screen = await app.route("/pt/").render();
 
@@ -659,7 +660,7 @@ export async function runExampleMatrixCheck(args: {
   navigation: "spa" | "mpa";
   context?: TestScenarioBuildContext;
 }): Promise<void> {
-  const context = args.context ?? await buildRoutedAppForNavigation(
+  const context = args.context ?? await buildLocalizedAppForNavigation(
     args.navigation,
   );
 
@@ -699,7 +700,7 @@ supported combinations that already exist today.
 
 Examples:
 
-- a new routing invariant for `RoutedApp + mpa`
+- a new routing invariant for `LocalizedApp + mpa`
 - another head assertion over emitted localized routes
 - an extra hydration assertion over the current `RootApp` artifact
 
@@ -788,7 +789,7 @@ The key idea is:
 
 Imagine we want a new grouped domain called `metadata` for assertions that
 validate emitted document metadata after boot, but that still uses the same
-shared `RoutedApp + navigation` build shape.
+shared `LocalizedApp + navigation` build shape.
 
 The flow should be:
 
@@ -805,7 +806,7 @@ Example:
 ```ts
 export const metadataScenarioCase = scenarioTest({
   name: "metadata keeps localized head state in sync",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     const screen = await app.route("/pt/").render();
 
@@ -895,7 +896,8 @@ The current matrix is centered on the shared `core-contracts` build cluster, but
 the migration path is now explicit:
 
 1. keep growing the declarative matrix in `tests/matrix/*`
-2. move cases onto RFC-shaped test-app families such as `RoutedApp` and `RootApp`
+2. move cases onto purpose-named test-app families such as `LocalizedApp` and
+   `RootApp`
 3. split the backing test-app content when the scenario families stop sharing the
    same build shape
 

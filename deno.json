@@ -71,6 +71,7 @@
         "check:jsr-publish:strict": "deno run -A ./src/cli/check-jsr-publish.ts --strict",
         "test": "deno test -A",
         "test:browser:forms": "deno test -A tests/browser/forms.browser.ts",
+        "test:browser:navigation": "deno test -A tests/browser/navigation.browser.ts",
         "test:cli:fast": "deno test -A src/cli/tests/build.test.ts src/cli/tests/mainz.app.test.ts src/cli/tests/mainz.container.test.ts src/cli/tests/mainz.dev.test.ts src/cli/tests/mainz.diagnose.test.ts src/cli/tests/mainz.preview.test.ts src/cli/tests/mainz.publish-info.test.ts src/cli/tests/package-version.test.ts src/cli/tests/project-scaffold.test.ts",
         "test:local-launcher": "deno test -A src/cli/tests/local-launcher.test.ts",
         "test:fast": "deno test -A src/components/tests src/config/tests src/i18n/tests src/jsx/tests src/navigation/tests src/routing/tests src/testing/tests && deno task test:cli:fast && deno task check:materialized-vite && deno task check:jsr-publish",

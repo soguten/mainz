@@ -145,8 +145,8 @@ Deno.test("cli/mainz: container init should generate a server-capable Dockerfile
 
 Deno.test("cli/mainz: container init should generate MPA browser-only Dockerfiles with locale-aware 404 handling", async () => {
   const testApp = await createTestAppTargetConfig({
-    testAppName: "routed-app",
-    targetName: "routed-app-container-mpa",
+    testAppName: "localized-app",
+    targetName: "localized-app-container-mpa",
     appFile: "src/app.ts",
   });
 
@@ -155,19 +155,19 @@ Deno.test("cli/mainz: container init should generate MPA browser-only Dockerfile
       resolve(testApp.testAppRoot, "src", "app.ts"),
       [
         'import { defineApp, startApp } from "mainz";',
-        'import { RoutedAppHomePage } from "./pages/Home.page.tsx";',
-        'import { RoutedAppNotFoundPage } from "./pages/NotFound.page.tsx";',
+        'import { LocalizedHomePage } from "./pages/Home.page.tsx";',
+        'import { LocalizedNotFoundPage } from "./pages/NotFound.page.tsx";',
         "",
         "const app = defineApp({",
-        '  id: "routed-app-container-mpa",',
+        '  id: "localized-app-container-mpa",',
         '  navigation: "mpa",',
         "  i18n: {",
         '    locales: ["en", "pt"],',
         '    defaultLocale: "en",',
         '    localePrefix: "except-default",',
         "  },",
-        "  pages: [RoutedAppHomePage],",
-        "  notFound: RoutedAppNotFoundPage,",
+        "  pages: [LocalizedHomePage],",
+        "  notFound: LocalizedNotFoundPage,",
         "});",
         "",
         'startApp(app, { mount: "#app" });',

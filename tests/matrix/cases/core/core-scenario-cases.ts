@@ -16,7 +16,7 @@ import {
 
 export const routingScenarioCase = scenarioTest({
   name: "routing preserves localized navigation across SSG and CSR routes",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     await assertRoute({
       app,
@@ -67,7 +67,7 @@ export const routingScenarioCase = scenarioTest({
 
 export const notFoundScenarioCase = scenarioTest({
   name: "notFound preserves localized 404 behavior",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     await assertNotFoundCase({
       app,
@@ -91,7 +91,7 @@ export const notFoundScenarioCase = scenarioTest({
 
 export const i18nScenarioCase = scenarioTest({
   name: "i18n preserves localized bootstrap across SSG and CSR routes",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     const englishHome = await app.route("/").render();
     try {
@@ -156,7 +156,7 @@ export const i18nScenarioCase = scenarioTest({
 export const headScenarioCase = scenarioTest({
   name:
     "head preserves canonical and alternate links across SSG and CSR routes",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ app }) => {
     const localizedHome = await app.route("/pt/").render();
     try {
@@ -190,7 +190,7 @@ export const headScenarioCase = scenarioTest({
 
 export const navigationScenarioCase = scenarioTest({
   name: "navigation preserves locale switching semantics",
-  app: "RoutedApp",
+  app: "LocalizedApp",
   run: async ({ navigation, app }) => {
     const screen = await app.route("/").render();
 

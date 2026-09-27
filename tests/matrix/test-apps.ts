@@ -4,9 +4,9 @@ import {
   buildBasePathAppForNavigation,
   buildGeneratedTagStabilityAppForNavigation,
   buildHeadSeoAppForNavigation,
+  buildLocalizedAppForNavigation,
   buildRootAppForNavigation,
   buildRoutedAuthorizationAppForNavigation,
-  buildRoutedAppForNavigation,
   buildRoutedDiClientAppForNavigation,
   buildRoutedDiEntriesAppForNavigation,
   buildSingleLocaleRoutedAppForNavigation,
@@ -28,7 +28,7 @@ import {
 } from "./render-test-app.ts";
 
 export type TestAppId =
-  | "RoutedApp"
+  | "LocalizedApp"
   | "RootApp"
   | "RoutedDIEntriesApp"
   | "RoutedDIClientApp"
@@ -84,9 +84,9 @@ function defineNavigationScenarioTestApp(args: {
 }
 
 export const testApps: Record<TestAppId, TestAppDefinition> = {
-  "RoutedApp": defineNavigationScenarioTestApp({
-    id: "RoutedApp",
-    buildNavigation: buildRoutedAppForNavigation,
+  "LocalizedApp": defineNavigationScenarioTestApp({
+    id: "LocalizedApp",
+    buildNavigation: buildLocalizedAppForNavigation,
   }),
   "RootApp": defineNavigationScenarioTestApp({
     id: "RootApp",

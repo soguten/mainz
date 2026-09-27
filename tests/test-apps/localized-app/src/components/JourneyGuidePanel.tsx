@@ -1,34 +1,32 @@
-import { Component, CustomElement } from "mainz";
-
-type JourneyGuidePanelProps = {
-  locale: "en" | "pt";
-};
+import { Component, CustomElement, NoProps } from "mainz";
+import { t } from "mainz/i18n";
 
 type JourneyGuidePanelState = {
   activeChapter: "intro" | "deep-dive";
 };
 
-@CustomElement("x-mainz-routed-app-journey-guide-panel")
-export class JourneyGuidePanel
-  extends Component<JourneyGuidePanelProps, JourneyGuidePanelState> {
+@CustomElement("x-mainz-localized-app-journey-guide-panel")
+export class JourneyGuidePanel extends Component<NoProps, JourneyGuidePanelState> {
   override initState(): JourneyGuidePanelState {
     return { activeChapter: "intro" };
   }
 
   override render() {
-    const isPortuguese = this.props.locale === "pt";
     const activeChapter = this.state.activeChapter;
 
     return (
       <section>
         <h1>
-          {isPortuguese ? "Iniciar trilha guiada" : "Start guided journey"}
+          {t("journey.title")}
         </h1>
-        <p>{isPortuguese ? "Trilha guiada" : "Guided journey"}</p>
+        <p>{t("journey.description")}</p>
 
         <nav>
           <a className="locale-chip" data-locale="en" href="/">English</a>
           <a className="locale-chip" data-locale="pt" href="/pt/">Portugues</a>
+          <a className="route-link" href="/quickstart">
+            {t("navigation.quickstart")}
+          </a>
         </nav>
 
         <div className="chapter-row">
@@ -38,7 +36,7 @@ export class JourneyGuidePanel
             }`}
             onClick={() => this.setState({ activeChapter: "intro" })}
           >
-            {isPortuguese ? "Introducao" : "Introduction"}
+            {t("journey.intro")}
           </button>
           <button
             className={`chapter-button${
@@ -46,7 +44,7 @@ export class JourneyGuidePanel
             }`}
             onClick={() => this.setState({ activeChapter: "deep-dive" })}
           >
-            {isPortuguese ? "Capitulos" : "Chapters"}
+            {t("journey.chapters")}
           </button>
         </div>
       </section>

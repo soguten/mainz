@@ -27,9 +27,14 @@ type NamedTestAppBuildSpec = {
   appFile?: string;
 };
 
-const routedAppBuildSpec = {
-  testAppName: "routed-app",
-  targetName: "routed-app",
+const localizedAppBuildSpec = {
+  testAppName: "localized-app",
+  targetName: "localized-app",
+} as const satisfies NamedTestAppBuildSpec;
+
+const browserNavigationAppBuildSpec = {
+  testAppName: "browser-navigation-app",
+  targetName: "browser-navigation-app",
 } as const satisfies NamedTestAppBuildSpec;
 
 const rootAppBuildSpec = {
@@ -78,10 +83,18 @@ const unlocalizedRoutedAppBuildSpec = {
   targetName: "unlocalized-routed-app",
 } as const satisfies NamedTestAppBuildSpec;
 
-export const buildRoutedAppForNavigation = (
+export const buildLocalizedAppForNavigation = (
   navigation: TestNavigationMode,
 ): Promise<TestScenarioBuildContext> =>
-  buildRegisteredTestAppForNavigation(routedAppBuildSpec, navigation);
+  buildRegisteredTestAppForNavigation(localizedAppBuildSpec, navigation);
+
+export const buildBrowserNavigationAppForNavigation = (
+  navigation: TestNavigationMode,
+): Promise<TestScenarioBuildContext> =>
+  buildRegisteredTestAppForNavigation(
+    browserNavigationAppBuildSpec,
+    navigation,
+  );
 
 export const buildRootAppForNavigation = (
   navigation: TestNavigationMode,

@@ -1,9 +1,10 @@
 import { CustomElement, Locales, Page, RenderMode } from "mainz";
+import { t } from "mainz/i18n";
 
-@CustomElement("x-mainz-routed-app-not-found-page")
+@CustomElement("x-mainz-localized-app-not-found-page")
 @RenderMode("ssg")
 @Locales("en", "pt")
-export class RoutedAppNotFoundPage extends Page {
+export class LocalizedNotFoundPage extends Page {
   override metadata() {
     return {
       title: "404 | Mainz",
@@ -11,18 +12,12 @@ export class RoutedAppNotFoundPage extends Page {
   }
 
   override render() {
-    const locale = this.route.locale ?? "en";
     const pathname = this.route.url?.pathname ?? "/";
-    const isPortuguese = locale === "pt";
 
     return (
-      <section data-app-surface="routed-app-not-found">
-        <p>{isPortuguese ? "Atlas de rotas" : "Route atlas"}</p>
-        <h1>
-          {isPortuguese
-            ? "Essa rota nao existe no Mainz."
-            : "That route does not exist in Mainz."}
-        </h1>
+      <section data-app-surface="localized-app-not-found">
+        <p>{t("notFound.eyebrow")}</p>
+        <h1>{t("notFound.title")}</h1>
         <nav>
           <a data-locale="en" href={buildAlternateHref(pathname, "en")}>
             English
@@ -56,4 +51,3 @@ function buildAlternateHref(
 
   return pathname;
 }
-

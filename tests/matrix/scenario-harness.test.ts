@@ -12,7 +12,7 @@ Deno.test("matrix/scenario-harness: should group cases by app, profile, and navi
   const createCase = (
     input: {
       name: string;
-      app: "RoutedApp" | "RootApp";
+      app: "LocalizedApp" | "RootApp";
       profile?: string;
       navigation?: readonly ("spa" | "mpa")[];
     },
@@ -24,11 +24,11 @@ Deno.test("matrix/scenario-harness: should group cases by app, profile, and navi
 
   const groups = groupScenarioCasesByRecipe(
     [
-      createCase({ name: "routing", app: "RoutedApp" }),
-      createCase({ name: "head", app: "RoutedApp" }),
+      createCase({ name: "routing", app: "LocalizedApp" }),
+      createCase({ name: "head", app: "LocalizedApp" }),
       createCase({
         name: "profiled",
-        app: "RoutedApp",
+        app: "LocalizedApp",
         profile: "gh-pages",
       }),
       createCase({
@@ -54,20 +54,20 @@ Deno.test("matrix/scenario-harness: should inherit app from the suite when a cas
       }),
     ],
     "spa",
-    "RoutedApp",
+    "LocalizedApp",
   );
 
   assertEquals(groups.length, 1);
-  assertEquals(groups[0].recipe.app, "RoutedApp");
+  assertEquals(groups[0].recipe.app, "LocalizedApp");
 });
 
 Deno.test("matrix/scenario-harness: should build stable recipe keys", () => {
   assertEquals(
     getScenarioRecipeKey({
-      app: "RoutedApp",
+      app: "LocalizedApp",
       navigation: "spa",
     }),
-    JSON.stringify(["RoutedApp", "", "spa"]),
+    JSON.stringify(["LocalizedApp", "", "spa"]),
   );
 });
 
@@ -76,7 +76,7 @@ Deno.test("matrix/scenario-harness: should format recipe diagnostics with artifa
     [
       scenarioTest({
         name: "routing",
-        app: "RoutedApp",
+        app: "LocalizedApp",
         run: async () => {},
       }),
     ],
@@ -90,17 +90,17 @@ Deno.test("matrix/scenario-harness: should format recipe diagnostics with artifa
       new Map([
         [
           getScenarioRecipeKey({
-            app: "RoutedApp",
+            app: "LocalizedApp",
             navigation: "spa",
           }),
-          ["dist/routed-app"],
+          ["dist/localized-app"],
         ],
       ]),
     ),
     [
       "[matrix] navigation: spa",
-      "[matrix] recipe: app=RoutedApp profile=none navigation=spa",
-      "[matrix] artifact: mode=routed-app outputDir=dist/routed-app",
+      "[matrix] recipe: app=LocalizedApp profile=none navigation=spa",
+      "[matrix] artifact: mode=localized-app outputDir=dist/localized-app",
       "[matrix] cases:",
       "- routing",
     ].join("\n"),
