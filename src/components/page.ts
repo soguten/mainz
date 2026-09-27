@@ -54,6 +54,7 @@ export {
 
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
 const MAINZ_PAGE_CONSTRUCTOR = Symbol.for("mainz.page.constructor");
+const MAINZ_PAGE_REQUEST_CONTEXT = Symbol.for("mainz.page.request-context");
 
 export {
   Locales,
@@ -147,6 +148,8 @@ export interface PageLoadContext {
   locale?: string;
   /** Fully resolved request URL. */
   url: URL;
+  /** Original HTTP request for server-side rendering, when available. */
+  request?: Request;
   /** Page render mode active for the current request. */
   renderMode: PageRenderMode;
   /** Navigation mode active for the current request. */
@@ -188,6 +191,8 @@ export interface PageLoadContextInit {
   locale?: string;
   /** Fully resolved request URL. */
   url: URL;
+  /** Original HTTP request for server-side rendering, when available. */
+  request?: Request;
   /** Page render mode active for the request. */
   renderMode: PageRenderMode;
   /** Navigation mode active for the request. */
@@ -370,9 +375,11 @@ export function createPageLoadContext(
     params: init.params,
     locale: init.locale,
     url: init.url,
+    request: init.request ?? getCurrentPageRequest(),
     renderMode: init.renderMode,
     navigationMode: init.navigationMode,
-    signal: init.signal ?? new AbortController().signal,
+    signal: init.signal ?? getCurrentPageRequest()?.signal ??
+      new AbortController().signal,
     principal: init.principal,
     profile: init.profile,
     runtime: init.runtime ?? resolveMainzResourceRuntime(),
@@ -413,6 +420,34 @@ export function createPageLoadContext(
       },
     },
   };
+}
+
+/** @internal Supplies request-scoped data while an SSR app entry is evaluated. */
+export async function withPageRequestContext<T>(
+  request: Request,
+  fn: () => T | Promise<T>,
+): Promise<T> {
+  const registry = globalThis as
+    & typeof globalThis
+    & Record<PropertyKey, unknown>;
+  const previous = registry[MAINZ_PAGE_REQUEST_CONTEXT];
+  registry[MAINZ_PAGE_REQUEST_CONTEXT] = request;
+  try {
+    return await fn();
+  } finally {
+    if (previous === undefined) {
+      delete registry[MAINZ_PAGE_REQUEST_CONTEXT];
+    } else {
+      registry[MAINZ_PAGE_REQUEST_CONTEXT] = previous;
+    }
+  }
+}
+
+function getCurrentPageRequest(): Request | undefined {
+  const request = (globalThis as
+    & typeof globalThis
+    & Record<PropertyKey, unknown>)[MAINZ_PAGE_REQUEST_CONTEXT];
+  return request instanceof Request ? request : undefined;
 }
 
 (Page as unknown as Record<PropertyKey, unknown>)[MAINZ_PAGE_CONSTRUCTOR] =

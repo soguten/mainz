@@ -136,6 +136,7 @@ async function renderSsrArtifactResponse(args: {
     locale,
     basePath: args.manifest.basePath,
     renderPath: args.requestUrl.pathname,
+    request: args.request,
     loadModule: loadServerEntryModule,
   });
   const routeMetadata = buildResolvedRouteMetadata({

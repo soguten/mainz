@@ -1,7 +1,13 @@
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AssetDefinition, PageMetadataDefinition } from "../components/page.ts";
-import { isAssetDefinitionList } from "../components/page.ts";
+import type {
+  AssetDefinition,
+  PageMetadataDefinition,
+} from "../components/page.ts";
+import {
+  isAssetDefinitionList,
+  withPageRequestContext,
+} from "../components/page.ts";
 import { withHappyDom } from "../ssg/happy-dom.ts";
 import { dynamicImport } from "../tooling/dynamic-import.ts";
 
@@ -23,6 +29,7 @@ export async function renderRouteAppHtml(args: {
   locale?: string;
   basePath: string;
   renderPath: string;
+  request?: Request;
   loadModule?: (specifier: string) => Promise<unknown>;
 }): Promise<
   { appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }
@@ -99,96 +106,103 @@ export async function renderRouteAppHtml(args: {
   );
 
   return await withHappyDom(async (window) => {
-    const navigatorLike = window.navigator as object;
+    const render = async () => {
+      const navigatorLike = window.navigator as object;
 
-    try {
-      if (args.locale) {
-        Object.defineProperty(navigatorLike, "language", {
-          configurable: true,
-          value: args.locale,
-          writable: true,
-        });
+      try {
+        if (args.locale) {
+          Object.defineProperty(navigatorLike, "language", {
+            configurable: true,
+            value: args.locale,
+            writable: true,
+          });
 
-        Object.defineProperty(navigatorLike, "languages", {
-          configurable: true,
-          value: [args.locale],
-          writable: true,
-        });
-      }
-
-      Object.defineProperty(globalThis, "navigator", {
-        configurable: true,
-        value: navigatorLike,
-        writable: true,
-      });
-    } catch {
-      // Ignore locale override failures; the app may use other locale resolution strategies.
-    }
-    const warnings: string[] = [];
-    const errors: unknown[] = [];
-    const originalWarn = console.warn;
-    const originalError = console.error;
-    console.warn = (...entries: unknown[]) => {
-      warnings.push(entries.map((entry) => String(entry)).join(" "));
-    };
-    console.error = (...entries: unknown[]) => {
-      const [firstEntry, secondEntry] = entries;
-      const mainzNavigationError =
-        firstEntry === "[mainz] SPA navigation failed." &&
-          typeof secondEntry !== "undefined"
-          ? secondEntry
-          : undefined;
-      errors.push(
-        mainzNavigationError ?? entries.map((entry) => String(entry)).join(" "),
-      );
-      originalError(...entries);
-    };
-
-    try {
-      document.write(htmlWithoutScripts);
-      document.close();
-
-      const appContainer = document.querySelector("#app");
-      if (!appContainer) {
-        throw new Error(
-          `Template "${args.absoluteOutputPath}" must include an #app container for SSG.`,
-        );
-      }
-
-      for (const moduleScriptUrl of moduleScriptUrls) {
-        if (args.loadModule) {
-          await args.loadModule(moduleScriptUrl);
-          continue;
+          Object.defineProperty(navigatorLike, "languages", {
+            configurable: true,
+            value: [args.locale],
+            writable: true,
+          });
         }
 
-        await dynamicImport(moduleScriptUrl);
+        Object.defineProperty(globalThis, "navigator", {
+          configurable: true,
+          value: navigatorLike,
+          writable: true,
+        });
+      } catch {
+        // Ignore locale override failures; the app may use other locale resolution strategies.
       }
-      await Promise.resolve();
-      await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
-
-      if (errors.length > 0) {
-        throw errors[0];
-      }
-
-      const hydratedContainer = document.querySelector("#app");
-      if (!hydratedContainer) {
-        throw new Error(
-          `Hydration removed #app while rendering "${args.absoluteOutputPath}".`,
-        );
-      }
-
-      const appHtml = hydratedContainer.innerHTML;
-      const routeSnapshot = extractInitialRouteSnapshot(hydratedContainer);
-
-      return {
-        appHtml,
-        routeSnapshot,
-        warnings,
+      const warnings: string[] = [];
+      const errors: unknown[] = [];
+      const originalWarn = console.warn;
+      const originalError = console.error;
+      console.warn = (...entries: unknown[]) => {
+        warnings.push(entries.map((entry) => String(entry)).join(" "));
       };
-    } finally {
-      console.warn = originalWarn;
-      console.error = originalError;
-    }
+      console.error = (...entries: unknown[]) => {
+        const [firstEntry, secondEntry] = entries;
+        const mainzNavigationError =
+          firstEntry === "[mainz] SPA navigation failed." &&
+            typeof secondEntry !== "undefined"
+            ? secondEntry
+            : undefined;
+        errors.push(
+          mainzNavigationError ??
+            entries.map((entry) => String(entry)).join(" "),
+        );
+        originalError(...entries);
+      };
+
+      try {
+        document.write(htmlWithoutScripts);
+        document.close();
+
+        const appContainer = document.querySelector("#app");
+        if (!appContainer) {
+          throw new Error(
+            `Template "${args.absoluteOutputPath}" must include an #app container for SSG.`,
+          );
+        }
+
+        for (const moduleScriptUrl of moduleScriptUrls) {
+          if (args.loadModule) {
+            await args.loadModule(moduleScriptUrl);
+            continue;
+          }
+
+          await dynamicImport(moduleScriptUrl);
+        }
+        await Promise.resolve();
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 0));
+
+        if (errors.length > 0) {
+          throw errors[0];
+        }
+
+        const hydratedContainer = document.querySelector("#app");
+        if (!hydratedContainer) {
+          throw new Error(
+            `Hydration removed #app while rendering "${args.absoluteOutputPath}".`,
+          );
+        }
+
+        const appHtml = hydratedContainer.innerHTML;
+        const routeSnapshot = extractInitialRouteSnapshot(hydratedContainer);
+
+        return {
+          appHtml,
+          routeSnapshot,
+          warnings,
+        };
+      } finally {
+        console.warn = originalWarn;
+        console.error = originalError;
+      }
+    };
+
+    return args.request
+      ? await withPageRequestContext(args.request, render)
+      : await render();
   }, { url: pageUrl });
 }
 
