@@ -40,6 +40,8 @@ export interface TryRenderSsrArtifactRequestArgs {
   rootDir: string;
   browserRootDir: string;
   request: Request;
+  /** Maximum time allowed for a single SSR render. Defaults to 30 seconds. */
+  ssrTimeoutMs?: number;
   runtime?: MainzToolingRuntime;
   responseHeaders?: (
     context: SsrArtifactResponseHeaderContext,
@@ -68,6 +70,7 @@ export async function tryRenderSsrArtifactRequest(
   if (resolution.kind === "ssr" && resolution.route && resolution.params) {
     return await renderSsrArtifactResponse({
       request: args.request,
+      ssrTimeoutMs: args.ssrTimeoutMs,
       requestUrl,
       rootDir: args.rootDir,
       browserRootDir: args.browserRootDir,
@@ -90,6 +93,7 @@ export async function tryRenderSsrArtifactRequest(
     if (notFoundRoute) {
       return await renderSsrArtifactResponse({
         request: args.request,
+        ssrTimeoutMs: args.ssrTimeoutMs,
         requestUrl,
         rootDir: args.rootDir,
         browserRootDir: args.browserRootDir,
@@ -109,6 +113,7 @@ export async function tryRenderSsrArtifactRequest(
 
 async function renderSsrArtifactResponse(args: {
   request: Request;
+  ssrTimeoutMs?: number;
   requestUrl: URL;
   rootDir: string;
   browserRootDir: string;
@@ -129,16 +134,51 @@ async function renderSsrArtifactResponse(args: {
   const loadServerEntryModule = createArtifactServerEntryLoader(
     resolve(args.rootDir, args.manifest.serverEntryPath),
   );
-  const renderedApp = await renderRouteAppHtml({
-    html: templateHtml,
-    absoluteOutputPath: indexHtmlPath,
-    outputDir: args.browserRootDir,
-    locale,
-    basePath: args.manifest.basePath,
-    renderPath: args.requestUrl.pathname,
-    request: args.request,
-    loadModule: loadServerEntryModule,
+  const timeoutMs = args.ssrTimeoutMs ?? 30_000;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError(
+      "SSR render timeout must be a positive finite number.",
+    );
+  }
+  const renderController = new AbortController();
+  const renderTimeoutError = new SsrRenderTimeoutError(timeoutMs);
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      renderController.abort(renderTimeoutError);
+      reject(renderTimeoutError);
+    }, timeoutMs);
   });
+
+  let renderedApp: Awaited<ReturnType<typeof renderRouteAppHtml>>;
+  try {
+    renderedApp = await Promise.race([
+      renderRouteAppHtml({
+        html: templateHtml,
+        absoluteOutputPath: indexHtmlPath,
+        outputDir: args.browserRootDir,
+        locale,
+        basePath: args.manifest.basePath,
+        renderPath: args.requestUrl.pathname,
+        request: args.request,
+        signal: renderController.signal,
+        loadModule: loadServerEntryModule,
+      }),
+      timeoutPromise,
+    ]);
+  } catch (error) {
+    if (error instanceof SsrRenderTimeoutError) {
+      return new Response("SSR render timed out", {
+        status: 504,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      });
+    }
+    throw error;
+  } finally {
+    if (timeoutHandle !== undefined) {
+      clearTimeout(timeoutHandle);
+    }
+  }
   const routeMetadata = buildResolvedRouteMetadata({
     route: args.route,
     locale,
@@ -205,6 +245,13 @@ async function renderSsrArtifactResponse(args: {
       headers,
     },
   );
+}
+
+class SsrRenderTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`SSR render exceeded its ${timeoutMs} ms timeout.`);
+    this.name = "SsrRenderTimeoutError";
+  }
 }
 
 function createArtifactServerEntryLoader(

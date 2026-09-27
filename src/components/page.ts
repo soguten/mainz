@@ -55,6 +55,10 @@ export {
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
 const MAINZ_PAGE_CONSTRUCTOR = Symbol.for("mainz.page.constructor");
 const MAINZ_PAGE_REQUEST_CONTEXT = Symbol.for("mainz.page.request-context");
+interface ActivePageRequestContext {
+  request: Request;
+  signal?: AbortSignal;
+}
 
 export {
   Locales,
@@ -375,11 +379,10 @@ export function createPageLoadContext(
     params: init.params,
     locale: init.locale,
     url: init.url,
-    request: init.request ?? getCurrentPageRequest(),
+    request: init.request ?? getCurrentPageRequest()?.request,
     renderMode: init.renderMode,
     navigationMode: init.navigationMode,
-    signal: init.signal ?? getCurrentPageRequest()?.signal ??
-      new AbortController().signal,
+    signal: resolvePageLoadSignal(init.signal, getCurrentPageRequest()),
     principal: init.principal,
     profile: init.profile,
     runtime: init.runtime ?? resolveMainzResourceRuntime(),
@@ -426,12 +429,13 @@ export function createPageLoadContext(
 export async function withPageRequestContext<T>(
   request: Request,
   fn: () => T | Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
   const registry = globalThis as
     & typeof globalThis
     & Record<PropertyKey, unknown>;
   const previous = registry[MAINZ_PAGE_REQUEST_CONTEXT];
-  registry[MAINZ_PAGE_REQUEST_CONTEXT] = request;
+  registry[MAINZ_PAGE_REQUEST_CONTEXT] = { request, signal };
   try {
     return await fn();
   } finally {
@@ -443,11 +447,33 @@ export async function withPageRequestContext<T>(
   }
 }
 
-function getCurrentPageRequest(): Request | undefined {
+function getCurrentPageRequest(): ActivePageRequestContext | undefined {
   const request = (globalThis as
     & typeof globalThis
     & Record<PropertyKey, unknown>)[MAINZ_PAGE_REQUEST_CONTEXT];
-  return request instanceof Request ? request : undefined;
+  if (!request || typeof request !== "object") {
+    return undefined;
+  }
+  const context = request as ActivePageRequestContext;
+  return context.request instanceof Request ? context : undefined;
+}
+
+function resolvePageLoadSignal(
+  lifecycleSignal: AbortSignal | undefined,
+  requestContext: ActivePageRequestContext | undefined,
+): AbortSignal {
+  const signals = [
+    lifecycleSignal,
+    requestContext?.signal,
+    requestContext?.request.signal,
+  ].filter((signal, index, all): signal is AbortSignal =>
+    signal !== undefined && all.indexOf(signal) === index
+  );
+
+  if (signals.length === 0) {
+    return new AbortController().signal;
+  }
+  return signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 }
 
 (Page as unknown as Record<PropertyKey, unknown>)[MAINZ_PAGE_CONSTRUCTOR] =

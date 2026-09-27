@@ -14,7 +14,31 @@ import {
   resolvePageRenderConfig,
   resolvePageRenderMode,
   resolvePageRoutePath,
+  withPageRequestContext,
 } from "../page.ts";
+
+Deno.test("components/page helpers: combines lifecycle and SSR timeout signals", async () => {
+  const request = new Request("https://example.com/docs/intro");
+  const timeoutController = new AbortController();
+  const lifecycleController = new AbortController();
+
+  const context = await withPageRequestContext(
+    request,
+    () =>
+      createPageLoadContext({
+        params: {},
+        url: new URL(request.url),
+        renderMode: "ssr",
+        navigationMode: "mpa",
+        signal: lifecycleController.signal,
+      }),
+    timeoutController.signal,
+  );
+
+  assertEquals(context.request, request);
+  timeoutController.abort(new Error("SSR timed out"));
+  assertEquals(context.signal.aborted, true);
+});
 
 Deno.test("components/page helpers: load.byParam should resolve a single route param", async () => {
   const context = createPageLoadContext({
@@ -154,5 +178,3 @@ Deno.test("components/page helpers: should read page metadata through shared sym
   });
   assertEquals(resolvePageLocales(ForeignCompatiblePage), ["en", "pt-BR"]);
 });
-
-

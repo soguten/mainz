@@ -18,6 +18,7 @@ export async function createArtifactFixture(args: {
   routes: readonly ArtifactFixtureRoute[];
   notFoundMode: RenderMode;
   ssrAssets?: readonly AssetDefinition[];
+  ssrDelayMs?: number;
 }): Promise<ArtifactFixture> {
   const rootDir = await Deno.makeTempDir({ prefix: "mainz-artifact-fixture-" });
   const browserDir = resolve(rootDir, "browser");
@@ -147,6 +148,7 @@ export async function createArtifactFixture(args: {
         ssrRoutes: ssrRoutes.map((route) => normalizeRoutePath(route.path)),
         notFoundMarker: expectedNotFoundMarker,
         ssrAssets: args.ssrAssets,
+        ssrDelayMs: args.ssrDelayMs,
       }),
     );
   }
@@ -188,6 +190,7 @@ function createSsrServerModule(args: {
   ssrRoutes: readonly string[];
   notFoundMarker: string;
   ssrAssets?: readonly AssetDefinition[];
+  ssrDelayMs?: number;
 }): string {
   const routeMap = Object.fromEntries(
     args.ssrRoutes.map((path) => [path, markerForRoute("ssr", path)]),
@@ -198,6 +201,11 @@ function createSsrServerModule(args: {
     `const routeMap = ${JSON.stringify(routeMap)};`,
     `const notFoundMarker = ${JSON.stringify(args.notFoundMarker)};`,
     `const routeAssets = ${serializedAssets};`,
+    ...(args.ssrDelayMs && args.ssrDelayMs > 0
+      ? [
+        `await new Promise((resolve) => setTimeout(resolve, ${args.ssrDelayMs}));`,
+      ]
+      : []),
     "const pathname = (() => {",
     "  const raw = window.location.pathname || '/';",
     "  if (raw.length > 1 && raw.endsWith('/')) return raw.slice(0, -1);",

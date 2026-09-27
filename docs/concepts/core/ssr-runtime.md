@@ -136,6 +136,15 @@ The core contract stays host-agnostic:
 - Mainz renders HTML
 - Mainz returns a `Response`
 
+Built artifact SSR limits each render to 30 seconds by default. Hosts using
+`createBuildArtifactHandler` can change this with `ssrTimeoutMs`. A render that
+exceeds the limit returns `504 Gateway Timeout` and aborts the `signal` exposed
+through `PageLoadContext`. Because the current renderer installs DOM globals,
+the timed-out render must still finish cleanup before the next render can use
+that DOM; the timeout bounds the response wait, but cannot forcibly stop
+synchronous or non-cooperative application code. The built artifact renderer
+currently serializes renders while those globals are installed.
+
 So Vite is **not** part of request-time production serving.
 
 Vite is used to create the artifacts. Mainz runtime code serves those artifacts

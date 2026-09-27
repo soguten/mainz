@@ -30,6 +30,7 @@ export async function renderRouteAppHtml(args: {
   basePath: string;
   renderPath: string;
   request?: Request;
+  signal?: AbortSignal;
   loadModule?: (specifier: string) => Promise<unknown>;
 }): Promise<
   { appHtml: string; routeSnapshot?: InitialRouteSnapshot; warnings: string[] }
@@ -107,6 +108,10 @@ export async function renderRouteAppHtml(args: {
 
   return await withHappyDom(async (window) => {
     const render = async () => {
+      if (args.signal?.aborted) {
+        throw args.signal.reason ??
+          new DOMException("SSR render aborted", "AbortError");
+      }
       const navigatorLike = window.navigator as object;
 
       try {
@@ -201,7 +206,7 @@ export async function renderRouteAppHtml(args: {
     };
 
     return args.request
-      ? await withPageRequestContext(args.request, render)
+      ? await withPageRequestContext(args.request, render, args.signal)
       : await render();
   }, { url: pageUrl });
 }

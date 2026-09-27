@@ -13,6 +13,8 @@ import {
 export interface CreateBuildArtifactHandlerOptions {
   rootDir: string;
   runtime?: MainzToolingRuntime;
+  /** Maximum time allowed for an SSR render. Defaults to 30 seconds. */
+  ssrTimeoutMs?: number;
   ssrResponseHeaders?: (
     context: SsrArtifactResponseHeaderContext,
   ) => HeadersInit | undefined;
@@ -56,6 +58,7 @@ export function createBuildArtifactHandler(
           rootDir: resolvedRootDir,
           browserRootDir,
           request,
+          ssrTimeoutMs: options.ssrTimeoutMs,
           runtime,
           responseHeaders: options.ssrResponseHeaders,
         });
