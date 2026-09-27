@@ -214,7 +214,6 @@ Navigation can be configured as:
 
 - `spa`
 - `mpa`
-- `enhanced-mpa`
 
 ## Dependency injection stays infrastructure-scoped
 
