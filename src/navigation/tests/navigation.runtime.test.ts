@@ -186,21 +186,11 @@ Deno.test("navigation/runtime: defineApp should reject @Locales(...) outside app
 });
 
 Deno.test("navigation/runtime: should mark document with the resolved navigation mode", async () => {
-  const { detectViewTransitionSupport, startNavigation } =
-    await prepareNavigationTest();
+  const { startNavigation } = await prepareNavigationTest();
 
   const controller = startNavigation({ mode: "mpa" });
 
   assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    undefined,
-  );
-  assertEquals(
-    document.documentElement.dataset.mainzViewTransitions,
-    detectViewTransitionSupport(),
-  );
-
   controller.cleanup();
 });
 
@@ -2188,185 +2178,6 @@ Deno.test("navigation/runtime: should reuse the resolved SPA lazy page across na
   controller.cleanup();
 });
 
-Deno.test("navigation/runtime: should expose transition metadata in mpa mode", async () => {
-  const { detectViewTransitionSupport, startNavigation } =
-    await prepareNavigationTest();
-
-  const controller = startNavigation({ mode: "mpa" });
-
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    undefined,
-  );
-  assertEquals(
-    document.documentElement.dataset.mainzViewTransitions,
-    detectViewTransitionSupport(),
-  );
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should apply entering phase on pageshow in mpa mode", async () => {
-  const { startNavigation } = await prepareNavigationTest();
-
-  const controller = startNavigation({ mode: "mpa" });
-
-  window.dispatchEvent(new Event("pageshow"));
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    "entering",
-  );
-
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 320));
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    undefined,
-  );
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should prefetch same-origin links in mpa mode", async () => {
-  const { startNavigation } = await prepareNavigationTest();
-
-  const controller = startNavigation({ mode: "mpa" });
-  const anchor = document.createElement("a");
-  const appended: Element[] = [];
-  const originalAppendChild = document.head.appendChild.bind(document.head);
-  document.head.appendChild = ((node: Node) => {
-    appended.push(node as Element);
-    return node;
-  }) as typeof document.head.appendChild;
-
-  anchor.href = "http://localhost/docs";
-  anchor.textContent = "Docs";
-  document.body.appendChild(anchor);
-
-  anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
-
-  const prefetchLink = appended.find((node) =>
-    node instanceof Element &&
-    node.tagName === "LINK" &&
-    node.getAttribute("rel") === "prefetch" &&
-    node.getAttribute("href") === "http://localhost/docs"
-  );
-
-  document.head.appendChild = originalAppendChild;
-
-  assert(prefetchLink);
-  assertEquals(anchor.getAttribute("data-mainz-prefetched"), "true");
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should not prefetch external links", async () => {
-  const { isPrefetchableAnchor } = await prepareNavigationTest();
-
-  const anchor = document.createElement("a");
-  anchor.href = "https://example.com/docs";
-
-  assertEquals(isPrefetchableAnchor(anchor), false);
-});
-
-Deno.test("navigation/runtime: should not prefetch same-origin links outside the configured basePath", async () => {
-  const { isPrefetchableAnchor } = await prepareNavigationTest();
-
-  const anchor = document.createElement("a");
-  anchor.href = "http://localhost/docs";
-
-  assertEquals(isPrefetchableAnchor(anchor, { basePath: "/app/" }), false);
-});
-
-Deno.test("navigation/runtime: should mark leaving phase for internal document navigation", async () => {
-  const { startNavigation } = await prepareNavigationTest();
-
-  const controller = startNavigation({ mode: "mpa" });
-  const anchor = document.createElement("a");
-  anchor.href = "http://localhost/docs";
-  document.body.appendChild(anchor);
-
-  anchor.dispatchEvent(
-    new MouseEvent("click", { bubbles: true, cancelable: true }),
-  );
-
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    "leaving",
-  );
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should ignore links outside the configured basePath in mpa mode", async () => {
-  const { isPrefetchableAnchor, startNavigation } = await prepareNavigationTest();
-  const anchor = document.createElement("a");
-  anchor.href = "http://localhost/docs";
-  document.body.appendChild(anchor);
-
-  assertEquals(isPrefetchableAnchor(anchor, { basePath: "/app/" }), false);
-
-  const controller = startNavigation({
-    mode: "mpa",
-    basePath: "/app/",
-  });
-  anchor.dispatchEvent(
-    new MouseEvent("click", { bubbles: true, cancelable: true }),
-  );
-
-  assertEquals(
-    document.documentElement.dataset.mainzTransitionPhase,
-    undefined,
-  );
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should restore saved scroll position in mpa mode", async () => {
-  const { createScrollStorageKey, startNavigation } =
-    await prepareNavigationTest();
-
-  const calls: Array<{ x: number; y: number }> = [];
-  window.scrollTo = ((x: number, y: number) => {
-    calls.push({ x, y });
-  }) as typeof window.scrollTo;
-
-  window.sessionStorage.setItem(
-    createScrollStorageKey(window.location),
-    JSON.stringify({ x: 12, y: 48 }),
-  );
-
-  const controller = startNavigation({ mode: "mpa" });
-
-  assertEquals(calls, [{ x: 12, y: 48 }]);
-
-  controller.cleanup();
-});
-
-Deno.test("navigation/runtime: should persist scroll position on pagehide in mpa mode", async () => {
-  const { createScrollStorageKey, startNavigation } =
-    await prepareNavigationTest();
-
-  Object.defineProperty(window, "scrollX", {
-    configurable: true,
-    value: 20,
-  });
-  Object.defineProperty(window, "scrollY", {
-    configurable: true,
-    value: 80,
-  });
-
-  const controller = startNavigation({ mode: "mpa" });
-
-  window.dispatchEvent(new Event("pagehide"));
-
-  assertEquals(
-    window.sessionStorage.getItem(createScrollStorageKey(window.location)),
-    JSON.stringify({ x: 20, y: 80 }),
-  );
-
-  controller.cleanup();
-});
-
 function overrideNavigatorLocale(locale: string): void {
   const navigatorProxy = Object.create(navigator);
 
@@ -2392,4 +2203,3 @@ function readAlternateHref(hreflang: string): string | null {
   )
     ?.getAttribute("href") ?? null;
 }
-

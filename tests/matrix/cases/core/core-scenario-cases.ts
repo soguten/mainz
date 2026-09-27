@@ -7,10 +7,7 @@ import {
   assertStringIncludes,
 } from "@std/assert";
 import { assertSeoState } from "../../../helpers/document.ts";
-import {
-  type ScenarioApp,
-  scenarioTest,
-} from "../../scenario-harness.ts";
+import { type ScenarioApp, scenarioTest } from "../../scenario-harness.ts";
 import { nextTick, waitFor } from "mainz/testing";
 import {
   waitForNextNavigationReady,
@@ -225,12 +222,6 @@ export const navigationScenarioCase = scenarioTest({
 
       const initialText = document.body.textContent ?? "";
 
-      localeLink.dispatchEvent(new Event("focusin", { bubbles: true }));
-      await nextTick();
-
-      const prefetchHref =
-        document.head.querySelector('link[rel="prefetch"][as="document"]')
-          ?.getAttribute("href") ?? null;
       const clickEvent = new window.MouseEvent("click", {
         bubbles: true,
         cancelable: true,
@@ -257,11 +248,6 @@ export const navigationScenarioCase = scenarioTest({
           document.body.textContent ?? "",
           "Iniciar trilha guiada",
         );
-        assertEquals(
-          document.documentElement.dataset.mainzTransitionPhase,
-          undefined,
-        );
-        assertEquals(prefetchHref, null);
         return;
       }
 
@@ -273,11 +259,6 @@ export const navigationScenarioCase = scenarioTest({
         "Start guided journey",
       );
       assertEquals(document.body.textContent ?? "", initialText);
-      assertEquals(prefetchHref, "https://mainz.local/pt/");
-      assertEquals(
-        document.documentElement.dataset.mainzTransitionPhase,
-        "leaving",
-      );
     } finally {
       screen.cleanup();
     }
@@ -482,4 +463,3 @@ async function waitForPostClick(
 
   await nextTick();
 }
-

@@ -15,8 +15,7 @@ export class NotFoundPage extends Page {
       meta: [
         {
           name: "description",
-          content:
-            "Mainz page not found experience for static and enhanced MPA navigation.",
+          content: "Mainz page not found experience for static sites.",
         },
       ],
     };
@@ -77,4 +76,3 @@ export class NotFoundPage extends Page {
     }
   }
 }
-

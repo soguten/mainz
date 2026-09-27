@@ -1,12 +1,12 @@
 import {
   applyResolvedAssetDefinitionsToDocument,
+  type AssetDefinition,
   createAssetContext,
   createPageLoadContext,
-  type AssetDefinition,
   isAssetDefinitionList,
+  type PageLoadContext,
   type PageMetadataContext,
   type PageMetadataDefinition,
-  type PageLoadContext,
   type PageRenderMode,
   requirePageRoutePath,
   resolveAssetDefinitions,
@@ -73,9 +73,6 @@ import {
 } from "../commands/runtime.ts";
 import type { MainzCommand } from "../commands/command.ts";
 
-const MAINZ_SCROLL_KEY_PREFIX = "mainz:scroll:";
-const MAINZ_PREFETCH_ATTR = "data-mainz-prefetched";
-const MAINZ_ENTERING_TRANSITION_MS = 260;
 const MAINZ_METADATA_MANAGED_ATTR = "data-mainz-metadata-managed";
 const MAINZ_DEFINED_APP_CAPTURE_STACK_KEY: unique symbol = Symbol.for(
   "mainz.definedAppCaptureStack",
@@ -382,7 +379,9 @@ type RoutedPageElement = HTMLElement & {
   rerender?: () => void;
   load?(context: PageLoadContext): unknown | Promise<unknown>;
   metadata(context?: PageMetadataContext): PageMetadataDefinition | undefined;
-  assets?(context?: PageMetadataContext): readonly AssetDefinition[] | undefined;
+  assets?(
+    context?: PageMetadataContext,
+  ): readonly AssetDefinition[] | undefined;
   data?: unknown;
 };
 
@@ -653,7 +652,10 @@ function registerNavigationController(
 }
 
 function startRootApp(
-  app: Pick<RootAppDefinition, "assets" | "commands" | "id" | "root" | "services">,
+  app: Pick<
+    RootAppDefinition,
+    "assets" | "commands" | "id" | "root" | "services"
+  >,
   options?: StartDefinedAppOptions,
 ): NavigationController {
   const mode = resolveMainzNavigationMode();
@@ -1038,126 +1040,10 @@ export function __internalStartNavigation(
     };
   }
 
-  document.documentElement.dataset.mainzViewTransitions =
-    detectViewTransitionSupport();
-  restoreScrollPosition();
-  let enteringTransitionTimeoutId:
-    | ReturnType<Window["setTimeout"]>
-    | undefined;
-
-  const handleFocusIn = (event: Event) => {
-    const anchor = findAnchorFromEvent(event);
-    if (!isPrefetchableAnchor(anchor, { basePath: normalizedBasePath })) {
-      return;
-    }
-
-    prefetchDocument(anchor);
-  };
-
-  const handlePointerEnter = (event: Event) => {
-    const anchor = findAnchorFromEvent(event);
-    if (!isPrefetchableAnchor(anchor, { basePath: normalizedBasePath })) {
-      return;
-    }
-
-    prefetchDocument(anchor);
-  };
-
-  const handleClick = (event: Event) => {
-    const anchor = findAnchorFromEvent(event);
-    if (!isTransitionableAnchor(anchor, { basePath: normalizedBasePath })) {
-      return;
-    }
-
-    setTransitionPhase("leaving");
-    persistScrollPosition();
-  };
-
-  const handlePageHide = () => {
-    persistScrollPosition();
-  };
-
-  const handlePageShow = () => {
-    applyEnteringTransition();
-  };
-
-  document.addEventListener("focusin", handleFocusIn);
-  document.addEventListener("pointerenter", handlePointerEnter, {
-    capture: true,
-  });
-  document.addEventListener("click", handleClick, { capture: true });
-  window.addEventListener("pagehide", handlePageHide);
-  window.addEventListener("pageshow", handlePageShow);
-
-  if ("scrollRestoration" in window.history) {
-    window.history.scrollRestoration = "manual";
-  }
-
   return {
     mode: options.mode,
-    cleanup() {
-      document.removeEventListener("focusin", handleFocusIn);
-      document.removeEventListener("pointerenter", handlePointerEnter, {
-        capture: true,
-      });
-      document.removeEventListener("click", handleClick, { capture: true });
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("pageshow", handlePageShow);
-      if (enteringTransitionTimeoutId !== undefined) {
-        window.clearTimeout(enteringTransitionTimeoutId);
-      }
-    },
+    cleanup() {},
   };
-
-  function applyEnteringTransition(): void {
-    if (enteringTransitionTimeoutId !== undefined) {
-      window.clearTimeout(enteringTransitionTimeoutId);
-    }
-
-    setTransitionPhase("entering");
-    enteringTransitionTimeoutId = window.setTimeout(() => {
-      clearTransitionPhase("entering");
-      enteringTransitionTimeoutId = undefined;
-    }, MAINZ_ENTERING_TRANSITION_MS);
-  }
-}
-
-export function isPrefetchableAnchor(
-  anchor: HTMLAnchorElement | null | undefined,
-  options: NavigationAnchorOptions = {},
-): anchor is HTMLAnchorElement {
-  const resolvedUrl = resolveNavigableAnchorUrl(anchor, options);
-  if (!resolvedUrl) {
-    return false;
-  }
-
-  if (
-    resolvedUrl.pathname === window.location.pathname &&
-    resolvedUrl.search === window.location.search
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-export function createScrollStorageKey(
-  locationLike: Pick<Location, "pathname" | "search">,
-): string {
-  return `${MAINZ_SCROLL_KEY_PREFIX}${locationLike.pathname}${locationLike.search}`;
-}
-
-export function detectViewTransitionSupport(): "native" | "fallback" {
-  if (typeof document === "undefined") {
-    return "fallback";
-  }
-
-  const cssSupports =
-    typeof CSS !== "undefined" && typeof CSS.supports === "function"
-      ? CSS.supports("view-transition-name: mainz-page")
-      : false;
-
-  return cssSupports ? "native" : "fallback";
 }
 
 function startSpaNavigation(
@@ -2522,10 +2408,6 @@ function resolveNavigableAnchorUrl(
     return null;
   }
 
-  if (anchor.dataset.mainzNoPrefetch === "true") {
-    return null;
-  }
-
   const target = anchor.getAttribute("target");
   if (target && target !== "_self") {
     return null;
@@ -2563,32 +2445,6 @@ function findAnchorFromEvent(event: Event): HTMLAnchorElement | null {
   return target.closest("a[href]") as HTMLAnchorElement | null;
 }
 
-function prefetchDocument(anchor: HTMLAnchorElement): void {
-  if (anchor.getAttribute(MAINZ_PREFETCH_ATTR) === "true") {
-    return;
-  }
-
-  const prefetchLink = document.createElement("link");
-  prefetchLink.setAttribute("rel", "prefetch");
-  prefetchLink.setAttribute("href", anchor.href);
-  prefetchLink.setAttribute("as", "document");
-
-  document.head.appendChild(prefetchLink);
-  anchor.setAttribute(MAINZ_PREFETCH_ATTR, "true");
-}
-
-function isTransitionableAnchor(
-  anchor: HTMLAnchorElement | null | undefined,
-  options: NavigationAnchorOptions = {},
-): anchor is HTMLAnchorElement {
-  if (!isPrefetchableAnchor(anchor, options)) {
-    return false;
-  }
-
-  return !window.location.hash ||
-    new URL(anchor.href).hash !== window.location.hash;
-}
-
 function isSameDocumentHashNavigation(
   currentUrl: URL,
   targetUrl: URL,
@@ -2596,53 +2452,6 @@ function isSameDocumentHashNavigation(
   return currentUrl.pathname === targetUrl.pathname &&
     currentUrl.search === targetUrl.search &&
     currentUrl.hash !== targetUrl.hash;
-}
-
-function setTransitionPhase(phase: "entering" | "leaving"): void {
-  document.documentElement.dataset.mainzTransitionPhase = phase;
-}
-
-function clearTransitionPhase(phase: "entering" | "leaving"): void {
-  if (document.documentElement.dataset.mainzTransitionPhase === phase) {
-    delete document.documentElement.dataset.mainzTransitionPhase;
-  }
-}
-
-function persistScrollPosition(): void {
-  try {
-    window.sessionStorage.setItem(
-      createScrollStorageKey(window.location),
-      JSON.stringify({
-        x: window.scrollX,
-        y: window.scrollY,
-      }),
-    );
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-function restoreScrollPosition(): void {
-  if (window.location.hash) {
-    return;
-  }
-
-  let savedPosition: { x: number; y: number } | null = null;
-
-  try {
-    const raw = window.sessionStorage.getItem(
-      createScrollStorageKey(window.location),
-    );
-    savedPosition = raw ? JSON.parse(raw) as { x: number; y: number } : null;
-  } catch {
-    savedPosition = null;
-  }
-
-  if (!savedPosition) {
-    return;
-  }
-
-  window.scrollTo(savedPosition.x, savedPosition.y);
 }
 
 function toAppRelativePath(url: URL, basePath: string): string | null {

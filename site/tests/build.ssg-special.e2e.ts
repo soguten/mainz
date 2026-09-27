@@ -82,12 +82,6 @@ Deno.test({
           document.documentElement.dataset.mainzNavigation,
           "mpa",
         );
-        assertEquals(
-          document.documentElement.dataset.mainzTransitionPhase,
-          undefined,
-        );
-        assert(document.documentElement.dataset.mainzViewTransitions);
-
         const chapterButtons = Array.from(
           document.querySelectorAll<HTMLButtonElement>(
             ".chapter-row .chapter-button",
@@ -213,7 +207,7 @@ Deno.test({
       assertStringIncludes(html, "<title>404 | Mainz</title>");
       assertStringIncludes(
         html,
-        'content="Mainz page not found experience for static and enhanced MPA navigation."',
+        'content="Mainz page not found experience for static sites."',
       );
       assertStringIncludes(html, "That route does not exist in Mainz.");
     });
@@ -332,8 +326,7 @@ Deno.test({
 });
 
 Deno.test({
-  name:
-    "site/plain-static: site app should force MPA runtime without enhanced hooks",
+  name: "site/plain-static: site app should hydrate with MPA navigation",
   async fn() {
     await buildSitePlainStatic();
 
@@ -361,14 +354,6 @@ Deno.test({
       await nextTick();
 
       assertEquals(document.documentElement.dataset.mainzNavigation, "mpa");
-      assertEquals(
-        document.documentElement.dataset.mainzTransitionPhase,
-        undefined,
-      );
-      assertEquals(
-        document.documentElement.dataset.mainzViewTransitions,
-        "fallback",
-      );
     }, { url: "https://mainz.local/en/" });
   },
 });

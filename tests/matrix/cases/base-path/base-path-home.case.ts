@@ -63,15 +63,6 @@ export const basePathHomeCase = scenarioTest({
       );
       assertEquals(localeLink.getAttribute("href"), `${matrixBasePath}pt/`);
 
-      localeLink.dispatchEvent(new Event("focusin", { bubbles: true }));
-      await nextTick();
-
-      const prefetchHref =
-        document.head.querySelector('link[rel="prefetch"][as="document"]')
-          ?.getAttribute(
-            "href",
-          ) ?? null;
-
       if (navigation === "spa") {
         const started = waitForNextNavigationStart({
           mode: "spa",
@@ -100,11 +91,6 @@ export const basePathHomeCase = scenarioTest({
         assertSeoState({
           canonical: `${matrixSiteUrl}/pt/`,
         });
-        assertEquals(prefetchHref, null);
-        assertEquals(
-          document.documentElement.dataset.mainzTransitionPhase,
-          undefined,
-        );
         return;
       }
 
@@ -124,19 +110,8 @@ export const basePathHomeCase = scenarioTest({
       });
 
       if (navigation === "mpa") {
-        assertEquals(prefetchHref, `https://mainz.local${matrixBasePath}pt/`);
-        assertEquals(
-          document.documentElement.dataset.mainzTransitionPhase,
-          "leaving",
-        );
         return;
       }
-
-      assertEquals(prefetchHref, null);
-      assertEquals(
-        document.documentElement.dataset.mainzTransitionPhase,
-        undefined,
-      );
     } finally {
       screen.cleanup();
     }

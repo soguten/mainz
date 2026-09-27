@@ -11,10 +11,8 @@ That gives you **SPA** and **MPA** as distinct runtime behaviors.
 
 ## Mainz `mpa` stays document-first
 
-In Mainz, `mpa` keeps browser-native document navigation semantics.
-
-Mainz also applies document-first runtime enhancements under `mpa`, such as
-prefetching, scroll restoration, and progressive transitions where supported.
+In Mainz, `mpa` uses browser-native document navigation. Each link follows the
+browser's normal document loading, history, and scroll behavior.
 
 ## The app bootstrap stays small
 
