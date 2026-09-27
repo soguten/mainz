@@ -111,6 +111,8 @@ jobs:
         run: deno run -A npm:playwright@1.57.0 install --with-deps chromium firefox webkit --only-shell
       - name: Run browser form tests
         run: deno task test:browser:forms
+      - name: Run browser mutation flow tests
+        run: deno task test:browser:mutations
       - name: Run browser navigation tests
         run: deno task test:browser:navigation
 
