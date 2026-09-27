@@ -30,8 +30,6 @@ import {
   stableSerializeForLoadKey,
 } from "./component-load.ts";
 import {
-  elementTagName,
-  isDocumentFragmentLike,
   isElementLike,
   isNodeLike,
   normalizeComponentRenderValue,
@@ -50,8 +48,10 @@ import {
   patchChildNodeList,
   syncAttributes,
   syncProperties,
+  syncSelectValue,
   toRenderedNodes,
 } from "./component-patching.ts";
+import { getFormControlProps } from "../jsx/form-control-props.ts";
 import {
   getPortalDescriptor,
   isPortalMarkerNode,
@@ -184,6 +184,128 @@ interface ComponentPortalEntry {
   nodes: Node[];
   target: HTMLElement;
 }
+
+type HydratedFormControl =
+  | HTMLInputElement
+  | HTMLTextAreaElement
+  | HTMLSelectElement;
+
+interface HydratedFormControlState {
+  value: string;
+  defaultValue: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  selected?: boolean[];
+  defaultSelected?: boolean[];
+  selectionStart?: number | null;
+  selectionEnd?: number | null;
+  selectionDirection?: "forward" | "backward" | "none" | null;
+}
+
+function collectFormControls(nodes: readonly Node[]): HydratedFormControl[] {
+  const controls: HydratedFormControl[] = [];
+  for (const node of nodes) {
+    if (!(node instanceof Element)) continue;
+    if (node.matches("input, textarea, select")) {
+      controls.push(node as HydratedFormControl);
+    }
+    controls.push(
+      ...Array.from(
+        node.querySelectorAll<HydratedFormControl>("input, textarea, select"),
+      ),
+    );
+  }
+  return controls;
+}
+
+function captureFormControlState(
+  control: HydratedFormControl,
+): HydratedFormControlState {
+  const state: HydratedFormControlState = {
+    value: control.value,
+    defaultValue: control instanceof HTMLSelectElement
+      ? ""
+      : control.defaultValue,
+  };
+  if (control instanceof HTMLInputElement) {
+    state.checked = control.checked;
+    state.defaultChecked = control.defaultChecked;
+    state.selectionStart = control.selectionStart;
+    state.selectionEnd = control.selectionEnd;
+    state.selectionDirection = control.selectionDirection;
+  } else if (control instanceof HTMLTextAreaElement) {
+    state.selectionStart = control.selectionStart;
+    state.selectionEnd = control.selectionEnd;
+    state.selectionDirection = control.selectionDirection;
+  } else {
+    state.selected = Array.from(control.options, (option) => option.selected);
+    state.defaultSelected = Array.from(
+      control.options,
+      (option) => option.defaultSelected,
+    );
+  }
+  return state;
+}
+
+function restoreHydratedFormControlState(
+  host: Element,
+  states: readonly HydratedFormControlState[],
+  renderedControls: readonly HydratedFormControl[],
+  focusedIndex: number,
+): void {
+  const controls = collectFormControls(Array.from(host.childNodes));
+  for (let index = 0; index < states.length; index += 1) {
+    const control = controls[index];
+    const rendered = renderedControls[index];
+    const state = states[index];
+    if (!control || !rendered || !state) continue;
+    const declared = getFormControlProps(rendered);
+    const controlled = (key: "value" | "checked") =>
+      declared !== undefined && Object.hasOwn(declared, key);
+    const dirtyValue = control instanceof HTMLSelectElement
+      ? state.selected?.some((selected, optionIndex) =>
+        selected !== state.defaultSelected?.[optionIndex]
+      ) ?? false
+      : state.value !== state.defaultValue;
+
+    if (
+      !controlled("value") && dirtyValue &&
+      !(control instanceof HTMLInputElement && control.type === "file")
+    ) {
+      control.value = state.value;
+      if (control instanceof HTMLSelectElement && state.selected) {
+        Array.from(control.options).forEach((option, optionIndex) => {
+          option.selected = state.selected?.[optionIndex] ?? false;
+        });
+      }
+    }
+    if (
+      control instanceof HTMLInputElement && !controlled("checked") &&
+      state.checked !== undefined && state.defaultChecked !== undefined &&
+      state.checked !== state.defaultChecked
+    ) {
+      control.checked = state.checked;
+    }
+  }
+
+  const focused = controls[focusedIndex];
+  const state = states[focusedIndex];
+  if (!focused || !state) return;
+  focused.focus();
+  if (
+    (focused instanceof HTMLInputElement ||
+      focused instanceof HTMLTextAreaElement) &&
+    state.selectionStart !== undefined && state.selectionStart !== null &&
+    state.selectionEnd !== undefined && state.selectionEnd !== null
+  ) {
+    focused.setSelectionRange(
+      state.selectionStart,
+      state.selectionEnd,
+      state.selectionDirection ?? undefined,
+    );
+  }
+}
+
 /**
  * Positional arguments passed into `Component.render()`.
  *
@@ -488,13 +610,31 @@ export abstract class Component<
       const nextNodes = this.toRenderedNodes(this.resolveRenderedTree());
 
       if (!this.styleInjected) {
-        this.innerHTML = "";
+        // A prerendered custom element can already contain useful DOM (including
+        // edits made before the client bundle loaded). Hydrate it through the
+        // same keyed diff used by later renders so controls retain their identity.
+        const existingNodes = Array.from(this.childNodes);
+        const existingControls = collectFormControls(existingNodes);
+        const activeElement = this.ownerDocument.activeElement;
+        const focusedControlIndex = existingControls.findIndex((control) =>
+          control === activeElement
+        );
+        const formControlState = existingControls.map((control) =>
+          captureFormControlState(control)
+        );
         this.injectStyles();
         this.styleInjected = true;
-        for (const nextNode of nextNodes) {
-          this.appendChild(nextNode);
-        }
-        this.renderedNodes = nextNodes;
+        this.renderedNodes = this.patchChildNodeList(
+          this,
+          existingNodes,
+          nextNodes,
+        );
+        restoreHydratedFormControlState(
+          this,
+          formControlState,
+          collectFormControls(nextNodes),
+          focusedControlIndex,
+        );
         this.syncPortalEntries();
         this.pruneDetachedEventListeners();
         this.afterRender?.();
@@ -915,7 +1055,7 @@ export abstract class Component<
 
   /** Resolves placeholder output for pending async component loading. */
   private resolveComponentLoadFallback(
-    renderConfig: ComponentRenderConfig,
+    _renderConfig: ComponentRenderConfig,
   ): HTMLElement | DocumentFragment {
     if (typeof this.placeholder === "function") {
       const resolvedPlaceholder = this.placeholder();
@@ -1023,6 +1163,7 @@ export abstract class Component<
       this.syncAttributes(current, next);
       this.syncManagedDOMEvents(current, next);
       this.patchChildren(current, next);
+      syncSelectValue(current, next);
       return current;
     }
 

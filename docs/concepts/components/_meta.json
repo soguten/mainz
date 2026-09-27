@@ -22,6 +22,10 @@
     "render-owner.md": {
       "slug": "render-owner",
       "order": 5
+    },
+    "forms.md": {
+      "slug": "forms",
+      "order": 6
     }
   }
 }

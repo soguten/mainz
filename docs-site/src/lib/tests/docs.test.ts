@@ -255,6 +255,7 @@ Deno.test("docs helpers group navigation into sections and nested groups", () =>
     "custom-elements",
     "state-and-events",
     "render-owner",
+    "forms",
   ]);
   assertEquals(sections[1].groups?.[3].title, "Pages");
   assertEquals(sections[1].groups?.[3].items.map((item) => item.slug), [
@@ -277,6 +278,11 @@ Deno.test("docs helpers compute previous and next article links", () => {
 
   assertEquals(docs.getPagerBySlug("render-owner"), {
     previous: { slug: "state-and-events", title: "State and Events" },
+    next: { slug: "forms", title: "Native forms" },
+  });
+
+  assertEquals(docs.getPagerBySlug("forms"), {
+    previous: { slug: "render-owner", title: "Render Owner" },
     next: { slug: "page-model", title: "Page Model" },
   });
 
@@ -340,7 +346,7 @@ Deno.test("docs helpers compute previous and next article links", () => {
   });
 
   assertEquals(docs.getPagerBySlug("page-model"), {
-    previous: { slug: "render-owner", title: "Render Owner" },
+    previous: { slug: "forms", title: "Native forms" },
     next: { slug: "head-and-seo", title: "Head and SEO" },
   });
 

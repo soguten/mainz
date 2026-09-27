@@ -4,6 +4,10 @@ import {
   isElementLike,
   isElementNodeLike,
 } from "./component-dom.ts";
+import {
+  getFormControlProps,
+  setSelectValue,
+} from "../jsx/form-control-props.ts";
 
 export function toRenderedNodes(
   rendered: HTMLElement | DocumentFragment,
@@ -109,17 +113,20 @@ export function syncProperties(
   const inputCtor = ownerWindow?.HTMLInputElement;
   const textAreaCtor = ownerWindow?.HTMLTextAreaElement;
   const selectCtor = ownerWindow?.HTMLSelectElement;
+  const declared = getFormControlProps(next);
+  const controls = (name: "value" | "checked" | "selected") =>
+    declared === undefined || Object.hasOwn(declared, name);
 
   if (
     inputCtor &&
     current instanceof inputCtor &&
     next instanceof inputCtor
   ) {
-    if (current.value !== next.value) {
+    if (controls("value") && current.value !== next.value) {
       current.value = next.value;
     }
 
-    if (current.checked !== next.checked) {
+    if (controls("checked") && current.checked !== next.checked) {
       current.checked = next.checked;
     }
 
@@ -131,7 +138,7 @@ export function syncProperties(
     current instanceof textAreaCtor &&
     next instanceof textAreaCtor
   ) {
-    if (current.value !== next.value) {
+    if (controls("value") && current.value !== next.value) {
       current.value = next.value;
     }
     return;
@@ -142,7 +149,8 @@ export function syncProperties(
     current instanceof selectCtor &&
     next instanceof selectCtor
   ) {
-    if (current.value !== next.value) {
+    // JSX select values are applied after the option children are patched.
+    if (declared === undefined && current.value !== next.value) {
       current.value = next.value;
     }
     return;
@@ -151,9 +159,22 @@ export function syncProperties(
   if (current.tagName === "OPTION" && next.tagName === "OPTION") {
     const currentOption = current as HTMLOptionElement;
     const nextOption = next as HTMLOptionElement;
-    if (currentOption.selected !== nextOption.selected) {
+    if (
+      controls("selected") && currentOption.selected !== nextOption.selected
+    ) {
       currentOption.selected = nextOption.selected;
     }
+  }
+}
+
+export function syncSelectValue(current: Element, next: Element): void {
+  const selectCtor = current.ownerDocument.defaultView?.HTMLSelectElement;
+  const declared = getFormControlProps(next);
+  if (
+    selectCtor && current instanceof selectCtor && declared &&
+    Object.hasOwn(declared, "value")
+  ) {
+    setSelectValue(current, declared.value);
   }
 }
 

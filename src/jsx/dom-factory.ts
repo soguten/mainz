@@ -5,6 +5,11 @@ import {
   setManagedDOMEvents,
 } from "./managed-dom-events.ts";
 import { getCurrentRenderOwner } from "./render-owner.ts";
+import {
+  initializeFormControl,
+  isFormControlProperty,
+  recordFormControlProps,
+} from "./form-control-props.ts";
 
 export {
   getManagedDOMEvents,
@@ -64,11 +69,13 @@ export function h(
     ? ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag)
     : ownerDocument.createElement(tag);
 
+  recordFormControlProps(el, props);
   if (props) {
     applyAttributes(el, props);
   }
 
   appendChildren(el, children);
+  initializeFormControl(el);
   return el;
 }
 
@@ -105,7 +112,9 @@ function applyAttributes(el: Element, props: Record<string, any>) {
   const optionCtor = ownerWindow?.HTMLOptionElement;
 
   for (const [key, value] of Object.entries(props)) {
-    if (key === "ref" && typeof value === "function") {
+    if (isFormControlProperty(el, key)) {
+      continue;
+    } else if (key === "ref" && typeof value === "function") {
       value(el);
     } else if (key === "className") {
       el.setAttribute("class", value);
@@ -158,6 +167,20 @@ function applyAttributes(el: Element, props: Record<string, any>) {
       } else {
         el.addEventListener(eventType, value);
       }
+    } else if (
+      HTML_BOOLEAN_ATTRIBUTES.has(key.toLowerCase()) &&
+      el.namespaceURI === "http://www.w3.org/1999/xhtml"
+    ) {
+      if (value != null && value !== false) {
+        el.setAttribute(
+          key,
+          key.toLowerCase() === "hidden" && typeof value === "string"
+            ? value
+            : "",
+        );
+      } else {
+        el.removeAttribute(key);
+      }
     } else if (key !== "children" && value != null) {
       if (
         typeof value === "string" ||
@@ -169,6 +192,34 @@ function applyAttributes(el: Element, props: Record<string, any>) {
     }
   }
 }
+
+// Do not include enumerated attributes (e.g. draggable/contenteditable), ARIA
+// or data attributes: their string "false" value must be retained.
+const HTML_BOOLEAN_ATTRIBUTES = new Set([
+  "allowfullscreen",
+  "async",
+  "autofocus",
+  "autoplay",
+  "controls",
+  "default",
+  "defer",
+  "disabled",
+  "formnovalidate",
+  "hidden",
+  "inert",
+  "ismap",
+  "itemscope",
+  "loop",
+  "multiple",
+  "muted",
+  "nomodule",
+  "novalidate",
+  "open",
+  "playsinline",
+  "readonly",
+  "required",
+  "reversed",
+]);
 
 function applyBooleanPropertyAttribute(
   el: Element,

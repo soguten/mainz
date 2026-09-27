@@ -19,6 +19,96 @@ const fixtures = await import(
   "./jsx.factory.fixture.tsx"
 ) as typeof import("./jsx.factory.fixture.tsx");
 
+Deno.test("jsx/factory: form values survive HTML serialization and parsing", () => {
+  const form = domFactory.h(
+    "form",
+    null,
+    domFactory.h("input", { value: 'hello <world> "quoted"' }),
+    domFactory.h("textarea", { value: "text <content>" }),
+    domFactory.h("input", { type: "checkbox", checked: true }),
+    domFactory.h(
+      "select",
+      { value: "b" },
+      domFactory.h("option", { value: "a" }, "A"),
+      domFactory.h("option", { value: "b" }, "B"),
+    ),
+  ) as HTMLFormElement;
+  const container = document.createElement("div");
+  container.innerHTML = form.outerHTML;
+  assertEquals(
+    container.querySelector<HTMLInputElement>("input")!.value,
+    'hello <world> "quoted"',
+  );
+  assertEquals(
+    container.querySelector<HTMLTextAreaElement>("textarea")!.value,
+    "text <content>",
+  );
+  assertEquals(
+    container.querySelector<HTMLInputElement>("input[type=checkbox]")!.checked,
+    true,
+  );
+  assertEquals(
+    container.querySelector<HTMLSelectElement>("select")!.value,
+    "b",
+  );
+});
+
+Deno.test("jsx/factory: defaults are independent of JSX prop order", () => {
+  for (
+    const props of [
+      { value: "current", defaultValue: "baseline" },
+      { defaultValue: "baseline", value: "current" },
+    ]
+  ) {
+    const input = domFactory.h("input", props) as HTMLInputElement;
+    assertEquals([input.value, input.defaultValue], ["current", "baseline"]);
+  }
+  for (
+    const props of [
+      { checked: false, defaultChecked: true, type: "checkbox" },
+      { type: "checkbox", defaultChecked: true, checked: false },
+    ]
+  ) {
+    const input = domFactory.h("input", props) as HTMLInputElement;
+    assertEquals([input.checked, input.defaultChecked], [false, true]);
+  }
+});
+
+for (const attribute of ["required", "readonly", "multiple", "hidden"]) {
+  Deno.test(`jsx/factory: ${attribute} follows HTML boolean presence semantics`, () => {
+    for (const value of [false, true, null, undefined]) {
+      const element = domFactory.h("input", {
+        [attribute]: value,
+      }) as HTMLInputElement;
+      assertEquals(element.hasAttribute(attribute), value === true);
+    }
+  });
+}
+
+Deno.test("jsx/factory: false remains a string for ARIA, data and enumerated attributes", () => {
+  const element = domFactory.h("div", {
+    "aria-hidden": false,
+    "data-enabled": false,
+    contenteditable: false,
+    draggable: false,
+  }) as HTMLElement;
+  for (
+    const attribute of [
+      "aria-hidden",
+      "data-enabled",
+      "contenteditable",
+      "draggable",
+    ]
+  ) {
+    assertEquals(element.getAttribute(attribute), "false");
+  }
+});
+
+Deno.test("jsx/factory: hidden retains its until-found state", () => {
+  const element = domFactory.h("div", { hidden: "until-found" }) as HTMLElement;
+  assertEquals(element.getAttribute("hidden"), "until-found");
+});
+
 Deno.test("jsx/factory: should create HTML elements with primitive attributes", () => {
   const button = domFactory.h("button", {
     className: "btn primary",
