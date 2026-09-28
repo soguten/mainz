@@ -8,7 +8,7 @@ import {
   isAssetDefinitionList,
   withPageRequestContext,
 } from "../components/page.ts";
-import { withHappyDom } from "../ssg/happy-dom.ts";
+import { withHappyDom, withHappyDomConsole } from "../ssg/happy-dom.ts";
 import { dynamicImport } from "../tooling/dynamic-import.ts";
 
 export interface InitialRouteSnapshot {
@@ -112,10 +112,9 @@ export async function renderRouteAppHtml(args: {
         throw args.signal.reason ??
           new DOMException("SSR render aborted", "AbortError");
       }
-      const navigatorLike = window.navigator as object;
-
       try {
         if (args.locale) {
+          const navigatorLike = window.navigator as object;
           Object.defineProperty(navigatorLike, "language", {
             configurable: true,
             value: args.locale,
@@ -128,37 +127,30 @@ export async function renderRouteAppHtml(args: {
             writable: true,
           });
         }
-
-        Object.defineProperty(globalThis, "navigator", {
-          configurable: true,
-          value: navigatorLike,
-          writable: true,
-        });
       } catch {
         // Ignore locale override failures; the app may use other locale resolution strategies.
       }
       const warnings: string[] = [];
       const errors: unknown[] = [];
-      const originalWarn = console.warn;
       const originalError = console.error;
-      console.warn = (...entries: unknown[]) => {
-        warnings.push(entries.map((entry) => String(entry)).join(" "));
-      };
-      console.error = (...entries: unknown[]) => {
-        const [firstEntry, secondEntry] = entries;
-        const mainzNavigationError =
-          firstEntry === "[mainz] SPA navigation failed." &&
-            typeof secondEntry !== "undefined"
-            ? secondEntry
-            : undefined;
-        errors.push(
-          mainzNavigationError ??
-            entries.map((entry) => String(entry)).join(" "),
-        );
-        originalError(...entries);
-      };
-
-      try {
+      return await withHappyDomConsole({
+        warn: (...entries: unknown[]) => {
+          warnings.push(entries.map((entry) => String(entry)).join(" "));
+        },
+        error: (...entries: unknown[]) => {
+          const [firstEntry, secondEntry] = entries;
+          const mainzNavigationError =
+            firstEntry === "[mainz] SPA navigation failed." &&
+              typeof secondEntry !== "undefined"
+              ? secondEntry
+              : undefined;
+          errors.push(
+            mainzNavigationError ??
+              entries.map((entry) => String(entry)).join(" "),
+          );
+          originalError(...entries);
+        },
+      }, async () => {
         document.write(htmlWithoutScripts);
         document.close();
 
@@ -199,10 +191,7 @@ export async function renderRouteAppHtml(args: {
           routeSnapshot,
           warnings,
         };
-      } finally {
-        console.warn = originalWarn;
-        console.error = originalError;
-      }
+      });
     };
 
     return args.request

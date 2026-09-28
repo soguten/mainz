@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Window } from "happy-dom";
 
 const GLOBAL_DOM_KEYS = [
@@ -33,10 +34,30 @@ const GLOBAL_DOM_KEYS = [
   "SVGElement",
   "SVGSVGElement",
   "SVGPathElement",
+  "console",
+  "__MAINZ_RUNTIME_ENV__",
 ] as const;
 
 type GlobalDomKey = (typeof GLOBAL_DOM_KEYS)[number];
-let happyDomLock: Promise<void> = Promise.resolve();
+const EXECUTION_CONTEXT_KEY = Symbol.for("mainz.ssr.execution-context");
+const GLOBAL_ACCESSORS_KEY = Symbol.for("mainz.ssr.global-accessors-installed");
+
+interface HappyDomExecutionContext {
+  window: Window;
+  runtimeEnv: "build";
+  console?: Console;
+  pageRequest?: { request: Request; signal?: AbortSignal };
+}
+
+interface ExecutionContextBridge {
+  getStore(): HappyDomExecutionContext | undefined;
+  runWith<T>(
+    patch: Partial<HappyDomExecutionContext>,
+    fn: () => T,
+  ): T;
+}
+
+const executionContext = getExecutionContextBridge();
 
 type HappyDOMController = {
   waitUntilComplete?: () => Promise<void>;
@@ -67,25 +88,10 @@ export async function withHappyDom<T>(
   fn: (window: Window) => Promise<T> | T,
   options?: { url?: string },
 ): Promise<T> {
-  const releaseLock = await acquireHappyDomLock();
   const window = new Window({
     url: options?.url ?? "https://mainz.local/",
   });
-
-  const previousValues = new Map<GlobalDomKey, unknown>();
-  const previousDescriptors = new Map<GlobalDomKey, PropertyDescriptor | undefined>();
-
-  for (const key of GLOBAL_DOM_KEYS) {
-    previousValues.set(key, (globalThis as Record<string, unknown>)[key]);
-    previousDescriptors.set(
-      key,
-      Object.getOwnPropertyDescriptor(globalThis, key),
-    );
-    setGlobalDomValue(
-      key,
-      (window as unknown as Record<string, unknown>)[key],
-    );
-  }
+  installGlobalDomAccessors();
 
   const extendedWindow = window as unknown as Window & {
     requestIdleCallback?: (callback: IdleRequestCallback) => number;
@@ -123,92 +129,174 @@ export async function withHappyDom<T>(
 
   installSafeDocumentWrite(window);
 
-  const previousRuntime =
-    (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
-  (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ = "build";
-
   try {
-    return await fn(window);
+    return await executionContext.runWith(
+      { window, runtimeEnv: "build" },
+      () => fn(window),
+    );
   } finally {
-    if (previousRuntime === undefined) {
-      delete (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__;
-    } else {
-      (globalThis as Record<string, unknown>).__MAINZ_RUNTIME_ENV__ =
-        previousRuntime;
-    }
+    await executionContext.runWith(
+      { window, runtimeEnv: "build" },
+      async () => {
+        runRegisteredWindowCleanups(window);
 
-    runRegisteredWindowCleanups(window);
+        for (const handle of pendingIdleCallbacks) {
+          trackedTimers.clearTimeout(handle as unknown as TimerHandle);
+        }
+        pendingIdleCallbacks.clear();
 
-    for (const handle of pendingIdleCallbacks) {
-      trackedTimers.clearTimeout(handle as unknown as TimerHandle);
-    }
-    pendingIdleCallbacks.clear();
+        for (const handle of pendingTimeouts) {
+          trackedTimers.clearTimeout(handle);
+        }
+        pendingTimeouts.clear();
 
-    for (const handle of pendingTimeouts) {
-      trackedTimers.clearTimeout(handle);
-    }
-    pendingTimeouts.clear();
+        for (const handle of pendingIntervals) {
+          trackedTimers.clearInterval(handle);
+        }
+        pendingIntervals.clear();
 
-    for (const handle of pendingIntervals) {
-      trackedTimers.clearInterval(handle);
-    }
-    pendingIntervals.clear();
-
-    for (const key of GLOBAL_DOM_KEYS) {
-      const previousDescriptor = previousDescriptors.get(key);
-      if (previousDescriptor) {
-        Object.defineProperty(globalThis, key, previousDescriptor);
-        continue;
-      }
-
-      const previous = previousValues.get(key);
-      if (previous === undefined) {
-        delete (globalThis as Record<string, unknown>)[key];
-        continue;
-      }
-
-      (globalThis as Record<string, unknown>)[key] = previous;
-    }
-
-    await cleanupHappyDomWindow(window);
-    releaseLock();
+        await cleanupHappyDomWindow(window);
+      },
+    );
   }
 }
 
-async function acquireHappyDomLock(): Promise<() => void> {
-  const previousLock = happyDomLock;
-  let releaseLock!: () => void;
-  happyDomLock = new Promise<void>((resolve) => {
-    releaseLock = resolve;
-  });
-  await previousLock;
-  return releaseLock;
+/** Runs with request-specific console methods without mutating process globals. */
+export function withHappyDomConsole<T>(
+  overrides: Pick<Console, "warn" | "error">,
+  fn: () => T | Promise<T>,
+): T | Promise<T> {
+  const current = executionContext.getStore();
+  if (!current) {
+    return fn();
+  }
+
+  const scopedConsole = Object.assign(
+    Object.create(
+      (current.console ?? getBaseGlobalValue("console")) as object,
+    ) as Console,
+    overrides,
+  );
+  return executionContext.runWith({ console: scopedConsole }, fn);
 }
 
-function setGlobalDomValue(key: GlobalDomKey, value: unknown): void {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+function getExecutionContextBridge(): ExecutionContextBridge {
+  const registry = globalThis as
+    & typeof globalThis
+    & Record<PropertyKey, unknown>;
+  const existing = registry[EXECUTION_CONTEXT_KEY] as
+    | ExecutionContextBridge
+    | undefined;
+  if (existing) {
+    return existing;
+  }
 
-  if (!descriptor) {
-    (globalThis as Record<string, unknown>)[key] = value;
+  const storage = new AsyncLocalStorage<HappyDomExecutionContext>();
+  const bridge: ExecutionContextBridge = {
+    getStore: () => storage.getStore(),
+    runWith: (patch, fn) => {
+      const current = storage.getStore();
+      return storage.run(
+        { ...current, ...patch } as HappyDomExecutionContext,
+        fn,
+      );
+    },
+  };
+  registry[EXECUTION_CONTEXT_KEY] = bridge;
+  return bridge;
+}
+
+function installGlobalDomAccessors(): void {
+  const registry = globalThis as
+    & typeof globalThis
+    & Record<PropertyKey, unknown>;
+  if (registry[GLOBAL_ACCESSORS_KEY] === true) {
     return;
   }
 
-  if (descriptor.writable || typeof descriptor.set === "function") {
-    (globalThis as Record<string, unknown>)[key] = value;
-    return;
+  const baseValues = new Map<GlobalDomKey, unknown>();
+  const baseDescriptors = new Map<
+    GlobalDomKey,
+    PropertyDescriptor | undefined
+  >();
+  for (const key of GLOBAL_DOM_KEYS) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+    if (descriptor && !descriptor.configurable) {
+      throw new Error(
+        `Cannot enable concurrent SSR: globalThis.${key} is not configurable.`,
+      );
+    }
+    baseDescriptors.set(key, descriptor);
+    baseValues.set(key, readGlobalDescriptor(descriptor));
   }
 
-  if (descriptor.configurable) {
+  for (const key of GLOBAL_DOM_KEYS) {
+    const descriptor = baseDescriptors.get(key);
     Object.defineProperty(globalThis, key, {
       configurable: true,
-      enumerable: descriptor.enumerable ?? true,
-      value,
-      writable: true,
+      enumerable: descriptor?.enumerable ?? (key !== "console"),
+      get() {
+        const context = executionContext.getStore();
+        if (!context) {
+          return baseValues.get(key);
+        }
+        if (key === "__MAINZ_RUNTIME_ENV__") {
+          return context.runtimeEnv;
+        }
+        if (key === "console") {
+          return context.console ?? baseValues.get(key);
+        }
+        return (context.window as unknown as Record<string, unknown>)[key];
+      },
+      set(value: unknown) {
+        const context = executionContext.getStore();
+        if (!context) {
+          writeGlobalDescriptor(key, descriptor, value, baseValues);
+          return;
+        }
+        if (key === "__MAINZ_RUNTIME_ENV__") {
+          context.runtimeEnv = value as "build";
+        } else if (key === "console") {
+          context.console = value as Console;
+        } else {
+          (context.window as unknown as Record<string, unknown>)[key] = value;
+        }
+      },
     });
-    return;
   }
 
-  (globalThis as Record<string, unknown>)[key] = value;
+  registry[GLOBAL_ACCESSORS_KEY] = true;
+  registry[Symbol.for("mainz.ssr.execution-context-provider")] = {
+    getStore: () => executionContext.getStore(),
+    runWith: executionContext.runWith,
+  } satisfies ExecutionContextBridge;
+}
+
+function readGlobalDescriptor(
+  descriptor: PropertyDescriptor | undefined,
+): unknown {
+  if (!descriptor) {
+    return undefined;
+  }
+  return descriptor.get ? descriptor.get.call(globalThis) : descriptor.value;
+}
+
+function writeGlobalDescriptor(
+  key: GlobalDomKey,
+  descriptor: PropertyDescriptor | undefined,
+  value: unknown,
+  baseValues: Map<GlobalDomKey, unknown>,
+): void {
+  if (descriptor?.set) {
+    descriptor.set.call(globalThis, value);
+  } else if (!descriptor || descriptor.writable) {
+    baseValues.set(key, value);
+  }
+}
+
+function getBaseGlobalValue(key: GlobalDomKey): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+  return readGlobalDescriptor(descriptor);
 }
 
 function installSafeDocumentWrite(window: Window): void {
@@ -312,15 +400,6 @@ function installTrackedWindowTimers(
     trackedSetInterval as unknown as typeof window.setInterval;
   window.clearInterval =
     trackedClearInterval as unknown as typeof window.clearInterval;
-
-  (globalThis as typeof globalThis).setTimeout =
-    trackedSetTimeout as unknown as typeof globalThis.setTimeout;
-  (globalThis as typeof globalThis).clearTimeout =
-    trackedClearTimeout as unknown as typeof globalThis.clearTimeout;
-  (globalThis as typeof globalThis).setInterval =
-    trackedSetInterval as unknown as typeof globalThis.setInterval;
-  (globalThis as typeof globalThis).clearInterval =
-    trackedClearInterval as unknown as typeof globalThis.clearInterval;
 
   return {
     setTimeout: trackedSetTimeout,

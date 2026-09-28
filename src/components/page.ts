@@ -55,6 +55,9 @@ export {
 declare const __MAINZ_RUNTIME_ENV__: "build" | "client";
 const MAINZ_PAGE_CONSTRUCTOR = Symbol.for("mainz.page.constructor");
 const MAINZ_PAGE_REQUEST_CONTEXT = Symbol.for("mainz.page.request-context");
+const MAINZ_SSR_EXECUTION_CONTEXT = Symbol.for(
+  "mainz.ssr.execution-context-provider",
+);
 interface ActivePageRequestContext {
   request: Request;
   signal?: AbortSignal;
@@ -434,6 +437,16 @@ export async function withPageRequestContext<T>(
   const registry = globalThis as
     & typeof globalThis
     & Record<PropertyKey, unknown>;
+  const provider = registry[MAINZ_SSR_EXECUTION_CONTEXT] as
+    | {
+      getStore(): unknown;
+      runWith<T>(patch: Record<string, unknown>, fn: () => T): T;
+    }
+    | undefined;
+  if (provider?.getStore()) {
+    return await provider.runWith({ pageRequest: { request, signal } }, fn);
+  }
+
   const previous = registry[MAINZ_PAGE_REQUEST_CONTEXT];
   registry[MAINZ_PAGE_REQUEST_CONTEXT] = { request, signal };
   try {
@@ -448,6 +461,20 @@ export async function withPageRequestContext<T>(
 }
 
 function getCurrentPageRequest(): ActivePageRequestContext | undefined {
+  const registry = globalThis as
+    & typeof globalThis
+    & Record<PropertyKey, unknown>;
+  const provider = registry[MAINZ_SSR_EXECUTION_CONTEXT] as
+    | { getStore(): Record<string, unknown> | undefined }
+    | undefined;
+  const scopedRequest = provider?.getStore()?.pageRequest;
+  if (scopedRequest && typeof scopedRequest === "object") {
+    const context = scopedRequest as ActivePageRequestContext;
+    if (context.request instanceof Request) {
+      return context;
+    }
+  }
+
   const request = (globalThis as
     & typeof globalThis
     & Record<PropertyKey, unknown>)[MAINZ_PAGE_REQUEST_CONTEXT];

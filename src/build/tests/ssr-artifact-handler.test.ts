@@ -97,30 +97,28 @@ Deno.test("build/ssr-artifact-handler: should apply rendered route assets to the
   }
 });
 
-Deno.test("build/ssr-artifact-handler: should time out slow renders and release the DOM lock after completion", async () => {
+Deno.test("build/ssr-artifact-handler: should render concurrent requests in isolated DOM windows", async () => {
   const fixture = await createArtifactFixture({
     routes: [{ path: "/account", mode: "ssr" }],
     notFoundMode: "csr",
-    ssrDelayMs: 40,
+    ssrDelayMs: 100,
   });
 
   try {
-    const timeoutResponse = await tryRenderSsrArtifactRequest({
-      rootDir: fixture.rootDir,
-      browserRootDir: resolve(fixture.rootDir, "browser"),
-      request: new Request("http://127.0.0.1:4173/account"),
-      ssrTimeoutMs: 5,
-    });
+    const responses = await Promise.all([
+      tryRenderSsrArtifactRequest({
+        rootDir: fixture.rootDir,
+        browserRootDir: resolve(fixture.rootDir, "browser"),
+        request: new Request("http://127.0.0.1:4173/account"),
+      }),
+      tryRenderSsrArtifactRequest({
+        rootDir: fixture.rootDir,
+        browserRootDir: resolve(fixture.rootDir, "browser"),
+        request: new Request("http://127.0.0.1:4173/account"),
+      }),
+    ]);
 
-    assertEquals(timeoutResponse?.status, 504);
-    assertEquals(await timeoutResponse?.text(), "SSR render timed out");
-
-    const nextResponse = await tryRenderSsrArtifactRequest({
-      rootDir: fixture.rootDir,
-      browserRootDir: resolve(fixture.rootDir, "browser"),
-      request: new Request("http://127.0.0.1:4173/account"),
-    });
-    assertEquals(nextResponse?.status, 200);
+    assertEquals(responses.map((response) => response?.status), [200, 200]);
   } finally {
     await fixture.cleanup();
   }
