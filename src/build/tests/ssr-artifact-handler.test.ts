@@ -21,18 +21,29 @@ Deno.test("build/ssr-artifact-handler: should render built ssr artifacts without
       resolve(testApp.testAppRoot, "src", "main.disabled.tsx"),
     );
 
-    const response = await tryRenderSsrArtifactRequest({
-      rootDir: resolve(testApp.artifactRootDir),
-      browserRootDir: resolve(testApp.outputDir),
-      request: new Request("http://127.0.0.1:4173/"),
-    });
-    const html = await response?.text();
+    const responses = await Promise.all([
+      tryRenderSsrArtifactRequest({
+        rootDir: resolve(testApp.artifactRootDir),
+        browserRootDir: resolve(testApp.outputDir),
+        request: new Request("http://127.0.0.1:4173/"),
+      }),
+      tryRenderSsrArtifactRequest({
+        rootDir: resolve(testApp.artifactRootDir),
+        browserRootDir: resolve(testApp.outputDir),
+        request: new Request("http://127.0.0.1:4173/"),
+      }),
+    ]);
+    const htmlDocuments = await Promise.all(
+      responses.map((response) => response?.text() ?? Promise.resolve("")),
+    );
 
-    assertEquals(response?.status, 200);
-    assertStringIncludes(html ?? "", "SSR Build App");
-    assertStringIncludes(html ?? "", 'id="mainz-route-snapshot"');
-    assertStringIncludes(html ?? "", 'id="mainz-route-generation"');
-    assertStringIncludes(html ?? "", '"documentRenderMode":"ssr"');
+    assertEquals(responses.map((response) => response?.status), [200, 200]);
+    for (const html of htmlDocuments) {
+      assertStringIncludes(html, "SSR Build App render 1");
+      assertStringIncludes(html, 'id="mainz-route-snapshot"');
+      assertStringIncludes(html, 'id="mainz-route-generation"');
+      assertStringIncludes(html, '"documentRenderMode":"ssr"');
+    }
   } finally {
     await testApp.cleanup();
   }
@@ -119,6 +130,12 @@ Deno.test("build/ssr-artifact-handler: should render concurrent requests in isol
     ]);
 
     assertEquals(responses.map((response) => response?.status), [200, 200]);
+    const html = await Promise.all(
+      responses.map((response) => response!.text()),
+    );
+    for (const responseHtml of html) {
+      assertStringIncludes(responseHtml, "SSR ROUTE /account render 1");
+    }
   } finally {
     await fixture.cleanup();
   }

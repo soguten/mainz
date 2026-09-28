@@ -198,6 +198,7 @@ function createSsrServerModule(args: {
   const serializedAssets = JSON.stringify(args.ssrAssets ?? []);
 
   return [
+    "let moduleRenderCount = 0;",
     `const routeMap = ${JSON.stringify(routeMap)};`,
     `const notFoundMarker = ${JSON.stringify(args.notFoundMarker)};`,
     `const routeAssets = ${serializedAssets};`,
@@ -214,8 +215,9 @@ function createSsrServerModule(args: {
     "const app = document.querySelector('#app');",
     "if (!app) throw new Error('Missing #app container for SSR fixture.');",
     "const marker = routeMap[pathname] ?? notFoundMarker;",
+    "const moduleRender = ++moduleRenderCount;",
     "const routeElement = document.createElement('section');",
-    "routeElement.textContent = marker;",
+    "routeElement.textContent = `${marker} render ${moduleRender}`;",
     "routeElement.props = {",
     "  route: { path: pathname, matchedPath: pathname, params: {} },",
     "  assets: routeAssets,",

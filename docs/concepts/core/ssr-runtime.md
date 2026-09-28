@@ -144,10 +144,13 @@ the timed-out render keeps its own window until cleanup completes, while other
 renders can continue in independent windows. The timeout bounds the response
 wait, but cannot forcibly stop synchronous or non-cooperative application
 code. The built artifact renderer provides request-scoped DOM globals through
-async execution context, allowing independent renders to overlap in the same
-process. This isolates the DOM window and request context; it does not isolate
-mutable module-level state owned by an application, which must remain
-request-safe.
+async execution context and imports the server entry with a per-render URL.
+Statically bundled application modules are therefore evaluated independently
+for overlapping renders; the artifact-handler test verifies that module-level
+state starts fresh for each request. This does not isolate state stored on
+`globalThis`, in external modules, or in dynamically imported chunks, whose
+module instances may be shared by the runtime. Keep state in those locations
+request-safe, or derive request data from `PageLoadContext`.
 
 So Vite is **not** part of request-time production serving.
 
