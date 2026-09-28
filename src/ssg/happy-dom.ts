@@ -210,7 +210,32 @@ function installGlobalDomAccessors(): void {
   const registry = globalThis as
     & typeof globalThis
     & Record<PropertyKey, unknown>;
-  if (registry[GLOBAL_ACCESSORS_KEY] === true) {
+  const installed = registry[GLOBAL_ACCESSORS_KEY] as
+    | Map<GlobalDomKey, PropertyDescriptor>
+    | undefined;
+  if (installed) {
+    let accessorsRestored = true;
+    for (const key of GLOBAL_DOM_KEYS) {
+      const expected = installed.get(key);
+      const current = Object.getOwnPropertyDescriptor(globalThis, key);
+      if (
+        !expected || current?.get !== expected.get ||
+        current?.set !== expected.set
+      ) {
+        accessorsRestored = false;
+        break;
+      }
+    }
+    if (accessorsRestored) {
+      return;
+    }
+    for (const key of GLOBAL_DOM_KEYS) {
+      const descriptor = installed.get(key);
+      if (descriptor) {
+        Object.defineProperty(globalThis, key, descriptor);
+      }
+    }
+    registry[GLOBAL_ACCESSORS_KEY] = installed;
     return;
   }
 
@@ -219,6 +244,7 @@ function installGlobalDomAccessors(): void {
     GlobalDomKey,
     PropertyDescriptor | undefined
   >();
+  const installedAccessors = new Map<GlobalDomKey, PropertyDescriptor>();
   for (const key of GLOBAL_DOM_KEYS) {
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
     if (descriptor && !descriptor.configurable) {
@@ -232,7 +258,7 @@ function installGlobalDomAccessors(): void {
 
   for (const key of GLOBAL_DOM_KEYS) {
     const descriptor = baseDescriptors.get(key);
-    Object.defineProperty(globalThis, key, {
+    const accessor: PropertyDescriptor = {
       configurable: true,
       enumerable: descriptor?.enumerable ?? (key !== "console"),
       get() {
@@ -262,10 +288,12 @@ function installGlobalDomAccessors(): void {
           (context.window as unknown as Record<string, unknown>)[key] = value;
         }
       },
-    });
+    };
+    Object.defineProperty(globalThis, key, accessor);
+    installedAccessors.set(key, accessor);
   }
 
-  registry[GLOBAL_ACCESSORS_KEY] = true;
+  registry[GLOBAL_ACCESSORS_KEY] = installedAccessors;
   registry[Symbol.for("mainz.ssr.execution-context-provider")] = {
     getStore: () => executionContext.getStore(),
     runWith: executionContext.runWith,

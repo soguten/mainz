@@ -33,6 +33,22 @@ Deno.test("ssg/happy-dom: should strip external document resources from document
   });
 });
 
+Deno.test("ssg/happy-dom: should reinstall globals after Deno restores them between steps", async (t) => {
+  await t.step("first DOM session", async () => {
+    await withHappyDom(async () => {
+      document.body.dataset.session = "first";
+      assertEquals(document.body.dataset.session, "first");
+    });
+  });
+
+  await t.step("second DOM session", async () => {
+    await withHappyDom(async () => {
+      document.body.dataset.session = "second";
+      assertEquals(document.body.dataset.session, "second");
+    });
+  });
+});
+
 Deno.test("ssg/happy-dom: should cancel bare global timers created during a session", async () => {
   let fired = false;
 

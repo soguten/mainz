@@ -584,6 +584,26 @@ export function startApp(
   appOrRoot: DefinedRoutedApp | DefinedRootApp | AppRootComponentConstructor,
   options?: StartDefinedAppOptions,
 ): NavigationController {
+  if (
+    !isRootComponentConstructor(appOrRoot) &&
+    !isDefinedRootApp(appOrRoot) &&
+    !isDefinedRoutedApp(appOrRoot)
+  ) {
+    throw new TypeError(
+      "startApp(...) for routed apps expects an app created with defineApp(...).",
+    );
+  }
+
+  if (DEFINED_APP_CAPTURE_STACK.length > 0) {
+    if (isDefinedRoutedApp(appOrRoot)) {
+      captureDefinedApp(appOrRoot);
+    }
+    return {
+      mode: resolveMainzNavigationMode(),
+      cleanup() {},
+    };
+  }
+
   if (isRootComponentConstructor(appOrRoot)) {
     return registerNavigationController(startRootApp({
       id: appOrRoot.name || "root-app",

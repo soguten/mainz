@@ -9,6 +9,7 @@ import {
   loadTargetBuildRoutedAppDefinition,
 } from "../app-definition.ts";
 import { resolveDefinedAppDefinitionsFromModuleExports } from "../../navigation/index.ts";
+import { withHappyDom } from "../../ssg/happy-dom.ts";
 
 Deno.test("build/app-definition: should load root app definitions selected by appId", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-root-app-definition-" });
@@ -78,7 +79,7 @@ Deno.test("build/app-definition: should detect exported apps branded from anothe
   assertEquals(resolved, [foreignApp]);
 });
 
-Deno.test("build/app-definition: should capture non-exported routed apps defined from another package instance", async () => {
+Deno.test("build/app-definition: should capture routed apps without starting them during module import", async () => {
   const cwd = await Deno.makeTempDir({ prefix: "mainz-routed-app-capture-" });
 
   try {
@@ -127,9 +128,23 @@ Deno.test("build/app-definition: should capture non-exported routed apps defined
       outDir: "dist/routed-app",
     };
 
-    const appDefinition = await loadTargetBuildAppDefinition(target, cwd);
-    assertEquals(appDefinition?.id, "routed-app");
-    assertEquals("pages" in appDefinition!, true);
+    await withHappyDom(async () => {
+      const navigationErrors: unknown[][] = [];
+      console.error = (...entries: unknown[]) => {
+        navigationErrors.push(entries);
+      };
+
+      const appDefinition = await loadTargetBuildAppDefinition(target, cwd);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      assertEquals(appDefinition?.id, "routed-app");
+      assertEquals("pages" in appDefinition!, true);
+      assertEquals(navigationErrors, []);
+      assertEquals(
+        document.documentElement.hasAttribute("data-mainz-navigation"),
+        false,
+      );
+    });
   } finally {
     await Deno.remove(cwd, { recursive: true });
   }
